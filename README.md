@@ -1,1 +1,1 @@
-# nushell_scripts
+# nushell scripts
