@@ -1,4 +1,4 @@
-## Source https://github.com/nushell/nu_scripts/tree/main/maths
+## Source https://github.com/nushell/nu_scripts/tree/main/maths ##
 #Root with a custom denominator
 def root [ denominator, num ] {
 	$num ** ( 1 / $denominator ) | math round  -p 10
@@ -27,7 +27,7 @@ def fact [num: int] {
 	}
 }
 
-## Mine ##
+## Mine https://github.com/kurokirasama/nushell_scripts.git ##
 #Calculate roots of the quadratic function: ax^2+bx+x
 def roots [
 	a 	# x^2
