@@ -28,6 +28,7 @@ def fact [num: int] {
 }
 
 ## Mine https://github.com/kurokirasama/nushell_scripts.git ##
+
 #Calculate roots of the quadratic function: ax^2+bx+x
 def roots [
 	a 	# x^2
