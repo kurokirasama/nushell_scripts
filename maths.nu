@@ -92,7 +92,7 @@ def dec2base [
 	b: string	#base in [2,16]
 ] {
 	let base = if ( ($b | into int) < 2 || ($b | into int) > 16 ) {
-		echo "Wrong base, it must be integer between 2 and 16"
+		echo "Wrong base, it must be an integer between 2 and 16"
 		10
 	} else {
 		$b | into int
@@ -109,4 +109,12 @@ def dec2base [
 
 		[(dec2base $newNumber $base) ($chars | get ($number mod $base))] | str collect
 	}	
+}
+
+# Scale vector to [a,b] interval
+def scale-minmax [x, a, b] {
+	let min = ($x | math min)
+	let max = ($x | math max)
+
+	$x | each {|it| ((($it - $min) / ($max - $min)) * ($b - $a) + $a) }
 }
