@@ -25,7 +25,8 @@ def get_location [index: int] {
     let wifi = (iwgetid -r)
     let loc_json = (fetch (locations | select $index).0.location)
 
-    if $wifi =~ "Kira" { "-36.877568,-73.148715" } else { $"($loc_json.lat),($loc_json.lon)" }
+    # if ip address in your home isn't precise, you can force a location
+    if $wifi =~ "my_wifi" { "my_lat,my_lon" } else { $"($loc_json.lat),($loc_json.lon)" }
 }
 
 # dark sky
