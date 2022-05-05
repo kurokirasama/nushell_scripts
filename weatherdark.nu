@@ -1,11 +1,8 @@
-###################################################
-## Weather Script based on IP Address 
-###################################################
-## Weather using dark weather api
-## Air polution condition using airvisual api
-## Street address using google maps api
-## Version 1.0
-###################################################
+# Weather Script based on IP Address 
+# - Weather using dark weather api
+# - Air polution condition using airvisual api
+# - Street address using google maps api
+# - Version 1.0
 export def-env weatherds [] {
     get_weather (get_location 0)
 } 
