@@ -34,7 +34,7 @@ def fact [num: int] {
 ## Mine https://github.com/kurokirasama/nushell_scripts.git ##
 
 #Calculate roots of the quadratic function: ax^2+bx+x
-def roots [
+def q_roots [
 	a 	# x^2
 	b	# x
 	c 	# independent term
@@ -87,7 +87,22 @@ def isleap [year: int] {
 
 #Greatest common divisior (gcd) between 2 integers
 def gcd [a: int, b:int] {
-	if $a < $b { gcd $b $a } else if $b == 0 { $a } else { gcd $b ($a mod $b) }
+	if $a < $b { 
+		gcd $b $a 
+	} else if $b == 0 { 
+		$a 
+	} else { 
+		gcd $b ($a mod $b) 
+	}
+}
+
+#Leat common multiple (lcm) between 2 integers
+def lcm [a: int, b:int] {
+	if $a == $b && $b == 0 {
+		0
+	} else {
+		$a * ($b / (gcd $a $b))
+	}
 }
 
 #Decimal number to custom base representation
