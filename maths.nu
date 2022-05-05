@@ -1,3 +1,7 @@
+## constants
+let pi = 21053343141 / 6701487259
+let e = 2.7182818284590452
+
 ## Source https://github.com/nushell/nu_scripts/tree/main/maths ##
 #Root with a custom denominator
 def root [ denominator, num ] {
@@ -117,4 +121,30 @@ def scale-minmax [x, a, b] {
 	let max = ($x | math max)
 
 	$x | each {|it| ((($it - $min) / ($max - $min)) * ($b - $a) + $a) }
+}
+
+# Scale every column of a table to [a,b] interval
+# def scale-minmax-table [x, a, b] {
+# 	$x | update cells {|f| (scale-minmax $f $a $b)}
+# }
+
+
+#sin function
+def "math sin" [ ] {
+    each {|x| "s(" + $"($x)" + ")\n" | bc -l | into decimal }
+}
+
+#cos function
+def "math cos" [ ] {
+    each {|x| "c(" + $"($x)" + ")\n" | bc -l | into decimal }
+}
+
+#natural log function
+def "math ln" [ ] {
+    each {|x| "l(" + $"($x)" + ")\n" | bc -l | into decimal }
+}
+
+#exp function
+def "math exp" [ ] {
+    each {|x| "e(" + $"($x)" + ")\n" | bc -l | into decimal }
 }
