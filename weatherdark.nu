@@ -108,7 +108,7 @@ def get_weather [loc] {
 }
 
 
-## For right command prompt
+## Get weather for right command prompt
 export def-env get_weather_by_interval [INTERVAL_WEATHER] {
     let weather_runtime_file = (($env.HOME) | path join .weather_runtime_file.json)
     

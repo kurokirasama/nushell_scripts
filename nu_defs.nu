@@ -48,6 +48,7 @@ def ubb_announce [message] {
   let weburl = "https://discord.com/api/webhooks/970172248004644924/Onj5lpPWK_n70jde7Uf4WVOiivsVG7kUCdTh6cEknPpJ1tiluG2OksjqdPUEJvyJNi-g"
 
   post $weburl $content --content-type "application/json"
+  # curl -i -H "Accept: application/json" -H "Content-Type:application/json" -X POST --data $content $weburl
 }  
 
 def nu_up2ubb [] {
@@ -68,12 +69,12 @@ def med_discord [message] {
   post $weburl $content --content-type "application/json"
 }  
 
-#get column of a table
+#select column of a table (to table)
 def column [n] { 
   transpose | select $n | transpose | select column1 | headers
 }
 
-#get column of a table
+#get column of a table (to list)
 def column2 [n] { 
   transpose | get $n | transpose | get column1 | skip 1
 }
@@ -128,8 +129,52 @@ def-env goto [] {
     )
 }
 
-# cd to the folder where a binary is located
+#cd to the folder where a binary is located
 def-env which-cd [program] { 
   let dir = (which $program | get path | path dirname | str trim)
   cd $dir.0
+}
+
+#delete non wanted media in mps (youtube download folder)
+def delete-mps [] {
+  let dir = "/home/kira/Yandex.Disk/mps\n"
+
+  if $dir !~ (pwd) {
+    echo "wrong directory to run this"
+  } else {
+     ls | where type == "file" && name !~ "mp4|mkv" | each {|it| rm $"($it.name)" | ignore}
+  }
+}
+
+#push to git
+def git-push [m: string] {
+  git add -A
+  git status
+  git commit -am $"($m)"
+  git push origin main  
+}
+
+#get help for custom commands
+def "help my-commands" [] {
+  help commands | where is_custom == true
+}
+
+#web search in terminal
+def gg [search: string] {
+  ddgr -n 5 $"($search)"
+}
+
+#habitipy todos done all
+#there must be non marked as done
+def hab-todos-done-all [] {
+  let numbers_of_done = (habitipy dailies | grep ✔ | wc -l | into decimal)
+
+  if $numbers_of_done > 0 {
+    echo "there must be no daily marked as done"
+  } else {
+    let numbers_of_tasks = (habitipy dailies | grep ✖ | wc -l | into decimal)
+    let tasks = (seq 1 $numbers_of_tasks)
+    
+    habitipy dailies done $tasks  
+  }
 }
