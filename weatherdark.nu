@@ -79,7 +79,10 @@ def get_weather [loc] {
     let wind = $response.currently.windSpeed * 3.6 
     let humi = $response.currently.humidity * 100
     let uvIndex = $response.currently.uvIndex
-
+    let suntimes = ($response.daily.data | select sunriseTime sunsetTime | select 0 | update cells {|f| $f | into string | into datetime -o -4 | into string})
+    
+    let sunrise = ($suntimes | get sunriseTime | get 0 | split row ' ' | get 3)
+    let sunset = ($suntimes | get sunsetTime | get 0 | split row ' ' | get 3)
     let vientos = (desc_wind $wind)
     let uvClass = (uv_class $uvIndex)
     
@@ -94,6 +97,8 @@ def get_weather [loc] {
         Wind: ($Vientos)
         "UV Index": ($uvClass)
         "Air condition": ($air_cond)
+        Sunrise: ($sunrise)
+        Sunset: ($sunset)
     }
     
     echo $"Current conditions: ($address)"
@@ -108,7 +113,7 @@ def get_weather [loc] {
 }
 
 
-## Get weather for right command prompt
+# Get weather for right command prompt
 export def-env get_weather_by_interval [INTERVAL_WEATHER] {
     let weather_runtime_file = (($env.HOME) | path join .weather_runtime_file.json)
     
@@ -128,7 +133,7 @@ export def-env get_weather_by_interval [INTERVAL_WEATHER] {
             $last_runtime_data | get weather
         }
     } else {
-        let WEATHER = (get_weather_for_prompt (get 0))
+        let WEATHER = (get_weather_for_prompt (get_location 0))
         let LAST_WEATHER_TIME = (date now | date format '%Y-%m-%d %H:%M:%S %z') 
     
         let WEATHER_DATA = {
@@ -149,11 +154,31 @@ def get_weather_for_prompt [loc] {
     let cond = $response.currently.summary
     let temp = $response.currently.temperature
     let temperature = $"($temp)°C"
+    let icon = (get_weather_icon $response.currently.icon)
 
     let current = {
-        "Condition": ($cond)
+        Condition: ($cond)
         Temperature: ($temperature)
+        Icon: ($icon)
     }
 
-    echo $"($current.Condition) - ($current.Temperature)"
+    echo $"($current.Icon) ($current.Temperature)"
+}
+
+def get_weather_icon [icon: string] {
+    switch $icon {
+     "clear-day": {"☀️"},
+     "clear-night": {"🌑"},
+     "rain": {"🌧️"},
+     "snow": {"❄️"},
+     "sleet": {🌨️},
+     "wind": {"🌬️"},
+     "fog": {"🌫"},
+     "cloudy": {"☁️"},
+     "partly-cloudy-day": {"🌤️"},
+     "partly-cloudy-night": {"🌑☁️"},
+     "hail": {🌨},
+     "thunderstorm": {"🌩️"},
+     "tornado": {"🌪️"}
+    }
 }
