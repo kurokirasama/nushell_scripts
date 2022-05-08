@@ -160,21 +160,39 @@ def "help my-commands" [] {
 }
 
 #web search in terminal
-def gg [search: string] {
-  ddgr -n 5 $"($search)"
+def gg [...search: string] {
+  ddgr -n 5 ($search | str collect ' ')
 }
 
-#habitipy todos done all
-#there must be non marked as done
-def hab-todos-done-all [] {
-  let numbers_of_done = (habitipy dailies | grep ✔ | wc -l | into decimal)
+#habitipy dailies done all
+def hab-dailies-done [] {
+  let to_do = (habitipy dailies | grep ✖ | awk {print $1} | tr '.\n' ' ' | split row ' ' | into int)
+  habitipy dailies done $to_do 
+}
 
-  if $numbers_of_done > 0 {
-    echo "there must be no daily marked as done"
-  } else {
-    let numbers_of_tasks = (habitipy dailies | grep ✖ | wc -l | into decimal)
-    let tasks = (seq 1 $numbers_of_tasks)
-    
-    habitipy dailies done $tasks  
-  }
+#update aliases file from config.nu
+def update-aliases [] {
+  let nlines = (open $nu.config-path | lines | length)
+ 
+  let from = ((grep "## aliases" $nu.config-path -n | split row ':').0 | into int)
+  
+  open $nu.config-path | lines | last ($nlines - $from + 1) | save /home/kira/Yandex.Disk/Backups/linux/nu_aliases.nu
+}
+
+#countdown alarm 
+#needed termdown: https://github.com/trehn/termdown
+def countdown [
+  n: int # time in seconds
+  ] {
+    let BEEP = "/path/to/some/audio/file"
+    let muted = (pacmd list-sinks | awk '/muted/ { print $2 }' | tr '\n' ' ' | split row ' ')
+
+    if $muted == 'no' {
+      termdown $n;mpv --no-terminal $BEEP  
+    } else {
+      termdown $n
+      unmute
+      mpv --no-terminal $BEEP
+      mute
+    }   
 }
