@@ -39,35 +39,7 @@ def nujd [] {
 # }
 def switch [input, matchers: record] {
     echo $matchers | get $input | do $in
-}
-
-#posteo a #announcements in discord
-def ubb_announce [message] {
-  let content = $"{\"content\": \"($message)\"}"
-
-  let weburl = "https://discord.com/api/webhooks/970172248004644924/Onj5lpPWK_n70jde7Uf4WVOiivsVG7kUCdTh6cEknPpJ1tiluG2OksjqdPUEJvyJNi-g"
-
-  post $weburl $content --content-type "application/json"
-  # curl -i -H "Accept: application/json" -H "Content-Type:application/json" -X POST --data $content $weburl
-}  
-
-def nu_up2ubb [] {
-  up2ubb
-
-  let fecha = (date format %d/%m/%y)
-  let message = $"Se han subido a drive los videos de clases al dia de hoy: ($fecha)."
-
-  ubb_announce $message 
-}
-
-#posteo a #medicos in discord
-def med_discord [message] {
-  let content = $"{\"content\": \"($message).\"}"
-
-  let weburl = "https://discord.com/api/webhooks/970202588869967892/-ruTpHWejr8pTXeqHmY-w2dFUOrV-PS8-3u3D-KGzBZUuezmXHhA_xInRcLTouDQxNLB"
-
-  post $weburl $content --content-type "application/json"
-}  
+} 
 
 #select column of a table (to table)
 def column [n] { 
@@ -133,17 +105,6 @@ def-env goto [] {
 def-env which-cd [program] { 
   let dir = (which $program | get path | path dirname | str trim)
   cd $dir.0
-}
-
-#delete non wanted media in mps (youtube download folder)
-def delete-mps [] {
-  let dir = "/home/kira/Yandex.Disk/mps\n"
-
-  if $dir !~ (pwd) {
-    echo "wrong directory to run this"
-  } else {
-     ls | where type == "file" && name !~ "mp4|mkv" | each {|it| rm $"($it.name)" | ignore}
-  }
 }
 
 #push to git
