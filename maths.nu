@@ -1,8 +1,9 @@
 ## constants
-let pi = 21053343141 / 6701487259
-let e = 2.7182818284590452
+let pi = 3.1415926535897932
+let e  = 2.7182818284590452
 
 ## Source https://github.com/nushell/nu_scripts/tree/main/maths ##
+
 #Root with a custom denominator
 def root [ denominator, num ] {
 	$num ** ( 1 / $denominator ) | math round  -p 10
@@ -96,7 +97,7 @@ def gcd [a: int, b:int] {
 	}
 }
 
-#Leat common multiple (lcm) between 2 integers
+#Least common multiple (lcm) between 2 integers
 def lcm [a: int, b:int] {
 	if $a == $b && $b == 0 {
 		0
@@ -130,19 +131,26 @@ def dec2base [
 	}	
 }
 
-# Scale vector to [a,b] interval
-def scale-minmax [x, a, b] {
+# Scale list to [a,b] interval
+def scale-minmax [a, b,input?] {
+	let x = if ($input | empty?) {$in} else {$input}
+
 	let min = ($x | math min)
 	let max = ($x | math max)
 
 	$x | each {|it| ((($it - $min) / ($max - $min)) * ($b - $a) + $a) }
 }
 
-# Scale every column of a table to [a,b] interval
-# def scale-minmax-table [x, a, b] {
-# 	$x | update cells {|f| (scale-minmax $f $a $b)}
-# }
-
+# Scale every column of a table (separately) to [a,b] interval
+def scale-minmax-table [a, b,input?] {
+	let x = if ($input | empty?) {$in} else {$input}
+	let n_cols = ($x | transpose | length)
+	let name_cols = ($x | transpose | column2 0)
+	
+	for $i in 0..($n_cols - 1) {
+		($x | column2 $i) | scale-minmax $a $b | wrap ($name_cols | get $i)
+	} | reduce {|it, acc| $acc | merge {$it}}
+}
 
 #sin function
 def "math sin" [ ] {

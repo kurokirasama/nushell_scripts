@@ -2,7 +2,7 @@
 # - Weather using dark weather api
 # - Air polution condition using airvisual api
 # - Street address using google maps api
-# - Version 1.0
+# - Version 2.0
 export def-env weatherds [] {
     get_weather (get_location 0)
 } 
@@ -23,12 +23,12 @@ def get_location [index: int] {
     let loc_json = (fetch (locations | select $index).0.location)
 
     # if ip address in your home isn't precise, you can force a location
-    if $wifi =~ "my_wifi" { "my_lat,my_lon" } else { $"($loc_json.lat),($loc_json.lon)" }
+    if $wifi =~ "my_wifi" { "your_lat,your_lon" } else { $"($loc_json.lat),($loc_json.lon)" }
 }
 
 # dark sky
 def fetch_api [loc] {
-    let apiKey = "my_darksky_key"
+    let apiKey = "ds_api_key"
     let options = "?lang=en&units=si&exclude=minutely,hourly,flags"
 
     let url = $"https://api.darksky.net/forecast/($apiKey)/($loc)($options)"
@@ -38,7 +38,7 @@ def fetch_api [loc] {
 
 # street address
 def get_address [loc] {
-    let mapsAPIkey = "my_maps_key"
+    let mapsAPIkey = "maps_api_key"
     let url = $"https://maps.googleapis.com/maps/api/geocode/json?latlng=($loc)&sensor=true&key=($mapsAPIkey)"
 
     (fetch $url).results.0.formatted_address
@@ -56,7 +56,7 @@ def uv_class [uvIndex] {
 
 # air pollution
 def get_airCond [loc] {
-    let apiKey = "my_airvisual_key"
+    let apiKey = "airvisual_api_key"
     let lat = (echo $loc | split row ",").0
     let lon = (echo $loc | split row ",").1
     let url = $"https://api.airvisual.com/v2/nearest_city?lat=($lat)&lon=($lon)&key=($apiKey)"
@@ -73,7 +73,7 @@ def get_weather [loc] {
     let address = (get_address $loc)
     let air_cond = (get_airCond $loc)
 
-    ## current conditions
+    ## Current conditions
     let cond = $response.currently.summary
     let temp = $response.currently.temperature
     let wind = $response.currently.windSpeed * 3.6 
@@ -99,21 +99,29 @@ def get_weather [loc] {
         "Air condition": ($air_cond)
         Sunrise: ($sunrise)
         Sunset: ($sunset)
-    }
-    
-    echo $"Current conditions: ($address)"
-    echo $current    
+    }  
 
     ## Forecast
-    echo $"Forecast: ($response.daily.summary)"
-    
     let forecast = ($response.daily.data | select summary temperatureMin temperatureMax windSpeed humidity precipProbability precipIntensity uvIndex | update windSpeed {|f| $f.windSpeed * 3.6} | update precipIntensity {|f| $f.precipIntensity * 24} | update precipProbability {|f| $f.precipProbability * 100} | update humidity {|f| $f.humidity * 100} | update uvIndex {|f| uv_class $f.uvIndex} | update windSpeed {|f| $"(desc_wind $f.windSpeed) \(($f.windSpeed | into string -d 2)\)"} | rename Summary "T° min (°C)" "T° max (°C)" "Wind Speed (Km/h)" "Humidity (%)" "Precip. Prob. (%)" "Precip. Intensity (mm)") 
 
+    ## plots
+    ($forecast | select "Humidity (%)") | gnu-plot
+    ($forecast | select "Precip. Intensity (mm)") | gnu-plot
+    ($forecast | select "Precip. Prob. (%)") | gnu-plot
+    ($forecast | select "T° max (°C)") | gnu-plot
+    ($forecast | select "T° min (°C)") | gnu-plot
+
+    ## forecast
+    echo $"Forecast: ($response.daily.summary)"
     echo $forecast
+
+    ## current
+    echo $"Current conditions: ($address)"
+    echo $current  
 }
 
 
-# Get weather for right command prompt
+# Get weather for right command prompt (set in config.nu)
 export def-env get_weather_by_interval [INTERVAL_WEATHER] {
     let weather_runtime_file = (($env.HOME) | path join .weather_runtime_file.json)
     
