@@ -62,28 +62,58 @@ def q_roots [
 def isprime [n: int] {
 	let max = ($n | math sqrt | math ceil)
 	
-	let flag = ([[isPrime];[true]] | update isPrime {if ($n mod 2) == 0 { false } else { seq 3 1 $max | each { |it| if ($n mod $it) == 0 { false }}}})
+	let flag = ([[isPrime];[true]] 
+				| update isPrime {
+					if ($n mod 2) == 0 { 
+						false 
+					} else { 
+						seq 3 1 $max 
+						| each { |it| 
+							if ($n mod $it) == 0 { 
+								false 
+							}
+						}
+					}
+				}
+			)
 
-	if ($flag.isPrime.0 | empty?) { echo 'prime' } else { echo 'not prime' }
+	if ($flag.isPrime.0 | empty?) { 
+		echo 'prime' 
+	} else { 
+		echo 'not prime' 
+	}
 }
 
 #Prime list <= n
 def primelist [n: int] {
 	let primes = [2 3]
 
-	let primes2 = (seq 5 2 $n | each {|it| if (isprime $it) == 'prime' {$it}})
+	let primes2 = (seq 5 2 $n 
+					| each {|it| 
+						if (isprime $it) == 'prime' {
+							$it
+						}
+					}
+				)
 
 	$primes | append $primes2
 }
 
 #Multiplication table of n till max
 def mtable [n: int, max: int] {
-	seq 1 $max | each {|it| echo $"($it)*($n) = ($n * $it)"}
+	seq 1 $max 
+	| each {|it| 
+		echo $"($it)*($n) = ($n * $it)"
+	}
 }
 
 #Check if year is leap
 def isleap [year: int] {
-	if ( (($year mod 4) == 0 && ($year mod 100) != 0) || ($year mod 400) == 0 ) { echo "It is a leap year." } else { echo "It is not a leap year."}
+	if ( (($year mod 4) == 0 && ($year mod 100) != 0) || ($year mod 400) == 0 ) { 
+		echo "It is a leap year." 
+	} else { 
+		echo "It is not a leap year."
+	}
 }
 
 #Greatest common divisior (gcd) between 2 integers
@@ -138,7 +168,10 @@ def scale-minmax [a, b,input?] {
 	let min = ($x | math min)
 	let max = ($x | math max)
 
-	$x | each {|it| ((($it - $min) / ($max - $min)) * ($b - $a) + $a) }
+	$x 
+	| each {|it| 
+		((($it - $min) / ($max - $min)) * ($b - $a) + $a) 
+	}
 }
 
 # Scale every column of a table (separately) to [a,b] interval
@@ -149,7 +182,10 @@ def scale-minmax-table [a, b,input?] {
 	
 	for $i in 0..($n_cols - 1) {
 		($x | column2 $i) | scale-minmax $a $b | wrap ($name_cols | get $i)
-	} | reduce {|it, acc| $acc | merge {$it}}
+	} 
+	| reduce {|it, acc| 
+		$acc | merge {$it}
+	}
 }
 
 #sin function
@@ -170,4 +206,21 @@ def "math ln" [ ] {
 #exp function
 def "math exp" [ ] {
     each {|x| "e(" + $"($x)" + ")\n" | bc -l | into decimal }
+}
+
+#random integer
+def randi [
+	n:int #select random integer in 0..n
+] { 
+	random integer 0..$n
+}
+
+#random selection
+def rand-select [
+	x?	#list
+	#Select random element of x
+] { 
+	let xs = if ($x | empty?) {$in} else {$x}
+	let len = ($xs | length) 
+	$xs | select (random integer 0..($len - 1))
 }
