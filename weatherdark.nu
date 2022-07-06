@@ -4,7 +4,7 @@
 # - Street address using google maps api
 # - Version 2.0
 export def-env weatherds [] {
-    get_weather (get_location 0)
+    get_weather (get_location)
 } 
 
 # Get weather for right command prompt
@@ -17,7 +17,7 @@ export def-env get_weather_by_interval [INTERVAL_WEATHER] {
         let LAST_WEATHER_TIME = ($last_runtime_data | get last_weather_time)
     
         if ($LAST_WEATHER_TIME | into datetime) + $INTERVAL_WEATHER < (date now) {
-            let WEATHER = (get_weather_for_prompt (get_location 0))
+            let WEATHER = (get_weather_for_prompt (get_location))
             let NEW_WEATHER_TIME = (date now | date format '%Y-%m-%d %H:%M:%S %z')
     
             $last_runtime_data 
@@ -30,7 +30,7 @@ export def-env get_weather_by_interval [INTERVAL_WEATHER] {
             $last_runtime_data | get weather
         }
     } else {
-        let WEATHER = (get_weather_for_prompt (get_location 0))
+        let WEATHER = (get_weather_for_prompt (get_location))
         let LAST_WEATHER_TIME = (date now | date format '%Y-%m-%d %H:%M:%S %z') 
     
         let WEATHER_DATA = {
@@ -49,22 +49,38 @@ def locations [] {
         [location city_column state_column country_column lat_column lon_column];
         ["http://ip-api.com/json/" city region countryCode lat lon]
         ["https://ipapi.co/json/" city region_code country_code latitude longitude]
-        ["https://freegeoip.app/json/" city region_code country_code latitude longitude]
         ["https://ipwhois.app/json/" city region country_code  latitude longitude]
     ]
 }
 
-def get_location [index: int] {
+def get_location [] {
     let wifi = (iwgetid -r)
-    let loc_json = (fetch (locations | select $index).0.location)
+    let online = ( 
+        locations 
+        | each {|url| 
+            check-link ($url | get location) 2
+          } 
+        | wrap online
+    )
+
+    let table = (locations | merge {$online} | find true)
 
     # if ip address in your home isn't precise, you can force a location
-    if $wifi =~ "my_wifi" { "my_lat,my_lon" } else { $"($loc_json.lat),($loc_json.lon)" }
+    if ($wifi =~ "my_wifi") || ($table | length) == 0 { 
+        "my_lat,my_lon" 
+    } else { 
+        let loc_json = (fetch ($table | select 0).0.location)
+        if ($loc_json | column? lat) {
+            $"($loc_json.lat),($loc_json.lon)"
+        } else {
+            $"($loc_json.latitude),($loc_json.longitude)" 
+        } 
+    }
 }
 
 # dark sky
 def fetch_api [loc] {
-    let apiKey = "darkskyApikey"
+    let apiKey = "API_KEY"
     let options = "?lang=en&units=si&exclude=minutely,hourly,flags"
 
     let url = $"https://api.darksky.net/forecast/($apiKey)/($loc)($options)"
@@ -74,7 +90,7 @@ def fetch_api [loc] {
 
 # street address
 def get_address [loc] {
-    let mapsAPIkey = "mapsApikey"
+    let mapsAPIkey = "API_KEY"
     let url = $"https://maps.googleapis.com/maps/api/geocode/json?latlng=($loc)&sensor=true&key=($mapsAPIkey)"
 
     fetch $url
@@ -114,11 +130,11 @@ def uv_class [uvIndex] {
 
 # air pollution
 def get_airCond [loc] {
-    let apiKey = "airApikey"
+    let apiKey = "API_KEY"
     let lat = (echo $loc | split row "," | get 0)
     let lon = (echo $loc | split row "," | get 1)
     let url = $"https://api.airvisual.com/v2/nearest_city?lat=($lat)&lon=($lon)&key=($apiKey)"
-    let aqius = (fetch $url).data.current.pollution.aqius
+    let aqius = ((fetch $url).data.current.pollution.aqius | into int)
 
     # clasification (standard)
     if $aqius < 51 { 

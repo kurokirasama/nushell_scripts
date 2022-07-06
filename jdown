@@ -1,0 +1,131 @@
+#!/usr/bin/python3
+
+#necessary 
+#pip3 install myjdapi
+
+def printTable(myDict, colList=None):
+   """ Pretty print a list of dictionaries (myDict) as a dynamically sized table.
+   If column names (colList) aren't specified, they will show in random order.
+   Aut
+   hor: Thierry Husson - Use it as you want but don't blame me.
+   """
+   if not colList: colList = list(myDict[0].keys() if myDict else [])
+   myList = [colList] # 1st row = header
+   for item in myDict: myList.append([str(item[col] if item[col] is not None else '') for col in colList])
+   colSize = [max(map(len,col)) for col in zip(*myList)]
+   formatStr = ' | '.join(["{{:<{}}}".format(i) for i in colSize])
+   myList.insert(1, ['-' * i for i in colSize]) # Seperating line
+   for item in myList: print(formatStr.format(*item))
+
+
+def main():   
+   import myjdapi, datetime
+   from sys import exit
+   
+   #jdownloader instance
+   jd=myjdapi.Myjdapi()
+   
+   jd.connect("user_email","password")
+   
+   jd.update_devices()
+   
+   device=jd.get_device("JDownloader@your_jdownloader_id") 
+   
+   #downloads
+   full_query = device.downloads.query_packages([{
+                   "bytesLoaded" : True,
+                   "bytesTotal" : True,
+                   "comment" : False,
+                   "enabled" : True,
+                   "eta" : True,
+                   "priority" : False,
+                   "finished" : True,
+                   "running" : True,
+                   "speed" : True,
+                   "status" : True,
+                   "childCount" : True,
+                   "hosts" : True,
+                   "saveTo" : False,
+                   "maxResults" : -1,
+                   "startAt" : 0,
+                   "statusIconKey" : False,
+                   "uuid" : False,
+               }])
+   
+   if len(full_query) == 0 :
+      print([{"message":"No downloads found!"}]);
+      exit()
+   
+   #parsing
+   keys_to_extract_finished = ["name", "hosts", "childCount", "bytesLoaded", "bytesTotal"]
+   keys_to_extract_nonfinished = ["name", "hosts", "childCount", "eta", "speed", "bytesLoaded", "bytesTotal"]
+
+   finished = []
+   nonfinished = []
+   wtf = []
+   
+   arefinished = False
+   areunfinished = False
+   arewtf = False
+   
+   for i in range(len(full_query)):
+       query = full_query[i]
+   
+       if query.get("finished") == True :
+         a_subset = {key: query[key] for key in keys_to_extract_finished}
+   
+         a_subset["bytesLoaded"] = str(round(a_subset["bytesLoaded"]/(1024*1024),2)) + " MiB"
+         a_subset["bytesTotal"] = str(round(a_subset["bytesTotal"]/(1024*1024),2)) + " MiB"
+   
+         finished.append(a_subset)
+         arefinished = True
+   
+       else : 
+         if "speed" in query.keys() & "eta" in query.keys():
+            a_subset = {key: query[key] for key in keys_to_extract_nonfinished}
+   
+            a_subset["bytesLoaded"] = str(round(a_subset["bytesLoaded"]/(1024*1024),2)) + " MiB"
+            a_subset["bytesTotal"] = str(round(a_subset["bytesTotal"]/(1024*1024),2)) + " MiB"
+            a_subset["speed"] = str(round(a_subset["speed"]/(1024*1024),2)) + " MiB/s"
+            a_subset["eta"] = str(datetime.timedelta(seconds=a_subset["eta"]))
+   
+            nonfinished.append(a_subset)
+            areunfinished = True
+   
+         else :
+            if "bytesLoaded" in query.keys() & "bytesTotal" in query.keys() & "status" in query.keys():
+               keys_to_extract_wtf = ["name", "hosts", "bytesLoaded", "bytesTotal", "status"]
+               a_subset = {key: query[key] for key in keys_to_extract_wtf}
+   
+               a_subset["bytesLoaded"] = str(round(a_subset["bytesLoaded"]/(1024*1024),2)) + " MiB"
+               a_subset["bytesTotal"] = str(round(a_subset["bytesTotal"]/(1024*1024),2)) + " MiB"
+            else :
+               keys_to_extract_wtf = ["name", "hosts"]
+               a_subset = {key: query[key] for key in keys_to_extract_wtf}
+   
+            wtf.append(a_subset)
+            arewtf = True
+   
+   if arefinished == True :
+      # print("-------------------")
+      # print("Finished downloads:")
+      # print("-------------------")
+      print(finished)
+   
+   if areunfinished == True :
+      # print("\n---------------------")
+      # print("Unfinished downloads:")
+      # print("---------------------")
+      print(nonfinished)
+   
+   if arewtf == True :
+      # print("\n----------------")
+      # print("Other downloads:")
+      # print("----------------")
+      print(wtf)
+
+
+if __name__ == '__main__':
+   main()
+
+
