@@ -1,6 +1,103 @@
 ##variables 
 let r_prompt = "short"
 
+##¡DO NOT SHARE
+
+#ssh into termux
+def ssh-termux [ip = $env.MY_ENV_VARS.termux_ip] {
+  ssh -X -p 5699 $ip -i ~/.ssh/id_rsa_termux
+}
+
+#search for anime
+def grep-anime [search] {
+  let result = (grep -ihHn $search ~/Dropbox/Directorios/anime*.txt ~/Dropbox/Directorios/torrent*.txt ~/Dropbox/Directorios/downloads*.txt 
+    | lines 
+    | parse "{file}:{line}:{match}"
+    | update file {|f|
+         $f 
+         | get file 
+         | split row '/' 
+         | last
+      }
+    | str trim
+    | find -v "/"
+    | rename "source file" "line number"
+  )
+
+  let match = ($result | get match | parse "{size} {file}")
+
+  $result | reject match | merge { $match }
+}
+
+#search for manga
+def grep-manga [search] {
+  let result = ( grep -ihHn $search ~/Dropbox/Directorios/manga*.txt
+    | lines 
+    | parse "{file}:{line}:{match}"
+    | update file {|f|
+         $f 
+         | get file 
+         | split row '/' 
+         | last
+      }
+    | str trim
+    | find -v "/"
+    | rename "source file" "line number"
+  )
+
+  let match = ($result | get match | parse "{size} {file}")
+
+  $result | reject match | merge { $match }
+}
+
+#search for series
+def grep-series [search:string,season?:int] {
+  let result = (grep -ihHn $search ~/Dropbox/Directorios/series*.txt ~/Dropbox/Directorios/torrent*.txt
+      | lines 
+      | parse "{file}:{line}:{match}"
+      | update file {|f|
+           $f 
+           | get file 
+           | split row '/' 
+           | last
+       }
+      | str trim
+      | find -v "/"
+      | rename "source file" "line number"
+  )
+
+  let result = if (column? column4) {
+    $result | reject column4
+    } else {
+      $result
+    }
+
+  let match = ($result | get match | into string | parse "{size} {file}")
+
+  let S = if ($season | empty?) {
+      ""
+    } else {
+      $season | into string | str lpad -l 2 -c '0'
+  }
+
+  $result | reject match | merge { $match } | find -i $S 
+}
+
+#backup webies 2 drive
+def copy-webies-2-ubbdrive [] {
+  let mounted = ("~/gdrive/Sites/webies" | path expand | path exists)
+
+  if not $mounted {
+    echo-g "mounting gdrive..."
+    mountubb
+  }
+  
+  echo-g "syncing..."
+  rsync -urta --progress -e "ssh -p 22 -i /home/kira/.ssh/id_rsa" ing_estadistica@146.83.193.197:/home/departamentos/ing_estadistica/public_html/ /home/kira/gdrive/Sites/webies/
+}
+
+## DO NOT SHARE!
+
 ##dataframes
 
 #get columns of a dataframe into a list
@@ -942,11 +1039,6 @@ def get-dirs [] {
 #verify if a column exist within a table
 def column? [name] { 
   $name in ($in | columns) 
-}
-
-#ssh into termux
-def ssh-termux [ip = $MY_ENV_VARS.termux_ip] {
-  ssh -X -p 5699 $ip -i ~/.ssh/id_rsa_termux
 }
 
 #zoxide completion
@@ -1937,7 +2029,7 @@ def ytm [
           tiv /tmp/thumbnail.ico 
           echo-g $"now playing ($song.title) by ($song.artist)..."
 
-          bash -c $"mpv --no-resume-playback --no-video --input-conf=($mpv_input) ($song.url)"
+          bash -c $"mpv --msg-level=all=status --no-resume-playback --no-video --input-conf=($mpv_input) ($song.url)"
         }    
     } else {
       echo-g "playlist not found!"
@@ -1982,7 +2074,7 @@ def "ytm online" [
           tiv /tmp/thumbnail.ico 
           echo-g $"now playing ($song.title) by ($song.artist)..."
 
-          bash -c $"mpv --no-resume-playback --no-video --input-conf=($mpv_input) ($song.url)"
+          bash -c $"mpv --msg-level=all=status --no-resume-playback --no-video --input-conf=($mpv_input) ($song.url)"
         }    
     } else {
       echo-g "playlist not found!"
@@ -2291,3 +2383,76 @@ def "yt-api help" [] {
 def balena [] {
   bash -c $"([$env.MY_ENV_VARS.appImages 'balenaEtcher.AppImage'] | path join) 2>/dev/null &"
 }
+
+## testing
+
+# def "yt-api verify-token" [url,token] {
+#   let response = fetch $"($url)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json']
+
+#   if ($response | column? error) {
+#     let client = (open ~/Yandex.Disk/Backups/linux/credentials/credentials.youtube.json | get client_id)
+#     let refresh_token = (open ~/Yandex.Disk/Backups/linux/credentials/credentials.youtube.json | get refresh_token)
+#     let secret = (open ~/Yandex.Disk/Backups/linux/credentials/credentials.youtube.json | get client_secret)
+
+#     let response = (post "https://www.googleapis.com/oauth2/v4/token" -t 'application/json' {
+#         "client_id": ($client),
+#         "client_secret": ($secret),
+#         "refresh_token": ($refresh_token),
+#         "grant_type": "authorization_code",
+#         "access_type": "offline",
+#         "prompt": "consent",
+#         "scope": "https://www.googleapis.com/auth/youtube"
+#       }
+#     )
+
+#     $response | save test.json
+#   }
+# }
+
+
+def test-api [] {
+  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let api_key = ($youtube_credential | get api_key)
+  let token = ($youtube_credential | get token)
+  let client = ($youtube_credential | get client_id)
+  let refresh_token = ($youtube_credential | get refresh_token)
+  let secret = ($youtube_credential | get client_secret)
+
+  let response = (post "https://www.googleapis.com/oauth2/v4/token" -t 'application/json' {
+     "client_id": ($client),
+     "client_secret": ($secret),
+     "refresh_token": ($refresh_token),
+     "grant_type": "refresh_token"
+   }
+  )
+
+  $response | save test.json 
+}
+
+ # let response = (post "https://accounts.google.com/o/oauth2/token/" $"client_id=($client)&client_secret=($secret)&refresh_token=($refresh_token)&grant_type=refresh_token&access_type=offline&prompt=consent&scope=https://www.googleapis.com/auth/youtube"2 -t "text/html"
+  # )
+# https://accounts.google.com/o/oauth2/auth?client_id=676765289577-ek34fcbppprtcvtt7sd98ioodvapojci.apps.googleusercontent.com&redirect_uri=http%3A%2F%2Flocalhost%2Foauth2callback&scope=https://www.googleapis.com/auth/youtube&response_type=token
+
+# http://localhost/oauth2callback
+# http://localhost:8080 
+
+# http://localhost/oauth2callback#access_token=&token_type=Bearer&expires_in=3599&scope=https://www.googleapis.com/auth/youtube
+
+# def get-yt-playlist [
+#   pid         #playlist id
+#   nos? = 500  #number of song to fetch
+#   --all       #fetch all songs
+# ] {
+#   ls
+# # $playlists | flatten | where title == jp  | get id
+# }
+
+
+# auth_code
+# https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=https%3A%2F%2Fdevelopers.google.com%2Foauthplayground&prompt=consent&response_type=code&client_id=407408718192.apps.googleusercontent.com&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube&access_type=offline
+# https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=https%3A%2F%2Fdevelopers.google.com%2Foauthplayground&prompt=consent&response_type=code&client_id=407408718192.apps.googleusercontent.com&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube&access_type=offline
+
+# 4/0AdQt8qiNECGYvH98mxe0xnd7dHhGahZb2Na9w2-Q0YTv3KvjCg7ULN6T4Z5jGrLvEfLtnw
+
+# refresh_token
+# 1//04fRaM1rCDgifCgYIARAAGAQSNwF-L9IrQQDg2DCQypNrG44ML4QwcMsEGI0X5i4n43B5E4ZmdLvTcaeDltC0aQDjeUjlCE89BcU
