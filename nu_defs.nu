@@ -1,6 +1,22 @@
 ##variables 
 let r_prompt = "short"
 
+##dataframes
+
+#get columns of a dataframe into a list
+# def "df get-columns" [] {
+#   $in | dtypes | into nu | get column
+# }
+
+##general scripts
+
+#update nu config (after update)
+def update-nu-config [] {
+  cp ~/software/nushell/docs/sample_config/default_config.nu $nu.config-path
+  open ([$env.MY_ENV_VARS.linux_backup "append_to_config.nu"] | path join) | save --append $nu.config-path
+  nu -c $"source ($nu.config-path)"
+}
+
 #short help
 def ? [...search] {
   if ($search | empty?) {
@@ -51,16 +67,28 @@ def cpwd [] {
   $env.PWD | xclip -sel clip
 }
 
-#compress every subfolder into separate files and delete them
-def 7zfolders [] {
-  ^find . -maxdepth 1 -mindepth 1 -type d -print0 
-  | parallel -0 --eta 7z a -t7z -sdel -bso0 -bsp0 -m0=lzma2 -mx=9 -ms=on -mmt=on {}.7z {}
+#xls/ods 2 csv
+def xls2csv [
+  inputFile:string
+  --outputFile:string
+] {
+  let output = (
+    if ($outputFile | empty?) || (not $outputFile) {
+      $"($inputFile | path parse | get stem).csv"
+    } else {
+      $outputFile
+    }
+  )
+  libreoffice --headless --convert-to csv $inputFile
+  # bash -c $"'cat \"($output)\" > test.csv'"
+  # mv test.csv $output
 }
 
 #compress to 7z using max compression
 def 7zmax [
   filename: string  #filename without extension
   ...rest:  string  #files to compress and extra flags for 7z (add flags between quotes)
+  --delete(-d)      #delete files after compression
   #
   # Example:
   # compress all files in current directory and delete them
@@ -71,9 +99,11 @@ def 7zmax [
   # 7zmax filename * "-v3g -sdel"
 ] {
   if ($rest | empty?) {
-    echo "no files to compress specified"
+    echo-g "no files to compress specified"
+  } else if ($delete | empty?) || (not $delete) {
+    7z a -t7z -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename).7z" $rest
   } else {
-     7z a -t7z -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename).7z" $rest
+    7z a -t7z -sdel -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename).7z" $rest
   }
 }
 
@@ -85,11 +115,11 @@ def addtogcal [
   where?      #location
   duration?   #duration in minutes
 ] {
-  let calendar = if ($calendar | empty?) {echo $"calendar: ";input } else {$calendar}
-  let title = if ($title | empty?) {echo $"\ntitle: ";input } else {$title}
-  let when = if ($when | empty?) {echo $"\nwhen: ";input } else {$when}
-  let where = if ($where | empty?) {echo $"\nwhere: ";input } else {$where}
-  let duration = if ($duration | empty?) {echo $"\nduration: ";input } else {$duration}
+  let calendar = if ($calendar | empty?) {input (echo-g "calendar: ")} else {$calendar}
+  let title = if ($title | empty?) {input (echo-g "title: ")} else {$title}
+  let when = if ($when | empty?) {input (echo-g "when: ")} else {$when}
+  let where = if ($where | empty?) {input (echo-g "where: ")} else {$where}
+  let duration = if ($duration | empty?) {input (echo-g "duration: ")} else {$duration}
   
   gcalcli --calendar $"($calendar)" add --title $"($title)" --when $"($when)" --where $"($where)" --duration $"($duration)" --default-reminders
 }
@@ -105,8 +135,8 @@ def agenda [
   # agenda "--details=all"
   # agenda --full true "--details=all"
 ] {
-  let calendars = "calendar1|calendar2"
-  let calendars_full = "calendar1|calendar2|calendar3"
+  let calendars = "Clases|Congresos|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Certamenes y Tests|Familia"
+  let calendars_full = "TV Shows|Contacts|Festivos en Chile|Cuentas|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Clases|Certamenes y Tests|Familia|Congresos"
 
   if ($full | empty?) || ($full == 0) {
     gcalcli --calendar $"($calendars)" agenda --military $rest
@@ -126,8 +156,8 @@ def semana [
   # semana "--details=all"
   # semana --full true "--details=all"
 ] {
-  let calendars = "calendar1|calendar2"
-  let calendars_full = "calendar1|calendar2|calendar3"
+  let calendars = "Clases|Congresos|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Certamenes y Tests|Familia"
+  let calendars_full = "TV Shows|Contacts|Festivos en Chile|Cuentas|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Clases|Certamenes y Tests|Familia|Congresos"
   
   if ($full | empty?) || ($full == 0) {
     gcalcli --calendar $"($calendars)" calw $rest --military --monday
@@ -147,9 +177,9 @@ def mes [
   # mes "--details=all"
   # mes --full true "--details=all"
 ] {
-  let calendars = "calendar1|calendar2"
-  let calendars_full = "calendar1|calendar2|calendar3"
-
+  let calendars = "Clases|Congresos|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Certamenes y Tests|Familia"
+  let calendars_full = "TV Shows|Contacts|Festivos en Chile|Cuentas|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Clases|Certamenes y Tests|Familia|Congresos"
+  
   if ($full | empty?) || ($full == 0) {
     gcalcli --calendar $"($calendars)" calm $rest --military --monday
   } else {
@@ -160,16 +190,17 @@ def mes [
 #get bitly short link
 def mbitly [longurl] {
   if ($longurl | empty?) {
-    echo "no url provided"
+    echo-g "no url provided"
   } else {
-    let Accesstoken = "API_KEY"
-    let username = "user"
+    let bitly_credential = open ([$env.MY_ENV_VARS.credentials "bitly_token.json"] | path join)
+    let Accesstoken = ($bitly_credential | get token)
+    let username = ($bitly_credential | get username)
+    
     let url = $"https://api-ssl.bitly.com/v3/shorten?access_token=($Accesstoken)&login=($username)&longUrl=($longurl)"
-
     let shorturl = (fetch $url | get data | get url)
 
-    $shorturl
     $shorturl | copy
+    echo-g $"($shorturl) copied to clipboard!"
   }
 }
 
@@ -188,10 +219,11 @@ def trans [
   #More in: https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes
 ] {
   if ($search | empty?) {
-    echo "no search query provided"
+    echo-g "no search query provided"
   } else {
-    let key = "API_KEY"
-    let user = "user_email"
+    let trans_credential = open ([$env.MY_ENV_VARS.credentials "mymemory_token.json"] | path join)
+    let key = ($trans_credential | get token)
+    let user = ($trans_credential | get username)
 
     let from = if ($from | empty?) {"en-US"} else {$from}
     let to = if ($to | empty?) {"es-ES"} else {$to}
@@ -208,12 +240,20 @@ def trans [
 
 #check if drive is mounted
 def is-mounted [drive:string] {
-  let count = (ls "~/media" | find $"($drive)" | length)
+  (ls "~/media" | find $"($drive)" | length) > 0
+}
 
-  if $count == 0 {
-    false
+#move manga folder to Seagate External Drive
+def-env mvmanga [] {
+  let from = $env.MY_ENV_VARS.local_manga
+  let to = $env.MY_ENV_VARS.external_manga
+
+  if (is-mounted "Seagate") {
+    cd $from
+    7zfolders
+    mv *.7z $to
   } else {
-    true
+    "Seageate drive isn't mounted"
   }
 }
 
@@ -228,43 +268,107 @@ def get-phone-number [search:string] {
 
 #update-upgrade system
 def supgrade [] {
-  echo "updating..."
-  sudo aptitude update -y
-  echo "upgrading..."
-  sudo aptitude safe-upgrade -y
-  echo "autoremoving..."
-  sudo apt autoremove -y
+  echo-g "updating..."
+  sudo nala update
+  echo-g "upgrading..."
+  sudo nala upgrade -y
+  echo-g "autoremoving..."
+  sudo nala autoremove -y
+  echo-g "updating rust..."
+  rustup update
+}
+
+#green echo
+def echo-g [string:string] {
+  echo $"(ansi -e { fg: '#00ff00' attr: b })($string)(ansi reset)"
 }
 
 #open mcomix
-def mcx [file] {
-  bash -c $'mcomix "($file)"" 2>/dev/null &'
+def mcx [file?] {
+  let file = if ($file | empty?) {$in} else {$file}
+
+  bash -c $'mcomix "($file)" 2>/dev/null &'
 }
 
 #open file 
 def openf [file?] {
-  let file = if ($file | empty?) {$in} else {$file}
+  let file = if ($file | empty?) {$in | get name} else {$file}
    
   bash -c $'xdg-open "($file)" 2>/dev/null &'
 }
 
+#open google drive file 
+def openg [file?] {
+  let file = if ($file | empty?) {$in | get name} else {$file}
+   
+  let url = (open $file 
+    | lines 
+    | find -i url 
+    | split row "URL=" 
+    | get 0
+  )
+
+  $url | copy
+  echo-g $"($url) copied to clipboard!"
+}
+
+#send to printer
+def printer [file?] {
+  let file = if ($file | empty?) {$in | get name} else {$file}
+  lp $file
+}
+
+#play first/last downloaded youtube video
+def myt [file?, --reverse(-r)] {
+  let inp = $in
+  let video = (
+    if not ($inp | empty?) {
+      $inp | get name
+    } else if not ($file | empty?) {
+      $file
+    } else if $reverse {
+      lt -r | where type == file | last | get name
+    } else {
+      lt | where type == file | last | get name
+    }
+  )
+  
+  mpv --ontop --window-scale=0.4 --save-position-on-quit $video
+
+  let delete = (input "delete file? (y/n): ")
+  if $delete == "y" {
+    rm $video
+  } else {
+    let move = (input "move file to pending? (y/n): ")
+    if $move == "y" {
+      mv $video pending
+    }
+  }
+}
+
 #search for specific process
 def psn [name: string] {
-  ps | find $name
+  ps -l | find -i $name
 }
 
 #kill specified process in name
 def killn [name: string] {
-  ps 
-  | find $name 
+  ps -l
+  | find -i $name 
   | par-each {
       kill -f $in.pid
     }
 }
 
 #jdownloader downloads info
-def jd [] {
-  jdown 
+def jd [
+  --ubb(-b)#check ubb jdownloader
+] {
+  if ($ubb | empty?) || (not $ubb) {
+    jdown
+  } else {
+    jdown -b 1
+  }
   | lines 
   | each { |line| 
       $line 
@@ -306,6 +410,72 @@ def switch [
     | do $in
   }
 }
+
+#post to #announcements in discord
+def ubb_announce [message] {
+  let content = $"{\"content\": \"($message)\"}"
+
+  let weburl = (open ([$env.MY_ENV_VARS.credentials "discord_webhooks.json"] | path join) | get cursos_ubb_announce)
+
+  post $weburl $content --content-type "application/json"
+}  
+
+#upload videos to ubb and post to discord
+def up2ubb [year = 2022, sem = 01] {
+  let sem = ([($year | into string) "-" ($sem | into string | str lpad -l 2 -c '0')] | str collect)
+
+  let mounted = ("~/gdrive/VClasses/" | path expand | path exists)
+
+  if not $mounted {
+    echo-g "mounting gdrive..."
+    mount-ubb
+  }
+
+  cd $env.MY_ENV_VARS.zoom
+
+  ls **/* 
+  | where name !~ done
+  | where type == file 
+  | where name =~ mp4 
+  | get name 
+  | par-each {|path| 
+      $path 
+      | parse "{date} {time} {course} {class}/{file}"
+    } 
+  | flatten 
+  | each {|it| 
+      let dir = ([$it.date $it.time $it.course $it.class] | str collect " ")
+      let file_from = ([$dir $it.file] | path join)
+      let file_to = ([$dir $"($it.class).mp4"] | path join)
+      let gdrive_to = (["~" "gdrive" "VClasses" $sem $it.course $"($it.class).mp4"] 
+        | path join 
+        | path expand
+      )
+      
+      if $file_from != $file_to {
+        echo-g $"moving ($file_from) to ($file_to)..."
+        mv $"($file_from)" $"($file_to)"
+      }
+
+      echo-g $"copying ($file_to) to ($gdrive_to)..."
+      cp ($file_to) ($gdrive_to)    }
+  
+  let fecha = (date format %d/%m/%y)
+  let message = $"Se han subido a drive los videos de clases al dia de hoy: ($fecha)."
+
+  ubb_announce $message 
+
+  mv 20*/ done/
+}
+
+#post to #medicos in discord
+def med_discord [message] {
+  let content = $"{\"content\": \"($message).\"}"
+
+  let weburl = (open ([$env.MY_ENV_VARS.credentials "discord_webhooks.json"] | path join) | get medicos)
+
+  post $weburl $content --content-type "application/json"
+}  
 
 #select column of a table (to table)
 def column [n] { 
@@ -404,6 +574,20 @@ def-env which-cd [program] {
   cd $dir.0
 }
 
+#delete non wanted media in mps (youtube download folder)
+def delete-mps [] {
+  if $env.MY_ENV_VARS.mps !~ $env.PWD {
+    echo-g "wrong directory to run this"
+  } else {
+     ls 
+     | where type == "file" && name !~ "mp4|mkv|webm" 
+     | par-each {|it| 
+         rm $"($it.name)" 
+         | ignore
+       }     
+  }
+}
+
 #push to git
 def git-push [m: string] {
   git add -A
@@ -434,7 +618,7 @@ def hab-dailies-done [] {
 def countdown [
   n: int #time in seconds
 ] {
-  let BEEP = "/path/to/beep/sound/file"
+  let BEEP = ([$env.MY_ENV_VARS.linux_backup "alarm-clock-elapsed.oga"] | path join)
   let muted = (pacmd list-sinks 
     | lines 
     | find muted 
@@ -473,7 +657,7 @@ def png-plot [ip?] {
 
 #plot download-upload speed
 def speedtest-plot [] {
-  bash -c "fast --single-line --upload |  stdbuf -o0 awk '{print $2 \" \" $6}' | ttyplot -2 -t 'Download/Upload speed' -u Mbps" 
+  echo "fast --single-line --upload |  stdbuf -o0 awk '{print $2 \" \" $6}' | ttyplot -2 -t 'Download/Upload speed' -u Mbps" | bash 
 }
 
 #plot data table using gnuplot
@@ -531,18 +715,18 @@ def sub-sync [
   --t1:string      #time position of delay d1 (hh:mm:ss)
   --d2:string      #delay at the end or at time specified by t2
   --t2:string      #time position of delay d2 (hh:mm:ss)t
-  --no-backup:int  #wether to not backup $file or yes (default no:0, ie, it will backup)
+  --no_backup:int  #wether to not backup $file or yes (default no:0, ie, it will backup)
   #
   #Examples
   #sub-sync file.srt "-4"
   #sub-sync file.srt "-4" --t1 00:02:33
-  #sub-sync file.srt "-4" --no-backup 1
+  #sub-sync file.srt "-4" --no_backup 1
 ] {
 
   let file_exist = (($env.PWD) | path join $file | path exists)
   
   if $file_exist {
-    if ($no-backup | empty?) || $no-backup == 0 {
+    if ($no_backup | empty?) || $no_backup == 0 {
       cp $file $"($file).backup"
     }
 
@@ -554,7 +738,7 @@ def sub-sync [
 
     rm output.srt | ignore
   } else {
-    echo $"subtitle file ($file) doesn't exist in (pwd-short)"
+    echo-g $"subtitle file ($file) doesn't exist in (pwd-short)"
   }
 }
 
@@ -564,6 +748,7 @@ def sub-sync [
 #ls *.txt | rm-pipe
 def rm-pipe [] {
   get name 
+  | ansi strip
   | par-each {|file| 
       rm -rf $file
     } 
@@ -579,7 +764,7 @@ def cp-pipe [
 ] {
   get name 
   | each {|file| 
-      echo $"copying ($file)..." 
+      echo-g $"copying ($file)..." 
       cp $file ($to | path expand)
     } 
   | flatten
@@ -594,7 +779,7 @@ def mv-pipe [
 ] {
   get name 
   | each {|file|
-      echo $"moving ($file)..." 
+      echo-g $"moving ($file)..." 
       mv $file ($to | path expand)
     }
   | flatten
@@ -691,7 +876,7 @@ def get-devices [
 
   let devices = ( $ips | merge { $macs_n_names} )
 
-  let known_devices = (open '/path/to/known_devices.csv')
+  let known_devices = open ([$env.MY_ENV_VARS.linux_backup "known_devices.csv"] | path join)
   let known_macs = ($known_devices | get mac | str upcase)
 
   let known = ($devices | each {any? $it.mac in $known_macs} | wrap known)
@@ -759,6 +944,11 @@ def column? [name] {
   $name in ($in | columns) 
 }
 
+#ssh into termux
+def ssh-termux [ip = '192.168.4.142'] {
+  ssh -X -p 5699 $ip -i ~/.ssh/id_rsa_termux
+}
+
 #zoxide completion
 def "nu-complete zoxide path" [line : string, pos: int] {
   let prefix = ( $line | str trim | split row ' ' | append ' ' | skip 1 | get 0)
@@ -798,6 +988,94 @@ def grep-nu [
       | nu-highlight
     }
   | rename "source file" "line number"
+}
+
+#search for anime
+def grep-anime [search] {
+  let result = (grep -ihHn $search ~/Dropbox/Directorios/anime*.txt ~/Dropbox/Directorios/torrent*.txt ~/Dropbox/Directorios/downloads*.txt 
+    | lines 
+    | parse "{file}:{line}:{match}"
+    | update file {|f|
+         $f 
+         | get file 
+         | split row '/' 
+         | last
+      }
+    | str trim
+    | find -v "/"
+    | rename "source file" "line number"
+  )
+
+  let match = ($result | get match | parse "{size} {file}")
+
+  $result | reject match | merge { $match }
+}
+
+#search for manga
+def grep-manga [search] {
+  let result = ( grep -ihHn $search ~/Dropbox/Directorios/manga*.txt
+    | lines 
+    | parse "{file}:{line}:{match}"
+    | update file {|f|
+         $f 
+         | get file 
+         | split row '/' 
+         | last
+      }
+    | str trim
+    | find -v "/"
+    | rename "source file" "line number"
+  )
+
+  let match = ($result | get match | parse "{size} {file}")
+
+  $result | reject match | merge { $match }
+}
+
+#search for series
+def grep-series [search:string,season?:int] {
+  let result = (grep -ihHn $search ~/Dropbox/Directorios/series*.txt ~/Dropbox/Directorios/torrent*.txt
+      | lines 
+      | parse "{file}:{line}:{match}"
+      | update file {|f|
+           $f 
+           | get file 
+           | split row '/' 
+           | last
+       }
+      | str trim
+      | find -v "/"
+      | rename "source file" "line number"
+  )
+
+  let result = if (column? column4) {
+    $result | reject column4
+    } else {
+      $result
+    }
+
+  let match = ($result | get match | into string | parse "{size} {file}")
+
+  let S = if ($season | empty?) {
+      ""
+    } else {
+      $season | into string | str lpad -l 2 -c '0'
+  }
+
+  $result | reject match | merge { $match } | find -i $S 
+}
+
+#backup webies 2 drive ubb
+def copy-webies-2-ubbdrive [] {
+  let mounted = ("~/gdrive/Sites/webies" | path expand | path exists)
+
+  if not $mounted {
+    echo-g "mounting gdrive..."
+    mountubb
+  }
+  
+  echo-g "syncing..."
+  rsync -urta --progress -e "ssh -p 22 -i /home/kira/.ssh/id_rsa" ing_estadistica@146.83.193.197:/home/departamentos/ing_estadistica/public_html/ /home/kira/gdrive/Sites/webies/
 }
 
 #get ips
@@ -939,17 +1217,27 @@ def t-remove [
 #delete torrent from download queue deleting files
 def t-removedelete [
   ...ids    #list of ids
+  #Examples
+  #t-removedelete 2 3 6 9
+  #t-list | some filter | t-removedelete
 ] {
-  $ids 
-  | each {|id| 
-      transmission-remote -t $id -n 'transmission:transmission' -rad
-    }
+  if ($ids | empty?) {
+    $in
+    | find -v "Sum:"
+    | get ID 
+    | each {|id| 
+        transmission-remote -t $id -n 'transmission:transmission' -rad
+      }
+  } else {
+    $ids 
+    | each {|id| 
+        transmission-remote -t $id -n 'transmission:transmission' -rad
+      }
+  }
 }
 
 #delete finished torrent from download queue without deleting files
-def t-removedone [
-  ...ids    #list of ids
-] {
+def t-removedone [] {
   t-list 
   | drop 1 
   | where ETA =~ Done 
@@ -1007,13 +1295,13 @@ def t-stoptorrents [] {
 }
 
 #umount all drives (duf)
-def umall [user? = "your_user"] {
+def umall [user? = "kira"] {
   duf -json 
   | from json 
   | find $"/media/($user)" 
   | get mount_point
   | each {|drive| 
-      echo $"umounting ($drive)..."
+      echo-g $"umounting ($drive)..."
       umount $drive
     }
 }
@@ -1033,7 +1321,7 @@ def media-to [
         | length
     )
 
-    echo $"($n_files) audio files found..."
+    echo-g $"($n_files) audio files found..."
 
     if $n_files > 0 {
       bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.($to)" -print0 | parallel -0 --eta myffmpeg -n -loglevel 0 -i {} -c:a ($to) -b:a 64k {.}.($to)'
@@ -1047,9 +1335,9 @@ def media-to [
       )
 
       if $n_files == $aacs {
-        echo $"audio conversion to ($to) done"
+        echo-g $"audio conversion to ($to) done"
       } else {
-        echo $"audio conversion to ($to) done, but something might be wrong"
+        echo-g $"audio conversion to ($to) done, but something might be wrong"
       }
     }
   } else if $to =~ "mp4" {
@@ -1061,7 +1349,7 @@ def media-to [
         | length
     )
 
-    echo $"($n_files) avi files found..."
+    echo-g $"($n_files) avi files found..."
 
     if $n_files > 0 {
       bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta myffmpeg -n -loglevel 0 -i {} -b:a 64k {.}.mp4'
@@ -1075,9 +1363,9 @@ def media-to [
       )
 
       if $n_files == $aacs {
-        echo $"video conversion to mp4 done"
+        echo-g $"video conversion to mp4 done"
       } else {
-        echo $"video conversion to mp4 done, but something might be wrong"
+        echo-g $"video conversion to mp4 done, but something might be wrong"
       }
     }
   }
@@ -1123,10 +1411,10 @@ def merge-videos [
   #file '/path/to/file/fileN'"
   #~~~
 ] {
-  echo "merging videos..."
+  echo-g "merging videos..."
   myffmpeg -f concat -safe 0 -i $"($list)" -c copy $"($output)"
   
-  echo "done!"
+  echo-g "done!"
   notify-send "video merging done!"
 }
 
@@ -1153,10 +1441,10 @@ def merge-videos-auto [
       echo (build-string "file \'" (($env.PWD) | path join $file) "\'\n") | save --append list.txt
     }
 
-  echo "merging videos..."
+  echo-g "merging videos..."
   myffmpeg -f concat -safe 0 -i list.txt -c copy $"($output)"
       
-  echo "done!"
+  echo-g "done!"
   notify-send "video merging done!"
 }
 
@@ -1165,10 +1453,10 @@ def join-pdfs [
   ...rest: #list of pdf files to concatenate
 ] {
   if ($rest | empty?) {
-    echo "not enough pdfs provided"
+    echo-g "not enough pdfs provided"
   } else {
     pdftk $rest cat output output.pdf
-    echo "pdf merged in output.pdf"
+    echo-g "pdf merged in output.pdf"
   }
 }
 
@@ -1198,34 +1486,34 @@ def remove-video-noise [
     rm tmp*
   }
 
-  echo "extracting video..."
+  echo-g "extracting video..."
   myffmpeg -loglevel 1 -i $"($file)" -vcodec copy -an tmpvid.mp4
 
-  echo "extracting audio..."
+  echo-g "extracting audio..."
   myffmpeg -loglevel 1 -i $"($file)" -acodec pcm_s16le -ar 128k -vn tmpaud.wav
 
-  echo "extracting noise..."
+  echo-g "extracting noise..."
   myffmpeg -loglevel 1 -i $"($file)" -acodec pcm_s16le -ar 128k -vn -ss $start -t $end tmpnoiseaud.wav
 
-  echo "creating noise profile..."
+  echo-g "creating noise profile..."
   sox tmpnoiseaud.wav -n noiseprof tmpnoise.prof
 
-  echo "cleaning noise from audio file..."
+  echo-g "cleaning noise from audio file..."
   sox tmpaud.wav tmpaud-clean.wav noisered tmpnoise.prof $noiseLevel
 
-  echo "merging clean audio with video file..."
+  echo-g "merging clean audio with video file..."
   myffmpeg -loglevel 1 -i tmpvid.mp4 -i tmpaud-clean.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 128k $output
 
-  echo "done!"
+  echo-g "done!"
   notify-send "noise removal done!"
 
-  echo "don't forget to remove tmp* files"
+  echo-g "don't forget to remove tmp* files"
 }
 
 #screen record to mp4
 def screen-record [
   file = "video"  #output filename without extension (default: "video")
-  audio = true    #whether to record with audio or not (default: true)
+  --audio = true    #whether to record with audio or not (default: true)
 ] {
   if $audio {
     ffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i :0.0+0,0 -f alsa -ac 2 -i pulse -acodec aac -strict experimental $"($file).mp4"
@@ -1239,7 +1527,7 @@ def send-gmail [
   to:string                         #email to
   subject:string                    #email subject
   --body:string                     #email body, use double quotes to use escape characters like \n
-  --from = "your_mail@gmail.com"    #email from, default: your_mail@gmail.com
+  --from = "kurokirasama@gmail.com" #email from, default: kurokirasama@gmail.com
   ...attachments                    #email attachments file names list (in current directory), separated by comma
   #
   #Examples:
@@ -1256,16 +1544,16 @@ def send-gmail [
   let inp = if ($in | empty?) { "" } else { $in | into string }
 
   if ($body | empty?) && ($inp | empty?) {
-    echo "body undefined!!"
+    echo-g "body undefined!!"
   } else if not (($from | str contains "@") && ($to | str contains "@")) {
-    echo "missing @ in email-from or email-to!!"
+    echo-g "missing @ in email-from or email-to!!"
   } else {
     let signature_file = (
       switch $from {
-        "your_mail@gmail.com" : {echo /path/to/send-gmail_your_email_signature},
-        "your_email2@something.com" : {echo /path/to/send-gmail_your_email2_signature},
-        "your_email3@something.com" : {echo /path/to/send-gmail_your_email3_signature}
-      } {otherwise : {echo /path/to/send-gmail_other_signature}}
+        "kurokirasama@gmail.com" : {echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_kurokirasama_signature"] | path join)},
+        "lgomez@ubiobio.cl" : {echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_ubb_signature"] | path join)},
+        "luismiguelgomezguzman@gmail.com" : {echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_lmgg_signature"] | path join)}
+      } {otherwise : {echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_other_signature"] | path join)}}
     )
 
     let signature = (open $signature_file)
@@ -1307,56 +1595,71 @@ def code [command] {
 def deb-update [] {
   zoom-update
   chrome-update
+  earth-update
   yandex-update
   sejda-update
   nmap-update
   nyxt-update
   tasker-update
   ttyplot-update
+  mpris-update
 }
 
 #update zoom
 def zoom-update [] {
-  cd /path/to/debs
+  cd $env.MY_ENV_VARS.debs
 
   if (ls *.deb | find zoom | length) > 0 {
     ls *.deb | find zoom | rm-pipe | ignore
   }
   
-  echo "downloading zoom..."
-  wget -q --show-progress https://zoom.us/client/latest/zoom_amd64.deb
-  sudo gdebi -n (ls *.deb | find zoom | get 0 | get name)
+  echo-g "downloading zoom..."
+  aria2c --download-result=hide https://zoom.us/client/latest/zoom_amd64.deb
+  sudo gdebi -n (ls *.deb | find zoom | get 0 | get name | ansi strip)
 }
 
 #update chrome deb
 def chrome-update [] {
-  cd /path/to/debs
+  cd $env.MY_ENV_VARS.debs
 
   if (ls *.deb | find chrome | length) > 0 {
     ls *.deb | find chrome | rm-pipe | ignore
   }
   
-  echo "downloading chrome..."
-  wget -q --show-progress https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-  echo $"download finished: (ls *.deb | find chrome | get 0 | get name)"
+  echo-g "downloading chrome..."
+  aria2c --download-result=hide https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+  echo-g $"download finished: (ls *.deb | find chrome | get 0 | get name | ansi strip)"
+}
+
+#update google earth deb
+def earth-update [] {
+  cd $env.MY_ENV_VARS.debs
+
+  if (ls *.deb | find earth | length) > 0 {
+    ls *.deb | find earth | rm-pipe | ignore
+  }
+  
+  echo-g "downloading google earth..."
+  aria2c --download-result=hide https://dl.google.com/dl/earth/client/current/google-earth-pro-stable_current_amd64.deb
+  echo-g $"download finished: (ls *.deb | find earth | get 0 | get name | ansi strip)"
 }
 
 #update yandex deb
 def yandex-update [] {
-  cd /path/to/debs
+  cd $env.MY_ENV_VARS.debs
 
   if (ls *.deb | find yandex | length) > 0 {
     ls *.deb | find yandex | rm-pipe | ignore
   }
   
-  echo "downloading yandex..."
-  wget -q --show-progress http://repo.yandex.ru/yandex-disk/yandex-disk_latest_amd64.deb
-  echo $"download finished: (ls *.deb | find yandex | get 0 | get name)"
+  echo-g "downloading yandex..."
+  aria2c --download-result=hide http://repo.yandex.ru/yandex-disk/yandex-disk_latest_amd64.deb
+  echo-g $"download finished: (ls *.deb | find yandex | get 0 | get name | ansi strip)"
 }
 
 #update sejda
 def sejda-update [] {
-  cd /path/to/debs
+  cd $env.MY_ENV_VARS.debs
 
   let new_file = (
     fetch https://www.sejda.com/es/desktop 
@@ -1386,22 +1689,22 @@ def sejda-update [] {
     )
 
     if $current_version != $new_version {
-      echo "updating sedja..."
+      echo-g "updating sedja..."
       rm sejda*.deb | ignore
-      wget -q --show-progress $url
+      aria2c --download-result=hide $url
       sudo gdebi -n $new_file
     }
 
   } else {
-    echo "downloading sedja..."
-    wget -q --show-progress $url
+    echo-g "downloading sedja..."
+    aria2c --download-result=hide $url
     sudo gdebi -n $new_file
   }
 }
 
 #update tasker permissions
 def tasker-update [] {
-  cd /path/to/debs
+  cd $env.MY_ENV_VARS.debs
 
   let url = (
     fetch https://github.com/joaomgcd/Tasker-Permissions/releases/ 
@@ -1434,22 +1737,22 @@ def tasker-update [] {
     )
 
     if $current_version != $new_version {
-      echo "updating tasker permissions..."
+      echo-g "updating tasker permissions..."
       rm *tasker*.deb | ignore
-      wget -q --show-progress $url
+      aria2c --download-result=hide $url
       sudo gdebi -n $new_file
     }
 
   } else {
-    echo "downloading tasker..."
-    wget -q --show-progress $url
+    echo-g "downloading tasker..."
+    aria2c --download-result=hide $url
     sudo gdebi -n $new_file
   }
 }
 
 #update nmap
 def nmap-update [] {
-  cd /path/to/debs
+  cd $env.MY_ENV_VARS.debs
 
   let new_file = (
     fetch https://nmap.org/dist 
@@ -1482,24 +1785,24 @@ def nmap-update [] {
     )
 
     if $current_version != $new_version {
-      echo "updating nmap..."
+      echo-g "updating nmap..."
       rm nmap*.deb | ignore
 
-      wget -q --show-progress $url
+      aria2c --download-result=hide $url
       sudo alien -v -k $new_file
 
-      let new_deb = (ls *.deb | find nmap | get 0 | get name)
+      let new_deb = (ls *.deb | find nmap | get 0 | get name | ansi strip)
 
       sudo gdebi -n $new_deb
       ls $new_file | rm-pipe | ignore
     }
 
   } else {
-    echo "downloading nmap..."
-    wget -q --show-progress $url
+    echo-g "downloading nmap..."
+    aria2c --download-result=hide $url
     sudo alien -v -k $new_file
 
-    let new_deb = (ls *.deb | find nmap | get 0 | get name)
+    let new_deb = (ls *.deb | find nmap | get 0 | get name | ansi strip)
 
     sudo gdebi -n $new_deb
     ls $new_file | rm-pipe | ignore
@@ -1508,23 +1811,27 @@ def nmap-update [] {
 
 #update nyxt
 def nyxt-update [] {
-  cd /path/to/debs
+  cd $env.MY_ENV_VARS.debs
 
-  let new_file = (
+  let info = (
     fetch https://github.com/atlas-engineer/nyxt/releases
     | lines 
     | find .deb 
-    | get 0 
-    | split row / 
-    | last 
+    | first 
     | split row "\"" 
-    | first
+    | get 1
   )
 
-  let new_version = ($new_file | split row _ | get 1)
-  
-  let url = $"https://github.com/atlas-engineer/nyxt/releases/download/($new_version)/($new_file)"
+  let url = $"https://github.com($info)"
 
+  let new_version = (
+    $info 
+    | split row /
+    | last
+    | split row _ 
+    | get 1
+  )
+  
   let nyxt = ((ls *.deb | find nyxt | length) > 0)
 
   if $nyxt {
@@ -1538,22 +1845,64 @@ def nyxt-update [] {
     )
 
     if $current_version != $new_version {
-      echo "updating nyxt..."
+      echo-g "updating nyxt..."
       rm nyxt*.deb | ignore
-      wget -q --show-progress $url
-      sudo gdebi -n $new_file
+      aria2c --download-result=hide $url
+
+      let new_deb = (ls *.deb | find nyxt | get 0 | get name | ansi strip)
+      sudo gdebi -n $new_deb
     }
 
   } else {
-    echo "downloading nyxt..."
-    wget -q --show-progress $url
-    sudo gdebi -n $new_file
+    echo-g "downloading nyxt..."
+    aria2c --download-result=hide $url
+    let new_deb = (ls *.deb | find nyxt | get 0 | get name | ansi strip)
+    sudo gdebi -n $new_deb
+  }
+}
+
+#update mpris
+def mpris-update [] {
+  cd ([$env.MY_ENV_VARS.linux_backup "scripts"] | path join)
+
+  let info = (
+    fetch https://github.com/hoyon/mpv-mpris/releases 
+    | lines 
+    | find -i mpris.so 
+    | get 0 
+    | split row "\""  
+    | get 1
+  )
+
+  let url = $"https://github.com($info)"
+
+  let new_version = (
+    $info 
+    | split row /
+    | drop
+    | last
+  )
+  
+  let mpris = ((ls mpris.so | length) > 0)
+
+  if $mpris {
+    let current_version = (open mpris.json | get version)
+
+    if $current_version != $new_version {
+      echo-g "updating mpris..."
+      rm mpris.so | ignore
+      aria2c --download-result=hide $url -o mpris.so
+    }
+
+  } else {
+    echo-g "downloading mpris..."
+    aria2c --download-result=hide $url -o mpris.so
   }
 }
 
 #update ttyplot
 def ttyplot-update [] {
-  cd /path/to/debs
+  cd $env.MY_ENV_VARS.debs
 
   let info = (
     fetch https://github.com/tenox7/ttyplot/releases 
@@ -1595,15 +1944,15 @@ def ttyplot-update [] {
     )
 
     if $current_version != $new_version {
-      echo "updating ttyplot..."
+      echo-g "updating ttyplot..."
       rm ttyplot*.deb | ignore
-      wget -q --show-progress $url
+      aria2c --download-result=hide $url
       sudo gdebi -n $new_file
     }
 
   } else {
-    echo "downloading ttyplot..."
-    wget -q --show-progress $url
+    echo-g "downloading ttyplot..."
+    aria2c --download-result=hide $url
     sudo gdebi -n $new_file
   }
 }
@@ -1616,14 +1965,490 @@ def reg-plugins [] {
   | get name 
   | find nu_plugin 
   | each {|file|
-      echo $"registering ($file)..."
+      echo-g $"registering ($file)..."
       nu -c $'register -e json ($file)'
     }
 }
 
+#stop network applications
+def stop-net-apps [] {
+  t-stop
+  ydx-stop
+  maestral stop
+  killn jdown
+}
+
+#add a hidden column with the content of the # column
+def indexify [
+  column_name: string = 'index' #default: index
+  ] { 
+  each -n {|it| 
+    $it.item 
+    | upsert $column_name $it.index 
+    | move $column_name --before ($it.item | columns).0 
+  } 
+}
+
+#reset alpine authentification
+def reset-alpine-auth [] {
+  rm ~/.pine-passfile
+  touch ~/.pine-passfile
+  alpine-notify -i
+}
+
+#play youtube music from local database
+def ytm [
+  playlist? = "all_music" #playlist name (default: all_music)
+  --list(-l)              #list available music playlists
+  #
+  #First run `yt-api download-music-playlists`
+] {
+  let mpv_input = ([$env.MY_ENV_VARS.linux_backup "scripts/mpv_input.conf"] | path join)
+  let playlists = (ls $env.MY_ENV_VARS.youtube_database | get name)
+
+  #--list|
+  if not ($list | empty?) || (not $list) {
+    $playlists | path parse | get stem
+  } else {
+    let to_play = ($playlists | find $playlist | ansi strip | get 0)
+
+    if ($to_play | length) > 0 {
+      let songs = open $to_play
+
+      $songs 
+      | shuffle 
+      | each {|song|
+          fetch $"($song.thumbnail)" | save /tmp/thumbnail.jpg
+          convert -density 384 -scale 256 -background transparent /tmp/thumbnail.jpg /tmp/thumbnail.ico
+
+          notify-send $"($song.title)" $"($song.artist)" -t 5000 --icon=/tmp/thumbnail.ico
+          tiv /tmp/thumbnail.ico 
+          echo-g $"now playing ($song.title) by ($song.artist)..."
+
+          bash -c $"mpv --no-resume-playback --no-video --input-conf=($mpv_input) ($song.url)"
+        }    
+    } else {
+      echo-g "playlist not found!"
+    }
+  }
+}
+
+#play youtube music from youtube
+def "ytm online" [
+  playlist? = "all_music" #playlist name, default: all_music
+  --list(-l)              #list available music playlists
+] {
+  let mpv_input = ([$env.MY_ENV_VARS.linux_backup "scripts/mpv_input.conf"] | path join)
+  let response = yt-api
+
+  let playlists = (
+    $response 
+    | get items 
+    | select id snippet 
+    | upsert snippet {|sn| 
+        $sn.snippet.title
+      }
+    | rename -c [snippet title]
+  )
+
+  #--list|
+  if not ($list | empty?) || (not $list) {
+    $playlists | find music
+  } else {
+    let to_play = ($playlists | where title =~ $playlist | first | get id)
+
+    if ($to_play | length) > 0 {
+      let songs = yt-api get-songs $to_play
+
+      $songs 
+      | shuffle 
+      | each {|song|
+          fetch $"($song.thumbnail)" | save /tmp/thumbnail.jpg
+          convert -density 384 -scale 256 -background transparent /tmp/thumbnail.jpg /tmp/thumbnail.ico
+
+          notify-send $"($song.title)" $"($song.artist)" -t 5000 --icon=/tmp/thumbnail.ico
+          tiv /tmp/thumbnail.ico 
+          echo-g $"now playing ($song.title) by ($song.artist)..."
+
+          bash -c $"mpv --no-resume-playback --no-video --input-conf=($mpv_input) ($song.url)"
+        }    
+    } else {
+      echo-g "playlist not found!"
+    }
+  }
+}
+
+#youtube api implementation to get playlists and songs info
+def yt-api [
+  type? = "snippet" #type of query: id, status, snippet (default)
+  --pid:string      #playlist/song id
+  --ptoken:string   #prev/next page token
+] {
+  #verify and update token
+  yt-api verify-token
+
+  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let api_key = ($youtube_credential | get api_key)
+  let token = ($youtube_credential | get token)
+
+  #playlist|playlist nextPage|songs|songs nextPage
+  let url = (
+    if ($pid | empty?) && ($ptoken | empty?) {
+      $"https://youtube.googleapis.com/youtube/v3/playlists?part=($type)&mine=true&key=($api_key)&maxResults=50"
+    } else if ($pid | empty?) && (not ($ptoken | empty?)) {
+      $"https://youtube.googleapis.com/youtube/v3/playlists?part=($type)&mine=true&key=($api_key)&maxResults=50&pageToken=($ptoken)"
+    } else if not ($pid | empty?) {
+      if ($ptoken | empty?) {
+        $"https://youtube.googleapis.com/youtube/v3/playlistItems?part=($type)&maxResults=50&playlistId=($pid)&key=($api_key)&maxResults=50"
+      } else {
+        $"https://youtube.googleapis.com/youtube/v3/playlistItems?part=($type)&maxResults=50&pageToken=($ptoken)&playlistId=($pid)&key=($api_key)"
+      }
+    }
+  )
+
+  let response = fetch $"($url)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json']
+ 
+  $response
+}
+
+#get youtube songs of playlist by id
+def "yt-api get-songs" [
+  pid:string      #playlist id
+  --ptoken:string #nextpage token
+  #
+  #Output table: 
+  #inPlaylistID | id | title | artist | thumbnail | url
+] {
+  #verify and update token
+  yt-api verify-token
+
+  #songs|songs nextPage
+  let response = (
+    if ($ptoken | empty?) {
+      yt-api --pid $pid
+    } else {
+      yt-api --pid $pid --ptoken $ptoken
+    }
+  )
+
+  let nextpageToken = (
+    if ($response | column? nextPageToken) {
+        $response | get nextPageToken
+    } else {
+        false
+    }
+  )
+  
+  #first page
+  let songs = (
+    $response
+    | get items 
+    | select id snippet 
+    | rename -c [id inPlaylistID]
+    | upsert id {|item| 
+        $item.snippet.resourceId.videoId
+      }
+    | upsert title {|item| 
+        $item.snippet.title
+      } 
+    | upsert artist {|item| 
+        $item.snippet.videoOwnerChannelTitle 
+        | str replace ' - Topic' ''
+      } 
+    | upsert thumbnail {|item| 
+        $item.snippet.thumbnails | transpose | last | get column1 | get url
+      }
+    | upsert url {|item|
+        $item.snippet.resourceId.videoId | str prepend "https://www.youtube.com/watch?v="
+      }
+    | reject snippet
+  )
+
+  #next pages via recursion
+  let songs = (
+    if ($nextpageToken | typeof) == string {
+        $songs | append (yt-api get-songs $pid --ptoken $nextpageToken)
+    } else {
+      $songs
+    }
+  )
+
+  $songs
+}
+
+#download youtube music playlist to local database
+def "yt-api download-music-playlists" [
+  --downloadDir(-d) = $env.MY_ENV_VARS.youtube_database #download directory, default: $env.MY_ENV_VARS.youtube_database
+] {
+  let response = yt-api
+
+  let playlists = (
+    $response 
+    | get items 
+    | select id snippet 
+    | upsert snippet {|sn| 
+        $sn.snippet.title
+      }
+    | rename -c [snippet title]
+    | find music
+  )
+
+  $playlists
+  | each {|playlist|
+      let filename = $"([$downloadDir ($playlist.title | ansi strip)] | path join).json"
+      let songs = yt-api get-songs $playlist.id
+      
+      if ($songs | length) > 0 {
+        echo-g $"downloading ($playlist.title | ansi strip) into ($filename)..."
+        $songs | save $filename
+      }
+    }
+}
+
+#update playlist1 from playlist2
+def "yt-api update-all" [
+  --playlist1 = "all_music"
+  --playlist2 = "new_likes"
+] {
+  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let api_key = ($youtube_credential | get api_key)
+  let token = ($youtube_credential | get token)
+  let response = yt-api
+
+  let playlists = (
+    $response 
+    | get items 
+    | select id snippet 
+    | upsert snippet {|sn| 
+        $sn.snippet.title
+      }
+    | rename -c [snippet title]
+  )
+
+  let from = ($playlists | find $playlist2 | get id | get 0)
+  let to = ($playlists | find $playlist1 | get id | get 0)
+
+  let to_add = yt-api get-songs $from
+
+  echo-g $"copying playlist items from ($playlist2) to ($playlist1)..."
+  $to_add 
+  | each {|song|
+      let body = (
+        {  "snippet": {
+              "playlistId": $"($to)",
+              "resourceId": {
+                "kind": "youtube#video",
+                "videoId": $"($song.id)"
+              }
+            }
+        }
+      )
+
+      post "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&key=($api_key)" -t 'application/json' -H ["Authorization", $"Bearer ($token)"] $body | ignore
+      sleep 10ms
+
+    }   
+
+  echo-g $"deleting playlist items from ($playlist2)..."
+  let header2 = "Accept: application/json"
+
+  $to_add 
+  | each {|song|
+      let url = $"https://youtube.googleapis.com/youtube/v3/playlistItems?id=($song.inPlaylistID)&key=($api_key)"
+      let header1 = $"Authorization: Bearer ($token)"
+
+      curl -s --request DELETE $url --header $header1 --header $header2 --compressed
+      sleep 10ms
+    }
+
+  echo-g $"updating local database..."
+  yt-api download-music-playlists
+}
+
+#verify if youtube api token has expired
+def "yt-api verify-token" [] {
+  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let api_key = ($youtube_credential | get api_key)
+  let token = ($youtube_credential | get token)
+
+  let response = fetch $"https://youtube.googleapis.com/youtube/v3/playlists?part=snippet&mine=true&key=($api_key)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json'] 
+
+  if ($response | column? error) {
+    yt-api get-token 
+    #yt-api refresh-token
+  }
+}
+
+#update youtube api token
+def "yt-api get-token" [] {
+  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let client = ($youtube_credential | get client_id)
+
+  let uri = (
+    $youtube_credential 
+    | get redirect_uris 
+    | get 0 
+    | str replace -a ":" "%3A" 
+    | str replace -a "/" "%2F"
+  )
+  
+  echo $"https://accounts.google.com/o/oauth2/auth?client_id=($client)&redirect_uri=($uri)&scope=https://www.googleapis.com/auth/youtube&response_type=token&approval_prompt=force" | copy
+
+  echo-g "url copied to clipboard, now paste on browser..."
+
+  let url = input (echo-g "Copy response url here: ")
+
+  $youtube_credential  
+  | upsert token {
+      $url 
+      | split row "#" 
+      | get 1 
+      | split row "=" 
+      | get 1 
+      | split row "&" 
+      | get 0
+    } 
+  | save ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join) 
+}
+
+#get youtube api refresh token
+def "yt-api get-refresh-token" [] {
+  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let client = ($youtube_credential | get client_id)
+
+  let uri = (
+    $youtube_credential 
+    | get redirect_uris 
+    | get 0 
+    | str replace -a ":" "%3A" 
+    | str replace -a "/" "%2F"
+  )
+  
+  echo $"https://accounts.google.com/o/oauth2/auth?client_id=($client)&redirect_uri=($uri)&scope=https://www.googleapis.com/auth/youtube&response_type=code&access_type=offline&prompt=consent" | copy
+
+  echo-g "url copied to clipboard, now paste on browser..."
+
+  let url = input (echo-g "Copy response url here: ")
+
+  $youtube_credential  
+  | upsert refresh_token {
+      $url 
+      | split row "=" 
+      | get 1 
+      | split row "&" 
+      | get 0
+    } 
+  | save ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join) 
+}
+
+#refres youtube api token via refresh token
+def "yt-api refresh-token" [] {
+
+}
+
+#help info for yt-api
+def "yt-api help" [] {
+  echo "  CONFIGURE $env.MY_ENV_VARS.credentials\n
+    Add the path to your directory with the credential file or replace manually.\n
+  CREATE CREDENTIALS\n
+    1) Create an api key from google developers console.\n
+    2) Create oauth2 credentials. You should download a json file with at least the following fields:
+      - client_id
+      - client_secret
+      - redirect_uris\n
+    3) Add the api key to the previous file, from now on, the credentials file.\n
+    4) Run `yt-api get-token`. The token is automatically added to the credentials file.\n
+    5) Run `yt-api get-regresh-token`. The refresh token is automatically added to the credentials file.\n
+    6) When the token expires, it will run `yt-api get-token` again.
+    7) When `yt-api refresh-token` is finished, the refresh will be automatic.\n
+  METHODS\n
+    - `yt-api`
+    - `yt-api get-songs`
+    - `yt-api update-all`
+    - `yt-api download-music-playlists`\n
+  MORE HELP\n
+    Run `? yt-api`\n
+  RELATED\n
+    `ytm`\n"
+    | nu-highlight
+}
+
 ## appimages
 
-#open balena-etcher
+#open balena-etche
 def balena [] {
-  bash -c $'/path/to/appimages/balenaEtcher.AppImage 2>/dev/null &'
+  bash -c $"([$env.MY_ENV_VARS.appImages 'balenaEtcher.AppImage'] | path join) 2>/dev/null &"
 }
+
+## testing
+
+# def "yt-api verify-token" [url,token] {
+#   let response = fetch $"($url)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json']
+
+#   if ($response | column? error) {
+#     let client = (open ~/Yandex.Disk/Backups/linux/credentials/credentials.youtube.json | get client_id)
+#     let refresh_token = (open ~/Yandex.Disk/Backups/linux/credentials/credentials.youtube.json | get refresh_token)
+#     let secret = (open ~/Yandex.Disk/Backups/linux/credentials/credentials.youtube.json | get client_secret)
+
+#     let response = (post "https://www.googleapis.com/oauth2/v4/token" -t 'application/json' {
+#         "client_id": ($client),
+#         "client_secret": ($secret),
+#         "refresh_token": ($refresh_token),
+#         "grant_type": "authorization_code",
+#         "access_type": "offline",
+#         "prompt": "consent",
+#         "scope": "https://www.googleapis.com/auth/youtube"
+#       }
+#     )
+
+#     $response | save test.json
+#   }
+# }
+
+
+def test-api [] {
+  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let api_key = ($youtube_credential | get api_key)
+  let token = ($youtube_credential | get token)
+  let client = ($youtube_credential | get client_id)
+  let refresh_token = ($youtube_credential | get refresh_token)
+  let secret = ($youtube_credential | get client_secret)
+
+  let response = (post "https://www.googleapis.com/oauth2/v4/token" -t 'application/json' {
+     "client_id": ($client),
+     "client_secret": ($secret),
+     "refresh_token": ($refresh_token),
+     "grant_type": "refresh_token"
+   }
+  )
+
+  $response | save test.json 
+}
+
+ # let response = (post "https://accounts.google.com/o/oauth2/token/" $"client_id=($client)&client_secret=($secret)&refresh_token=($refresh_token)&grant_type=refresh_token&access_type=offline&prompt=consent&scope=https://www.googleapis.com/auth/youtube"2 -t "text/html"
+  # )
+# https://accounts.google.com/o/oauth2/auth?client_id=676765289577-ek34fcbppprtcvtt7sd98ioodvapojci.apps.googleusercontent.com&redirect_uri=http%3A%2F%2Flocalhost%2Foauth2callback&scope=https://www.googleapis.com/auth/youtube&response_type=token
+
+# http://localhost/oauth2callback
+# http://localhost:8080 
+
+# http://localhost/oauth2callback#access_token=&token_type=Bearer&expires_in=3599&scope=https://www.googleapis.com/auth/youtube
+
+# def get-yt-playlist [
+#   pid         #playlist id
+#   nos? = 500  #number of song to fetch
+#   --all       #fetch all songs
+# ] {
+#   ls
+# # $playlists | flatten | where title == jp  | get id
+# }
+
+
+# auth_code
+# https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=https%3A%2F%2Fdevelopers.google.com%2Foauthplayground&prompt=consent&response_type=code&client_id=407408718192.apps.googleusercontent.com&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube&access_type=offline
+# https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=https%3A%2F%2Fdevelopers.google.com%2Foauthplayground&prompt=consent&response_type=code&client_id=407408718192.apps.googleusercontent.com&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube&access_type=offline
+
+# 4/0AdQt8qiNECGYvH98mxe0xnd7dHhGahZb2Na9w2-Q0YTv3KvjCg7ULN6T4Z5jGrLvEfLtnw
+
+# refresh_token
+# 1//04fRaM1rCDgifCgYIARAAGAQSNwF-L9IrQQDg2DCQypNrG44ML4QwcMsEGI0X5i4n43B5E4ZmdLvTcaeDltC0aQDjeUjlCE89BcU

@@ -2,7 +2,7 @@
 # - Weather using dark weather api
 # - Air polution condition using airvisual api
 # - Street address using google maps api
-# - Version 2.0
+# - Version 3.0
 export def-env weatherds [] {
     get_weather (get_location)
 } 
@@ -21,11 +21,12 @@ export def-env get_weather_by_interval [INTERVAL_WEATHER] {
             let NEW_WEATHER_TIME = (date now | date format '%Y-%m-%d %H:%M:%S %z')
     
             $last_runtime_data 
-            | upsert weather $WEATHER 
+            | upsert weather $"($WEATHER.Icon) ($WEATHER.Temperature)" 
+            | upsert weather_text $"($WEATHER.Condition) ($WEATHER.Temperature)" 
             | upsert last_weather_time $NEW_WEATHER_TIME 
             | save $weather_runtime_file
 
-            $WEATHER
+            $"($WEATHER.Icon) ($WEATHER.Temperature)"
         } else {
             $last_runtime_data | get weather
         }
@@ -66,8 +67,8 @@ def get_location [] {
     let table = (locations | merge {$online} | find true)
 
     # if ip address in your home isn't precise, you can force a location
-    if ($wifi =~ "my_wifi") || ($table | length) == 0 { 
-        "my_lat,my_lon" 
+    if ($wifi =~ $env.MY_ENV_VARS.home_wifi) || ($table | length) == 0 { 
+        "-36.877568,-73.148715" 
     } else { 
         let loc_json = (fetch ($table | select 0).0.location)
         if ($loc_json | column? lat) {
@@ -80,7 +81,12 @@ def get_location [] {
 
 # dark sky
 def fetch_api [loc] {
-    let apiKey = "API_KEY"
+    let apiKey = (
+        open ([$env.MY_ENV_VARS.credentials "credentials.dark_sky.json"] 
+            | path join) 
+        | get api_key
+    )
+
     let options = "?lang=en&units=si&exclude=minutely,hourly,flags"
 
     let url = $"https://api.darksky.net/forecast/($apiKey)/($loc)($options)"
@@ -90,7 +96,11 @@ def fetch_api [loc] {
 
 # street address
 def get_address [loc] {
-    let mapsAPIkey = "API_KEY"
+    let mapsAPIkey = (
+        open ([$env.MY_ENV_VARS.credentials "googleAPIkeys.json"] 
+            | path join) 
+        | get general
+    )
     let url = $"https://maps.googleapis.com/maps/api/geocode/json?latlng=($loc)&sensor=true&key=($mapsAPIkey)"
 
     fetch $url
@@ -130,7 +140,11 @@ def uv_class [uvIndex] {
 
 # air pollution
 def get_airCond [loc] {
-    let apiKey = "API_KEY"
+    let apiKey = (
+        open ([$env.MY_ENV_VARS.credentials "credentials.air_visual.json"] 
+            | path join) 
+        | get api_key
+    )
     let lat = (echo $loc | split row "," | get 0)
     let lon = (echo $loc | split row "," | get 1)
     let url = $"https://api.airvisual.com/v2/nearest_city?lat=($lat)&lon=($lon)&key=($apiKey)"
@@ -154,7 +168,6 @@ def get_airCond [loc] {
 
 # parse all the information
 def get_weather [loc] {
-    
     let response = (fetch_api $loc)
     let address = (get_address $loc)
     let air_cond = (get_airCond $loc)
@@ -174,7 +187,7 @@ def get_weather [loc] {
             | into datetime -o -4 
             | into string
           }
-        )
+    )
     
     let sunrise = ($suntimes | get sunriseTime | get 0 | split row ' ' | get 3)
     let sunset = ($suntimes | get sunsetTime | get 0 | split row ' ' | get 3)
@@ -210,7 +223,13 @@ def get_weather [loc] {
 
 
     ## plots
-    ($response.daily.data | select windSpeed | rename "Wind Speed (Km/h)") | gnu-plot
+    ($response.daily.data 
+        | select windSpeed 
+        | update windSpeed {|f| $f.windSpeed * 3.6} 
+        | rename "Wind Speed (Km/h)"
+    ) 
+    | gnu-plot
+    
     ($forecast | select "Humidity (%)") | gnu-plot
     ($forecast | select "Precip. Intensity (mm)") | gnu-plot
     ($forecast | select "Precip. Prob. (%)") | gnu-plot
@@ -242,7 +261,8 @@ def get_weather_for_prompt [loc] {
         Icon: ($icon)
     }
 
-    echo $"($current.Icon) ($current.Temperature)"
+    # echo $"($current.Icon) ($current.Temperature)"
+    $current
 }
 
 def get_weather_icon [icon: string] {
