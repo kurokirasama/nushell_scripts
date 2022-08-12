@@ -1,6 +1,98 @@
 ##variables 
 let r_prompt = "short"
 
+##¡DO NOT SHARE
+
+#search for anime
+def grep-anime [search] {
+  let result = (grep -ihHn $search ~/Dropbox/Directorios/anime*.txt ~/Dropbox/Directorios/torrent*.txt ~/Dropbox/Directorios/downloads*.txt 
+    | lines 
+    | parse "{file}:{line}:{match}"
+    | update file {|f|
+         $f 
+         | get file 
+         | split row '/' 
+         | last
+      }
+    | str trim
+    | find -v "/"
+    | rename "source file" "line number"
+  )
+
+  let match = ($result | get match | parse "{size} {file}")
+
+  $result | reject match | merge { $match }
+}
+
+#search for manga
+def grep-manga [search] {
+  let result = ( grep -ihHn $search ~/Dropbox/Directorios/manga*.txt
+    | lines 
+    | parse "{file}:{line}:{match}"
+    | update file {|f|
+         $f 
+         | get file 
+         | split row '/' 
+         | last
+      }
+    | str trim
+    | find -v "/"
+    | rename "source file" "line number"
+  )
+
+  let match = ($result | get match | parse "{size} {file}")
+
+  $result | reject match | merge { $match }
+}
+
+#search for series
+def grep-series [search:string,season?:int] {
+  let result = (grep -ihHn $search ~/Dropbox/Directorios/series*.txt ~/Dropbox/Directorios/torrent*.txt
+      | lines 
+      | parse "{file}:{line}:{match}"
+      | update file {|f|
+           $f 
+           | get file 
+           | split row '/' 
+           | last
+       }
+      | str trim
+      | find -v "/"
+      | rename "source file" "line number"
+  )
+
+  let result = if (column? column4) {
+    $result | reject column4
+    } else {
+      $result
+    }
+
+  let match = ($result | get match | into string | parse "{size} {file}")
+
+  let S = if ($season | empty?) {
+      ""
+    } else {
+      $season | into string | str lpad -l 2 -c '0'
+  }
+
+  $result | reject match | merge { $match } | find -i $S 
+}
+
+#backup webies 2 drive
+def copy-webies-2-ubbdrive [] {
+  let mounted = ("~/gdrive/Sites/webies" | path expand | path exists)
+
+  if not $mounted {
+    echo-g "mounting gdrive..."
+    mountubb
+  }
+  
+  echo-g "syncing..."
+  rsync -urta --progress -e "ssh -p 22 -i /home/kira/.ssh/id_rsa" ing_estadistica@146.83.193.197:/home/departamentos/ing_estadistica/public_html/ /home/kira/gdrive/Sites/webies/
+}
+
+## DO NOT SHARE!
+
 ##dataframes
 
 #get columns of a dataframe into a list
@@ -10,7 +102,7 @@ let r_prompt = "short"
 
 ##general scripts
 
-#update nu config (after update)
+#update nu config (after nu update)
 def update-nu-config [] {
   cp ~/software/nushell/docs/sample_config/default_config.nu $nu.config-path
   open ([$env.MY_ENV_VARS.linux_backup "append_to_config.nu"] | path join) | save --append $nu.config-path
@@ -135,8 +227,8 @@ def agenda [
   # agenda "--details=all"
   # agenda --full true "--details=all"
 ] {
-  let calendars = "Clases|Congresos|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Certamenes y Tests|Familia"
-  let calendars_full = "TV Shows|Contacts|Festivos en Chile|Cuentas|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Clases|Certamenes y Tests|Familia|Congresos"
+  let calendars = $env.MY_ENV_VARS.google_calendars
+  let calendars_full = $env.MY_ENV_VARS.google_calendars_full
 
   if ($full | empty?) || ($full == 0) {
     gcalcli --calendar $"($calendars)" agenda --military $rest
@@ -156,8 +248,8 @@ def semana [
   # semana "--details=all"
   # semana --full true "--details=all"
 ] {
-  let calendars = "Clases|Congresos|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Certamenes y Tests|Familia"
-  let calendars_full = "TV Shows|Contacts|Festivos en Chile|Cuentas|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Clases|Certamenes y Tests|Familia|Congresos"
+  let calendars = $env.MY_ENV_VARS.google_calendars
+  let calendars_full = $env.MY_ENV_VARS.google_calendars_full
   
   if ($full | empty?) || ($full == 0) {
     gcalcli --calendar $"($calendars)" calw $rest --military --monday
@@ -177,8 +269,8 @@ def mes [
   # mes "--details=all"
   # mes --full true "--details=all"
 ] {
-  let calendars = "Clases|Congresos|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Certamenes y Tests|Familia"
-  let calendars_full = "TV Shows|Contacts|Festivos en Chile|Cuentas|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Clases|Certamenes y Tests|Familia|Congresos"
+  let calendars = $env.MY_ENV_VARS.google_calendars
+  let calendars_full = $env.MY_ENV_VARS.google_calendars_full
   
   if ($full | empty?) || ($full == 0) {
     gcalcli --calendar $"($calendars)" calm $rest --military --monday
@@ -420,7 +512,7 @@ def ubb_announce [message] {
   post $weburl $content --content-type "application/json"
 }  
 
-#upload videos to ubb and post to discord
+#upload weekly videos and post to discord
 def up2ubb [year = 2022, sem = 01] {
   let sem = ([($year | into string) "-" ($sem | into string | str lpad -l 2 -c '0')] | str collect)
 
@@ -945,7 +1037,7 @@ def column? [name] {
 }
 
 #ssh into termux
-def ssh-termux [ip = '192.168.4.142'] {
+def ssh-termux [ip = $MY_ENV_VARS.termux_ip] {
   ssh -X -p 5699 $ip -i ~/.ssh/id_rsa_termux
 }
 
@@ -988,94 +1080,6 @@ def grep-nu [
       | nu-highlight
     }
   | rename "source file" "line number"
-}
-
-#search for anime
-def grep-anime [search] {
-  let result = (grep -ihHn $search ~/Dropbox/Directorios/anime*.txt ~/Dropbox/Directorios/torrent*.txt ~/Dropbox/Directorios/downloads*.txt 
-    | lines 
-    | parse "{file}:{line}:{match}"
-    | update file {|f|
-         $f 
-         | get file 
-         | split row '/' 
-         | last
-      }
-    | str trim
-    | find -v "/"
-    | rename "source file" "line number"
-  )
-
-  let match = ($result | get match | parse "{size} {file}")
-
-  $result | reject match | merge { $match }
-}
-
-#search for manga
-def grep-manga [search] {
-  let result = ( grep -ihHn $search ~/Dropbox/Directorios/manga*.txt
-    | lines 
-    | parse "{file}:{line}:{match}"
-    | update file {|f|
-         $f 
-         | get file 
-         | split row '/' 
-         | last
-      }
-    | str trim
-    | find -v "/"
-    | rename "source file" "line number"
-  )
-
-  let match = ($result | get match | parse "{size} {file}")
-
-  $result | reject match | merge { $match }
-}
-
-#search for series
-def grep-series [search:string,season?:int] {
-  let result = (grep -ihHn $search ~/Dropbox/Directorios/series*.txt ~/Dropbox/Directorios/torrent*.txt
-      | lines 
-      | parse "{file}:{line}:{match}"
-      | update file {|f|
-           $f 
-           | get file 
-           | split row '/' 
-           | last
-       }
-      | str trim
-      | find -v "/"
-      | rename "source file" "line number"
-  )
-
-  let result = if (column? column4) {
-    $result | reject column4
-    } else {
-      $result
-    }
-
-  let match = ($result | get match | into string | parse "{size} {file}")
-
-  let S = if ($season | empty?) {
-      ""
-    } else {
-      $season | into string | str lpad -l 2 -c '0'
-  }
-
-  $result | reject match | merge { $match } | find -i $S 
-}
-
-#backup webies 2 drive ubb
-def copy-webies-2-ubbdrive [] {
-  let mounted = ("~/gdrive/Sites/webies" | path expand | path exists)
-
-  if not $mounted {
-    echo-g "mounting gdrive..."
-    mountubb
-  }
-  
-  echo-g "syncing..."
-  rsync -urta --progress -e "ssh -p 22 -i /home/kira/.ssh/id_rsa" ing_estadistica@146.83.193.197:/home/departamentos/ing_estadistica/public_html/ /home/kira/gdrive/Sites/webies/
 }
 
 #get ips
@@ -1295,7 +1299,7 @@ def t-stoptorrents [] {
 }
 
 #umount all drives (duf)
-def umall [user? = "kira"] {
+def umall [user? = $env.USER] {
   duf -json 
   | from json 
   | find $"/media/($user)" 
@@ -1527,7 +1531,7 @@ def send-gmail [
   to:string                         #email to
   subject:string                    #email subject
   --body:string                     #email body, use double quotes to use escape characters like \n
-  --from = "kurokirasama@gmail.com" #email from, default: kurokirasama@gmail.com
+  --from = $env.MY_ENV_VARS.mail    #email from, default: $MY_ENV_VARS.mail
   ...attachments                    #email attachments file names list (in current directory), separated by comma
   #
   #Examples:
@@ -1550,9 +1554,9 @@ def send-gmail [
   } else {
     let signature_file = (
       switch $from {
-        "kurokirasama@gmail.com" : {echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_kurokirasama_signature"] | path join)},
-        "lgomez@ubiobio.cl" : {echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_ubb_signature"] | path join)},
-        "luismiguelgomezguzman@gmail.com" : {echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_lmgg_signature"] | path join)}
+        $env.MY_ENV_VARS.mail : {echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_kurokirasama_signature"] | path join)},
+        $env.MY_ENV_VARS.mail_ubb : {echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_ubb_signature"] | path join)},
+        $env.MY_ENV_VARS.mail_lmgg : {echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_lmgg_signature"] | path join)}
       } {otherwise : {echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_other_signature"] | path join)}}
     )
 
