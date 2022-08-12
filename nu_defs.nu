@@ -12,7 +12,14 @@ let r_prompt = "short"
 
 #update nu config (after nu update)
 def update-nu-config [] {
-  cp ~/software/nushell/docs/sample_config/default_config.nu $nu.config-path
+  ls (build-string $env.MY_ENV_VARS.nushell_dir "/**/*") 
+  | find -i default_config 
+  | update name {|n| 
+      $n.name 
+      | ansi strip
+    }  
+  | cp-pipe $nu.config-path
+
   open ([$env.MY_ENV_VARS.linux_backup "append_to_config.nu"] | path join) | save --append $nu.config-path
   nu -c $"source ($nu.config-path)"
 }
