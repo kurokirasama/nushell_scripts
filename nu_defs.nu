@@ -1928,18 +1928,19 @@ def ytm [
 
     if ($to_play | length) > 0 {
       let songs = open $to_play
+      let len = ($songs | length)
 
       $songs 
       | shuffle 
-      | each {|song|
-          fetch $"($song.thumbnail)" | save /tmp/thumbnail.jpg
+      | each -n {|song|
+          fetch $"($song.item.thumbnail)" | save /tmp/thumbnail.jpg
           convert -density 384 -scale 256 -background transparent /tmp/thumbnail.jpg /tmp/thumbnail.ico
 
-          notify-send $"($song.title)" $"($song.artist)" -t 5000 --icon=/tmp/thumbnail.ico
+          notify-send $"($song.item.title)" $"($song.item.artist)" -t 5000 --icon=/tmp/thumbnail.ico
           tiv /tmp/thumbnail.ico 
-          echo-g $"now playing ($song.title) by ($song.artist)..."
+          echo-g $"now playing ($song.item.title) by ($song.item.artist) [($song.index)/($len)]..."
 
-          bash -c $"mpv --msg-level=all=status --no-resume-playback --no-video --input-conf=($mpv_input) ($song.url)"
+          bash -c $"mpv --msg-level=all=status --no-resume-playback --no-video --input-conf=($mpv_input) ($song.item.url)"
         }    
     } else {
       echo-g "playlist not found!"
@@ -1973,18 +1974,19 @@ def "ytm online" [
 
     if ($to_play | length) > 0 {
       let songs = yt-api get-songs $to_play
+      let len = ($songs | length)
 
       $songs 
       | shuffle 
-      | each {|song|
-          fetch $"($song.thumbnail)" | save /tmp/thumbnail.jpg
+      | each -n {|song|
+          fetch $"($song.item.thumbnail)" | save /tmp/thumbnail.jpg
           convert -density 384 -scale 256 -background transparent /tmp/thumbnail.jpg /tmp/thumbnail.ico
 
-          notify-send $"($song.title)" $"($song.artist)" -t 5000 --icon=/tmp/thumbnail.ico
+          notify-send $"($song.item.title)" $"($song.item.artist)" -t 5000 --icon=/tmp/thumbnail.ico
           tiv /tmp/thumbnail.ico 
-          echo-g $"now playing ($song.title) by ($song.artist)..."
+          echo-g $"now playing ($song.item.title) by ($song.item.artist) [($song.index)/($len)]..."
 
-          bash -c $"mpv --msg-level=all=status --no-resume-playback --no-video --input-conf=($mpv_input) ($song.url)"
+          bash -c $"mpv --msg-level=all=status --no-resume-playback --no-video --input-conf=($mpv_input) ($song.item.url)"
         }    
     } else {
       echo-g "playlist not found!"
@@ -2257,7 +2259,21 @@ def "yt-api get-refresh-token" [] {
 
 #refres youtube api token via refresh token
 def "yt-api refresh-token" [] {
+  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let client_id = ($youtube_credential | get client_id)
+  let client_secret = ($youtube_credential | get client_secret)
+  let refresh_token = ($youtube_credential | get refresh_token)
+  let redirect_uri = (
+    $youtube_credential 
+    | get redirect_uris 
+    | get 0 
+    | str replace -a ":" "%3A" 
+    | str replace -a "/" "%2F"
+  )
 
+  post "https://accounts.google.com/o/oauth2/token" $"client_id=($client_id)&client_secret=($client_secret)&refresh_token=($refresh_token)&grant_type=refresh_token" -t application/x-www-form-urlencoded
+
+  # curl -X POST "https://accounts.google.com/o/oauth2/token" -d $"client_id=($client_id)&client_secret=($client_secret)&refresh_token=($refresh_token)&grant_type=refresh_token" -H "Content-Type: application/x-www-form-urlencoded"
 }
 
 #help info for yt-api
