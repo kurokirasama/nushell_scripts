@@ -364,12 +364,19 @@ def psn [name: string] {
 }
 
 #kill specified process in name
-def killn [name: string] {
-  ps -l
-  | find -i $name 
-  | par-each {
-      kill -f $in.pid
-    }
+def killn [name?] {
+  if not ($name | empty?) {
+    ps -l
+    | find -i $name 
+    | par-each {
+        kill -f $in.pid
+      }
+  } else {
+    $in
+    | par-each {|row|
+        kill -f $row.pid
+      }
+  }
 }
 
 #jdownloader downloads info
@@ -865,6 +872,10 @@ def lg [
 #get devices connected to network
 def get-devices [
   device = "wlo1" #wlo1 for wifi (default), eno1 for lan
+  #
+  #It needs nmap2json, installable (ubuntu at least) via
+  #
+  #sudo gem install nmap2json
 ] {
   let ipinfo = (ip -json add 
     | from json 
@@ -1904,9 +1915,15 @@ def reg-plugins [] {
   | sort-by -i name
   | get name 
   | find nu_plugin 
+  | find -v example
   | each {|file|
       echo-g $"registering ($file)..."
-      nu -c $'register -e json ($file)'
+      if $file =~ net {
+          nu -c $'register -e capnp ($file)'
+        } else {
+          nu -c $'register -e json ($file)'    
+        }
+      
     }
 }
 
@@ -1940,6 +1957,7 @@ def reset-alpine-auth [] {
 def ytm [
   playlist? = "all_likes" #playlist name (default: all_likes)
   --list(-l)              #list available music playlists
+  --artist(-a):string     #search by artist from all:likes
   #
   #First run `yt-api download-music-playlists`
 ] {
@@ -1950,6 +1968,7 @@ def ytm [
   if not ($list | empty?) || (not $list) {
     $playlists | path parse | get stem
   } else {
+    $playlist
     let to_play = ($playlists | find $playlist | ansi strip | get 0)
 
     if ($to_play | length) > 0 {
@@ -1960,6 +1979,14 @@ def ytm [
         | into nu
       )
 
+      let songs = (
+        if not ($artist | empty?) {
+          $songs | find -i $artist
+        } else {
+          $songs 
+        }
+      )
+      
       let len = ($songs | length)
 
       $songs 
@@ -1984,6 +2011,7 @@ def ytm [
 def "ytm online" [
   playlist? = "all_likes" #playlist name, default: all_likes
   --list(-l)              #list available music playlists
+  --artist(-a):string     #search by artist in all_likes
 ] {
   let mpv_input = ([$env.MY_ENV_VARS.linux_backup "scripts/mpv_input.conf"] | path join)
   let response = yt-api
@@ -2007,6 +2035,15 @@ def "ytm online" [
 
     if ($to_play | length) > 0 {
       let songs = yt-api get-songs $to_play
+
+      let songs = (
+        if not ($artist | empty?) {
+          $songs | find -i $artist
+        } else {
+          $songs
+        }
+      )
+
       let len = ($songs | length)
 
       $songs 
@@ -2118,7 +2155,7 @@ def "yt-api get-songs" [
   #next pages via recursion
   let songs = (
     if ($nextpageToken | typeof) == string {
-      echo-g $"getting page ($nextpageToken)..."
+      print -n (echo-g $"\rgetting page ($nextpageToken)...")
       $songs | append (yt-api get-songs $pid --ptoken $nextpageToken)
     } else {
       $songs
@@ -2156,7 +2193,7 @@ def "yt-api download-music-playlists" [
       let songs = yt-api get-songs $playlist.id
       
       if ($songs | length) > 0 {
-        echo-g $"downloading ($playlist.title | ansi strip) into ($filename)..."
+        echo-g $"\nsaving ($playlist.title) into ($filename)..."
         $songs | sort-by artist | save $filename
       }
     }
