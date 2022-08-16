@@ -106,7 +106,7 @@ def 7zmax [
   # 7zmax filename * "-v3g -sdel"
 ] {
   if ($rest | empty?) {
-    echo-g "no files to compress specified"
+    echo-r "no files to compress specified"
   } else if ($delete | empty?) || (not $delete) {
     7z a -t7z -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename).7z" $rest
   } else {
@@ -197,7 +197,7 @@ def mes [
 #get bitly short link
 def mbitly [longurl] {
   if ($longurl | empty?) {
-    echo-g "no url provided"
+    echo-r "no url provided"
   } else {
     let bitly_credential = open ([$env.MY_ENV_VARS.credentials "bitly_token.json"] | path join)
     let Accesstoken = ($bitly_credential | get token)
@@ -226,7 +226,7 @@ def trans [
   #More in: https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes
 ] {
   if ($search | empty?) {
-    echo-g "no search query provided"
+    echo-r "no search query provided"
   } else {
     let trans_credential = open ([$env.MY_ENV_VARS.credentials "mymemory_token.json"] | path join)
     let key = ($trans_credential | get token)
@@ -288,6 +288,11 @@ def supgrade [] {
 #green echo
 def echo-g [string:string] {
   echo $"(ansi -e { fg: '#00ff00' attr: b })($string)(ansi reset)"
+}
+
+#red echo
+def echo-r [string:string] {
+  echo $"(ansi -e { fg: '#ff0000' attr: b })($string)(ansi reset)"
 }
 
 #open mcomix
@@ -540,9 +545,20 @@ def 'nu-sloc' [] {
   let stats = (
     ls **/*.nu
     | select name
-    | insert lines { |it| open $it.name | size | get lines }
-    | insert blank {|s| $s.lines - (open $s.name | lines | find --regex '\S' | length) }
-    | insert comments {|s| open $s.name | lines | find --regex '^\s*#' | length }
+    | insert lines { |it| 
+        open $it.name 
+        | size 
+        | get lines 
+      }
+    | insert blank {|s| 
+        $s.lines - (open $s.name | lines | find --regex '\S' | length) 
+      }
+    | insert comments {|s| 
+        open $s.name 
+        | lines 
+        | find --regex '^\s*#' 
+        | length 
+      }
     | sort-by lines -r
   )
 
@@ -584,7 +600,7 @@ def-env which-cd [program] {
 #delete non wanted media in mps (youtube download folder)
 def delete-mps [] {
   if $env.MY_ENV_VARS.mps !~ $env.PWD {
-    echo-g "wrong directory to run this"
+    echo-r "wrong directory to run this"
   } else {
      ls 
      | where type == "file" && name !~ "mp4|mkv|webm" 
@@ -610,12 +626,23 @@ def gg [...search: string] {
 
 #habitipy dailies done all
 def hab-dailies-done [] {
+  # let to_do = (habitipy dailies 
+  #   | grep ✖ 
+  #   | awk {print $1} 
+  #   | tr '.\n' ' ' 
+  #   | split row ' ' 
+  #   | into int
+  # )
+
   let to_do = (habitipy dailies 
     | grep ✖ 
-    | awk {print $1} 
-    | tr '.\n' ' ' 
-    | split row ' ' 
-    | into int
+    | detect columns -n 
+    | select column0 
+    | each {|row| 
+        $row.column0 
+        | str replace -s '.' ''
+      }  
+    | into int  
   )
 
   habitipy dailies done $to_do 
@@ -745,7 +772,7 @@ def sub-sync [
 
     rm output.srt | ignore
   } else {
-    echo-g $"subtitle file ($file) doesn't exist in (pwd-short)"
+    echo-r $"subtitle file ($file) doesn't exist in (pwd-short)"
   }
 }
 
@@ -922,7 +949,7 @@ def lo [] {
 
 #ls sorted by extension
 def le [] {
-  ls --du 
+  ls
   | sort-by -i type name 
   | insert "ext" { 
       $in.name 
@@ -1229,6 +1256,7 @@ def media-to [
   #media-to aac (audio files to aac)
   #media-to mp3 (audio files to mp3)
 ] {
+  #to aac or mp3
   if $to =~ "aac" || $to =~ "mp3" {
     let n_files = (bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.($to)"'
         | lines 
@@ -1251,9 +1279,10 @@ def media-to [
       if $n_files == $aacs {
         echo-g $"audio conversion to ($to) done"
       } else {
-        echo-g $"audio conversion to ($to) done, but something might be wrong"
+        echo-r $"audio conversion to ($to) done, but something might be wrong"
       }
     }
+  #to mp4
   } else if $to =~ "mp4" {
     let n_files = (ls **/*
         | insert "ext" { 
@@ -1279,7 +1308,7 @@ def media-to [
       if $n_files == $aacs {
         echo-g $"video conversion to mp4 done"
       } else {
-        echo-g $"video conversion to mp4 done, but something might be wrong"
+        echo-r $"video conversion to mp4 done, but something might be wrong"
       }
     }
   }
@@ -1367,7 +1396,7 @@ def join-pdfs [
   ...rest: #list of pdf files to concatenate
 ] {
   if ($rest | empty?) {
-    echo-g "not enough pdfs provided"
+    echo-r "not enough pdfs provided"
   } else {
     pdftk $rest cat output output.pdf
     echo-g "pdf merged in output.pdf"
@@ -1458,9 +1487,9 @@ def send-gmail [
   let inp = if ($in | empty?) { "" } else { $in | into string }
 
   if ($body | empty?) && ($inp | empty?) {
-    echo-g "body undefined!!"
+    echo-r "body undefined!!"
   } else if not (($from | str contains "@") && ($to | str contains "@")) {
-    echo-g "missing @ in email-from or email-to!!"
+    echo-r "missing @ in email-from or email-to!!"
   } else {
     let signature_file = (
       switch $from {
@@ -1542,7 +1571,6 @@ def chrome-update [] {
   
   echo-g "downloading chrome..."
   aria2c --download-result=hide https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-  echo-g $"download finished: (ls *.deb | find chrome | get 0 | get name | ansi strip)"
 }
 
 #update google earth deb
@@ -1555,7 +1583,6 @@ def earth-update [] {
   
   echo-g "downloading google earth..."
   aria2c --download-result=hide https://dl.google.com/dl/earth/client/current/google-earth-pro-stable_current_amd64.deb
-  echo-g $"download finished: (ls *.deb | find earth | get 0 | get name | ansi strip)"
 }
 
 #update yandex deb
@@ -1568,7 +1595,6 @@ def yandex-update [] {
   
   echo-g "downloading yandex..."
   aria2c --download-result=hide http://repo.yandex.ru/yandex-disk/yandex-disk_latest_amd64.deb
-  echo-g $"download finished: (ls *.deb | find yandex | get 0 | get name | ansi strip)"
 }
 
 #update sejda
@@ -1910,7 +1936,7 @@ def reset-alpine-auth [] {
   alpine-notify -i
 }
 
-#play youtube music from local database
+#play youtube music with playlist items pulled from local database
 def ytm [
   playlist? = "all_music" #playlist name (default: all_music)
   --list(-l)              #list available music playlists
@@ -1927,7 +1953,13 @@ def ytm [
     let to_play = ($playlists | find $playlist | ansi strip | get 0)
 
     if ($to_play | length) > 0 {
-      let songs = open $to_play
+      let songs = (
+        open $to_play 
+        | into df 
+        | drop-duplicates [id] 
+        | into nu
+      )
+
       let len = ($songs | length)
 
       $songs 
@@ -1943,12 +1975,12 @@ def ytm [
           bash -c $"mpv --msg-level=all=status --no-resume-playback --no-video --input-conf=($mpv_input) ($song.item.url)"
         }    
     } else {
-      echo-g "playlist not found!"
+      echo-r "playlist not found!"
     }
   }
 }
 
-#play youtube music from youtube
+#play youtube music with playlist items pulled from youtube
 def "ytm online" [
   playlist? = "all_music" #playlist name, default: all_music
   --list(-l)              #list available music playlists
@@ -1964,6 +1996,7 @@ def "ytm online" [
         $sn.snippet.title
       }
     | rename -c [snippet title]
+    | append {"id": "LM", "title": "all_likes"}
   )
 
   #--list|
@@ -1989,7 +2022,7 @@ def "ytm online" [
           bash -c $"mpv --msg-level=all=status --no-resume-playback --no-video --input-conf=($mpv_input) ($song.item.url)"
         }    
     } else {
-      echo-g "playlist not found!"
+      echo-r "playlist not found!"
     }
   }
 }
@@ -2067,6 +2100,8 @@ def "yt-api get-songs" [
     | upsert title {|item| 
         $item.snippet.title
       } 
+    | find -v "Deleted video"
+    | find -v "Private video"
     | upsert artist {|item| 
         $item.snippet.videoOwnerChannelTitle 
         | str replace ' - Topic' ''
@@ -2083,7 +2118,8 @@ def "yt-api get-songs" [
   #next pages via recursion
   let songs = (
     if ($nextpageToken | typeof) == string {
-        $songs | append (yt-api get-songs $pid --ptoken $nextpageToken)
+      echo-g $"getting page ($nextpageToken)..."
+      $songs | append (yt-api get-songs $pid --ptoken $nextpageToken)
     } else {
       $songs
     }
@@ -2107,11 +2143,16 @@ def "yt-api download-music-playlists" [
       }
     | rename -c [snippet title]
     | find music
+    | update title {|item|
+        $item.title 
+        | ansi strip
+      }
+    | append {"id": "LM", "title": "all_likes"}
   )
 
   $playlists
   | each {|playlist|
-      let filename = $"([$downloadDir ($playlist.title | ansi strip)] | path join).json"
+      let filename = $"([($downloadDir) ($playlist.title)] | path join).json"
       let songs = yt-api get-songs $playlist.id
       
       if ($songs | length) > 0 {
@@ -2181,6 +2222,131 @@ def "yt-api update-all" [
   yt-api download-music-playlists
 }
 
+#delete all songs of a playlist
+def "yt-api empty-playlist" [playlist?:string] {
+  let response = yt-api
+
+  echo-g "listing playlists..."
+  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let api_key = ($youtube_credential | get api_key)
+  let token = ($youtube_credential | get token)
+
+  let playlists = (
+    $response 
+    | get items 
+    | select id snippet 
+    | upsert snippet {|sn| 
+        $sn.snippet.title
+      }
+    | rename -c [snippet title]
+  )
+
+  echo-g "selecting playlist to process..."
+  let the_playlist = (
+    if ($playlist | empty?) {
+      $playlists
+      let index = (input (echo-g "from which playlist you want to delete songs (index)?: ") | into int)
+      $playlists | get $index
+    } else {
+      $playlists | find -i $playlist
+    }
+  )
+
+  echo-g "geting songs..."
+  let songs = yt-api get-songs $the_playlist.id
+
+  echo-g $"removing songs from ($the_playlist.title)..."
+  let header2 = "Accept: application/json"
+
+  $songs
+  | each {|song|
+      let url = $"https://youtube.googleapis.com/youtube/v3/playlistItems?id=($song.inPlaylistID)&key=($api_key)"
+      let header1 = $"Authorization: Bearer ($token)"
+
+      curl -s --request DELETE $url --header $header1 --header $header2 --compressed
+      sleep 10ms
+    }
+}
+
+#remove duplicated songs from a playlist
+def "yt-api remove-duplicated-songs" [
+  playlist?:string #playlist id
+  #
+  #Does not work if there are more than 50 duplicates, due to youtube api quota
+] {
+  let response = yt-api
+
+  echo-g "listing playlists..."
+  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let api_key = ($youtube_credential | get api_key)
+  let token = ($youtube_credential | get token)
+
+  let playlists = (
+    $response 
+    | get items 
+    | select id snippet 
+    | upsert snippet {|sn| 
+        $sn.snippet.title
+      }
+    | rename -c [snippet title]
+  )
+
+  echo-g "selecting playlist to process..."
+  let the_playlist = (
+    if ($playlist | empty?) {
+      $playlists
+      let index = (input (echo-g "from which playlist you want to remove duplicates (index)?: ") | into int)
+      $playlists | get $index
+    } else {
+      $playlists | find -i $playlist
+    }
+  )
+
+  echo-g "geting songs and droping duplicates..."
+  let songs = yt-api get-songs $the_playlist.id
+
+  let unique_songs = (
+    $songs
+    | into df 
+    | drop-duplicates [id] 
+    | into nu
+  )
+
+  echo-g $"removing songs from ($the_playlist.title)..."
+  let header2 = "Accept: application/json"
+
+  $songs
+  | each {|song|
+      let url = $"https://youtube.googleapis.com/youtube/v3/playlistItems?id=($song.inPlaylistID)&key=($api_key)"
+      let header1 = $"Authorization: Bearer ($token)"
+
+      curl -s --request DELETE $url --header $header1 --header $header2 --compressed
+      sleep 10ms
+    }
+
+  echo-g $"adding non duplicated songs to ($the_playlist.title)..."
+  $unique_songs 
+  | each {|song|
+      let body = (
+        {  "snippet": {
+              "playlistId": $"($the_playlist)",
+              "resourceId": {
+                "kind": "youtube#video",
+                "videoId": $"($song.id)"
+              }
+            }
+        }
+      )
+
+      post "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&key=($api_key)" -t 'application/json' -H ["Authorization", $"Bearer ($token)"] $body | ignore
+      sleep 10ms
+
+    } 
+
+  echo-g "updating local database..."
+  yt-api download-music-playlists
+}
+
 #verify if youtube api token has expired
 def "yt-api verify-token" [] {
   let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
@@ -2189,9 +2355,11 @@ def "yt-api verify-token" [] {
 
   let response = fetch $"https://youtube.googleapis.com/youtube/v3/playlists?part=snippet&mine=true&key=($api_key)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json'] 
 
-  if ($response | column? error) {
+  if ($response | column? error) && ($response | get error  | get code) != 403 {
     yt-api get-token 
     #yt-api refresh-token
+  } else if ($response | column? error) && ($response | get error  | get code) == 403 {
+    echo-r "youtube api quota excedeed!"
   }
 }
 
@@ -2257,7 +2425,7 @@ def "yt-api get-refresh-token" [] {
   | save ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join) 
 }
 
-#refres youtube api token via refresh token
+#refresh youtube api token via refresh token (in progress)
 def "yt-api refresh-token" [] {
   let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
   let client_id = ($youtube_credential | get client_id)
