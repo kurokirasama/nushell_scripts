@@ -1938,7 +1938,7 @@ def reset-alpine-auth [] {
 
 #play youtube music with playlist items pulled from local database
 def ytm [
-  playlist? = "all_music" #playlist name (default: all_music)
+  playlist? = "all_likes" #playlist name (default: all_likes)
   --list(-l)              #list available music playlists
   #
   #First run `yt-api download-music-playlists`
@@ -1982,7 +1982,7 @@ def ytm [
 
 #play youtube music with playlist items pulled from youtube
 def "ytm online" [
-  playlist? = "all_music" #playlist name, default: all_music
+  playlist? = "all_likes" #playlist name, default: all_likes
   --list(-l)              #list available music playlists
 ] {
   let mpv_input = ([$env.MY_ENV_VARS.linux_backup "scripts/mpv_input.conf"] | path join)
@@ -2001,7 +2001,7 @@ def "ytm online" [
 
   #--list|
   if not ($list | empty?) || (not $list) {
-    $playlists | find music
+    $playlists | find music & likes
   } else {
     let to_play = ($playlists | where title =~ $playlist | first | get id)
 
@@ -2157,7 +2157,7 @@ def "yt-api download-music-playlists" [
       
       if ($songs | length) > 0 {
         echo-g $"downloading ($playlist.title | ansi strip) into ($filename)..."
-        $songs | save $filename
+        $songs | sort-by artist | save $filename
       }
     }
 }
