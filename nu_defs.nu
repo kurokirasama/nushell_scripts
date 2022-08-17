@@ -255,12 +255,28 @@ def-env mvmanga [] {
   let from = $env.MY_ENV_VARS.local_manga
   let to = $env.MY_ENV_VARS.external_manga
 
+  let dirs = get-dirs $from
+
+  let file_count = (
+    $dirs
+    | each {|dir| 
+        ls $dir.name 
+        | length
+      } 
+    | wrap file_count
+  )
+
+  $dirs 
+  | merge {$file_count} 
+  | where file_count < 5  
+  | rm-pipe
+  
   if (is-mounted "Seagate") {
     cd $from
     7zfolders
     mv *.7z $to
   } else {
-    "Seageate drive isn't mounted"
+    echo-r "Seageate drive isn't mounted"
   }
 }
 
@@ -275,9 +291,7 @@ def get-phone-number [search:string] {
 
 #update-upgrade system
 def supgrade [] {
-  echo-g "updating..."
-  sudo nala update
-  echo-g "upgrading..."
+  echo-g "updating and upgrading..."
   sudo nala upgrade -y
   echo-g "autoremoving..."
   sudo nala autoremove -y
@@ -788,12 +802,14 @@ def sub-sync [
 #Example
 #ls *.txt | rm-pipe
 def rm-pipe [] {
-  get name 
-  | ansi strip
-  | par-each {|file| 
-      rm -rf $file
-    } 
-  | flatten
+  if not ($in | empty?) {
+    get name 
+    | ansi strip
+    | par-each {|file| 
+        rm -rf $file
+      } 
+    | flatten
+  }
 }
 
 #cp trough pipe to same dir
@@ -978,10 +994,16 @@ def get-files [] {
 }
 
 #get list of directories in current path
-def get-dirs [] {
-  ls 
-  | where type == dir 
-  | sort-by -i name
+def get-dirs [dir?] {
+  if ($dir | empty?) {
+    ls 
+    | where type == dir 
+    | sort-by -i name
+  } else {
+    ls $dir
+    | where type == dir 
+    | sort-by -i name
+  }
 }
 
 #verify if a column exist within a table
@@ -1567,9 +1589,13 @@ def zoom-update [] {
     ls *.deb | find zoom | rm-pipe | ignore
   }
   
-  echo-g "downloading zoom..."
+  echo-g "\ndownloading zoom..."
   aria2c --download-result=hide https://zoom.us/client/latest/zoom_amd64.deb
-  sudo gdebi -n (ls *.deb | find zoom | get 0 | get name | ansi strip)
+
+  let install = (input (echo-g "Would you like to install it? (y/n): "))
+  if $install == "y" {
+    sudo gdebi -n (ls *.deb | find zoom | get 0 | get name | ansi strip)
+  }
 }
 
 #update chrome deb
@@ -1580,7 +1606,7 @@ def chrome-update [] {
     ls *.deb | find chrome | rm-pipe | ignore
   }
   
-  echo-g "downloading chrome..."
+  echo-g "\ndownloading chrome..."
   aria2c --download-result=hide https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 }
 
@@ -1592,7 +1618,7 @@ def earth-update [] {
     ls *.deb | find earth | rm-pipe | ignore
   }
   
-  echo-g "downloading google earth..."
+  echo-g "\ndownloading google earth..."
   aria2c --download-result=hide https://dl.google.com/dl/earth/client/current/google-earth-pro-stable_current_amd64.deb
 }
 
@@ -1604,7 +1630,7 @@ def yandex-update [] {
     ls *.deb | find yandex | rm-pipe | ignore
   }
   
-  echo-g "downloading yandex..."
+  echo-g "\ndownloading yandex..."
   aria2c --download-result=hide http://repo.yandex.ru/yandex-disk/yandex-disk_latest_amd64.deb
 }
 
@@ -1640,14 +1666,14 @@ def sejda-update [] {
     )
 
     if $current_version != $new_version {
-      echo-g "updating sedja..."
+      echo-g "\nupdating sedja..."
       rm sejda*.deb | ignore
       aria2c --download-result=hide $url
       sudo gdebi -n $new_file
     }
 
   } else {
-    echo-g "downloading sedja..."
+    echo-g "\ndownloading sedja..."
     aria2c --download-result=hide $url
     sudo gdebi -n $new_file
   }
@@ -1660,15 +1686,16 @@ def tasker-update [] {
   let url = (
     fetch https://github.com/joaomgcd/Tasker-Permissions/releases/ 
     | lines 
-    | find deb 
+    | find .deb 
     | find href 
     | get 0 
     | split row "href=" 
-    | get 2 
-    | split row "<" 
-    | get 0 
-    | split row "\"" 
+    | find amd64
     | get 0
+    | ansi strip 
+    | split row ">" 
+    | get 0 
+    | str replace -a "\"" "" 
   )
 
   let new_file = ($url | split row / | last)
@@ -1688,14 +1715,14 @@ def tasker-update [] {
     )
 
     if $current_version != $new_version {
-      echo-g "updating tasker permissions..."
+      echo-g "\nupdating tasker permissions..."
       rm *tasker*.deb | ignore
       aria2c --download-result=hide $url
       sudo gdebi -n $new_file
     }
 
   } else {
-    echo-g "downloading tasker..."
+    echo-g "\ndownloading tasker..."
     aria2c --download-result=hide $url
     sudo gdebi -n $new_file
   }
@@ -1736,7 +1763,7 @@ def nmap-update [] {
     )
 
     if $current_version != $new_version {
-      echo-g "updating nmap..."
+      echo-g "\nupdating nmap..."
       rm nmap*.deb | ignore
 
       aria2c --download-result=hide $url
@@ -1749,7 +1776,7 @@ def nmap-update [] {
     }
 
   } else {
-    echo-g "downloading nmap..."
+    echo-g "\ndownloading nmap..."
     aria2c --download-result=hide $url
     sudo alien -v -k $new_file
 
@@ -1796,7 +1823,7 @@ def nyxt-update [] {
     )
 
     if $current_version != $new_version {
-      echo-g "updating nyxt..."
+      echo-g "\nupdating nyxt..."
       rm nyxt*.deb | ignore
       aria2c --download-result=hide $url
 
@@ -1805,10 +1832,71 @@ def nyxt-update [] {
     }
 
   } else {
-    echo-g "downloading nyxt..."
+    echo-g "\ndownloading nyxt..."
     aria2c --download-result=hide $url
-    let new_deb = (ls *.deb | find nyxt | get 0 | get name | ansi strip)
-    sudo gdebi -n $new_deb
+
+    let install = (input (echo-g "Would you like to install it? (y/n): "))
+    if $install == "y" {
+      let new_deb = (ls *.deb | find nyxt | get 0 | get name | ansi strip)
+      sudo gdebi -n $new_deb
+    }
+  }
+}
+
+#update pandoc
+def pandoc-update [] {
+  cd $env.MY_ENV_VARS.debs
+
+  let info = (
+    fetch https://github.com/jgm/pandoc/releases
+    | lines 
+    | find .deb 
+    | find amd64
+    | first 
+    | split row "\"" 
+    | get 1
+  )
+
+  let url = $"https://github.com($info)"
+
+  let new_version = (
+    $info 
+    | split row /
+    | last
+    | split row -
+    | get 1
+  )
+  
+  let pandoc = ((ls *.deb | find pandoc | length) > 0)
+
+  if $pandoc {
+    let current_version = (
+      ls *.deb 
+      | find pandoc 
+      | get 0 
+      | get name 
+      | split row - 
+      | get 1
+    )
+
+    if $current_version != $new_version {
+      echo-g "\nupdating pandoc..."
+      rm pandoc*.deb | ignore
+      aria2c --download-result=hide $url
+
+      let new_deb = (ls *.deb | find pandoc | get 0 | get name | ansi strip)
+      sudo gdebi -n $new_deb
+    }
+
+  } else {
+    echo-g "\ndownloading pandoc..."
+    aria2c --download-result=hide $url
+
+    let install = (input (echo-g "Would you like to install it? (y/n): "))
+    if $install == "y" {
+      let new_deb = (ls *.deb | find pandoc | get 0 | get name | ansi strip)
+      sudo gdebi -n $new_deb
+    }
   }
 }
 
@@ -1895,14 +1983,14 @@ def ttyplot-update [] {
     )
 
     if $current_version != $new_version {
-      echo-g "updating ttyplot..."
+      echo-g "\nupdating ttyplot..."
       rm ttyplot*.deb | ignore
       aria2c --download-result=hide $url
       sudo gdebi -n $new_file
     }
 
   } else {
-    echo-g "downloading ttyplot..."
+    echo-g "\ndownloading ttyplot..."
     aria2c --download-result=hide $url
     sudo gdebi -n $new_file
   }
@@ -1981,7 +2069,9 @@ def ytm [
 
       let songs = (
         if not ($artist | empty?) {
-          $songs | find -i $artist
+          $songs 
+          | str downcase artist
+          | where artist =~ ($artist | str downcase)
         } else {
           $songs 
         }
@@ -2038,7 +2128,9 @@ def "ytm online" [
 
       let songs = (
         if not ($artist | empty?) {
-          $songs | find -i $artist
+          $songs 
+          | str downcase artist
+          | where artist =~ ($artist | str downcase)
         } else {
           $songs
         }
