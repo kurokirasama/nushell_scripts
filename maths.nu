@@ -1,26 +1,22 @@
-## constants
-let pi = 3.1415926535897932
-let e  = 2.7182818284590452
-
 ## Source https://github.com/nushell/nu_scripts/tree/main/maths ##
 
 #Root with a custom denominator
-def root [ denominator, num ] {
+export def root [ denominator, num ] {
 	$num ** ( 1 / $denominator ) | math round  -p 10
 }
 
 #Cube root
-def croot [num] {
+export def croot [num] {
 	$num ** ( 1 / 3 ) | math round -p 10
 }
 
 #Root with a custom scaler and denominator
-def aroot [ scaler, denominator, num] {
+export def aroot [ scaler, denominator, num] {
 	$num ** ($scaler / $denominator) | math round -p 10
 }
 
 #Factorial of the given number
-def fact [num: int] {
+export def fact [num: int] {
 	if $num >= 0 {
 		if $num < 2 {
 			$num
@@ -35,7 +31,7 @@ def fact [num: int] {
 ## Mine https://github.com/kurokirasama/nushell_scripts.git ##
 
 #Calculate roots of the quadratic function: ax^2+bx+x
-def q_roots [
+export def q_roots [
 	a 	# x^2
 	b	# x
 	c 	# independent term
@@ -59,7 +55,7 @@ def q_roots [
 }
 
 #Check if integer is prime
-def isprime [n: int] {
+export def isprime [n: int] {
 	let max = ($n | math sqrt | math ceil)
 	
 	let flag = ([[isPrime];[true]] 
@@ -77,7 +73,7 @@ def isprime [n: int] {
 				}
 			)
 
-	if ($flag.isPrime.0 | empty?) { 
+	if ($flag.isPrime.0 | is-empty) { 
 		echo 'prime' 
 	} else { 
 		echo 'not prime' 
@@ -85,7 +81,7 @@ def isprime [n: int] {
 }
 
 #Prime list <= n
-def primelist [n: int] {
+export def primelist [n: int] {
 	let primes = [2 3]
 
 	let primes2 = (seq 5 2 $n 
@@ -100,7 +96,7 @@ def primelist [n: int] {
 }
 
 #Multiplication table of n till max
-def mtable [n: int, max: int] {
+export def mtable [n: int, max: int] {
 	seq 1 $max 
 	| each {|it| 
 		echo $"($it)*($n) = ($n * $it)"
@@ -108,7 +104,7 @@ def mtable [n: int, max: int] {
 }
 
 #Check if year is leap
-def isleap [year: int] {
+export def isleap [year: int] {
 	if ( (($year mod 4) == 0 && ($year mod 100) != 0) || ($year mod 400) == 0 ) { 
 		echo "It is a leap year." 
 	} else { 
@@ -117,7 +113,7 @@ def isleap [year: int] {
 }
 
 #Greatest common divisior (gcd) between 2 integers
-def gcd [a: int, b:int] {
+export def gcd [a: int, b:int] {
 	if $a < $b { 
 		gcd $b $a 
 	} else if $b == 0 { 
@@ -128,7 +124,7 @@ def gcd [a: int, b:int] {
 }
 
 #Least common multiple (lcm) between 2 integers
-def lcm [a: int, b:int] {
+export def lcm [a: int, b:int] {
 	if $a == $b && $b == 0 {
 		0
 	} else {
@@ -137,7 +133,7 @@ def lcm [a: int, b:int] {
 }
 
 #Decimal number to custom base representation
-def dec2base [
+export def dec2base [
 	n: string	#decimal number
 	b: string	#base in [2,16]
 ] {
@@ -162,8 +158,8 @@ def dec2base [
 }
 
 # Scale list to [a,b] interval
-def scale-minmax [a, b,input?] {
-	let x = if ($input | empty?) {$in} else {$input}
+export def scale-minmax [a, b,input?] {
+	let x = if ($input | is-empty) {$in} else {$input}
 
 	let min = ($x | math min)
 	let max = ($x | math max)
@@ -175,8 +171,8 @@ def scale-minmax [a, b,input?] {
 }
 
 # Scale every column of a table (separately) to [a,b] interval
-def scale-minmax-table [a, b,input?] {
-	let x = if ($input | empty?) {$in} else {$input}
+export def scale-minmax-table [a, b,input?] {
+	let x = if ($input | is-empty) {$in} else {$input}
 	let n_cols = ($x | transpose | length)
 	let name_cols = ($x | transpose | column2 0)
 	
@@ -189,38 +185,38 @@ def scale-minmax-table [a, b,input?] {
 }
 
 #sin function
-def "math sin" [ ] {
+export def "math sin" [ ] {
     each {|x| "s(" + $"($x)" + ")\n" | bc -l | into decimal }
 }
 
 #cos function
-def "math cos" [ ] {
+export def "math cos" [ ] {
     each {|x| "c(" + $"($x)" + ")\n" | bc -l | into decimal }
 }
 
 #natural log function
-def "math ln" [ ] {
+export def "math ln" [ ] {
     each {|x| "l(" + $"($x)" + ")\n" | bc -l | into decimal }
 }
 
 #exp function
-def "math exp" [ ] {
+export def "math exp" [ ] {
     each {|x| "e(" + $"($x)" + ")\n" | bc -l | into decimal }
 }
 
 #random integer
-def randi [
+export def randi [
 	n:int #select random integer in 0..n
 ] { 
 	random integer 0..$n
 }
 
 #random selection
-def rand-select [
+export def rand-select [
 	x?	#list
 	#Select random element of x
 ] { 
-	let xs = if ($x | empty?) {$in} else {$x}
+	let xs = if ($x | is-empty) {$in} else {$x}
 	let len = ($xs | length) 
 	$xs | select (random integer 0..($len - 1))
 }
