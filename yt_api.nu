@@ -1,6 +1,6 @@
 #play youtube music with playlist items pulled from local database
 export def ytm [
-  playlist? = "all_likes" #playlist name (export default: all_likes)
+  playlist? = "all_likes" #playlist name (default: all_likes)
   --list(-l)              #list available music playlists
   --artist(-a):string     #search by artist from all:likes
   #
