@@ -363,7 +363,7 @@ export def openg [file?] {
 }
 
 #send to printer
-export def printer [file?] {
+export def print-file [file?] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
   lp $file
 }
@@ -467,72 +467,6 @@ export def switch [
     | do $in
   }
 }
-
-#post to #announcements in discord
-export def ubb_announce [message] {
-  let content = $"{\"content\": \"($message)\"}"
-
-  let weburl = (open ([$env.MY_ENV_VARS.credentials "discord_webhooks.json"] | path join) | get cursos_ubb_announce)
-
-  post $weburl $content --content-type "application/json"
-}  
-
-#upload weekly videos and post to discord
-export def up2ubb [year = 2022, sem = 01] {
-  let sem = ([($year | into string) "-" ($sem | into string | str lpad -l 2 -c '0')] | str collect)
-
-  let mounted = ("~/gdrive/VClasses/" | path expand | path exists)
-
-  if not $mounted {
-    echo-g "mounting gdrive..."
-    mount-ubb
-  }
-
-  cd $env.MY_ENV_VARS.zoom
-
-  ls **/* 
-  | where name !~ done
-  | where type == file 
-  | where name =~ mp4 
-  | get name 
-  | par-each {|path| 
-      $path 
-      | parse "{date} {time} {course} {class}/{file}"
-    } 
-  | flatten 
-  | each {|it| 
-      let dir = ([$it.date $it.time $it.course $it.class] | str collect " ")
-      let file_from = ([$dir $it.file] | path join)
-      let file_to = ([$dir $"($it.class).mp4"] | path join)
-      let gdrive_to = (["~" "gdrive" "VClasses" $sem $it.course $"($it.class).mp4"] 
-        | path join 
-        | path expand
-      )
-      
-      if $file_from != $file_to {
-        echo-g $"moving ($file_from) to ($file_to)..."
-        mv $"($file_from)" $"($file_to)"
-      }
-
-      echo-g $"copying ($file_to) to ($gdrive_to)..."
-      cp ($file_to) ($gdrive_to)    }
-  
-  let fecha = (date format %d/%m/%y)
-  let message = $"Se han subido a drive los videos de clases al dia de hoy: ($fecha)."
-
-  ubb_announce $message 
-
-  mv 20*/ done/
-}
-
-#post to #medicos in discord
-export def med_discord [message] {
-  let content = $"{\"content\": \"($message).\"}"
-
-  let weburl = (open ([$env.MY_ENV_VARS.credentials "discord_webhooks.json"] | path join) | get medicos)
-
-  post $weburl $content --content-type "application/json"
-}  
 
 #select column of a table (to table)
 export def column [n] { 
