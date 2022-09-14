@@ -1975,11 +1975,62 @@ export def mpris-update [] {
       echo-g "updating mpris..."
       rm mpris.so | ignore
       aria2c --download-result=hide $url -o mpris.so
+
+      open mpris.json | upsert version $new_version | save mpris.json
     }
 
   } else {
     echo-g "downloading mpris..."
     aria2c --download-result=hide $url -o mpris.so
+
+    open mpris.json | upsert version $new_version | save mpris.json
+  }
+}
+
+#update monocraft
+export def monocraft-update [] {
+  cd $env.MY_ENV_VARS.linux_backup
+
+  let info = (
+    fetch https://github.com/IdreesInc/Monocraft/releases
+    | lines 
+    | find -i Monocraft.otf 
+    | get 0 
+    | split row "\""  
+    | get 1
+  )
+
+  let url = $"https://github.com($info)"
+
+  let new_version = (
+    $info 
+    | split row /
+    | drop
+    | last
+  )
+  
+  let monocraft = ((ls Monocraft.otf | length) > 0)
+
+  if $monocraft {
+    let current_version = (open monocraft.json | get version)
+
+    if $current_version != $new_version {
+      echo-g "updating Monocraft..."
+      rm Monocraft.otf | ignore
+      aria2c --download-result=hide $url -o Monocraft.otf
+      open monocraft.json | upsert version $new_version | save monocraft.json
+
+      cp Monocraft.otf ~/.fonts/
+      fc-cache -fv
+    }
+
+  } else {
+    echo-g "downloading Monocraft..."
+    aria2c --download-result=hide $url -o Monocraft.otf
+    open monocraft.json | upsert version $new_version | save monocraft.json
+
+    cp Monocraft.otf ~/.fonts/
+    fc-cache -fv
   }
 }
 
