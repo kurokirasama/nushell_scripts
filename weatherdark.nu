@@ -71,7 +71,7 @@ def get_location [] {
         "-36.877568,-73.148715" 
     } else { 
         let loc_json = (fetch ($table | select 0).0.location)
-        if ($loc_json | column? lat) {
+        if ($loc_json | is-column lat) {
             $"($loc_json.lat),($loc_json.lon)"
         } else {
             $"($loc_json.latitude),($loc_json.longitude)" 

@@ -171,7 +171,7 @@ export def "yt-api get-songs" [
   )
 
   let nextpageToken = (
-    if ($response | column? nextPageToken) {
+    if ($response | is-column nextPageToken) {
         $response | get nextPageToken
     } else {
         false
@@ -445,10 +445,10 @@ export def "yt-api verify-token" [] {
 
   let response = fetch $"https://youtube.googleapis.com/youtube/v3/playlists?part=snippet&mine=true&key=($api_key)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json'] 
 
-  if ($response | column? error) && ($response | get error  | get code) != 403 {
+  if ($response | is-column error) && ($response | get error  | get code) != 403 {
     yt-api get-token 
     #yt-api refresh-token
-  } else if ($response | column? error) && ($response | get error  | get code) == 403 {
+  } else if ($response | is-column error) && ($response | get error  | get code) == 403 {
     echo-r "youtube api quota excedeed!"
   }
 }
@@ -573,7 +573,7 @@ export def balena [] {
 # export def "yt-api verify-token" [url,token] {
 #   let response = fetch $"($url)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json']
 
-#   if ($response | column? error) {
+#   if ($response | is-column error) {
 #     let client = (open ~/Yandex.Disk/Backups/linux/credentials/credentials.youtube.json | get client_id)
 #     let refresh_token = (open ~/Yandex.Disk/Backups/linux/credentials/credentials.youtube.json | get refresh_token)
 #     let secret = (open ~/Yandex.Disk/Backups/linux/credentials/credentials.youtube.json | get client_secret)

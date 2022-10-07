@@ -1,18 +1,176 @@
+#get latest release info in github repo
+export def get-github-latest [
+  owner:string
+  repo:string
+  --file_type(-f) = "deb"
+] {
+  let git_token = (
+    open ([$env.MY_ENV_VARS.credentials github_credentials.json] | path join) 
+    | get token
+  )
+
+  let assets_url = (
+    fetch $"https://api.github.com/repos/($owner)/($repo)/releases/latest" -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
+    | select assets_url tag_name
+  )
+
+  let info = (
+    fetch $assets_url.assets_url -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
+    | find $file_type 
+    | get 0
+    | select name browser_download_url
+    | upsert version $assets_url.tag_name
+  )
+
+  $info
+}
+
+#update github app release
+export def github-app-update [
+  owner:string
+  repo:string
+  --file_type(-f) = "deb"
+  --down_dir(-d) = $env.MY_ENV_VARS.debs
+  --alternative_name(-a):string
+  --version_from_json(-j)
+] {
+  cd $down_dir
+
+  let info = get-github-latest $owner $repo -f $file_type
+
+  let url = ($info | get browser_download_url)
+
+  let app = (
+    if ($alternative_name | is-empty) {
+      $repo
+    } else {
+      $alternative_name
+    }
+  ) 
+
+  let app_file = (
+    if $version_from_json {
+     [$down_dir $"($app).json"] | path join
+    } else {
+      ""
+    }
+  )
+
+  let find_ = (
+    $info 
+    | get name 
+    | find _ 
+    | is-empty
+  )
+
+  let new_version = (
+    if $version_from_json {
+      $info 
+    | get version
+    } else {
+      $info 
+      | get name
+      | path parse
+      | get stem
+      | split row (if not $find_ {"_"} else {"-"}) 
+      | get 1
+    }
+  )
+  
+  let exists = ((ls $"*.($file_type)" | find $app | length) > 0)
+
+  if $exists {
+    let current_version = (
+      if $version_from_json {
+        open --raw $app_file 
+        | from json
+        | get version
+      } else {
+        ls $"*.($file_type)"
+        | find $app
+        | get 0 
+        | get name 
+        | ansi strip
+        | path parse
+        | get stem
+        | split row (if not $find_ {"_"} else {"-"}) 
+        | get 1
+      }
+    )
+
+    if $current_version != $new_version {
+      echo-g $"\nupdating ($repo)..."
+      rm $"*($app)*.($file_type)" | ignore
+      aria2c --download-result=hide $url
+
+      if $version_from_json {
+        open --raw $app_file
+        | from json 
+        | upsert version $new_version 
+        | save $app_file
+      }
+
+      if $file_type == "deb" {
+        let install = (input (echo-g "Would you like to install it now? (y/n): "))
+        if $install == "y" {
+          sudo gdebi -n $info.name
+        }
+      }
+    } else {
+      echo-g $"($repo) already in its latest version!"
+    }
+
+  } else {
+    echo-g $"\ndownloading ($repo)..."
+    aria2c --download-result=hide $url
+
+    if $file_type == "deb" {
+      let install = (input (echo-g "Would you like to install it now? (y/n): "))
+      if $install == "y" {
+        sudo gdebi -n sudo gdebi -n $info.name
+      }
+    }
+  }
+}
+
 #update off-package manager apps
 #zoom, chrome, earth, yandex, sejda, nmap, nyxt, tasker, ttyplot, pandoc, mpris
 export def apps-update [] {
+  #non github apps
   zoom-update
   chrome-update
   earth-update
   yandex-update
   sejda-update
   nmap-update
-  nyxt-update
-  tasker-update
-  ttyplot-update
-  pandoc-update
-  mpris-update
-  monocraft-update
+
+  #github debs
+  github-app-update tenox7 ttyplot
+  github-app-update atlas-engineer nyxt
+  github-app-update jgm pandoc
+  github-app-update joaomgcd Tasker-Permissions -a taskerpermissions
+
+  #mpv mpris
+  github-app-update hoyon mpv-mpris -f so -d ([$env.MY_ENV_VARS.linux_backup "scripts"] | path join) -a mpris -j
+
+  #monocraft font
+  let current_version = (
+    open --raw ([$env.MY_ENV_VARS.linux_backup Monograft.json] | path join) 
+    | from json 
+    | get version
+  )
+  
+  github-app-update IdreesInc Monocraft -f otf -d $env.MY_ENV_VARS.linux_backup -j
+  
+  let new_version = (
+    open --raw ([$env.MY_ENV_VARS.linux_backup Monograft.json] | path join) 
+    | from json 
+    | get version
+  )
+
+  if $current_version != new_version {
+    echo-g "Now you need to patch nerd fonts!"
+  }
 }
 
 #update zoom
@@ -104,6 +262,8 @@ export def sejda-update [] {
       rm sejda*.deb | ignore
       aria2c --download-result=hide $url
       sudo gdebi -n $new_file
+    } else {
+      echo-g "sedja already in its latest version!"
     }
 
   } else {
@@ -158,6 +318,8 @@ export def nmap-update [] {
 
       sudo gdebi -n $new_deb
       ls $new_file | rm-pipe | ignore
+    } else {
+      echo-g "nmap already in its latest version!"
     }
 
   } else {
@@ -171,318 +333,3 @@ export def nmap-update [] {
     ls $new_file | rm-pipe | ignore
   }
 }
-
-#update tasker permissions deb
-export def tasker-update [] {
-  cd $env.MY_ENV_VARS.debs
-
-  let url = (
-    fetch https://github.com/joaomgcd/Tasker-Permissions/releases/ 
-    | lines 
-    | find .deb 
-    | find href 
-    | get 0 
-    | split row "href=" 
-    | find amd64
-    | get 0
-    | ansi strip 
-    | split row ">" 
-    | get 0 
-    | str replace -a "\"" "" 
-  )
-
-  let new_file = ($url | split row / | last)
-
-  let new_version = ($url | split row _ | get 1)
-
-  let tasker = ((ls *.deb | find tasker | length) > 0)
-
-  if $tasker {
-    let current_version = (
-      ls *.deb 
-      | find "tasker" 
-      | get 0 
-      | get name 
-      | split row _ 
-      | get 1
-    )
-
-    if $current_version != $new_version {
-      echo-g "\nupdating tasker permissions..."
-      rm *tasker*.deb | ignore
-      aria2c --download-result=hide $url
-      sudo gdebi -n $new_file
-    }
-
-  } else {
-    echo-g "\ndownloading tasker..."
-    aria2c --download-result=hide $url
-    sudo gdebi -n $new_file
-  }
-}
-
-#update nyxt deb
-export def nyxt-update [] {
-  cd $env.MY_ENV_VARS.debs
-
-  let info = (
-    fetch https://github.com/atlas-engineer/nyxt/releases
-    | lines 
-    | find .deb 
-    | first 
-    | split row "\"" 
-    | get 1
-  )
-
-  let url = $"https://github.com($info)"
-
-  let new_version = (
-    $info 
-    | split row /
-    | last
-    | split row _ 
-    | get 1
-  )
-  
-  let nyxt = ((ls *.deb | find "nyxt" | length) > 0)
-
-
-  if $nyxt {
-    let current_version = (
-      ls *.deb 
-      | find "nyxt" 
-      | get 0 
-      | get name 
-      | ansi strip
-      | split row _ 
-      | get 1
-    )
-
-    if $current_version != $new_version {
-      echo-g "\nupdating nyxt..."
-      rm nyxt*.deb | ignore
-      aria2c --download-result=hide $url
-
-      let new_deb = (ls *.deb | find "nyxt" | get 0 | get name | ansi strip)
-      sudo gdebi -n $new_deb
-    }
-
-  } else {
-    echo-g "\ndownloading nyxt..."
-    aria2c --download-result=hide $url
-
-    let install = (input (echo-g "Would you like to install it? (y/n): "))
-    if $install == "y" {
-      let new_deb = (ls *.deb | find nyxt | get 0 | get name | ansi strip)
-      sudo gdebi -n $new_deb
-    }
-  }
-}
-
-#update pandoc deb
-export def pandoc-update [] {
-  cd $env.MY_ENV_VARS.debs
-
-  let info = (
-    fetch https://github.com/jgm/pandoc/releases
-    | lines 
-    | find .deb 
-    | find amd64
-    | first 
-    | split row "\"" 
-    | get 1
-  )
-
-  let url = $"https://github.com($info)"
-
-  let new_version = (
-    $info 
-    | split row /
-    | last
-    | split row -
-    | get 1
-  )
-  
-  let pandoc = ((ls *.deb | find pandoc | length) > 0)
-
-  if $pandoc {
-    let current_version = (
-      ls *.deb 
-      | find "pandoc" 
-      | get 0 
-      | get name 
-      | split row - 
-      | get 1
-    )
-
-    if $current_version != $new_version {
-      echo-g "\nupdating pandoc..."
-      rm pandoc*.deb | ignore
-      aria2c --download-result=hide $url
-
-      let install = (input (echo-g "Would you like to install it? (y/n): "))
-      if $install == "y" {
-        let new_deb = (ls *.deb | find "pandoc" | get 0 | get name | ansi strip)
-        sudo gdebi -n $new_deb
-      }
-    }
-
-  } else {
-    echo-g "\ndownloading pandoc..."
-    aria2c --download-result=hide $url
-
-    let install = (input (echo-g "Would you like to install it? (y/n): "))
-    if $install == "y" {
-      let new_deb = (ls *.deb | find "pandoc" | get 0 | get name | ansi strip)
-      sudo gdebi -n $new_deb
-    }
-  }
-}
-
-#update ttyplot deb
-export def ttyplot-update [] {
-  cd $env.MY_ENV_VARS.debs
-
-  let info = (
-    fetch https://github.com/tenox7/ttyplot/releases 
-    | lines 
-    | find .deb 
-    | get 0 
-    | split row /
-  )
-
-  let main_version = ($info | get 5)
-  let new_file = ($info 
-    | get 6 
-    | split row "\"" 
-    | get 0
-  )
-
-  let new_version = (
-    $new_file 
-    | split row _ 
-    | get 1 
-    | split row .deb 
-    | get 0
-  )
-
-  let url = $"https://github.com/tenox7/ttyplot/releases/download/($main_version)/($new_file)"
-
-  let tty = ((ls *.deb | find ttyplot | length) > 0)
-
-  if $tty {
-    let current_version = (
-      ls *.deb 
-      | find ttyplot 
-      | get 0 
-      | get name 
-      | split row _ 
-      | get 1 
-      | split row .deb 
-      | get 0
-    )
-
-    if $current_version != $new_version {
-      echo-g "\nupdating ttyplot..."
-      rm ttyplot*.deb | ignore
-      aria2c --download-result=hide $url
-      sudo gdebi -n $new_file
-    }
-
-  } else {
-    echo-g "\ndownloading ttyplot..."
-    aria2c --download-result=hide $url
-    sudo gdebi -n $new_file
-  }
-}
-
-#update mpris for mpv
-export def mpris-update [] {
-  cd ([$env.MY_ENV_VARS.linux_backup "scripts"] | path join)
-
-  let info = (
-    fetch https://github.com/hoyon/mpv-mpris/releases 
-    | lines 
-    | find -i mpris.so 
-    | get 0 
-    | split row "\""  
-    | get 1
-  )
-
-  let url = $"https://github.com($info)"
-
-  let new_version = (
-    $info 
-    | split row /
-    | drop
-    | last
-  )
-  
-  let mpris = ((ls mpris.so | length) > 0)
-
-  if $mpris {
-    let current_version = (open mpris.json | get version)
-
-    if $current_version != $new_version {
-      echo-g "updating mpris..."
-      rm mpris.so | ignore
-      aria2c --download-result=hide $url -o mpris.so
-
-      open mpris.json | upsert version $new_version | save mpris.json
-    }
-
-  } else {
-    echo-g "downloading mpris..."
-    aria2c --download-result=hide $url -o mpris.so
-
-    open mpris.json | upsert version $new_version | save mpris.json
-  }
-}
-
-#update monocraft font
-export def monocraft-update [] {
-  cd $env.MY_ENV_VARS.linux_backup
-
-  let info = (
-    fetch https://github.com/IdreesInc/Monocraft/releases
-    | lines 
-    | find -i Monocraft.otf 
-    | get 0 
-    | split row "\""  
-    | get 1
-  )
-
-  let url = $"https://github.com($info)"
-
-  let new_version = (
-    $info 
-    | split row /
-    | drop
-    | last
-  )
-  
-  let monocraft = ((ls Monocraft.otf | length) > 0)
-
-  if $monocraft {
-    let current_version = (open monocraft.json | get version)
-
-    if $current_version != $new_version {
-      echo-g "updating Monocraft..."
-      rm Monocraft.otf | ignore
-      aria2c --download-result=hide $url -o Monocraft.otf
-      open monocraft.json | upsert version $new_version | save monocraft.json
-
-      cp Monocraft.otf ~/.fonts/
-      fc-cache -fv
-    }
-
-  } else {
-    echo-g "downloading Monocraft..."
-    aria2c --download-result=hide $url -o Monocraft.otf
-    open monocraft.json | upsert version $new_version | save monocraft.json
-
-    cp Monocraft.otf ~/.fonts/
-    fc-cache -fv
-  }
-}
-

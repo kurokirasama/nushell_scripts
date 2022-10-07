@@ -1,19 +1,12 @@
 #helper for displaying left prompt
 export def left_prompt [] {
-  if not ($env.MY_ENV_VARS | column? l_prompt) {
+  if not ($env.MY_ENV_VARS | is-column l_prompt) {
       $env.PWD | path parse | get stem
   } else if ($env.MY_ENV_VARS.l_prompt | is-empty) || ($env.MY_ENV_VARS.l_prompt == 'short') {
       $env.PWD | path parse | get stem
   } else {
       $env.PWD | str replace $nu.home-path '~' -s
   }
-}
-
-#find file in dir recursively
-export def find-file [search] {
-  ls **/*
-  | where type == file 
-  | where name =~ $search
 }
 
 #update nu config (after nu update)
@@ -254,36 +247,6 @@ export def is-mounted [drive:string] {
   (ls "~/media" | find $"($drive)" | length) > 0
 }
 
-#move manga folder to Seagate External Drive
-export def-env mvmanga [] {
-  let from = $env.MY_ENV_VARS.local_manga
-  let to = $env.MY_ENV_VARS.external_manga
-
-  let dirs = get-dirs $from
-
-  let file_count = (
-    $dirs
-    | each {|dir| 
-        ls $dir.name 
-        | length
-      } 
-    | wrap file_count
-  )
-
-  $dirs 
-  | merge {$file_count} 
-  | where file_count < 5  
-  | rm-pipe
-  
-  if (is-mounted "Seagate") {
-    cd $from
-    7zfolders
-    mv *.7z $to
-  } else {
-    echo-r "Seageate drive isn't mounted"
-  }
-}
-
 #get phone number from google contacts
 export def get-phone-number [search:string] {
   goobook dquery $search 
@@ -294,13 +257,40 @@ export def get-phone-number [search:string] {
 }
 
 #update-upgrade system
-export def supgrade [] {
-  echo-g "updating and upgrading..."
-  sudo nala upgrade -y
-  echo-g "autoremoving..."
-  sudo nala autoremove -y
+export def supgrade [--old(-o)] {
+  if not $old {
+    echo-g "updating and upgrading..."
+    sudo nala upgrade -y
+
+    echo-g "autoremoving..."
+    sudo nala autoremove -y
+  } else {
+    echo-g "updating..."
+    sudo apt update -y
+
+    echo-g "upgrading..."
+    sudo apt upgrade -y
+
+    echo-g "autoremoving..."
+    sudo apt autoremove -y
+  }
+
   echo-g "updating rust..."
   rustup update
+
+  echo-g "upgrading pip3 packages..."
+  pip3-upgrade
+}
+
+#upgrade pip3 packages
+export def pip3-upgrade [] {
+  pip3 list --outdated --format=freeze 
+  | lines 
+  | split column "==" 
+  | each {|pkg| 
+      echo-g $"upgrading ($pkg.column1)..."
+      pip3 install --upgrade $pkg.column1
+    }
 }
 
 #green echo
@@ -457,7 +447,7 @@ export def switch [
   # } { otherwise: { echo "otherwise" }}
   #
 ] {
-  if ($cases | column? $var) {
+  if ($cases | is-column $var) {
     $cases 
     | get $var 
     | do $in
@@ -554,7 +544,7 @@ export def 'nu-sloc' [] {
 }
 
 #go to dir (via pipe)
-export def-env goto [] {
+export def-env cd-pipe [] {
   let input = $in
   cd (
       if ($input | path type) == file {
@@ -566,7 +556,7 @@ export def-env goto [] {
 }
 
 #go to bash path (must be the last one in PATH)
-export def-env goto-bash [] {
+export def-env cdto-bash [] {
   cd ($env.PATH | last)
 }
 
@@ -750,7 +740,7 @@ export def sub-sync [
 #rm trough pipe
 #
 #Example
-#ls *.txt | rm-pipe
+#ls *.txt | first 5 | rm-pipe
 export def rm-pipe [] {
   if not ($in | is-empty) {
     get name 
@@ -782,7 +772,7 @@ export def mv-pipe [
   to: string#target directory
   #
   #Example
-  #ls *.txt | mv-pipe ~/temp
+  #ls *.txt | first 5 | mv-pipe ~/temp
 ] {
   get name 
   | each {|file|
@@ -868,6 +858,13 @@ export def get-files [] {
   ls **/* 
   | where type == file 
   | sort-by -i name
+}
+
+
+#find file in dir recursively
+export def find-file [search] {
+  get-files 
+  | where name =~ $search
 }
 
 #get list of directories in current path
@@ -973,7 +970,7 @@ export def get-devices [
 }
 
 #verify if a column exist within a table
-export def column? [name] { 
+export def is-column [name] { 
   $name in ($in | columns) 
 }
 
@@ -1000,7 +997,7 @@ export def grep-nu [
   #open file.txt | grep-nu search
 ] {
   if ($entrada | is-empty) {
-    if ($in | column? name) {
+    if ($in | is-column name) {
       grep -ihHn $search ($in | get name)
     } else {
       ($in | into string) | grep -ihHn $search
@@ -1592,4 +1589,49 @@ export def matlab-cli [--ubb(-b)] {
 #create dir and cd into it
 export def-env mkcd [name: path] {
   cd (mkdir $name -s | first)
+}
+
+#backup sublime settings
+export def backup-sublime [] {
+  cd $env.MY_ENV_VARS.linux_backup
+  let source_dir = "~/.config/sublime-text"
+  
+  7zmax sublime-installedPackages ([$source_dir "Installed Packages"] | path join)
+  7zmax sublime-Packages ([$source_dir "Packages"] | path join)
+}
+
+#second screen positioning (work)
+export def set-screen [
+  side: string = "right"  #which side, left or right (default)
+  --home                  #for home pc
+  --hdmi = "right"        #for home pc, which hdmi port: left or right (default)
+] {
+  if not $home {
+    switch $side {
+      "right": { xrandr --output HDMI-1-1 --auto --right-of eDP },
+      "left": { xrandr --output HDMI-1-1 --auto --left-of eDP }
+    } { 
+      "otherwise": { echo-r "Side argument should be either right or left" }
+    }
+  } else {
+    switch $side {
+      "right": { 
+        if $hdmi == "right" {
+          xrandr --output HDMI-1-1 --auto --right-of eDP-1-1
+        } else {
+          xrandr --output HDMI-0 --auto --right-of eDP-1-1
+        } 
+      },
+      "left": { 
+        if $hdmi == "right" {
+          xrandr --output HDMI-1-1 --auto --left-of eDP-1-1 
+        } else {
+          xrandr --output HDMI-0 --auto --left-of eDP-1-1 
+        }
+      }
+    } { 
+      "otherwise": { echo-r "Side argument should be either right or left" }
+    }
+  }
+
 }
