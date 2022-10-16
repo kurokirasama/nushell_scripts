@@ -1,3 +1,15 @@
+#zoxide completion
+export def "nu-complete zoxide path" [line : string, pos: int] {
+  let prefix = ( $line | str trim | split row ' ' | append ' ' | skip 1 | get 0)
+  let data = (^zoxide query $prefix --list | lines)
+  {
+      completions : $data,
+                  options: {
+                   completion_algorithm: "fuzzy"
+                  }
+  }
+}
+
 #helper for displaying left prompt
 export def left_prompt [] {
   if not ($env.MY_ENV_VARS | is-column l_prompt) {
@@ -6,6 +18,39 @@ export def left_prompt [] {
       $env.PWD | path parse | get stem
   } else {
       $env.PWD | str replace $nu.home-path '~' -s
+  }
+}
+
+# Switch-case like instruction
+export def switch [
+  var                #input var to test
+  cases: record      #record with all cases
+  otherwise?: record #record code for otherwise
+  #
+  # Example:
+  # let x = "3"
+  # switch $x {
+  #   1: { echo "you chose one" },
+  #   2: { echo "you chose two" },
+  #   3: { echo "you chose three" }
+  # }
+  #
+  # let x = "4"
+  # switch $x {
+  #   1: { echo "you chose one" },
+  #   2: { echo "you chose two" },
+  #   3: { echo "you chose three" }
+  # } { otherwise: { echo "otherwise" }}
+  #
+] {
+  if ($cases | is-column $var) {
+    $cases 
+    | get $var 
+    | do $in
+  } else if not ($otherwise | is-empty) {
+    $otherwise 
+    | get "otherwise" 
+    | do $in
   }
 }
 
@@ -111,137 +156,6 @@ export def 7zmax [
   }
 }
 
-#add event to google calendar, also usable without arguments
-export def addtogcal [
-  calendar?   #to which calendar add event
-  title?      #event title
-  when?       #date: yyyy.MM.dd hh:mm
-  where?      #location
-  duration?   #duration in minutes
-] {
-  let calendar = if ($calendar | is-empty) {input (echo-g "calendar: ")} else {$calendar}
-  let title = if ($title | is-empty) {input (echo-g "title: ")} else {$title}
-  let when = if ($when | is-empty) {input (echo-g "when: ")} else {$when}
-  let where = if ($where | is-empty) {input (echo-g "where: ")} else {$where}
-  let duration = if ($duration | is-empty) {input (echo-g "duration: ")} else {$duration}
-  
-  gcalcli --calendar $"($calendar)" add --title $"($title)" --when $"($when)" --where $"($where)" --duration $"($duration)" --default-reminders
-}
-
-#show gcal agenda in selected calendars
-export def agenda [
-  --full: int  #show all calendars (export default: 0)
-  ...rest      #extra flags for gcalcli between quotes (specified full needed)
-  #
-  # Examples
-  # agenda 
-  # agenda --full true
-  # agenda "--details=all"
-  # agenda --full true "--details=all"
-] {
-  let calendars = $env.MY_ENV_VARS.google_calendars
-  let calendars_full = $env.MY_ENV_VARS.google_calendars_full
-
-  if ($full | is-empty) || ($full == 0) {
-    gcalcli --calendar $"($calendars)" agenda --military $rest
-  } else {
-    gcalcli --calendar $"($calendars_full)" agenda --military $rest
-  }
-}
-
-#show gcal week in selected calendards
-export def semana [
-  --full: int  #show all calendars (export default: 0)
-  ...rest      #extra flags for gcalcli between quotes (specified full needed)
-  #
-  # Examples
-  # semana 
-  # semana --full true
-  # semana "--details=all"
-  # semana --full true "--details=all"
-] {
-  let calendars = $env.MY_ENV_VARS.google_calendars
-  let calendars_full = $env.MY_ENV_VARS.google_calendars_full
-  
-  if ($full | is-empty) || ($full == 0) {
-    gcalcli --calendar $"($calendars)" calw $rest --military --monday
-  } else {
-    gcalcli --calendar $"($calendars_full)" calw $rest --military --monday
-  }
-}
-
-#show gcal month in selected calendards
-export def mes [
-  --full: int  #show all calendars (export default: 0)
-  ...rest      #extra flags for gcalcli between quotes (specified full needed)
-  #
-  # Examples
-  # mes 
-  # mes --full true
-  # mes "--details=all"
-  # mes --full true "--details=all"
-] {
-  let calendars = $env.MY_ENV_VARS.google_calendars
-  let calendars_full = $env.MY_ENV_VARS.google_calendars_full
-  
-  if ($full | is-empty) || ($full == 0) {
-    gcalcli --calendar $"($calendars)" calm $rest --military --monday
-  } else {
-    gcalcli --calendar $"($calendars_full)" calm $rest --military --monday
-  }
-}
-
-#get bitly short link
-export def mbitly [longurl] {
-  if ($longurl | is-empty) {
-    echo-r "no url provided"
-  } else {
-    let bitly_credential = open ([$env.MY_ENV_VARS.credentials "bitly_token.json"] | path join)
-    let Accesstoken = ($bitly_credential | get token)
-    let username = ($bitly_credential | get username)
-    
-    let url = $"https://api-ssl.bitly.com/v3/shorten?access_token=($Accesstoken)&login=($username)&longUrl=($longurl)"
-    let shorturl = (fetch $url | get data | get url)
-
-    $shorturl | copy
-    echo-g $"($shorturl) copied to clipboard!"
-  }
-}
-
-#translate text using mymemmory api
-export def trans [
-  ...search:string  #search query
-  --from:string     #from which language you are translating (export default english)
-  --to:string       #to which language you are translating (export default spanish)
-  #
-  #Use ISO standar names for the languages, for example:
-  #english: en-US
-  #spanish: es-ES
-  #italian: it-IT
-  #swedish: sv-SV
-  #
-  #More in: https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes
-] {
-  if ($search | is-empty) {
-    echo-r "no search query provided"
-  } else {
-    let trans_credential = open ([$env.MY_ENV_VARS.credentials "mymemory_token.json"] | path join)
-    let key = ($trans_credential | get token)
-    let user = ($trans_credential | get username)
-
-    let from = if ($from | is-empty) {"en-US"} else {$from}
-    let to = if ($to | is-empty) {"es-ES"} else {$to}
-
-    let to_translate = ($search | str collect "%20")
-
-    let url = $"https://api.mymemory.translated.net/get?q=($to_translate)&langpair=($from)%7C($to)&of=json&key=($key)&de=($user)"
-
-    fetch $url 
-    | get responseData 
-    | get translatedText
-  }
-}
-
 #check if drive is mounted
 export def is-mounted [drive:string] {
   (ls "~/media" | find $"($drive)" | length) > 0
@@ -278,8 +192,8 @@ export def supgrade [--old(-o)] {
   echo-g "updating rust..."
   rustup update
 
-  echo-g "upgrading pip3 packages..."
-  pip3-upgrade
+  # echo-g "upgrading pip3 packages..."
+  # pip3-upgrade
 }
 
 #upgrade pip3 packages
@@ -423,39 +337,6 @@ export def jd [
     } 
   | flatten 
   | flatten
-}
-
-# Switch-case like instruction
-export def switch [
-  var                #input var to test
-  cases: record      #record with all cases
-  otherwise?: record #record code for otherwise
-  #
-  # Example:
-  # let x = "3"
-  # switch $x {
-  #   1: { echo "you chose one" },
-  #   2: { echo "you chose two" },
-  #   3: { echo "you chose three" }
-  # }
-  #
-  # let x = "4"
-  # switch $x {
-  #   1: { echo "you chose one" },
-  #   2: { echo "you chose two" },
-  #   3: { echo "you chose three" }
-  # } { otherwise: { echo "otherwise" }}
-  #
-] {
-  if ($cases | is-column $var) {
-    $cases 
-    | get $var 
-    | do $in
-  } else if not ($otherwise | is-empty) {
-    $otherwise 
-    | get "otherwise" 
-    | do $in
-  }
 }
 
 #select column of a table (to table)
@@ -703,40 +584,6 @@ export def check-link [link?,timeout?:int] {
   }
 }
 
-#sync subtitles
-export def sub-sync [
-  file:string      #subtitle file name to process
-  d1:string        #delay at the beginning or at time specified by t1 (<0 adelantar, >0 retrasar)
-  --t1:string      #time position of delay d1 (hh:mm:ss)
-  --d2:string      #delay at the end or at time specified by t2
-  --t2:string      #time position of delay d2 (hh:mm:ss)t
-  --no_backup:int  #wether to not backup $file or yes (export default no:0, ie, it will backup)
-  #
-  #Examples
-  #sub-sync file.srt "-4"
-  #sub-sync file.srt "-4" --t1 00:02:33
-  #sub-sync file.srt "-4" --no_backup 1
-] {
-
-  let file_exist = (($env.PWD) | path join $file | path exists)
-  
-  if $file_exist {
-    if ($no_backup | is-empty) || $no_backup == 0 {
-      cp $file $"($file).backup"
-    }
-
-    let t1 = if ($t1 | is-empty) {"@"} else {$t1}  
-    let d2 = if ($d2 | is-empty) {""} else {$d2}
-    let t2 = if ($d2 | is-empty) {""} else {if ($t2 | is-empty) {"@"} else {$t2}}
-  
-    bash -c $"subsync -e latin1 ($t1)($d1) ($t2)($d2) < \"($file)\" > output.srt; cp output.srt \"($file)\""
-
-    rm output.srt | ignore
-  } else {
-    echo-r $"subtitle file ($file) doesn't exist in (pwd-short)"
-  }
-}
-
 #rm trough pipe
 #
 #Example
@@ -974,18 +821,6 @@ export def is-column [name] {
   $name in ($in | columns) 
 }
 
-#zoxide completion
-export def "nu-complete zoxide path" [line : string, pos: int] {
-  let prefix = ( $line | str trim | split row ' ' | append ' ' | skip 1 | get 0)
-  let data = (^zoxide query $prefix --list | lines)
-  {
-      completions : $data,
-                  options: {
-                   completion_algorithm: "fuzzy"
-                  }
-  }
-}
-
 #grep for nu
 export def grep-nu [
   search   #search term
@@ -1034,365 +869,6 @@ export def get-ips [
   {internal: $internal, external: $external}
 }
 
-#geeknote find
-export def geek-find [
-  search:string  #search term in title
-  ...rest:string #extra flags for geeknote
-  #
-  #Example
-  #geek-find ssh
-  #geek-find ssh "--tag linux"
-] {
-  let result = if ($rest | is-empty) {
-      do -i {geeknote find --search $search} 
-      | complete 
-      | get stdout
-    } else {
-      let command = (build-string "geeknote find --search " $search " " ($rest | str collect ' '))
-      do -i {nu -c $command} 
-      | complete 
-      | get stdout
-    }
-
-  $result
-  | lines 
-  | drop nth 1 
-  | str replace ': 2' '¬ 2' 
-  | each {|it| 
-      $it | split row '¬' | last
-    }
-}
-
-#geeknote show
-export def geek-show [
-  item:int       #search term in title
-  ...rest:string #extra flags for geeknote show (--raw)
-  #
-  #Example (after a geek-find)
-  #geek-show 1
-  #geek-show 1 "--raw"
-] {
-  let result = if ($rest | is-empty) {
-      do -i {geeknote show $item} 
-      | complete 
-      | get stdout
-    } else {
-      let command = (build-string "geeknote show " ($item | into string) " " ($rest | str collect ' '))
-      do -i {nu -c $command} 
-      | complete 
-      | get stdout
-    }
-
-  $result 
-  | nu-highlight 
-  | lines 
-}
-
-#geeknote edit
-export def geek-edit [
-  item:int       #search term in title
-  ...rest:string #extra flags for geeknote show (--raw)
-  #
-  #Example (after a geek-find)
-  #geek-edit 1
-  #geek-edit 1 "--tag new_tag"
-] {
-  if ($rest | is-empty) {
-    geeknote edit $item
-  } else {
-    let command = (build-string "geeknote edit " ($item | into string) " " ($rest | str collect ' '))
-    nu -c $command
-  }
-}
-
-#geeknote create
-export def geek-create [
-  commands:string #list of commands to create a note
-  #
-  #Example 
-  #geek-create "--title 'a note'"
-  #geek-create "--title 'a note' --tag linux --content 'the content'"
-] {
-  nu -c (build-string "geeknote create" " " $commands)
-}
-
-#open transmission tui
-export def t-ui [] {
-  let ip = (get-ips | get internal)
-  tremc -c $"transmission:transmission@($ip):9091"
-}
-
-#add file to transmission download queue
-export def t-add [
-  down  #magnetic link or torrent file
-] {
-  transmission-remote -n 'transmission:transmission' -a $down
-}
-
-#add magnetic links from file to transmission download queue
-export def t-addfromfile [
-  file  #text file with 1 magnetic link per line
-] {
-  open $file 
-  | lines 
-  | each {|link|
-      t-add $link
-    }
-}
-
-#get info of a torrent download 
-export def t-info [
-  id:int  #id of the torrent to fetch
-] {
-  transmission-remote -t $id -n 'transmission:transmission' -i
-}
-
-#delete torrent from download queue without deleting files
-export def t-remove [
-  ...ids    #list of ids
-] {
-  $ids 
-  | each {|id| 
-      transmission-remote -t $id -n 'transmission:transmission' --remove
-    }
-}
-
-#delete torrent from download queue deleting files
-export def t-removedelete [
-  ...ids    #list of ids
-  #Examples
-  #t-removedelete 2 3 6 9
-  #t-list | some filter | t-removedelete
-] {
-  if ($ids | is-empty) {
-    $in
-    | find -v "Sum:"
-    | get ID 
-    | each {|id| 
-        transmission-remote -t $id -n 'transmission:transmission' -rad
-      }
-  } else {
-    $ids 
-    | each {|id| 
-        transmission-remote -t $id -n 'transmission:transmission' -rad
-      }
-  }
-}
-
-#delete finished torrent from download queue without deleting files
-export def t-removedone [] {
-  t-list 
-  | drop 1 
-  | where ETA =~ Done 
-  | get ID 
-  | each {|id|
-      transmission-remote  -t $id -n 'transmission:transmission' --remove
-    } 
-}
-
-#delete torrent from download queue that match a search without deleting files
-export def t-removename [
-  search  #search term
-] {
-  t-list 
-  | drop 1 
-  | find -i $search 
-  | get ID 
-  | each {|id|
-      transmission-remote  -t $id -n 'transmission:transmission' --remove
-    } 
-}
-
-#start a torrent from download queue
-export def t-starttorrent [
-  id:int  #torrent id
-] {
-  transmission-remote -t $id -n 'transmission:transmission' -s
-}
-
-#start all torrents
-export def t-starttorrents [] {
-  t-list 
-  | drop 1 
-  | get ID 
-  | each {|id|
-      transmission-remote -t $id -n 'transmission:transmission' -s
-    }
-}
-
-#stop a torrent from download queue
-export def t-stoptorrent [
-  id:int  #torrent id
-] {
-  transmission-remote -t $id -n 'transmission:transmission' -S
-}
-
-#stop all torrents
-export def t-stoptorrents [] {
-  t-list 
-  | drop 1 
-  | get ID 
-  | each {|id|
-      transmission-remote -t $id -n 'transmission:transmission' -S
-    }
-}
-
-#umount all drives (duf)
-export def umall [user? = $env.USER] {
-  duf -json 
-  | from json 
-  | find $"/media/($user)" 
-  | get mount_point
-  | each {|drive| 
-      echo-g $"umounting ($drive)..."
-      umount $drive
-    }
-}
-
-#convert media files recursively to specified format
-export def media-to [
-  to:string #destination format (aac, mp3 or mp4)
-  #
-  #Examples (make sure there are only compatible files in all subdirectories)
-  #media-to mp4 (avi to mp4)
-  #media-to aac (audio files to aac)
-  #media-to mp3 (audio files to mp3)
-] {
-  #to aac or mp3
-  if $to =~ "aac" || $to =~ "mp3" {
-    let n_files = (bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.($to)"'
-        | lines 
-        | length
-    )
-
-    echo-g $"($n_files) audio files found..."
-
-    if $n_files > 0 {
-      bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.($to)" -print0 | parallel -0 --eta myffmpeg -n -loglevel 0 -i {} -c:a ($to) -b:a 64k {.}.($to)'
-
-      let aacs = (ls **/* 
-        | insert "ext" { 
-            $in.name | path parse | get extension
-          }  
-        | where ext =~ $to 
-        | length
-      )
-
-      if $n_files == $aacs {
-        echo-g $"audio conversion to ($to) done"
-      } else {
-        echo-r $"audio conversion to ($to) done, but something might be wrong"
-      }
-    }
-  #to mp4
-  } else if $to =~ "mp4" {
-    let n_files = (ls **/*
-        | insert "ext" { 
-            $in.name | path parse | get extension
-          }  
-        | where ext =~ "avi"
-        | length
-    )
-
-    echo-g $"($n_files) avi files found..."
-
-    if $n_files > 0 {
-      bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta myffmpeg -n -loglevel 0 -i {} -b:a 64k {.}.mp4'
-
-      let aacs = (ls **/* 
-        | insert "ext" { 
-            $in.name | path parse | get extension
-          }  
-        | where ext =~ "mp4"
-        | length
-      )
-
-      if $n_files == $aacs {
-        echo-g $"video conversion to mp4 done"
-      } else {
-        echo-r $"video conversion to mp4 done, but something might be wrong"
-      }
-    }
-  }
-}
-
-#cut audio
-export def cut-audio [
-  infile:string   #input audio file
-  outfile:string  #output audio file
-  start:int       #start of the piece to extract (s) 
-  duration:int    #duration of the piece to extract (s)
-  #
-  #Example: cut 10s starting at second 60 
-  #cut_audio input.ext output.ext 60 10
-] {  
-  myffmpeg -ss $start -i $"($infile)" -t $duration -c copy $"($outfile)"
-}
-
-#merge subs to mkv video
-export def merge-subs [
-  filename  #name (without extencion) of both subtitle and mkv file
-] {
-  mkvmerge -o myoutput.mkv  $"($filename).mkv" --language "0:spa" --track-name $"0:($filename)" $"($filename).srt"
-  mv myoutput.mkv $"($filename).mkv"
-  rm $"($filename).srt" | ignore
-}
-
-#merge videos
-export def merge-videos [
-  list  #text file with list of videos to merge
-  output#output file
-  #
-  #To get a functional output, all audio sample rate must be the same
-  #check with video-info video_file
-  #
-  #The file with the list must have the following structure:
-  #
-  #~~~
-  #file '/path/to/file/file1'"
-  #.
-  #.
-  #.
-  #file '/path/to/file/fileN'"
-  #~~~
-] {
-  echo-g "merging videos..."
-  myffmpeg -f concat -safe 0 -i $"($list)" -c copy $"($output)"
-  
-  echo-g "done!"
-  notify-send "video merging done!"
-}
-
-#auto merge all videos in dir
-export def merge-videos-auto [
-  ext   #unique extension of all videos to merge
-  output#output file
-  #
-  #To get a functional output, all audio sample rate must be the same
-  #check with video-info video_file
-] {
-  let list = (($env.PWD) | path join "list.txt")
-
-  if not ($list | path exists) {
-    touch $"($list)"
-  } else {
-    "" | save $list
-  }
-  
-  ls $"*.($ext)" 
-  | where type == file 
-  | get name
-  | each {|file|
-      echo (build-string "file \'" (($env.PWD) | path join $file) "\'\n") | save --append list.txt
-    }
-
-  echo-g "merging videos..."
-  myffmpeg -f concat -safe 0 -i list.txt -c copy $"($output)"
-      
-  echo-g "done!"
-  notify-send "video merging done!"
-}
-
 #join multiple pdfs
 export def join-pdfs [
   ...rest: #list of pdf files to concatenate
@@ -1402,68 +878,6 @@ export def join-pdfs [
   } else {
     pdftk $rest cat output output.pdf
     echo-g "pdf merged in output.pdf"
-  }
-}
-
-#video info
-export def video-info [file] {
-  mpv -ao null -frames 0 $"($file)" 
-  | detect columns -n 
-  | first 2 
-  | reject column0 
-  | rename track id extra codec
-  | update cells {|f|
-      $f 
-      | str replace -a -s "(" "" 
-      | str replace -a -s ")" ""
-    }
-}
-
-#remove audio noise from video
-export def remove-video-noise [
-  file      #video file name with extension
-  start     #start (hh:mm:ss) of audio noise (no speaker)
-  end       #end (hh:mm:ss) of audio noise (no speaker)
-  noiseLevel#level reduction adjustment (0.2-0.3)
-  output    #output file name with extension (same extension as $file)
-] {
-  if (ls ([$env.PWD tmp*] | path join) | length) > 0 {
-    rm tmp*
-  }
-
-  echo-g "extracting video..."
-  myffmpeg -loglevel 1 -i $"($file)" -vcodec copy -an tmpvid.mp4
-
-  echo-g "extracting audio..."
-  myffmpeg -loglevel 1 -i $"($file)" -acodec pcm_s16le -ar 128k -vn tmpaud.wav
-
-  echo-g "extracting noise..."
-  myffmpeg -loglevel 1 -i $"($file)" -acodec pcm_s16le -ar 128k -vn -ss $start -t $end tmpnoiseaud.wav
-
-  echo-g "creating noise profile..."
-  sox tmpnoiseaud.wav -n noiseprof tmpnoise.prof
-
-  echo-g "cleaning noise from audio file..."
-  sox tmpaud.wav tmpaud-clean.wav noisered tmpnoise.prof $noiseLevel
-
-  echo-g "merging clean audio with video file..."
-  myffmpeg -loglevel 1 -i tmpvid.mp4 -i tmpaud-clean.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 128k $output
-
-  echo-g "done!"
-  notify-send "noise removal done!"
-
-  echo-g "don't forget to remove tmp* files"
-}
-
-#screen record to mp4
-export def screen-record [
-  file = "video"  #output filename without extension (export default: "video")
-  --audio = true    #whether to record with audio or not (export default: true)
-] {
-  if $audio {
-    ffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i :0.0+0,0 -f alsa -ac 2 -i pulse -acodec aac -strict experimental $"($file).mp4"
-  } else {
-    ffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i :0.0+0,0 $"($file).mp4"
   }
 }
 

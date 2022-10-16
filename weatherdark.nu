@@ -236,6 +236,9 @@ def get_weather [loc] {
     ($forecast | select "T° max (°C)") | gnu-plot
     ($forecast | select "T° min (°C)") | gnu-plot
 
+    # ($forecast | select "T° min (°C)") | rename tmin | save tmin.csv
+    # rush plot --y tmin tmin.csv
+
     ## forecast
     echo $"Forecast: ($response.daily.summary)"
     echo $forecast
