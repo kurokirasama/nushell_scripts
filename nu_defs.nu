@@ -21,7 +21,7 @@ export def left_prompt [] {
   }
 }
 
-# Switch-case like instruction
+#switch-case like instruction
 export def switch [
   var                #input var to test
   cases: record      #record with all cases
@@ -54,7 +54,7 @@ export def switch [
   }
 }
 
-#update nu config (after nu update)
+#update nu config (after nushell update)
 export def update-nu-config [] {
   ls (build-string $env.MY_ENV_VARS.nushell_dir "/**/*") 
   | find -i default_config 
@@ -967,7 +967,7 @@ export def reg-plugins [] {
 
 #stop network applications
 export def stop-net-apps [] {
-  t-stop
+  t stop
   ydx-stop
   maestral stop
   killn jdown
@@ -1049,3 +1049,51 @@ export def set-screen [
   }
 
 }
+
+#list used network sockets
+export def ls-ports [] {
+  let input = (^lsof +c 0xFFFF -i -n -P)
+  
+  let header = (
+    $input 
+    | lines
+    | take 1
+    | each { 
+        str downcase 
+        | str replace ' name$' ' name state'
+      }
+  )
+
+  let body = (
+    $input 
+    | lines
+    | skip 1
+    | each { 
+        str replace '([^)])$' '$1 (NONE)' 
+        | str replace ' \((.+)\)$' ' $1'
+      }
+  )
+  
+  [$header] 
+  | append $body
+  | to text
+  | detect columns
+  | upsert 'pid' { |r| 
+      $r.pid 
+      | into int 
+    }
+  | rename -c ['name' 'connection']
+  | reject 'command'
+  | into df
+  | join (ps -l | into df) 'pid' 'pid'
+  | into df
+  | into nu
+}
+
+## appimages
+
+#open balena-etche
+export def balena [] {
+  bash -c $"([$env.MY_ENV_VARS.appImages 'balenaEtcher.AppImage'] | path join) 2>/dev/null &"
+}
+
