@@ -4,8 +4,8 @@ export def "geek find" [
   ...rest:string #extra flags for geeknote
   #
   #Example
-  #geek-find ssh
-  #geek-find ssh "--tag linux"
+  #geek find ssh
+  #geek find ssh "--tag linux"
 ] {
   let result = if ($rest | is-empty) {
       do -i {geeknote find --search $search} 
@@ -32,9 +32,9 @@ export def "geek show" [
   item:int       #search term in title
   ...rest:string #extra flags for geeknote show (--raw)
   #
-  #Example (after a geek-find)
-  #geek-show 1
-  #geek-show 1 "--raw"
+  #Example (after a geek find)
+  #geek show 1
+  #geek show 1 "--raw"
 ] {
   let result = if ($rest | is-empty) {
       do -i {geeknote show $item} 
@@ -57,9 +57,9 @@ export def "geek edit" [
   item:int       #search term in title
   ...rest:string #extra flags for geeknote show (--raw)
   #
-  #Example (after a geek-find)
-  #geek-edit 1
-  #geek-edit 1 "--tag new_tag"
+  #Example (after a geek find)
+  #geek edit 1
+  #geek edit 1 "--tag new_tag"
 ] {
   if ($rest | is-empty) {
     geeknote edit $item
@@ -74,8 +74,8 @@ export def "geek create" [
   commands:string #list of commands to create a note
   #
   #Example 
-  #geek-create "--title 'a note'"
-  #geek-create "--title 'a note' --tag linux --content 'the content'"
+  #geek create "--title 'a note'"
+  #geek create "--title 'a note' --tag linux --content 'the content'"
 ] {
   nu -c (build-string "geeknote create" " " $commands)
 }
