@@ -10,6 +10,21 @@ export def "nu-complete zoxide path" [line : string, pos: int] {
   }
 }
 
+#nushell banner
+def show_banner [] {
+    let ellie = [
+        "     __  ,"
+        " .--()°'.'"
+        "'|, . ,'  "
+        ' !_-(_\   '
+    ]
+    let s = (sys)
+    print $"(ansi reset)(ansi green)($ellie.0)"
+    print $"(ansi green)($ellie.1)  (ansi yellow) (ansi yellow_bold)Nushell (ansi reset)(ansi yellow)v(version | get version)(ansi reset)"
+    print $"(ansi green)($ellie.2)  (ansi light_blue) (ansi light_blue_bold)RAM (ansi reset)(ansi light_blue)($s.mem.used) / ($s.mem.total)(ansi reset)"
+    print $"(ansi green)($ellie.3)  (ansi light_purple)ﮫ (ansi light_purple_bold)Uptime (ansi reset)(ansi light_purple)($s.host.uptime)(ansi reset)"
+}
+
 #helper for displaying left prompt
 export def left_prompt [] {
   if not ($env.MY_ENV_VARS | is-column l_prompt) {
@@ -794,7 +809,7 @@ export def get-devices [
   let known_devices = open ([$env.MY_ENV_VARS.linux_backup "known_devices.csv"] | path join)
   let known_macs = ($known_devices | get mac | str upcase)
 
-  let known = ($devices | each {any it.mac in $known_macs} | wrap known)
+  let known = ($devices | each {any $it.mac in $known_macs} | wrap known)
 
   let devices = ($devices | merge {$known})
 
