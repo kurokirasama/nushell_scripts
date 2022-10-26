@@ -11,7 +11,7 @@ export def "nu-complete zoxide path" [line : string, pos: int] {
 }
 
 #nushell banner
-def show_banner [] {
+export def show_banner [] {
     let ellie = [
         "     __  ,"
         " .--()°'.'"
@@ -23,6 +23,83 @@ def show_banner [] {
     print $"(ansi green)($ellie.1)  (ansi yellow) (ansi yellow_bold)Nushell (ansi reset)(ansi yellow)v(version | get version)(ansi reset)"
     print $"(ansi green)($ellie.2)  (ansi light_blue) (ansi light_blue_bold)RAM (ansi reset)(ansi light_blue)($s.mem.used) / ($s.mem.total)(ansi reset)"
     print $"(ansi green)($ellie.3)  (ansi light_purple)ﮫ (ansi light_purple_bold)Uptime (ansi reset)(ansi light_purple)($s.host.uptime)(ansi reset)"
+}
+
+#neofetch but nu (in progress)
+export def nufetch [--table(-t)] {
+  if not $table {
+    show_banner
+  } else {
+    let s  = sys
+    let s2 = (
+      hostnamectl 
+      | lines 
+      | parse "{headers}: {value}"
+      | str trim
+      | transpose -ird 
+    )
+    let os = (build-string ($s2 | get "Operating System") " " $nu.os-info.arch)
+    let host = (open /sys/devices/virtual/dmi/id/product_name | lines | get 0)
+    let shell = (build-string ($env.SHELL | path parse | get stem) " " (version | get version))
+    let screen_res = (
+      xrandr 
+      | lines 
+      | find "*+" 
+      | parse "   {resolution} {rest}" 
+      | get resolution 
+      | str collect ", "
+    )
+    let theme = (
+      gsettings get org.gnome.desktop.interface gtk-theme 
+      | lines 
+      | get 0 
+      | str replace -a "'" ""
+    )
+    let icons = (
+      gsettings get org.gnome.desktop.interface icon-theme 
+      | lines 
+      | get 0
+      | str replace -a "'" ""
+    )
+    let free_disk = ($s.disks | where mount == / | get free | get 0)
+    let total_disk = ($s.disks | where mount == / | get total | get 0)
+    let disk = (build-string  ($total_disk - $free_disk) " / " $total_disk)
+    let mem = (build-string $s.mem.used " / " $s.mem.total)
+    let gpus = (
+      lspci 
+      | lines 
+      | find -i vga 
+      | parse "{col2} VGA compatible controller: {col1}" 
+      | each {|row| 
+          [$row.col1 $row.col2] 
+          | str join " "
+        }
+      )
+    let info = {} 
+
+    $info
+    | upsert user $env.USERNAME
+    | upsert hostname $s.host.hostname
+    | upsert os $os
+    | upsert host $host
+    | upsert kernel $s.host.kernel_version
+    | upsert uptime $s.host.uptime
+    | upsert dpkgPackages (dpkg --get-selections | lines | length)
+    | upsert snapPackages ((snap list  | lines | length) - 1)
+    | upsert shell $shell
+    | upsert resolution $screen_res
+    | upsert de $env.XDG_CURRENT_DESKTOP
+    | upsert wm "windows manager"
+    | upsert wmTheme "windows manager theme"
+    | upsert theme $theme
+    | upsert icons $icons
+    | upsert terminal "terminal"
+    | upsert cpu ($s.cpu | get brand | uniq | get 0)
+    | upsert cores (($s.cpu | length) / 2)
+    | upsert gpu $gpus
+    | upsert disk $disk
+    | upsert memory $mem
+  }
 }
 
 #helper for displaying left prompt
@@ -302,7 +379,7 @@ export def myt [file?, --reverse(-r)] {
     }
   )
   
-  mpv --ontop --window-scale=0.4 --save-position-on-quit --no-border $video
+  ^mpv --ontop --window-scale=0.4 --save-position-on-quit --no-border $video
 
   let delete = (input "delete file? (y/n): ")
   if $delete == "y" {
@@ -520,11 +597,11 @@ export def countdown [
 
   if $muted == 'no' {
     termdown $n
-    mpv --no-terminal $BEEP  
+    ^mpv --no-terminal $BEEP  
   } else {
     termdown $n
     unmute
-    mpv --no-terminal $BEEP
+    ^mpv --no-terminal $BEEP
     mute
   }   
 }
@@ -1103,6 +1180,67 @@ export def ls-ports [] {
   | join (ps -l | into df) 'pid' 'pid'
   | into df
   | into nu
+}
+
+#get files all at once from webpage using wget
+export def wget-all [
+  webpage: string    #url to scrap
+  ...extensions      #list of extensions separated by space
+] {
+  wget -A ($extensions | str collect ",") -m -p -E -k -K -np $webpage
+}
+
+#delete empty dirs recursively
+export def rm-empty-dirs [] {
+  ls --du **/* 
+  | where type == dir 
+  | where size <= 4.0Kib
+  | rm-pipe
+}
+
+#mpv
+export def mpv [file?, --puya(-p)] {
+  let video = if ($file | is-empty) {$in} else {$file}
+
+  if not $puya {
+    ^mpv --save-position-on-quit --no-border $video
+  } else {
+    ^mpv --save-position-on-quit --no-border --sid=2 $video
+  } 
+}
+
+#convert hh:mm:ss to duration
+export def "into duration-from-hhmmss" [hhmmss?] {
+  if ($hhmmss | is-empty) {
+    $in
+  } else {
+    $hhmmss   
+  }
+  | split row :
+  | each -n {|row| 
+      ($row.item | into int) * (60 ** (2 - $row.index))
+    } 
+  | math sum
+  | into string 
+  | str append sec
+  | into duration
+}
+
+#convert duration to hh:mm:ss
+export def "into hhmmss" [dur:duration] {
+  let seconds = (
+    $dur
+    | into duration --convert sec
+    | split row " "
+    | get 0
+    | into int
+  )
+
+  let h = (($seconds / 3600) | into int | into string | str lpad -l 2 -c '0')
+  let m = (($seconds / 60 ) | into int | into string | str lpad -l 2 -c '0')
+  let s = ($seconds mod 60 | into string | str lpad -l 2 -c '0')
+
+  $"($h):($m):($s)"
 }
 
 ## appimages

@@ -1,15 +1,6 @@
 #video info
 export def "media video-info" [file] {
-  mpv -ao null -frames 0 $"($file)" 
-  | detect columns -n 
-  | first 2 
-  | reject column0 
-  | rename track id extra codec
-  | update cells {|f|
-      $f 
-      | str replace -a -s "(" "" 
-      | str replace -a -s ")" ""
-    }
+  ffprobe -v quiet -print_format json -show_format -show_streams $file | from json
 }
 
 #remove audio noise from video
@@ -74,19 +65,61 @@ export def "media cut-video" [
   SEGSTART                 #timestamp of the start of the segment (hh:mm:ss)
   SEGEND                   #timestamp of the end of the segment (hh:mm:ss)
   --output_file(-o):string #output file
+  --append(-a) = "cutted"  #append to file name
 ] {
   let ext = ($file | path parse | get extension)
   let name = ($file | path parse | get stem)
 
   let ofile = (
     if ($output_file | is-empty) {
-      $"($name)_cutted.($ext)"
+      $"($name)_($append).($ext)"
     } else {
         $output_file
     }
   )
 
   myffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
+}
+
+#split video file
+export def "media split-video" [
+  file                      #video file name
+  --number_segments(-n):int #number of pieces to generate (takes precedence over -d)
+  --duration(-d):duration   #duration of each segment (in duration format) except probably the last one
+  --delta = 10sec           #duration of overlaping beetween segments. Default 5sec
+] {
+  let full_length = (
+    media video-info $file
+    | get format
+    | get duration
+  )
+
+  let full_secs = (build-string $full_length sec | into duration)
+  let full_hhmmss = (into hhmmss $full_secs)
+
+  let n_segments = (
+    if not ($number_segments | is-empty) {
+      $number_segments
+    } else {
+      $full_secs / $duration + 1 | into int
+    } 
+  )
+
+  let seg_duration = $full_secs / $n_segments
+  let seg_end = $seg_duration
+
+  for $it in 1..($n_segments - 1) {
+    let segment_start = into hhmmss (($it - 1) * $seg_duration)
+    let segment_end = into hhmmss ($seg_end + ($it - 1) * $seg_duration + $delta)
+
+    echo-g $"generating part ($it): ($segment_start) - ($segment_end)..."
+    media cut-video $file $segment_start $segment_end -a $it
+  }
+
+  let segment_start = into hhmmss (($n_segments - 1) * $seg_duration)
+
+  echo-g $"generating part ($n_segments): ($segment_start) - ($full_hhmmss)..."
+  media cut-video $file $segment_start $full_hhmmss -a $n_segments
 }
 
 #convert media files recursively to specified format
