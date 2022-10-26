@@ -127,7 +127,7 @@ export def github-app-update [
     if $file_type == "deb" {
       let install = (input (echo-g "Would you like to install it now? (y/n): "))
       if $install == "y" {
-        sudo gdebi -n sudo gdebi -n $info.name
+        sudo gdebi -n $info.name
       }
     }
   }
@@ -143,19 +143,20 @@ export def apps-update [] {
   yandex-update
   sejda-update
   nmap-update
+  ttyplot-update
 
   #github debs
-  github-app-update tenox7 ttyplot
   github-app-update atlas-engineer nyxt
   github-app-update jgm pandoc
   github-app-update joaomgcd Tasker-Permissions -a taskerpermissions
+  github-app-update lutris lutris
 
   #mpv mpris
   github-app-update hoyon mpv-mpris -f so -d ([$env.MY_ENV_VARS.linux_backup "scripts"] | path join) -a mpris -j
 
   #monocraft font
   let current_version = (
-    open --raw ([$env.MY_ENV_VARS.linux_backup Monograft.json] | path join) 
+    open --raw ([$env.MY_ENV_VARS.linux_backup Monocraft.json] | path join) 
     | from json 
     | get version
   )
@@ -163,13 +164,13 @@ export def apps-update [] {
   github-app-update IdreesInc Monocraft -f otf -d $env.MY_ENV_VARS.linux_backup -j
   
   let new_version = (
-    open --raw ([$env.MY_ENV_VARS.linux_backup Monograft.json] | path join) 
-    | from json 
+    open ([$env.MY_ENV_VARS.linux_backup Monoqcraft.json] | path join) 
     | get version
   )
 
   if $current_version != new_version {
-    echo-g "Now you need to patch nerd fonts!"
+    echo-g "New version of Monocraft downloaded, now patching nerd fonts..."
+    nu ([$env.MY_ENV_VARS.linux_backup "software/appimages/patch-font.nu"] | path join)
   }
 }
 
@@ -331,5 +332,48 @@ export def nmap-update [] {
 
     sudo gdebi -n $new_deb
     ls $new_file | rm-pipe | ignore
+  }
+}
+
+#update ttyplot
+export def ttyplot-update [] {
+  cd $env.MY_ENV_VARS.debs
+
+  let current_version = (
+    ls 
+    | find tty 
+    | get name 
+    | get 0 
+    | ansi strip 
+    | split row _ 
+    | get 1
+  )
+  
+  let url = (
+    fetch https://packages.debian.org/sid/amd64/ttyplot/download
+    | lines 
+    | find .deb 
+    | find http 
+    | find ttyplot 
+    | first 
+    | split row "href=\"" 
+    | last 
+    | split row "\">" 
+    | first
+  )
+
+  let filename = ($url | split row / | last)
+
+  let new_version = ($filename | split row _ | get 1)
+
+  if $current_version != new_version {
+    echo-g $"\nupdating ttyplot..."
+
+    ls *.deb | find ttyplot | rm-pipe
+    aria2c --download-result=hide $url
+
+    sudo gdebi -n $filename
+  } else {
+    echo-g "ttyplot already in the latest version!"
   }
 }
