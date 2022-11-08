@@ -1037,8 +1037,12 @@ export def send-gmail [
 }
 
 #get code of custom command
-export def code [command] {
-  view-source $command | nu-highlight
+export def code [command,--raw] {
+  if ($raw | is-empty) {
+    view-source $command | nu-highlight
+  } else {
+    view-source $command
+  }
 }
 
 #register nu plugins
@@ -1199,13 +1203,33 @@ export def rm-empty-dirs [] {
 }
 
 #mpv
-export def mpv [file?, --puya(-p)] {
-  let video = if ($file | is-empty) {$in} else {$file}
+export def mpv [video?, --puya(-p)] {
+  let file = if ($video | is-empty) {$in} else {$video}
+
+  let file = (
+    switch ($file | typeof) {
+      "record": { 
+        $file
+        | get name
+        | ansi strip
+      },
+      "table": { 
+        $file
+        | get name
+        | get 0
+        | ansi strip
+      },
+    } { 
+        "otherwise": { 
+          $file
+        }
+      }
+  )
 
   if not $puya {
-    ^mpv --save-position-on-quit --no-border $video
+    ^mpv --save-position-on-quit --no-border $file
   } else {
-    ^mpv --save-position-on-quit --no-border --sid=2 $video
+    ^mpv --save-position-on-quit --no-border --sid=2 $file
   } 
 }
 
@@ -1241,6 +1265,21 @@ export def "into hhmmss" [dur:duration] {
   let s = ($seconds mod 60 | into string | str lpad -l 2 -c '0')
 
   $"($h):($m):($s)"
+}
+
+#returns a filtered table that has distinct values in the specified column
+export def uniq-by [
+  column: string  #the column to scan for duplicate values
+] {
+  reduce { |item, acc|
+    if ($acc | any { |storedItem|
+      ($storedItem | get $column) == ($item | get $column)
+    }) {
+      $acc
+    } else {
+      $acc | append $item
+    }
+  }
 }
 
 ## appimages

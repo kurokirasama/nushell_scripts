@@ -134,7 +134,7 @@ export def github-app-update [
 }
 
 #update off-package manager apps
-#zoom, chrome, earth, yandex, sejda, nmap, nyxt, tasker, ttyplot, pandoc, mpris
+#zoom, chrome, earth, yandex, sejda, nmap, ttyplot, nyxt, pandoc, tasker, lutris, mpris, monocraft
 export def apps-update [] {
   #non github apps
   zoom-update
@@ -164,7 +164,7 @@ export def apps-update [] {
   github-app-update IdreesInc Monocraft -f otf -d $env.MY_ENV_VARS.linux_backup -j
   
   let new_version = (
-    open ([$env.MY_ENV_VARS.linux_backup Monoqcraft.json] | path join) 
+    open ([$env.MY_ENV_VARS.linux_backup Monocraft.json] | path join) 
     | get version
   )
 

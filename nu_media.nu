@@ -299,3 +299,38 @@ export def "media sub-sync" [
     echo-r $"subtitle file ($file) doesn't exist in (pwd-short)"
   }
 }
+
+#reduce size of video files recursively, to mp4 x265
+export def "media compress-video" [
+  --level(-l):int           #level of recursion (-maxdepth in ^find, minimun = 1)
+  --crf(-c) = 28            #compression rate, range 0-51, sane range 18-28. Default 28.
+  --vcodec(-v) = "libx265"  #video codec: libx264 | libx265 (default).
+  #
+  #Consider only mp4 and webm files
+  #media compress-video
+  #media compress-video -l 1
+  #media compress-video -c 20
+  #media compress-video -v libx264
+] {
+  let n_files = (
+    if ($level | is-empty) {
+      bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compresses_by_me*'"
+    } else {
+      bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compresses_by_me*'"
+    }
+    | lines 
+    | length
+  )
+
+  if $n_files > 0 {
+    echo-g $"($n_files) video files found..."
+
+    if ($level | is-empty) {
+      bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compresses_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compresses_by_me.mp4"
+    } else {
+      bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compresses_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compresses_by_me.mp4"
+    }
+  } else {
+    echo-r $"no files found..."
+  }
+}
