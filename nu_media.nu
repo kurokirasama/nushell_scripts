@@ -306,17 +306,24 @@ export def "media compress-video" [
   --crf(-c) = 28            #compression rate, range 0-51, sane range 18-28. Default 28.
   --vcodec(-v) = "libx265"  #video codec: libx264 | libx265 (default).
   #
-  #Consider only mp4 and webm files
+  #Considers only mp4 and webm files
+  #
   #media compress-video
   #media compress-video -l 1
   #media compress-video -c 20
   #media compress-video -v libx264
+  #
+  #After ensuring that the conversions are ok, run
+  #
+  #media delete-non-compressed
+  #
+  #to delete original files
 ] {
   let n_files = (
     if ($level | is-empty) {
-      bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compresses_by_me*'"
+      bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*'"
     } else {
-      bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compresses_by_me*'"
+      bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*'"
     }
     | lines 
     | length
@@ -326,11 +333,27 @@ export def "media compress-video" [
     echo-g $"($n_files) video files found..."
 
     if ($level | is-empty) {
-      bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compresses_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compresses_by_me.mp4"
+      bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compresses_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compressed_by_me.mp4"
     } else {
-      bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compresses_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compresses_by_me.mp4"
+      bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compresses_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compressed_by_me.mp4"
     }
   } else {
     echo-r $"no files found..."
   }
+}
+
+#delete original videos after compression recursively
+export def "media delete-non-compressed" [] {
+  ls **/* 
+  | where type == file 
+  | where name =~ compressed_by_me 
+  | each {|file| 
+      $file 
+      | get name 
+      | split row "_compressed_by_me" 
+      | str collect "" 
+      | path expand
+    }
+  | wrap name
+  | rm-pipe
 }
