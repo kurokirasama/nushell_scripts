@@ -133,7 +133,7 @@ export def "media to" [
 ] {
   #to aac or mp3
   if $to =~ "aac" || $to =~ "mp3" {
-    let n_files = (bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.($to)"'
+    let n_files = (bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.3gp" -not -name  "*.($to)"'
         | lines 
         | length
     )
@@ -141,7 +141,7 @@ export def "media to" [
     echo-g $"($n_files) audio files found..."
 
     if $n_files > 0 {
-      bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.($to)" -print0 | parallel -0 --eta myffmpeg -n -loglevel 0 -i {} -c:a ($to) -b:a 64k {.}.($to)'
+      bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.3gp" -not -name "*.($to)" -print0 | parallel -0 --eta myffmpeg -n -loglevel 0 -i {} -c:a ($to) -b:a 64k {.}.($to)'
 
       let aacs = (ls **/* 
         | insert "ext" { 
@@ -302,13 +302,15 @@ export def "media sub-sync" [
 
 #reduce size of video files recursively, to mp4 x265
 export def "media compress-video" [
-  --level(-l):int           #level of recursion (-maxdepth in ^find, minimun = 1)
+  --level(-l):int           #level of recursion (-maxdepth in ^find, minimun = 1).
   --crf(-c) = 28            #compression rate, range 0-51, sane range 18-28. Default 28.
   --vcodec(-v) = "libx265"  #video codec: libx264 | libx265 (default).
+  --mkv(-m)                 #include mkv files (default: false).
   #
   #Considers only mp4 and webm files
   #
   #media compress-video
+  #media compress-video -m
   #media compress-video -l 1
   #media compress-video -c 20
   #media compress-video -v libx264
@@ -321,9 +323,17 @@ export def "media compress-video" [
 ] {
   let n_files = (
     if ($level | is-empty) {
-      bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*'"
+      if not $mkv {
+        bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*'"
+      } else {
+        bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*'"
+      }
     } else {
-      bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*'"
+      if not $mkv {
+        bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*'"
+      } else {
+        bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*'"
+      }
     }
     | lines 
     | length
@@ -333,9 +343,17 @@ export def "media compress-video" [
     echo-g $"($n_files) video files found..."
 
     if ($level | is-empty) {
-      bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compresses_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compressed_by_me.mp4"
+      if not $mkv {
+        bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compresses_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compressed_by_me.mp4"
+      } else {
+        bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compresses_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compressed_by_me.mp4"
+      }
     } else {
-      bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compresses_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compressed_by_me.mp4"
+      if not $mkv {
+        bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compresses_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compressed_by_me.mp4"
+      } else {
+        bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compresses_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compressed_by_me.mp4"
+      }
     }
   } else {
     echo-r $"no files found..."
@@ -347,7 +365,7 @@ export def "media delete-non-compressed" [] {
   ls **/* 
   | where type == file 
   | where name =~ compressed_by_me 
-  | each {|file| 
+  | par-each {|file| 
       $file 
       | get name 
       | split row "_compressed_by_me" 
@@ -356,4 +374,22 @@ export def "media delete-non-compressed" [] {
     }
   | wrap name
   | rm-pipe
+
+  ls **/*
+  | where name =~ .webm
+  | par-each {|file|
+      let compressed = (
+        $file
+        | get name
+        | path expand
+        | path parse
+        | upsert stem ($file | get name | path parse | get stem | str append "_compressed_by_me")
+        | upsert extension mp4
+        | path join
+      )
+      
+      if ($compressed | path exists) {
+        $file | rm-pipe
+      }
+    }
 }
