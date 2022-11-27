@@ -1331,6 +1331,11 @@ export def open-link [] {
   | openf
 }
 
+#build-string (temporary, replace all build-string instances by "+" syntax)
+export def build-string [...rest] {
+  $rest | str collect ""
+}
+
 ## appimages
 
 #open balena-etche
