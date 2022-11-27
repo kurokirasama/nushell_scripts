@@ -1,6 +1,13 @@
 #video info
-export def "media video-info" [file] {
-  ffprobe -v quiet -print_format json -show_format -show_streams $file | from json
+export def "media video-info" [file?] {
+  let video = if ($file | is-empty) {$in | get name} else {$file}
+  ffprobe -v quiet -print_format json -show_format -show_streams $video | from json
+}
+
+#video info via mpv
+export def "media mpv-info" [file?] {
+  let video = if ($file | is-empty) {$in | get name} else {$file}
+  ^mpv -vo null -ao null -frames 0 $video
 }
 
 #remove audio noise from video
@@ -361,7 +368,7 @@ export def "media compress-video" [
 }
 
 #delete original videos after compression recursively
-export def "media delete-non-compressed" [] {
+export def "media delete-non-compressed" [file?] {
   ls **/* 
   | where type == file 
   | where name =~ compressed_by_me 

@@ -167,15 +167,15 @@ export def ? [...search] {
   } else {
     if ($search | first) =~ "commands" {
       if ($search | first) =~ "my" {
-        help commands | where is_custom == true
+        help commands | where command_type == custom
       } else {
         help commands 
       }
     } else if ($search | first | str contains "^") {
       tldr ($search | str collect "-" | split row "^" | get 0) | nu-highlight
-    } else if (which ($search | first) | get path | get 0) =~ "Nushell" {
-      if (which ($search | first) | get path | get 0) =~ "alias" {
-        get-aliases | find ($search | first)
+    } else if (which ($search | str collect " ") | get path | get 0) =~ "Nushell" {
+      if (which ($search | str collect " ") | get path | get 0) =~ "alias" {
+        get-aliases | find ($search | first) 
       } else {
         help ($search | str collect " ") | nu-highlight
       }
@@ -226,25 +226,25 @@ export def xls2csv [
 }
 
 #compress to 7z using max compression
-export def 7zmax [
-  filename: string  #filename without extension
+export def "7z max" [
+  filename: string  #existing or not existing 7z filename
   ...rest:  string  #files to compress and extra flags for 7z (add flags between quotes)
   --delete(-d)      #delete files after compression
   #
   # Example:
   # compress all files in current directory and delete them
-  # 7zmax filename * "-sdel"
+  # 7z max filename * -d
   # compress all files in current directory and split into pieces of 3Gb (b|k|m|g)
-  # 7zmax filename * "-v3g"
+  # 7z max filename * "-v3g"
   # both
-  # 7zmax filename * "-v3g -sdel"
+  # 7z max filename * "-v3g -sdel"
 ] {
   if ($rest | is-empty) {
     echo-r "no files to compress specified"
   } else if ($delete | is-empty) || (not $delete) {
-    7z a -t7z -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename).7z" $rest
+    7z a -t7z -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" $rest
   } else {
-    7z a -t7z -sdel -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename).7z" $rest
+    7z a -t7z -sdel -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" $rest
   }
 }
 
@@ -699,11 +699,11 @@ export def cp-pipe [
   #ls *.txt | first 5 | cp-pipe ~/temp
 ] {
   get name 
+  | ansi strip
   | each {|file| 
       echo-g $"copying ($file)..." 
-      cp -r $file ($to | path expand)
+      ^cp -r $file ($to | path expand) 
     } 
-  | flatten
 }
 
 #mv trough pipe to same dir
@@ -714,11 +714,11 @@ export def mv-pipe [
   #ls *.txt | first 5 | mv-pipe ~/temp
 ] {
   get name 
+  | ansi strip
   | each {|file|
       echo-g $"moving ($file)..." 
-      mv $file ($to | path expand)
+      ^mv $file ($to | path expand)
     }
-  | flatten
 }
 
 #ls by date (newer last)
@@ -793,8 +793,12 @@ export def le [] {
 }
 
 #get list of files recursively
-export def get-files [] {
-  ls **/* 
+export def get-files [--full(-f)] {
+  if $full {
+    ls **/*
+  } else {
+    ls
+  } 
   | where type == file 
   | sort-by -i name
 }
@@ -807,9 +811,13 @@ export def find-file [search] {
 }
 
 #get list of directories in current path
-export def get-dirs [dir?] {
+export def get-dirs [dir?, --full(-f)] {
   if ($dir | is-empty) {
-    ls 
+    if $full {
+      ls **/*
+    } else {
+      ls
+    } 
     | where type == dir 
     | sort-by -i name
   } else {
@@ -1102,12 +1110,20 @@ export def-env mkcd [name: path] {
 }
 
 #backup sublime settings
-export def backup-sublime [] {
+export def "sublime backup" [] {
   cd $env.MY_ENV_VARS.linux_backup
   let source_dir = "~/.config/sublime-text"
   
-  7zmax sublime-installedPackages ([$source_dir "Installed Packages"] | path join)
-  7zmax sublime-Packages ([$source_dir "Packages"] | path join)
+  7z max sublime-installedPackages ([$source_dir "Installed Packages"] | path join)
+  7z max sublime-Packages ([$source_dir "Packages"] | path join)
+}
+
+#restore sublime settings
+export def "sublime restore" [] {
+  cd $env.MY_ENV_VARS.linux_backup
+  
+  7z x sublime-installedPackages.7z -o/home/kira/.config/sublime-text/
+  7z x sublime-Packages.7z -o/home/kira/.config/sublime-text/
 }
 
 #second screen positioning (work)
@@ -1280,6 +1296,39 @@ export def uniq-by [
       $acc | append $item
     }
   }
+}
+
+#get total sizes of ls output
+export def sum-size [] {
+  get size | math sum
+}
+
+#update boletas honorarios
+export def bhe-update [] {
+  cd ~/Dropbox/Aplicaciones/Gmail
+
+  ls
+  | find bhe 
+  | find 16061233 
+  | mv-pipe "~/Dropbox/Documentos/Atemporales/Boletas Honorarios/"
+
+  echo-g "compressing into boletas.7z..."
+  cd "~/Dropbox/Documentos/Atemporales/Boletas Honorarios/"
+  7z max boletas.7z bhe* -d 
+}
+
+#table to record
+export def table2record [] {
+  transpose -r -d 
+}
+
+#extract first link from text
+export def open-link [] {
+  lines 
+  | find http
+  | first 
+  | get 0
+  | openf
 }
 
 ## appimages

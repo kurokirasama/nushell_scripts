@@ -64,7 +64,7 @@ def get_location [] {
         | wrap online
     )
 
-    let table = (locations | merge {$online} | find true)
+    let table = (locations | merge $online | find true)
 
     # if ip address in your home isn't precise, you can force a location
     if ($wifi =~ $env.MY_ENV_VARS.home_wifi) || ($table | length) == 0 { 

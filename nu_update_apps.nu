@@ -377,3 +377,10 @@ export def ttyplot-update [] {
     echo-g "ttyplot already in the latest version!"
   }
 }
+
+#update cmdg
+export def gmail-update [] {
+  cd ~/software/cmdg
+  go build ./cmd/cmdg
+  sudo cp cmdg /usr/local/bin
+}
