@@ -889,14 +889,14 @@ export def get-devices [
       }
   )
 
-  let devices = ( $ips | merge { $macs_n_names} )
+  let devices = ( $ips | merge $macs_n_names )
 
   let known_devices = open ([$env.MY_ENV_VARS.linux_backup "known_devices.csv"] | path join)
   let known_macs = ($known_devices | get mac | str upcase)
 
   let known = ($devices | each {any $it.mac in $known_macs} | wrap known)
 
-  let devices = ($devices | merge {$known})
+  let devices = ($devices | merge $known)
 
   let aliases = (
     $devices 
@@ -913,7 +913,7 @@ export def get-devices [
    
   rm nmap.xml | ignore 
 
-  $devices | merge {$aliases}
+  $devices | merge $aliases
 }
 
 #verify if a column exist within a table

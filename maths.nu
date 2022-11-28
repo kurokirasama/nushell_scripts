@@ -180,7 +180,7 @@ export def scale-minmax-table [a, b,input?] {
 		($x | column2 $i) | scale-minmax $a $b | wrap ($name_cols | get $i)
 	} 
 	| reduce {|it, acc| 
-		$acc | merge {$it}
+		$acc | merge $it
 	}
 }
 
