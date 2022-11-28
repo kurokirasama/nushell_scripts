@@ -614,6 +614,7 @@ export def get-aliases [] {
   | update expansion {|c|
       $c.expansion | nu-highlight
     }
+  | table
 }
 
 #ping with plot
@@ -1301,20 +1302,6 @@ export def uniq-by [
 #get total sizes of ls output
 export def sum-size [] {
   get size | math sum
-}
-
-#update boletas honorarios
-export def bhe-update [] {
-  cd ~/Dropbox/Aplicaciones/Gmail
-
-  ls
-  | find bhe 
-  | find 16061233 
-  | mv-pipe "~/Dropbox/Documentos/Atemporales/Boletas Honorarios/"
-
-  echo-g "compressing into boletas.7z..."
-  cd "~/Dropbox/Documentos/Atemporales/Boletas Honorarios/"
-  7z max boletas.7z bhe* -d 
 }
 
 #table to record

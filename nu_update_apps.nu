@@ -381,6 +381,15 @@ export def ttyplot-update [] {
 #update cmdg
 export def gmail-update [] {
   cd ~/software/cmdg
+  git pull
   go build ./cmd/cmdg
   sudo cp cmdg /usr/local/bin
+}
+
+#update nushell
+export def nu-update [] {
+  cd ~/software/nushell
+  git pull
+  bash install-all.sh
+  update-nu-config
 }
