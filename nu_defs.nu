@@ -359,9 +359,14 @@ export def openg [file?] {
 }
 
 #send to printer
-export def print-file [file?] {
+export def print-file [file?,--n_copies(-n):int] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
-  lp $file
+  
+  if ($n_copies | is-empty) {
+    lp $file
+  } else {
+    lp -n $n_copies $file
+  }
 }
 
 #play first/last downloaded youtube video

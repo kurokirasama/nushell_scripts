@@ -220,3 +220,11 @@ export def rand-select [
 	let len = ($xs | length) 
 	$xs | select (random integer 0..($len - 1))
 }
+
+#binomial coefficient
+export def binomialCoeff [n:int, k:int] {
+    if ($k > $n) {return 0}
+    if ($k == 0 || $k == $n) {return 1}
+ 
+    (binomialCoeff ($n - 1) ($k - 1)) + (binomialCoeff ($n - 1) $k)
+}

@@ -15,7 +15,7 @@ export def "t reload" [] {
 
 #transmission list
 export def "t list" [] {
-  transmission-remote -n 'transmission:transmission' -l | from ssv | table
+  transmission-remote -n 'transmission:transmission' -l | from ssv
 }
 
 #transmission basic stats
@@ -96,6 +96,7 @@ export def "t remove-done" [] {
   t list 
   | drop 1 
   | where ETA =~ Done 
+  | where Done == "100%"
   | get ID 
   | each {|id|
       transmission-remote  -t $id -n 'transmission:transmission' --remove

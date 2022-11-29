@@ -1,20 +1,3 @@
-#get bitly short link
-export def mbitly [longurl] {
-  if ($longurl | is-empty) {
-    echo-r "no url provided"
-  } else {
-    let bitly_credential = open ([$env.MY_ENV_VARS.credentials "bitly_token.json"] | path join)
-    let Accesstoken = ($bitly_credential | get token)
-    let username = ($bitly_credential | get username)
-    
-    let url = $"https://api-ssl.bitly.com/v3/shorten?access_token=($Accesstoken)&login=($username)&longUrl=($longurl)"
-    let shorturl = (fetch $url | get data | get url)
-
-    $shorturl | copy
-    echo-g $"($shorturl) copied to clipboard!"
-  }
-}
-
 #translate text using mymemmory api
 export def trans [
   ...search:string  #search query
@@ -43,8 +26,29 @@ export def trans [
 
     let url = $"https://api.mymemory.translated.net/get?q=($to_translate)&langpair=($from)%7C($to)&of=json&key=($key)&de=($user)"
 
-    fetch $url 
-    | get responseData 
-    | get translatedText
+    fetch $url | get responseData | get translatedText
+  }
+}
+
+#get bitly short link
+export def mbitly [longurl] {
+  if ($longurl | is-empty) {
+    echo-r "no url provided"
+  } else {
+    let bitly_credential = open ([$env.MY_ENV_VARS.credentials "bitly_token.json"] | path join)
+    let Accesstoken = ($bitly_credential | get token)
+    let guid = ($bitly_credential | get guid)
+    
+    let url = "https://api-ssl.bitly.com/v4/shorten"
+    let content = {
+      "group_guid": $guid,
+      "domain": "bit.ly",
+      "long_url": $longurl
+    }
+
+    let response = post $url $content --content-type "application/json" -H ["Authorization", $"Bearer ($Accesstoken)"]
+    let shorturl = ($response | get link)
+
+    echo-g $"($shorturl)"
   }
 }
