@@ -1328,6 +1328,19 @@ export def build-string [...rest] {
   $rest | str collect ""
 }
 
+#open google analytics csv file
+export def open-analytics [$file?] {
+  let file = if ($file | is-empty) {$in | get name} else {$file}
+
+  open $file --raw 
+  | lines 
+  | find -v "#" 
+  | drop nth 0 
+  | str collect "\n" 
+  | from csv 
+  | table
+}
+
 ## appimages
 
 #open balena-etche
