@@ -66,7 +66,7 @@ export def ytm [
         $songs 
         | shuffle 
         | each -n {|song|
-            fetch $"($song.item.thumbnail)" | save /tmp/thumbnail.jpg
+            fetch $"($song.item.thumbnail)" | save -f /tmp/thumbnail.jpg
             convert -density 384 -scale 256 -background transparent /tmp/thumbnail.jpg /tmp/thumbnail.ico
 
             notify-send $"($song.item.title)" $"($song.item.artist)" -t 5000 --icon=/tmp/thumbnail.ico
@@ -129,7 +129,7 @@ export def "ytm online" [
       $songs 
       | shuffle 
       | each -n {|song|
-          fetch $"($song.item.thumbnail)" | save /tmp/thumbnail.jpg
+          fetch $"($song.item.thumbnail)" | save -f /tmp/thumbnail.jpg
           convert -density 384 -scale 256 -background transparent /tmp/thumbnail.jpg /tmp/thumbnail.ico
 
           notify-send $"($song.item.title)" $"($song.item.artist)" -t 5000 --icon=/tmp/thumbnail.ico
@@ -153,7 +153,7 @@ export def yt-api [
   #verify and update token
   yt-api verify-token
 
-  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let youtube_credential = open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join)
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
 
@@ -274,7 +274,7 @@ export def "yt-api download-music-playlists" [
       
       if ($songs | length) > 0 {
         echo-g $"\nsaving ($playlist.title) into ($filename)..."
-        $songs | sort-by artist | save $filename
+        $songs | sort-by artist | save -f $filename
       }
     }
 }
@@ -284,7 +284,7 @@ export def "yt-api update-all" [
   --playlist1 = "all_music"
   --playlist2 = "new_likes"
 ] {
-  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let youtube_credential = open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join)
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
   let response = yt-api
@@ -344,7 +344,7 @@ export def "yt-api empty-playlist" [playlist?:string] {
   let response = yt-api
 
   echo-g "listing playlists..."
-  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let youtube_credential = open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join)
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
 
@@ -394,7 +394,7 @@ export def "yt-api remove-duplicated-songs" [
   let response = yt-api
 
   echo-g "listing playlists..."
-  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let youtube_credential = open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join)
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
 
@@ -466,11 +466,15 @@ export def "yt-api remove-duplicated-songs" [
 
 #verify if youtube api token has expired
 export def "yt-api verify-token" [] {
-  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let youtube_credential = open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join)
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
 
-  let response = fetch $"https://youtube.googleapis.com/youtube/v3/playlists?part=snippet&mine=true&key=($api_key)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json'] 
+  let response = try {
+      fetch $"https://youtube.googleapis.com/youtube/v3/playlists?part=snippet&mine=true&key=($api_key)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json'] 
+    } catch {
+      {error: {code: 401}}
+  }
 
   if ($response | is-column error) && ($response | get error  | get code) != 403 {
     yt-api get-token 
@@ -482,7 +486,7 @@ export def "yt-api verify-token" [] {
 
 #update youtube api token
 export def "yt-api get-token" [] {
-  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let youtube_credential = open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join)
   let client = ($youtube_credential | get client_id)
 
   let uri = (
@@ -499,24 +503,27 @@ export def "yt-api get-token" [] {
 
   let url = input (echo-g "Copy response url here: ")
 
-  $youtube_credential  
-  | upsert token {
-      $url 
-      | split row "#" 
-      | get 1 
-      | split row "=" 
-      | get 1 
-      | split row "&" 
-      | get 0
-    } 
-  | save ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join) 
+  let content = (
+    $youtube_credential  
+    | upsert token {
+        $url 
+        | split row "#" 
+        | get 1 
+        | split row "=" 
+        | get 1 
+        | split row "&" 
+        | get 0
+      }
+  ) 
+  save-credential $content ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join) 
 }
 
-##in progress
+
+##In progress
 
 #get youtube api refresh token
 export def "yt-api get-refresh-token" [] {
-  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let youtube_credential = open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join)
   let client = ($youtube_credential | get client_id)
 
   let uri = (
@@ -533,20 +540,22 @@ export def "yt-api get-refresh-token" [] {
 
   let url = input (echo-g "Copy response url here: ")
 
-  $youtube_credential  
-  | upsert refresh_token {
-      $url 
-      | split row "=" 
-      | get 1 
-      | split row "&" 
-      | get 0
-    } 
-  | save ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join) 
+  let content = (
+    $youtube_credential  
+    | upsert refresh_token {
+        $url 
+        | split row "=" 
+        | get 1 
+        | split row "&" 
+        | get 0
+      }
+  ) 
+  save-credential $content ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join) 
 }
 
 #refresh youtube api token via refresh token (in progress)
 export def "yt-api refresh-token" [] {
-  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let youtube_credential = open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join)
   let client_id = ($youtube_credential | get client_id)
   let client_secret = ($youtube_credential | get client_secret)
   let refresh_token = ($youtube_credential | get refresh_token)
@@ -559,10 +568,40 @@ export def "yt-api refresh-token" [] {
   )
 
   post "https://accounts.google.com/o/oauth2/token" $"client_id=($client_id)&client_secret=($client_secret)&refresh_token=($refresh_token)&grant_type=refresh_token" -t application/x-www-form-urlencoded
+
+  # curl -X POST "https://accounts.google.com/o/oauth2/token" -d $"client_id=($client_id)&client_secret=($client_secret)&refresh_token=($refresh_token)&grant_type=refresh_token" -H "Content-Type: application/x-www-form-urlencoded"
 }
 
+
+
+## testing
+
+# export def "yt-api verify-token" [url,token] {
+#   let response = fetch $"($url)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json']
+
+#   if ($response | is-column error) {
+#     let client = (open ~/Yandex.Disk/Backups/linux/credentials/credentials.youtube.json | get client_id)
+#     let refresh_token = (open ~/Yandex.Disk/Backups/linux/credentials/credentials.youtube.json | get refresh_token)
+#     let secret = (open ~/Yandex.Disk/Backups/linux/credentials/credentials.youtube.json | get client_secret)
+
+#     let response = (post "https://www.googleapis.com/oauth2/v4/token" -t 'application/json' {
+#         "client_id": ($client),
+#         "client_secret": ($secret),
+#         "refresh_token": ($refresh_token),
+#         "grant_type": "authorization_code",
+#         "access_type": "offline",
+#         "prompt": "consent",
+#         "scope": "https://www.googleapis.com/auth/youtube"
+#       }
+#     )
+
+#     $response | save test.json
+#   }
+# }
+
+
 export def test-api [] {
-  let youtube_credential = open ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join)
+  let youtube_credential = open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join)
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
   let client = ($youtube_credential | get client_id)
@@ -577,5 +616,33 @@ export def test-api [] {
    }
   )
 
-  $response | save test.json 
+  $response | save -f test.json 
 }
+
+ # let response = (post "https://accounts.google.com/o/oauth2/token/" $"client_id=($client)&client_secret=($secret)&refresh_token=($refresh_token)&grant_type=refresh_token&access_type=offline&prompt=consent&scope=https://www.googleapis.com/auth/youtube"2 -t "text/html"
+  # )
+# https://accounts.google.com/o/oauth2/auth?client_id=676765289577-ek34fcbppprtcvtt7sd98ioodvapojci.apps.googleusercontent.com&redirect_uri=http%3A%2F%2Flocalhost%2Foauth2callback&scope=https://www.googleapis.com/auth/youtube&response_type=token
+
+# http://localhost/oauth2callback
+# http://localhost:8080 
+
+# http://localhost/oauth2callback#access_token=&token_type=Bearer&expires_in=3599&scope=https://www.googleapis.com/auth/youtube
+
+# export def get-yt-playlist [
+#   pid         #playlist id
+#   nos? = 500  #number of song to fetch
+#   --all       #fetch all songs
+# ] {
+#   ls
+# # $playlists | flatten | where title == jp  | get id
+# }
+
+
+# auth_code
+# https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=https%3A%2F%2Fdevelopers.google.com%2Foauthplayground&prompt=consent&response_type=code&client_id=407408718192.apps.googleusercontent.com&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube&access_type=offline
+# https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=https%3A%2F%2Fdevelopers.google.com%2Foauthplayground&prompt=consent&response_type=code&client_id=407408718192.apps.googleusercontent.com&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube&access_type=offline
+
+# 4/0AdQt8qiNECGYvH98mxe0xnd7dHhGahZb2Na9w2-Q0YTv3KvjCg7ULN6T4Z5jGrLvEfLtnw
+
+# refresh_token
+# 1//04fRaM1rCDgifCgYIARAAGAQSNwF-L9IrQQDg2DCQypNrG44ML4QwcMsEGI0X5i4n43B5E4ZmdLvTcaeDltC0aQDjeUjlCE89BcU

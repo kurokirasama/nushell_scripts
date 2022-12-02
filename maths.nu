@@ -222,9 +222,19 @@ export def rand-select [
 }
 
 #binomial coefficient
-export def binomialCoeff [n:int, k:int] {
+export def bin-coeff [n:int, k:int] {
     if ($k > $n) {return 0}
     if ($k == 0 || $k == $n) {return 1}
- 
-    (binomialCoeff ($n - 1) ($k - 1)) + (binomialCoeff ($n - 1) $k)
+
+    mut num = $n
+    mut den = $k
+    mut k_2 = $k
+
+    while ( $k_2 > 1 ) {
+        $k_2 = $k_2 - 1;
+        $num = $num * ($n - $k_2)
+        $den = $den * $k_2
+    }
+
+    $num / $den
 }

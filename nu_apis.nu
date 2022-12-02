@@ -15,7 +15,7 @@ export def trans [
   if ($search | is-empty) {
     echo-r "no search query provided"
   } else {
-    let trans_credential = open ([$env.MY_ENV_VARS.credentials "mymemory_token.json"] | path join)
+    let trans_credential = open-credential ([$env.MY_ENV_VARS.credentials "mymemory_token.json.asc"] | path join)
     let key = ($trans_credential | get token)
     let user = ($trans_credential | get username)
 
@@ -35,7 +35,7 @@ export def mbitly [longurl] {
   if ($longurl | is-empty) {
     echo-r "no url provided"
   } else {
-    let bitly_credential = open ([$env.MY_ENV_VARS.credentials "bitly_token.json"] | path join)
+    let bitly_credential = open-credential ([$env.MY_ENV_VARS.credentials "bitly_token.json.asc"] | path join)
     let Accesstoken = ($bitly_credential | get token)
     let guid = ($bitly_credential | get guid)
     

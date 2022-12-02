@@ -24,7 +24,7 @@ export def-env get_weather_by_interval [INTERVAL_WEATHER] {
             | upsert weather $"($WEATHER.Icon) ($WEATHER.Temperature)" 
             | upsert weather_text $"($WEATHER.Condition) ($WEATHER.Temperature)" 
             | upsert last_weather_time $NEW_WEATHER_TIME 
-            | save $weather_runtime_file
+            | save -f $weather_runtime_file
 
             $"($WEATHER.Icon) ($WEATHER.Temperature)"
         } else {
@@ -39,7 +39,7 @@ export def-env get_weather_by_interval [INTERVAL_WEATHER] {
             "last_weather_time": ($LAST_WEATHER_TIME)
         } 
     
-        $WEATHER_DATA | save $weather_runtime_file
+        $WEATHER_DATA | save -f $weather_runtime_file
         $WEATHER
     }
 }
@@ -82,7 +82,7 @@ def get_location [] {
 # dark sky
 def fetch_api [loc] {
     let apiKey = (
-        open ([$env.MY_ENV_VARS.credentials "credentials.dark_sky.json"] 
+        open-credential ([$env.MY_ENV_VARS.credentials "credentials.dark_sky.json.asc"] 
             | path join) 
         | get api_key
     )
@@ -97,7 +97,7 @@ def fetch_api [loc] {
 # street address
 def get_address [loc] {
     let mapsAPIkey = (
-        open ([$env.MY_ENV_VARS.credentials "googleAPIkeys.json"] 
+        open-credential ([$env.MY_ENV_VARS.credentials "googleAPIkeys.json.asc"] 
             | path join) 
         | get general
     )
@@ -141,7 +141,7 @@ def uv_class [uvIndex] {
 # air pollution
 def get_airCond [loc] {
     let apiKey = (
-        open ([$env.MY_ENV_VARS.credentials "credentials.air_visual.json"] 
+        open-credential ([$env.MY_ENV_VARS.credentials "credentials.air_visual.json.asc"] 
             | path join) 
         | get api_key
     )

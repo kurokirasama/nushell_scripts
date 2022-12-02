@@ -256,7 +256,7 @@ export def "media merge-videos-auto" [
   if not ($list | path exists) {
     touch $"($list)"
   } else {
-    "" | save $list
+    "" | save -f $list
   }
   
   ls $"*.($ext)" 

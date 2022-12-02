@@ -5,7 +5,7 @@ export def get-github-latest [
   --file_type(-f) = "deb"
 ] {
   let git_token = (
-    open ([$env.MY_ENV_VARS.credentials github_credentials.json] | path join) 
+    open-credential ([$env.MY_ENV_VARS.credentials github_credentials.json.asc] | path join) 
     | get token
   )
 
@@ -107,7 +107,7 @@ export def github-app-update [
         open --raw $app_file
         | from json 
         | upsert version $new_version 
-        | save $app_file
+        | save -f $app_file
       }
 
       if $file_type == "deb" {
