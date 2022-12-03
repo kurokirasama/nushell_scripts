@@ -221,7 +221,7 @@ export def rand-select [
 	$xs | select (random integer 0..($len - 1))
 }
 
-#binomial coefficient
+#binomial coefficient (C_k^n)
 export def bin-coeff [n:int, k:int] {
     if ($k > $n) {return 0}
     if ($k == 0 || $k == $n) {return 1}
@@ -237,4 +237,9 @@ export def bin-coeff [n:int, k:int] {
     }
 
     $num / $den
+}
+
+#number of permutation of r elements in a set of n elements (P_r^n)
+export def perm-coeff [n:int, r:int] {
+	($n - $r + 1)..($n) | math product
 }

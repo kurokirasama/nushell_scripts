@@ -79,15 +79,3 @@ export def "geek create" [
 ] {
   nu -c (build-string "geeknote create" " " $commands)
 }
-
-#umount all drives (duf)
-export def umall [user? = $env.USER] {
-  duf -json 
-  | from json 
-  | find $"/media/($user)" 
-  | get mount_point
-  | each {|drive| 
-      echo-g $"umounting ($drive)..."
-      umount $drive
-    }
-}
