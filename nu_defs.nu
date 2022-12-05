@@ -25,6 +25,56 @@ export def show_banner [] {
     print $"(ansi green)($ellie.3)  (ansi light_purple)ﮫ (ansi light_purple_bold)Uptime (ansi reset)(ansi light_purple)($s.host.uptime)(ansi reset)"
 }
 
+#search for a name in the media database
+export def find-media [
+  search            #search term
+  --season(-s):int  #season number
+  --manga(-m)       #for searching manga
+  --no_manga(-n)    #exclude manga results
+] {
+  let database = (
+    ls $env.MY_ENV_VARS.media_database 
+    | where name =~ ".json" 
+    | openm
+  )
+  
+  let S = if ($season | is-empty) {
+      ""
+    } else {
+      $season | into string | str lpad -l 2 -c '0'
+  }
+
+  let results = if ($season | is-empty) {
+      $database | find -i $search
+    } else {
+      $database | find -i $search | find -i $"s($S)"
+    }
+
+  if $manga {
+    $results | find -i manga
+  } else if $no_manga {
+    $results | find -v Manga
+  } else {
+    $results
+  }
+}
+
+#accumulate a list of files into the same table
+export def openm [
+  list? #list of files
+  #Example
+  #ls *.json | openm
+  #let list = ls *.json; openm $list
+] {
+  let list = if ($list | is-empty) {$in} else {$list}
+  
+  $list 
+  | get name
+  | reduce -f [] {|it, acc| 
+      $acc | append (open ($it | path expand))
+    }
+}
+
 #neofetch but nu (in progress)
 export def nufetch [--table(-t)] {
   if not $table {
@@ -619,7 +669,6 @@ export def get-aliases [] {
   | update expansion {|c|
       $c.expansion | nu-highlight
     }
-  | table
 }
 
 #ping with plot
@@ -799,11 +848,35 @@ export def le [] {
 }
 
 #get list of files recursively
-export def get-files [--full(-f)] {
+export def get-files [--full(-f),--dir(-d):string,--full_path(-F)] {
   if $full {
-    ls **/*
+    if not ($dir | is-empty) {
+      if $full_path {
+        ls -f $"($dir)/**/*"
+        } else {
+          ls $"($dir)/**/*"
+        }
+    } else {
+      if $full_path {
+        ls -f **/*
+      } else {
+        ls **/*
+      }
+    }
   } else {
-    ls
+    if not ($dir | is-empty) {
+      if $full_path {
+        ls -f $"($dir)"
+      } else {
+        ls $"($dir)"
+      }
+    } else {
+      if $full_path {
+        ls -f
+      } else {
+        ls
+      }
+    }
   } 
   | where type == file 
   | sort-by -i name
@@ -1338,7 +1411,6 @@ export def open-analytics [$file?] {
   | drop nth 0 
   | str collect "\n" 
   | from csv 
-  | table
 }
 
 #umount all drives (duf)
