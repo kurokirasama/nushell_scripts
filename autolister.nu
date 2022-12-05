@@ -25,10 +25,21 @@ def main [user = "kira"] {
 
 #list all files ans save it to json in Dropbox/Directorios
 def lister [file] {
-	let file = ((["~/Dropbox/Directorios" $"($file).json"] | path join | path expand))
+	let file = (["~/Dropbox/Directorios" $"($file).json"] | path join | path expand)
 
-	let df = get-files -f -F 
-	
+	let df = try {
+			get-files -f -F 
+		} catch {
+			[]
+		}
+
+	if ($df | length) == 0 {
+		if $file =~ "Downloads" { 
+			rm $file
+		}
+		return
+	}
+
 	let last = ($df | into df | drop name) 
 
 	let df = (
