@@ -49,6 +49,7 @@ export def mbitly [longurl] {
     let response = post $url $content --content-type "application/json" -H ["Authorization", $"Bearer ($Accesstoken)"]
     let shorturl = ($response | get link)
 
-    echo-g $"($shorturl)"
+    $shorturl | copy
+    echo-g $"($shorturl) copied to clipboard!"
   }
 }

@@ -2,9 +2,6 @@ export alias dsitcl = bash -c 'docker run --rm -it -v "/home/kira/Dropbox/Docume
 export alias nu-clean = cargo clean
 export alias tree = tree -h
 export alias grp = grep-nu
-export alias grp-a = grep-anime
-export alias grp-s = grep-series
-export alias grp-m = grep-manga
 export alias get-keybindings = $env.config.keybindings
 export alias cal = cal --week-start monday
 export alias adbtasker = adb -s 9cdd570d tcpip 5555
@@ -61,5 +58,8 @@ export alias max-vol = amixer -D pulse sset Master Playback 65536
 # export alias lx = (ln | sort-by type)
 # export alias getlist = (ls **/*| where type == file)
 # export alias getdirs = (ls | where type == dir)
+# export alias grp-a = grep-anime
+# export alias grp-s = grep-series
+# export alias grp-m = grep-manga
 
 #get max value with amixer -D pulse sget Master

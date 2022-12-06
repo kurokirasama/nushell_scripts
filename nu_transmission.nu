@@ -15,7 +15,7 @@ export def "t reload" [] {
 
 #transmission list
 export def "t list" [] {
-  transmission-remote -n 'transmission:transmission' -l | from ssv | table
+  transmission-remote -n 'transmission:transmission' -l | from ssv
 }
 
 #transmission basic stats

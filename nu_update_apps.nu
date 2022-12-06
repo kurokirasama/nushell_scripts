@@ -389,7 +389,19 @@ export def gmail-update [] {
 #update nushell
 export def nu-update [] {
   cd ~/software/nushell
-  git pull
-  bash install-all.sh
-  update-nu-config
+  let status = (git status -s | lines)
+
+  if ($status | length) > 0 {
+    git pull
+    bash install-all.sh
+    update-nu-config
+  } else {
+    echo-g "nushell already up to date!"
+  }
+}
+
+#update maestral
+export def maestral-update [] {
+  pip3 install --upgrade maestral
+  pip3 install --upgrade maestral[gui]
 }

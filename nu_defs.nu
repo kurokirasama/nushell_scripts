@@ -884,9 +884,12 @@ export def get-files [--full(-f),--dir(-d):string,--full_path(-F)] {
 
 
 #find file in dir recursively
-export def find-file [search] {
-  get-files 
-  | where name =~ $search
+export def find-file [search,--directory(-d):string] {
+  if ($directory | is-empty) {
+    get-files -f | where name =~ $search
+  } else {
+    get-files -f -d $directory | where name =~ $search
+  }
 }
 
 #get list of directories in current path

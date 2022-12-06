@@ -2,6 +2,7 @@
 
 def main [user = "kira"] {
 
+	echo "listing Downloads..."
 	cd ~/Downloads
 	lister Downloads
 
@@ -17,6 +18,7 @@ def main [user = "kira"] {
 	if ($drives | length) > 0 {
 		$drives
 		| each { |drive|
+				echo $"listing ($drive | ansi strip)..."
 				cd ($drive | ansi strip)
 				lister ($drive | ansi strip | path parse | get stem | split row " " | get 0)
 			}
