@@ -18,7 +18,7 @@ let-env PROMPT_COMMAND = { [
   (if $env.PWD == $env.HOME {
     $"(char -u f31b) "
    } else {
-     [$"(char -u f31b) " (left_prompt)] | str collect
+     [$"(char -u f31b) " ($env.PWD_SIZE) $"(char -u e0b1)" (left_prompt)] | str collect
    } 
   )
   (ansi reset)] | str collect

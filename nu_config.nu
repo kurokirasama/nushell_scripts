@@ -21,23 +21,28 @@ let my_config = (
 #restoring hooks
 let hooks = {
     pre_prompt: [{
-    	print $"Time elapsed: (($env.CMD_DURATION_MS | into decimal) / 1000) s"
-    	}]
+        print $"Time elapsed: (($env.CMD_DURATION_MS | into decimal) / 1000) s"
+        }]
     pre_execution: [{
       $nothing  
     }]
     env_change: {
       PWD: [{|before, after|
-        $nothing 
+        let-env PWD_SIZE = if (not ($env.PWD =~ gdrive)) && ($env.PWD | get-dirs | where name =~ gdrive | length) == 0 {
+        	(du $env.PWD | get apparent | get 0 | into string | str replace " " "" )
+        } else {
+        	""
+        } 
       }]
     }
     display_output: {
-      if (term size).columns >= 100 { table -e } else { table }
+       table
     }
   }
 
 	  # let-env LAST_OUTPUT = $in;
       # print ($env.LAST_OUTPUT | table);
+      # if (term size).columns >= 100 { table -e } else { table }
 
 let my_config = ($my_config | upsert hooks $hooks)
 
@@ -228,9 +233,9 @@ let my_config = ($my_config | upsert "keybindings" $keybindings)
 
 #restoring table_trim
 let tableTrim = {
-    methodology: truncating,
+    methodology: truncating, # wrapping
     wrapping_try_keep_words: true,
-    truncating_suffix: "❱"
+    truncating_suffix: "❱" #...
   }
 
 let my_config = ($my_config | upsert table.trim $tableTrim)

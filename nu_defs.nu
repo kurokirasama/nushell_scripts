@@ -894,18 +894,22 @@ export def find-file [search,--directory(-d):string] {
 
 #get list of directories in current path
 export def get-dirs [dir?, --full(-f)] {
-  if ($dir | is-empty) {
-    if $full {
-      ls **/*
+  try {
+    if ($dir | is-empty) {
+      if $full {
+        ls **/*
+      } else {
+        ls
+      } 
+      | where type == dir 
+      | sort-by -i name
     } else {
-      ls
-    } 
-    | where type == dir 
-    | sort-by -i name
-  } else {
-    ls $dir
-    | where type == dir 
-    | sort-by -i name
+      ls $dir
+      | where type == dir 
+      | sort-by -i name
+    }
+  } catch {
+    {name: ""}
   }
 }
 
