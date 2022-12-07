@@ -1432,6 +1432,78 @@ export def umall [user? = $env.USER] {
     }
 }
 
+#create media database for downloads and all mounted disks
+export def autolister [user = $env.USER] {
+  echo-g "listing Downloads..."
+  cd ~/Downloads
+  lister Downloads
+
+  let drives = try {
+    duf -json 
+    | from json 
+    | find $"/media/($user)" 
+    | get mount_point
+  } catch {
+    []
+  }
+
+  if ($drives | length) > 0 {
+    $drives
+    | each { |drive|
+        echo-g $"listing ($drive | ansi strip)..."
+        cd ($drive | ansi strip)
+        lister ($drive | ansi strip | path parse | get stem | split row " " | get 0)
+      }
+  }
+}
+
+#list all files ans save it to json in Dropbox/Directorios
+export def lister [file] {
+  let file = (["~/Dropbox/Directorios" $"($file).json"] | path join | path expand)
+
+  let df = try {
+      get-files -f -F 
+    } catch {
+      []
+    }
+
+  if ($df | length) == 0 {
+    if $file =~ "Downloads" { 
+      rm $file
+    }
+    return
+  }
+
+  let last = ($df | into df | drop name) 
+
+  let df = (
+    $df
+    | each {|file| 
+      $file
+      | get name 
+      | parse $"{origin}/($env.USER)/{location}/{rest}"
+      }
+    | flatten
+  ) 
+
+  let first = ($df | select origin location | into df) 
+
+  let second = (
+    $df 
+    | select rest 
+    | each {|file| 
+      $file 
+      | get rest 
+      | path parse -e ''
+      } 
+    | into df 
+    | drop extension 
+    | rename [parent stem] [path file]
+  )
+
+  $first | append $second | append $last | into nu | save -f $file
+}
+
 ## appimages
 
 #open balena-etche
