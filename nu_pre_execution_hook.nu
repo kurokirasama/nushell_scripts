@@ -12,10 +12,11 @@ let not_update = if ($last_record | length) == 0 {
 } else {
     (($last_record | get updated | get 0 | into datetime) + $interval > $now)
 }
+let not_gdrive = ((not ($env.PWD =~ gdrive)) and ($env.PWD | get-dirs | where name =~ gdrive | length) == 0)
             
 #calculating pwd_size
 let pwd_size = (
-    if ($last_record | length) == 0 {
+    if ($last_record | length) == 0 and $not_gdrive {
         du $env.PWD 
         | get apparent 
         | get 0 
@@ -24,7 +25,7 @@ let pwd_size = (
     } else {
         if $not_update {
             $last_record | get size | get 0
-        } else if (not ($env.PWD =~ gdrive)) and ($env.PWD | get-dirs | where name =~ gdrive | length) == 0 {
+        } else if $not_gdrive {
             du $env.PWD 
             | get apparent 
             | get 0 
