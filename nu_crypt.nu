@@ -23,7 +23,7 @@ export def open-credential [file?] {
 
 #save credentials
 export def save-credential [content:string,file:string] {
-	if ($file | is-empty) || ($content | is-empty) {
+	if ($file | is-empty) or ($content | is-empty) {
 		echo-r "missing arguments!"
 		return
 	}

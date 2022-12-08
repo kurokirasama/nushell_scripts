@@ -29,7 +29,7 @@ export def "gcal agenda" [
   let calendars = $env.MY_ENV_VARS.google_calendars
   let calendars_full = $env.MY_ENV_VARS.google_calendars_full
 
-  if ($full | is-empty) || ($full == 0) {
+  if ($full | is-empty) or ($full == 0) {
     gcalcli --calendar $"($calendars)" agenda --military $rest
   } else {
     gcalcli --calendar $"($calendars_full)" agenda --military $rest
@@ -50,7 +50,7 @@ export def "gcal semana" [
   let calendars = $env.MY_ENV_VARS.google_calendars
   let calendars_full = $env.MY_ENV_VARS.google_calendars_full
   
-  if ($full | is-empty) || ($full == 0) {
+  if ($full | is-empty) or ($full == 0) {
     gcalcli --calendar $"($calendars)" calw $rest --military --monday
   } else {
     gcalcli --calendar $"($calendars_full)" calw $rest --military --monday
@@ -71,7 +71,7 @@ export def "gcal mes" [
   let calendars = $env.MY_ENV_VARS.google_calendars
   let calendars_full = $env.MY_ENV_VARS.google_calendars_full
   
-  if ($full | is-empty) || ($full == 0) {
+  if ($full | is-empty) or ($full == 0) {
     gcalcli --calendar $"($calendars)" calm $rest --military --monday
   } else {
     gcalcli --calendar $"($calendars_full)" calm $rest --military --monday

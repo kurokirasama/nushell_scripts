@@ -29,67 +29,7 @@ let hooks = {
     env_change: {
       PWD: [
       	{|before, after|
-			#checking existence of data file
-            if not ("~/.pwd_sizes.json" | path expand | path exists) {
-                cp ([$env.MY_ENV_VARS.linux_backup pwd_sizes.json] | path join) ~/.pwd_sizes.json
-            }
-            
-            #checking conditions
-            let interval = 1hr
-            let last_update = (open ~/.pwd_sizes.json | get update)
-            let last_record = (open ~/.pwd_sizes.json  | get data | where directory == $after)
-            let not_update = ((open ~/.pwd_sizes.json | get update | into datetime) + $interval < (date now) )
-                        
-            #calculating pwd_size
-            let pwd_size = (
-                if ($last_record | length) == 0 {
-                    du $after 
-                    | get apparent 
-                    | get 0 
-                    | into string 
-                    | str replace " " "" 
-                } else {
-                    if $not_update {
-                        $last_record | get size | get 0
-                    } else if (not ($after =~ gdrive)) && ($after | get-dirs | where name =~ gdrive | length) == 0 {
-                        du $after 
-                        | get apparent 
-                        | get 0 
-                        | into string 
-                        | str replace " " "" 
-                    } else {
-                        ""
-                    }    
-                }
-            )
-            
-            #seting up env var
-            let-env PWD_SIZE = $pwd_size
-            
-            #updating data file
-            if ($last_record | length) == 0 {    
-                let data = (
-                    open ~/.pwd_sizes.json 
-                    | get data 
-                    | append {directory: $after,size: $pwd_size}
-                )
-                
-                open ~/.pwd_sizes.json  
-                | upsert data $data 
-                | save -f ~/.pwd_sizes.json    
-            
-            } else if not $not_update {
-                let data = (
-                    open ~/.pwd_sizes.json 
-                    | get data 
-                    | find -v $after 
-                    | append {directory: $after,size: $pwd_size}
-                )
-            
-                open ~/.pwd_sizes.json  
-                | upsert data $data 
-                | save -f ~/.pwd_sizes.json
-            }	
+			print ""
       	}
       	{|before, after| 
       		print (ls | sort-by -i type name | grid -c)
@@ -101,6 +41,7 @@ let hooks = {
     }
   }
 
+# source-env ([$env.MY_ENV_VARS.nu_scripts nu_pre_execution_hook.nu] | path join)
 	  # let-env LAST_OUTPUT = $in;
       # print ($env.LAST_OUTPUT | table);
       # if (term size).columns >= 100 { table -e } else { table }

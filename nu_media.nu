@@ -139,7 +139,7 @@ export def "media to" [
   #media-to mp3 (audio files to mp3)
 ] {
   #to aac or mp3
-  if $to =~ "aac" || $to =~ "mp3" {
+  if $to =~ "aac" or $to =~ "mp3" {
     let n_files = (bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.3gp" -not -name  "*.($to)"'
         | lines 
         | length
@@ -291,7 +291,7 @@ export def "media sub-sync" [
   let file_exist = (($env.PWD) | path join $file | path exists)
   
   if $file_exist {
-    if ($no_backup | is-empty) || $no_backup == 0 {
+    if ($no_backup | is-empty) or $no_backup == 0 {
       cp $file $"($file).backup"
     }
 

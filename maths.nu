@@ -105,7 +105,7 @@ export def mtable [n: int, max: int] {
 
 #Check if year is leap
 export def isleap [year: int] {
-	if ( (($year mod 4) == 0 && ($year mod 100) != 0) || ($year mod 400) == 0 ) { 
+	if ( (($year mod 4) == 0 and ($year mod 100) != 0) or ($year mod 400) == 0 ) { 
 		echo "It is a leap year." 
 	} else { 
 		echo "It is not a leap year."
@@ -125,7 +125,7 @@ export def gcd [a: int, b:int] {
 
 #Least common multiple (lcm) between 2 integers
 export def lcm [a: int, b:int] {
-	if $a == $b && $b == 0 {
+	if $a == $b and $b == 0 {
 		0
 	} else {
 		$a * ($b / (gcd $a $b))
@@ -137,7 +137,7 @@ export def dec2base [
 	n: string	#decimal number
 	b: string	#base in [2,16]
 ] {
-	let base = if ( ($b | into int) < 2 || ($b | into int) > 16 ) {
+	let base = if ( ($b | into int) < 2 or ($b | into int) > 16 ) {
 		echo "Wrong base, it must be an integer between 2 and 16"
 		10
 	} else {
@@ -224,7 +224,7 @@ export def rand-select [
 #binomial coefficient (C_k^n)
 export def bin-coeff [n:int, k:int] {
     if ($k > $n) {return 0}
-    if ($k == 0 || $k == $n) {return 1}
+    if ($k == 0 or $k == $n) {return 1}
 
     mut num = $n
     mut den = $k

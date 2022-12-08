@@ -156,7 +156,7 @@ export def nufetch [--table(-t)] {
 export def left_prompt [] {
   if not ($env.MY_ENV_VARS | is-column l_prompt) {
       $env.PWD | path parse | get stem
-  } else if ($env.MY_ENV_VARS.l_prompt | is-empty) || ($env.MY_ENV_VARS.l_prompt == 'short') {
+  } else if ($env.MY_ENV_VARS.l_prompt | is-empty) or ($env.MY_ENV_VARS.l_prompt == 'short') {
       $env.PWD | path parse | get stem
   } else {
       $env.PWD | str replace $nu.home-path '~' -s
@@ -266,7 +266,7 @@ export def xls2csv [
   --outputFile:string
 ] {
   let output = (
-    if ($outputFile | is-empty) || (not $outputFile) {
+    if ($outputFile | is-empty) or (not $outputFile) {
       $"($inputFile | path parse | get stem).csv"
     } else {
       $outputFile
@@ -291,7 +291,7 @@ export def "7z max" [
 ] {
   if ($rest | is-empty) {
     echo-r "no files to compress specified"
-  } else if ($delete | is-empty) || (not $delete) {
+  } else if ($delete | is-empty) or (not $delete) {
     7z a -t7z -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" $rest
   } else {
     7z a -t7z -sdel -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" $rest
@@ -472,7 +472,7 @@ export def killn [name?] {
 export def jd [
   --ubb(-b)#check ubb jdownloader
 ] {
-  if ($ubb | is-empty) || (not $ubb) {
+  if ($ubb | is-empty) or (not $ubb) {
     jdown
   } else {
     jdown -b 1
@@ -600,7 +600,7 @@ export def delete-mps [] {
     echo-r "wrong directory to run this"
   } else {
      le
-     | where type == "file" && ext !~ "mp4|mkv|webm|part" 
+     | where type == "file" and ext !~ "mp4|mkv|webm|part" 
      | par-each {|it| 
          rm $"($it.name)" 
          | ignore
@@ -780,7 +780,7 @@ export def mv-pipe [
 export def lt [
   --reverse(-r) #reverse order
 ] {
-  if ($reverse | is-empty) || (not $reverse) {
+  if ($reverse | is-empty) or (not $reverse) {
     ls | sort-by modified  
   } else {
     ls | sort-by modified -r
@@ -1088,9 +1088,9 @@ export def send-gmail [
 ] {
   let inp = if ($in | is-empty) { "" } else { $in | into string }
 
-  if ($body | is-empty) && ($inp | is-empty) {
+  if ($body | is-empty) and ($inp | is-empty) {
     echo-r "body unexport defined!!"
-  } else if not (($from | str contains "@") && ($to | str contains "@")) {
+  } else if not (($from | str contains "@") and ($to | str contains "@")) {
     echo-r "missing @ in email-from or email-to!!"
   } else {
     let signature_file = (

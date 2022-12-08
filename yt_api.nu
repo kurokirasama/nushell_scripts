@@ -37,7 +37,7 @@ export def ytm [
   let playlists = (ls $env.MY_ENV_VARS.youtube_database | get name)
 
   #--list|
-  if not ($list | is-empty) || (not $list) {
+  if not ($list | is-empty) or (not $list) {
     $playlists | path parse | get stem
   } else {
     let to_play = ($playlists | find $playlist | ansi strip | get 0)
@@ -106,7 +106,7 @@ export def "ytm online" [
   )
 
   #--list|
-  if not ($list | is-empty) || (not $list) {
+  if not ($list | is-empty) or (not $list) {
     $playlists | find music & likes
   } else {
     let to_play = ($playlists | where title =~ $playlist | first | get id)
@@ -159,9 +159,9 @@ export def yt-api [
 
   #playlist|playlist nextPage|songs|songs nextPage
   let url = (
-    if ($pid | is-empty) && ($ptoken | is-empty) {
+    if ($pid | is-empty) and ($ptoken | is-empty) {
       $"https://youtube.googleapis.com/youtube/v3/playlists?part=($type)&mine=true&key=($api_key)&maxResults=50"
-    } else if ($pid | is-empty) && (not ($ptoken | is-empty)) {
+    } else if ($pid | is-empty) and (not ($ptoken | is-empty)) {
       $"https://youtube.googleapis.com/youtube/v3/playlists?part=($type)&mine=true&key=($api_key)&maxResults=50&pageToken=($ptoken)"
     } else if not ($pid | is-empty) {
       if ($ptoken | is-empty) {
@@ -476,10 +476,10 @@ export def "yt-api verify-token" [] {
       {error: {code: 401}}
   }
 
-  if ($response | is-column error) && ($response | get error  | get code) != 403 {
+  if ($response | is-column error) and ($response | get error  | get code) != 403 {
     yt-api get-token 
     #yt-api refresh-token
-  } else if ($response | is-column error) && ($response | get error  | get code) == 403 {
+  } else if ($response | is-column error) and ($response | get error  | get code) == 403 {
     echo-r "youtube api quota excedeed!"
   }
 }

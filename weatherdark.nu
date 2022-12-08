@@ -67,7 +67,7 @@ def get_location [] {
     let table = (locations | merge $online | find true)
 
     # if ip address in your home isn't precise, you can force a location
-    if ($wifi =~ $env.MY_ENV_VARS.home_wifi) || ($table | length) == 0 { 
+    if ($wifi =~ $env.MY_ENV_VARS.home_wifi) or ($table | length) == 0 { 
         "-36.877568,-73.148715" 
     } else { 
         let loc_json = (fetch ($table | select 0).0.location)
