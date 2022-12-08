@@ -922,8 +922,8 @@ export def get-devices [
   #sudo gem install nmap2json
 ] {
   let ipinfo = (
-    if (? | where name == net | length) > 0 {
-      net 
+    if (? | where name == pnet | length) > 0 {
+      pnet 
       | where name == ($device) 
       | get 0 
       | get ips 

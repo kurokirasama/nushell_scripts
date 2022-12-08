@@ -1,4 +1,5 @@
 export alias dsitcl = bash -c 'docker run --rm -it -v "/home/kira/Dropbox/Documentos/Clases/UBB/DataScienceAtTheCommandLine/Files/data":/data datasciencetoolbox/dsatcl2e'
+export alias install-nu-plugin = cargo install --path .
 export alias nu-clean = cargo clean
 export alias tree = tree -h
 export alias grp = grep-nu
