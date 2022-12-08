@@ -5,9 +5,13 @@ if not ("~/.pwd_sizes.json" | path expand | path exists) {
 
 #checking conditions
 let interval = 1hr
-let last_update = (open ~/.pwd_sizes.json | get update)
-let last_record = (open ~/.pwd_sizes.json  | get data | where directory == $env.PWD)
-let not_update = ((open ~/.pwd_sizes.json | get update | into datetime) + $interval < (date now))
+let last_record = (open ~/.pwd_sizes.json | where directory == $env.PWD)
+let now = date now
+let not_update = try {
+    (($last_record | get updated | get 0 | into datetime) + $interval < $now)
+} catch {
+    false
+}
             
 #calculating pwd_size
 let pwd_size = (
@@ -37,25 +41,12 @@ let-env PWD_SIZE = $pwd_size
 
 #updating data file
 if ($last_record | length) == 0 {    
-    let data = (
-        open ~/.pwd_sizes.json 
-        | get data 
-        | append {directory: $env.PWD,size: $pwd_size}
-    )
-    
     open ~/.pwd_sizes.json  
-    | upsert data $data 
+    | append {directory: $env.PWD,size: $pwd_size, updated: $now} 
     | save -f ~/.pwd_sizes.json    
-
 } else if not $not_update {
-    let data = (
-        open ~/.pwd_sizes.json 
-        | get data 
-        | find -v $env.PWD 
-        | append {directory: $env.PWD,size: $pwd_size}
-    )
-
-    open ~/.pwd_sizes.json  
-    | upsert data $data 
+    open ~/.pwd_sizes.json 
+    | where directory != $env.PWD 
+    | append {directory: $env.PWD,size: $pwd_size, updated: $now}
     | save -f ~/.pwd_sizes.json
 }
