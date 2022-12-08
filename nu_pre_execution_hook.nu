@@ -6,13 +6,13 @@ if not ("~/.pwd_sizes.json" | path expand | path exists) {
 #checking conditions
 let interval = 1hr
 let last_update = (open ~/.pwd_sizes.json | get update)
-let last_record = (open ~/.pwd_sizes.json  | get data | where directory == $$env.PWD)
-let not_update = ((open ~/.pwd_sizes.json | get update | into datetime) + $interval < (date now) )
+let last_record = (open ~/.pwd_sizes.json  | get data | where directory == $env.PWD)
+let not_update = ((open ~/.pwd_sizes.json | get update | into datetime) + $interval < (date now))
             
 #calculating pwd_size
 let pwd_size = (
     if ($last_record | length) == 0 {
-        du $$env.PWD 
+        du $env.PWD 
         | get apparent 
         | get 0 
         | into string 
@@ -20,13 +20,13 @@ let pwd_size = (
     } else {
         if $not_update {
             $last_record | get size | get 0
-        } else if (not ($$env.PWD =~ gdrive)) and ($$env.PWD | get-dirs | where name =~ gdrive | length) == 0 {
-            du $$env.PWD 
+        } else if (not ($env.PWD =~ gdrive)) and ($env.PWD | get-dirs | where name =~ gdrive | length) == 0 {
+            du $env.PWD 
             | get apparent 
             | get 0 
             | into string 
             | str replace " " "" 
-        } else if {
+        } else {
             ""
         }    
     }
@@ -40,7 +40,7 @@ if ($last_record | length) == 0 {
     let data = (
         open ~/.pwd_sizes.json 
         | get data 
-        | append {directory: $$env.PWD,size: $pwd_size}
+        | append {directory: $env.PWD,size: $pwd_size}
     )
     
     open ~/.pwd_sizes.json  
@@ -51,8 +51,8 @@ if ($last_record | length) == 0 {
     let data = (
         open ~/.pwd_sizes.json 
         | get data 
-        | find -v $$env.PWD 
-        | append {directory: $$env.PWD,size: $pwd_size}
+        | find -v $env.PWD 
+        | append {directory: $env.PWD,size: $pwd_size}
     )
 
     open ~/.pwd_sizes.json  
