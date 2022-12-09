@@ -25,7 +25,7 @@ def main [user = "kira"] {
 	}
 }
 
-#list all files ans save it to json in Dropbox/Directorios
+#list all files and save it to json in Dropbox/Directorios
 def lister [file] {
 	let file = (["~/Dropbox/Directorios" $"($file).json"] | path join | path expand)
 

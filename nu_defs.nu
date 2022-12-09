@@ -1504,6 +1504,12 @@ export def lister [file] {
   $first | append $second | append $last | into nu | save -f $file
 }
 
+#fix docker run error
+export def fix-docker [] {
+  sudo usermod -aG docker $env.USER
+  newgrp docker
+}
+
 ## appimages
 
 #open balena-etche
