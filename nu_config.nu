@@ -32,7 +32,7 @@ let hooks = {
 			source-env /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_pre_execution_hook.nu
       	}
       	{|before, after| 
-      		print (ls | sort-by -i type name | grid -c)
+      		try {print (ls | sort-by -i type name | grid -c)}      		
       	}
       ]
     }
