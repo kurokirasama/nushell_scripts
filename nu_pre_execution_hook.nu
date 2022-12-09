@@ -12,9 +12,7 @@ let not_update = if ($last_record | length) == 0 {
 } else {
     (($last_record | get updated | get 0 | into datetime) + $interval > $now)
 }
-# let not_gdrive = ((not ($env.PWD =~ gdrive)) and ($env.PWD | get-dirs | where name =~ gdrive | length) == 0)
 let not_gdrive = not ($env.PWD =~ gdrive)
-            
 
 #calculating pwd_size
 let pwd_size = (
@@ -43,11 +41,11 @@ let pwd_size = (
 let-env PWD_SIZE = $pwd_size
 
 #updating data file
-if ($last_record | length) == 0 {    
+if ($last_record | length) == 0 and $not_gdrive {    
     open ~/.pwd_sizes.json  
     | append {directory: $env.PWD,size: $pwd_size, updated: $now} 
     | save -f ~/.pwd_sizes.json    
-} else if not $not_update {
+} else if (not $not_update) and $not_gdrive {
     open ~/.pwd_sizes.json 
     | where directory != $env.PWD 
     | append {directory: $env.PWD,size: $pwd_size, updated: $now}
