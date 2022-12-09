@@ -57,27 +57,22 @@ export def q_roots [
 #Check if integer is prime
 export def isprime [n: int] {
 	let max = ($n | math sqrt | math ceil)
-	
-	let flag = ([[isPrime];[true]] 
-				| update isPrime {
-					if ($n mod 2) == 0 { 
-						false 
-					} else { 
-						seq 3 1 $max 
-						| each { |it| 
-							if ($n mod $it) == 0 { 
-								false 
-							}
-						}
-					}
-				}
-			)
 
-	if ($flag.isPrime.0 | is-empty) { 
-		echo 'prime' 
-	} else { 
-		echo 'not prime' 
+	if $n == 1 {
+		return false
+	} else if $n == 2 {
+		return true
+	} else if ($n mod 2) == 0 { 
+		return false 
+	} 
+	
+	for m in (seq 3 2 $max) {
+		if ($n mod $m) == 0 { 
+			return false 
+		}
 	}
+
+	return true
 }
 
 #Prime list <= n
@@ -86,7 +81,7 @@ export def primelist [n: int] {
 
 	let primes2 = (seq 5 2 $n 
 					| each {|it| 
-						if (isprime $it) == 'prime' {
+						if (isprime $it) {
 							$it
 						}
 					}
