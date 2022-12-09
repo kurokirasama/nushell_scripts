@@ -21,7 +21,7 @@ let my_config = (
 #restoring hooks
 let hooks = {
     pre_prompt: [{
-        print $"Time elapsed: (($env.CMD_DURATION_MS | into decimal) / 1000) s"
+    	print $"(ansi -e { fg: '#ffff00'})Time elapsed: (($env.CMD_DURATION_MS | into decimal) / 1000) s(ansi reset)"
         }]
     pre_execution: [{
       $nothing  
