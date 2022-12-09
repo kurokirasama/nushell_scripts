@@ -223,3 +223,14 @@ export def bin-coeff [n:int, k:int] {
 export def perm-coeff [n:int, r:int] {
 	($n - $r + 1)..($n) | math product
 }
+
+#fibonacci sequence
+export def fibonacci [n:int] {
+	mut fib = [0 1]
+
+	for i in 2..$n {
+		$fib = ($fib | append (($fib | get ($i - 1)) + (($fib | get ($i - 2)))))
+	}
+
+	return $fib
+}
