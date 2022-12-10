@@ -16,7 +16,7 @@ export def aroot [ scaler, denominator, num] {
 }
 
 #Factorial of the given number
-export def fact [num: int] {
+export def "math fac" [num: int] {
 	if $num >= 0 {
 		if $num < 2 {
 			$num
@@ -31,7 +31,7 @@ export def fact [num: int] {
 ## Mine https://github.com/kurokirasama/nushell_scripts.git ##
 
 #Calculate roots of the quadratic function: ax^2+bx+x
-export def q_roots [
+export def "math qroots" [
 	a 	# x^2
 	b	# x
 	c 	# independent term
@@ -55,7 +55,7 @@ export def q_roots [
 }
 
 #Check if integer is prime
-export def isprime [n: int] {
+export def "math isprime" [n: int] {
 	let max = ($n | math sqrt | math ceil)
 
 	if $n == 1 {
@@ -76,12 +76,12 @@ export def isprime [n: int] {
 }
 
 #Prime list <= n
-export def primelist [n: int] {
+export def "math primelist" [n: int] {
 	let primes = [2 3]
 
 	let primes2 = (seq 5 2 $n 
 					| each {|it| 
-						if (isprime $it) {
+						if (math isprime $it) {
 							$it
 						}
 					}
@@ -91,7 +91,7 @@ export def primelist [n: int] {
 }
 
 #Multiplication table of n till max
-export def mtable [n: int, max: int] {
+export def "math mtable" [n: int, max: int] {
 	seq 1 $max 
 	| each {|it| 
 		echo $"($it)*($n) = ($n * $it)"
@@ -108,22 +108,22 @@ export def isleap [year: int] {
 }
 
 #Greatest common divisior (gcd) between 2 integers
-export def gcd [a: int, b:int] {
+export def "math gcd" [a: int, b:int] {
 	if $a < $b { 
-		gcd $b $a 
+		math gcd $b $a 
 	} else if $b == 0 { 
 		$a 
 	} else { 
-		gcd $b ($a mod $b) 
+		math gcd $b ($a mod $b) 
 	}
 }
 
 #Least common multiple (lcm) between 2 integers
-export def lcm [a: int, b:int] {
+export def "math lcm" [a: int, b:int] {
 	if $a == $b and $b == 0 {
 		0
 	} else {
-		$a * ($b / (gcd $a $b))
+		$a * ($b / (math gcd $a $b))
 	}
 }
 
@@ -202,7 +202,7 @@ export def rand-select [
 }
 
 #binomial coefficient (C_k^n)
-export def bin-coeff [n:int, k:int] {
+export def "math bin-coeff" [n:int, k:int] {
     if ($k > $n) {return 0}
     if ($k == 0 or $k == $n) {return 1}
 
@@ -220,12 +220,12 @@ export def bin-coeff [n:int, k:int] {
 }
 
 #number of permutation of r elements in a set of n elements (P_r^n)
-export def perm-coeff [n:int, r:int] {
+export def "math perm-coeff" [n:int, r:int] {
 	($n - $r + 1)..($n) | math product
 }
 
 #fibonacci sequence
-export def fibonacci [n:int] {
+export def "math fibonacci" [n:int] {
 	mut fib = [0 1]
 
 	for i in 2..$n {
