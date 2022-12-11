@@ -37,7 +37,6 @@ export def "media trans-sub" [file?] {
 
           if $translated =~ "error:" {
             echo-r $"error while translating: ($translated)"
-            $line.index | save -f line.txt
             return
           } else {
             $translated | ansi strip | save --append $new_file
@@ -62,7 +61,6 @@ export def "media trans-sub" [file?] {
 
           if $translated =~ "error:" {
             echo-r $"error while translating: ($translated)"
-            $line.index | save -f line.txt
             return
           } else {
             $translated | ansi strip | save --append $new_file
