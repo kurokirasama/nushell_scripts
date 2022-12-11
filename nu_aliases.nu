@@ -1,9 +1,11 @@
 export alias dsitcl = bash -c 'docker run --rm -it -v "/home/kira/Dropbox/Documentos/Clases/UBB/DataScienceAtTheCommandLine/Files/data":/data datasciencetoolbox/dsatcl2e'
 export alias install-nu-plugin = cargo install --path .
 export alias nu-clean = cargo clean
+export alias get-keybindings = $env.config.keybindings
+export alias goto-nuconfigdir = ($nu.config-path | goto)
+export alias open-config = (subl $nu.config-path)
 export alias tree = tree -h
 export alias grp = grep-nu
-export alias get-keybindings = $env.config.keybindings
 export alias cal = cal --week-start monday
 export alias adbtasker = adb -s 9cdd570d tcpip 5555
 export alias gmail = cmdg -shell "/home/kira/.cargo/bin/nu"
@@ -39,13 +41,11 @@ export alias bat = bat --paging never --theme=ansi
 export alias tokei = (tokei . | grep -v = | from tsv)
 export alias apagar = systemctl poweroff -i
 export alias reiniciar = shutdown -r now
-export alias get-mac = cat /sys/class/net/wlo1/address
+export alias get-mac = open /sys/class/net/wlo1/address
 export alias cblue = (echo "connect 34:82:C5:47:E3:3B" | bluetoothctl)
 export alias ram = (free -h  | from ssv | rename type total used free | select type used free total)
 export alias get-wg = xdotool selectwindow getwindowgeometry
 export alias ncdu = ncdu --color dark
-export alias goto-nuconfigdir = ($nu.config-path | goto)
-export alias open-config = (subl $nu.config-path)
 export alias ytcli = yt set show_video True, set fullscreen False, set search_music False, set player mpv, set notifier notify-send, set order date, set user_order date, set playerargs "default"
 export alias btop = btm --battery --hide_avg_cpu --group
 export alias mute = amixer -q -D pulse sset Master mute
