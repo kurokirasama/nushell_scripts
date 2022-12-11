@@ -40,7 +40,7 @@ export alias mpydf = pydf /media/kira/*
 export alias bat = bat --paging never --theme=ansi
 export alias tokei = (tokei . | grep -v = | from tsv)
 export alias apagar = systemctl poweroff -i
-export alias reiniciar = shutdown -r now
+export alias reiniciar = systemctl reboot -i
 export alias get-mac = open /sys/class/net/wlo1/address
 export alias cblue = (echo "connect 34:82:C5:47:E3:3B" | bluetoothctl)
 export alias ram = (free -h  | from ssv | rename type total used free | select type used free total)
