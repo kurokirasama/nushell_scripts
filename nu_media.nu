@@ -1,3 +1,7 @@
+#media command to summarize help
+export def media [] {
+}
+
 #video info
 export def "media video-info" [file?] {
   let video = if ($file | is-empty) {$in | get name} else {$file}
@@ -11,7 +15,7 @@ export def "media mpv-info" [file?] {
 }
 
 #translate subtitle
-export def trans-sub [file?] {
+export def "media trans-sub" [file?] {
   let file = if ($file | is-empty) {$file | get name} else {$file}
   dos2unix -q $file
 
