@@ -10,6 +10,103 @@ export def "media mpv-info" [file?] {
   ^mpv -vo null -ao null -frames 0 $video
 }
 
+#translate subtitle
+export def trans-sub [file?] {
+  let file = if ($file | is-empty) {$file | get name} else {$file}
+  dos2unix -q $file
+
+  let $file_info = ($file | path parse)
+  let new_file = $"($file_info | get stem)_translated.($file_info | get extension)"
+  let lines = (open $file | lines | length)
+
+  echo $"translating ($file)..."
+
+  if not ($new_file | path expand | path exists) {
+    touch $new_file
+
+    open $file
+    | lines
+    | each -n {|line|
+        if (not $line.item =~ "-->") and (not $line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
+          let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
+          let translated = ($fixed_line | trans)
+
+          if $translated =~ "error:" {
+            echo-r $"error while translating: ($translated)"
+            $line.index | save -f line.txt
+            return
+          } else {
+            $translated | ansi strip | save --append $new_file
+            "\n" | save --append $new_file
+          }
+        } else {
+          $line.item | save --append $new_file
+          "\n" | save --append $new_file
+        }
+        print -n (echo-g $"\r($line.index / $lines * 100 | math round -p 3)%")
+      } 
+  } else {
+    let start = (open $new_file | lines | length)
+
+    open $file
+    | lines
+    | last ($lines - $start)
+    | each -n {|line|
+        if (not $line.item =~ "-->") and (not $line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
+          let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
+          let translated = ($fixed_line | trans)
+
+          if $translated =~ "error:" {
+            echo-r $"error while translating: ($translated)"
+            $line.index | save -f line.txt
+            return
+          } else {
+            $translated | ansi strip | save --append $new_file
+            "\n" | save --append $new_file
+          }
+        } else {
+          $line.item | save --append $new_file
+          "\n" | save --append $new_file
+        }
+        print -n (echo-g $"\r(($line.index + $start) / $lines * 100 | math round -p 3)%")
+      } 
+  } 
+}
+
+#sync subtitles
+export def "media sub-sync" [
+  file:string      #subtitle file name to process
+  d1:string        #delay at the beginning or at time specified by t1 (<0 adelantar, >0 retrasar)
+  --t1:string      #time position of delay d1 (hh:mm:ss)
+  --d2:string      #delay at the end or at time specified by t2
+  --t2:string      #time position of delay d2 (hh:mm:ss)t
+  --no_backup:int  #wether to not backup $file or yes (export default no:0, ie, it will backup)
+  #
+  #Examples
+  #sub-sync file.srt "-4"
+  #sub-sync file.srt "-4" --t1 00:02:33
+  #sub-sync file.srt "-4" --no_backup 1
+] {
+
+  let file_exist = (($env.PWD) | path join $file | path exists)
+  
+  if $file_exist {
+    if ($no_backup | is-empty) or $no_backup == 0 {
+      cp $file $"($file).backup"
+    }
+
+    let t1 = if ($t1 | is-empty) {"@"} else {$t1}  
+    let d2 = if ($d2 | is-empty) {""} else {$d2}
+    let t2 = if ($d2 | is-empty) {""} else {if ($t2 | is-empty) {"@"} else {$t2}}
+  
+    bash -c $"subsync -e latin1 ($t1)($d1) ($t2)($d2) < \"($file)\" > output.srt; cp output.srt \"($file)\""
+
+    rm output.srt | ignore
+  } else {
+    echo-r $"subtitle file ($file) doesn't exist in (pwd-short)"
+  }
+}
+
 #remove audio noise from video
 export def "media remove-audio-noise" [
   file      #video file name with extension
@@ -271,40 +368,6 @@ export def "media merge-videos-auto" [
       
   echo-g "done!"
   notify-send "video merging done!"
-}
-
-#sync subtitles
-export def "media sub-sync" [
-  file:string      #subtitle file name to process
-  d1:string        #delay at the beginning or at time specified by t1 (<0 adelantar, >0 retrasar)
-  --t1:string      #time position of delay d1 (hh:mm:ss)
-  --d2:string      #delay at the end or at time specified by t2
-  --t2:string      #time position of delay d2 (hh:mm:ss)t
-  --no_backup:int  #wether to not backup $file or yes (export default no:0, ie, it will backup)
-  #
-  #Examples
-  #sub-sync file.srt "-4"
-  #sub-sync file.srt "-4" --t1 00:02:33
-  #sub-sync file.srt "-4" --no_backup 1
-] {
-
-  let file_exist = (($env.PWD) | path join $file | path exists)
-  
-  if $file_exist {
-    if ($no_backup | is-empty) or $no_backup == 0 {
-      cp $file $"($file).backup"
-    }
-
-    let t1 = if ($t1 | is-empty) {"@"} else {$t1}  
-    let d2 = if ($d2 | is-empty) {""} else {$d2}
-    let t2 = if ($d2 | is-empty) {""} else {if ($t2 | is-empty) {"@"} else {$t2}}
-  
-    bash -c $"subsync -e latin1 ($t1)($d1) ($t2)($d2) < \"($file)\" > output.srt; cp output.srt \"($file)\""
-
-    rm output.srt | ignore
-  } else {
-    echo-r $"subtitle file ($file) doesn't exist in (pwd-short)"
-  }
 }
 
 #reduce size of video files recursively, to mp4 x265
