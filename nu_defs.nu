@@ -1533,7 +1533,12 @@ export def "ansi strip-table" [] {
 
 #create anime dirs according to files
 export def mk-anime [] {
-  get-files
+  try {
+    get-files
+  } catch {
+    echo-r "no files found"
+    return
+  }
   | get name 
   | each {|file| 
       $file 
@@ -1543,10 +1548,14 @@ export def mk-anime [] {
   | get name 
   | uniq 
   | each {|dir| 
-      mkdir $dir
+      if not ($dir | path expand | path exists) {
+        mkdir $dir
+      }
+
       get-files 
       | find -i $dir 
       | mv-pipe $dir
+      | ignore
     }
 }
 
