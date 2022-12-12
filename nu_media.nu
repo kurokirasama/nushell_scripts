@@ -1,6 +1,5 @@
 #media command to summarize help
-export def media [] {
-}
+export def media [] {}
 
 #video info
 export def "media video-info" [file?] {

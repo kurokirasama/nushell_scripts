@@ -1,3 +1,6 @@
+#for appearing on help
+export def gcal [] {}
+
 #add event to google calendar, also usable without arguments
 export def "gcal add" [
   calendar?   #to which calendar add event
@@ -17,19 +20,19 @@ export def "gcal add" [
 
 #show gcal agenda in selected calendars
 export def "gcal agenda" [
-  --full: int  #show all calendars (export default: 0)
-  ...rest      #extra flags for gcalcli between quotes (specified full needed)
+  --full    #show all calendars (export default: 0)
+  ...rest   #extra flags for gcalcli between quotes (specified full needed)
   #
   # Examples
   # agenda 
-  # agenda --full true
+  # agenda --full
   # agenda "--details=all"
-  # agenda --full true "--details=all"
+  # agenda --full "--details=all"
 ] {
   let calendars = $env.MY_ENV_VARS.google_calendars
   let calendars_full = $env.MY_ENV_VARS.google_calendars_full
 
-  if ($full | is-empty) or ($full == 0) {
+  if not $full {
     gcalcli --calendar $"($calendars)" agenda --military $rest
   } else {
     gcalcli --calendar $"($calendars_full)" agenda --military $rest
@@ -38,19 +41,19 @@ export def "gcal agenda" [
 
 #show gcal week in selected calendards
 export def "gcal semana" [
-  --full: int  #show all calendars (export default: 0)
-  ...rest      #extra flags for gcalcli between quotes (specified full needed)
+  --full    #show all calendars (export default: 0)
+  ...rest   #extra flags for gcalcli between quotes (specified full needed)
   #
   # Examples
   # semana 
-  # semana --full true
+  # semana --full
   # semana "--details=all"
-  # semana --full true "--details=all"
+  # semana --full "--details=all"
 ] {
   let calendars = $env.MY_ENV_VARS.google_calendars
   let calendars_full = $env.MY_ENV_VARS.google_calendars_full
   
-  if ($full | is-empty) or ($full == 0) {
+  if not $full {
     gcalcli --calendar $"($calendars)" calw $rest --military --monday
   } else {
     gcalcli --calendar $"($calendars_full)" calw $rest --military --monday
@@ -59,19 +62,19 @@ export def "gcal semana" [
 
 #show gcal month in selected calendards
 export def "gcal mes" [
-  --full: int  #show all calendars (export default: 0)
-  ...rest      #extra flags for gcalcli between quotes (specified full needed)
+  --full    #show all calendars (export default: 0)
+  ...rest   #extra flags for gcalcli between quotes (specified full needed)
   #
   # Examples
   # mes 
-  # mes --full true
+  # mes --full
   # mes "--details=all"
-  # mes --full true "--details=all"
+  # mes --full "--details=all"
 ] {
   let calendars = $env.MY_ENV_VARS.google_calendars
   let calendars_full = $env.MY_ENV_VARS.google_calendars_full
   
-  if ($full | is-empty) or ($full == 0) {
+  if not $full {
     gcalcli --calendar $"($calendars)" calm $rest --military --monday
   } else {
     gcalcli --calendar $"($calendars_full)" calm $rest --military --monday
