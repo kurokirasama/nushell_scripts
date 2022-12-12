@@ -20,16 +20,20 @@ let my_config = (
 
 #restoring hooks
 let hooks = {
-    pre_prompt: [{
-    	print $"(ansi -e { fg: '#ffff00'})Time elapsed: (($env.CMD_DURATION_MS | into decimal) / 1000) s(ansi reset)"
-        }]
-    pre_execution: [{
-      $nothing  
-    }]
+    pre_prompt: [
+    	{
+    		print $"(ansi -e { fg: '#ffff00'})Time elapsed: (($env.CMD_DURATION_MS | into decimal) / 1000) s(ansi reset)"
+        }
+    ]
+    pre_execution: [
+    	{
+    		nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_pre_execution_hook.nu		
+    	}
+    ]
     env_change: {
       PWD: [
       	{|before, after|
-			source-env /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_pre_execution_hook.nu
+			source-env /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_env_change_hook.nu
       	}
       	{|before, after| 
       		try {print (ls | sort-by -i type name | grid -c)}      		
@@ -43,7 +47,6 @@ let hooks = {
 
 	  # let-env LAST_OUTPUT = $in;
       # print ($env.LAST_OUTPUT | table);
-      # if (term size).columns >= 100 { table -e } else { table }
 
 let my_config = ($my_config | upsert hooks $hooks)
 

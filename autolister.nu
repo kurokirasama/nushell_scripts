@@ -2,7 +2,7 @@
 
 def main [user = "kira"] {
 
-	echo "listing Downloads..."
+	echo-g "listing Downloads..."
 	cd ~/Downloads
 	lister Downloads
 
@@ -18,7 +18,7 @@ def main [user = "kira"] {
 	if ($drives | length) > 0 {
 		$drives
 		| each { |drive|
-				echo $"listing ($drive | ansi strip)..."
+				echo-g $"listing ($drive | ansi strip)..."
 				cd ($drive | ansi strip)
 				lister ($drive | ansi strip | path parse | get stem | split row " " | get 0)
 			}
@@ -36,9 +36,9 @@ def lister [file] {
 		}
 
 	if ($df | length) == 0 {
-		if $file =~ "Downloads" { 
-			rm $file
-		}
+		if $file =~ "Downloads" and ($file | path expand | path exists) { 
+      rm $file
+    }
 		return
 	}
 
@@ -105,4 +105,9 @@ def get-files [--full(-f),--dir(-d):string,--full_path(-F)] {
   } 
   | where type == file 
   | sort-by -i name
+}
+
+#green echo
+def echo-g [string:string] {
+  echo $"(ansi -e { fg: '#00ff00' attr: b })($string)(ansi reset)"
 }
