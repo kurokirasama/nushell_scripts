@@ -1,3 +1,6 @@
+#transmission wrapper
+export def t [] {}
+
 #transmission start
 export def "t start" [] {
   sudo service transmission-daemon start
