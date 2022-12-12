@@ -1,3 +1,6 @@
+#geek command to summarize help
+export def geek [] {}
+
 #geeknote find
 export def "geek find" [
   search:string  #search term in title
