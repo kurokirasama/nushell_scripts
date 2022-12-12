@@ -57,6 +57,7 @@ export def find-media [
   } else {
     $results
   }
+  | ansi strip-table
 }
 
 #accumulate a list of files into the same table
@@ -1517,6 +1518,17 @@ export def lister [file] {
 export def fix-docker [] {
   sudo usermod -aG docker $env.USER
   newgrp docker
+}
+
+#ansi strip table
+export def "ansi strip-table" [] {
+  update cells {|cell|
+    if ($cell | describe) == string { 
+      $cell | ansi strip
+    } else {
+      $cell
+    }
+  }
 }
 
 ## appimages
