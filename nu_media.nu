@@ -1,4 +1,4 @@
-#media command to summarize help
+#tools to deal with media files
 export def media [] {}
 
 #video info

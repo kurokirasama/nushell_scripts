@@ -1,4 +1,4 @@
-#for appearing on help
+#gcalcli wrapper for accesing google calendar
 export def gcal [] {}
 
 #add event to google calendar, also usable without arguments

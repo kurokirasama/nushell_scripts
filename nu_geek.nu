@@ -1,4 +1,4 @@
-#geek command to summarize help
+#geeknote wrapper for accesing evernote
 export def geek [] {}
 
 #geeknote find
