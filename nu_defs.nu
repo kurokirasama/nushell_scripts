@@ -1478,7 +1478,7 @@ export def lister [file] {
     }
 
   if ($df | length) == 0 {
-    if $file =~ "Downloads" { 
+    if $file =~ "Downloads" and ($file | path expand | path exists) { 
       rm $file
     }
     return
