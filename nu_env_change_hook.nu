@@ -52,16 +52,3 @@ if ($last_record | length) == 0 and $not_gdrive {
     | append {directory: $env.PWD,size: $pwd_size, updated: $now}
     | save -f ~/.pwd_sizes.json
 }
-
-## git status
-let-env GIT_STATUS = (
-    try {
-        if (ls .git | length) > 0 and (git status -s | str length) > 0 {
-            git status -s | lines | length
-        } else {
-            0
-        }
-    } catch {
-        0
-    }
-)

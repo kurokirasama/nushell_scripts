@@ -24,6 +24,19 @@ let hooks = {
     	{
     		print $"(ansi -e { fg: '#ffff00'})Time elapsed: (($env.CMD_DURATION_MS | into decimal) / 1000) s(ansi reset)"
         }
+        {
+        	let-env GIT_STATUS = (
+    			try {
+        			if (ls .git | length) > 0 and (git status -s | str length) > 0 {
+            			git status -s | lines | length
+        		} else {
+            		0
+        		}
+    			} catch {
+        			0
+    			}
+			)
+        }
     ]
     pre_execution: [
     	{
