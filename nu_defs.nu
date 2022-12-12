@@ -1531,6 +1531,25 @@ export def "ansi strip-table" [] {
   }
 }
 
+#create anime dirs according to files
+export def mk-anime [] {
+  get-files
+  | get name 
+  | each {|file| 
+      $file 
+      | parse "{fansub} {name} - {chapter}"
+    } 
+  | flatten 
+  | get name 
+  | uniq 
+  | each {|dir| 
+      mkdir $dir
+      get-files 
+      | find -i $dir 
+      | mv-pipe $dir
+    }
+}
+
 ## appimages
 
 #open balena-etche
