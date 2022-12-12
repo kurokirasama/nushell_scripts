@@ -14,13 +14,22 @@ let-env PATH = (
 )
 
 let-env PWD_SIZE = ""
+let-env GIT_STATUS = 0
 
 let-env PROMPT_COMMAND = { [
   (ansi -e { fg: '#000000' bg: '#00ff00' attr: b })
   (if $env.PWD == $env.HOME {
-    [$"(char -u f31b) " ($env.PWD_SIZE)] | str collect
+    if $env.GIT_STATUS == 0 {
+      [$"(char -u f31b) " ($env.PWD_SIZE)] | str collect
+    } else {
+      [$"(char -u f31b) " ($env.PWD_SIZE) $"(char -u eafc)" ($env.GIT_STATUS)] | str collect
+    }
    } else {
-     [$"(char -u f31b) " ($env.PWD_SIZE) $"(char -u e0b1)" (left_prompt)] | str collect
+    if $env.GIT_STATUS == 0 {
+      [$"(char -u f31b) " ($env.PWD_SIZE) $"(char -u e0b1)" (left_prompt)] | str collect
+    } else {
+      [$"(char -u f31b) " ($env.PWD_SIZE) $"(char -u eafc)" ($env.GIT_STATUS) $"(char -u e0b1)" (left_prompt)] | str collect 
+    }
    } 
   )
   (ansi reset)] | str collect
@@ -49,10 +58,19 @@ let-env MY_ENV_VARS = (
   | upsert debs "/home/kira/Yandex.Disk/Backups/linux/debs"
   | upsert youtube_database "/home/kira/Yandex.Disk/Backups/linux/youtube_music_playlists"
   | upsert appImages "/home/kira/Yandex.Disk/Backups/linux/software/appimages"
+  | upsert local_manga "/home/kira/Downloads/Manga"
+  | upsert external_manga "/home/kira/media/Seagate Expansion Drive/Manga/mangaPORver"
   | upsert zoom "/home/kira/Documents/Zoom"
   | upsert mps "/home/kira/Yandex.Disk/mps"
   | upsert nushell_dir "/home/kira/software/nushell"
   | upsert media_database "/home/kira/Dropbox/Directorios"
+  | upsert home_wifi "Kira"
+  | upsert google_calendars "Clases|Congresos|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Certamenes y Tests|Familia"
+  | upsert google_calendars_full "TV Shows|Contacts|Festivos en Chile|Cuentas|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Clases|Certamenes y Tests|Familia|Congresos"
+  | upsert termux_ip "192.168.4.142"
+  | upsert mail "kurokirasama@gmail.com"
+  | upsert mail_ubb "lgomez@ubiobio.cl"
+  | upsert mail_lmgg "luismiguelgomezguzman@gmail.com"
   | upsert l_prompt "short"
   | upsert data "/home/kira/Yandex.Disk/cards"
 )
