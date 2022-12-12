@@ -29,9 +29,9 @@ let hooks = {
     			try {
         			if (ls .git | length) > 0 and (git status -s | str length) > 0 {
             			git status -s | lines | length
-        		} else {
-            		0
-        		}
+        			} else {
+            			0
+        			}	
     			} catch {
         			0
     			}
