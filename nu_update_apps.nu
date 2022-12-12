@@ -38,7 +38,7 @@ export def github-app-update [
 
   let info = get-github-latest $owner $repo -f $file_type
 
-  let url = ($info | get browser_download_url)
+  let url = ($info | get browser_download_url | ansi strip)
 
   let app = (
     if ($alternative_name | is-empty) {
@@ -127,7 +127,7 @@ export def github-app-update [
     if $file_type == "deb" {
       let install = (input (echo-g "Would you like to install it now? (y/n): "))
       if $install == "y" {
-        sudo gdebi -n $info.name
+        sudo gdebi -n ($info.name | ansi strip)
       }
     }
   }
