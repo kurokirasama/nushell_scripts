@@ -1559,6 +1559,28 @@ export def mk-anime [] {
     }
 }
 
+#yandex disk last synchronized items
+export def ydx-last [] {
+  yandex-disk status 
+  | split row "Last synchronized items:" 
+  | last 
+  | str trim 
+  | lines 
+  | str trim 
+  | each {|it| 
+      $it 
+      | split row "file: " 
+      | last 
+      | str replace -a "'" ""
+    }
+}
+
+#my pdflatex
+export def my-pdflatex [file?] {
+  let tex = if ($file | is-empty) {$in | get name} else {$file}
+  texfot pdflatex -interaction=nonstopmode -synctex=1 ($tex | path parse | get stem)
+}
+
 ## appimages
 
 #open balena-etche
