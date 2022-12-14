@@ -1,15 +1,20 @@
 #crypt
 export def nu-crypt [
 	file?
-	--encrypt(-e)	#is has precedence over decrypt
+	--encrypt(-e)			 #is has precedence over decrypt
 	--decrypt(-d)	
+	--output_file(-o):string #only for -d option
 ] {
 	let file = if ($file | is-empty) {$in | get name} else {$file}
 
 	if ($encrypt) {
 		gpg --symmetric --armor --yes $file
 	} else if ($decrypt) {
-		gpg --decrypt --quiet $file
+		if ($output_file | is-empty) {
+			gpg --decrypt --quiet $file
+		} else {
+			gpg --output $output_file --quiet --decrypt $file
+		}
 	} else {
 		echo-r "missing option -d or -f!"
 	} 	
