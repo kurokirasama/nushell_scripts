@@ -1,3 +1,21 @@
+#update off-package manager apps
+#zoom, chrome, earth, yandex, sedja, nmap, ttyplot, nyxt, pandoc, taskerpermission, lutris, mpris, monocraft
+export def apps-update [] {
+  apps-update zoom
+  apps-update sejda
+  apps-update nmap
+  apps-update ttyplot
+  apps-update nyxt
+  apps-update pandoc
+  apps-update taskerpermissions
+  apps-update lutris #ignore if ppa works again
+  apps-update mpris
+  apps-update monocraft
+  apps-update chrome
+  apps-update earth
+  apps-update yandex
+}
+
 #get latest release info in github repo
 export def get-github-latest [
   owner:string
@@ -133,28 +151,33 @@ export def github-app-update [
   }
 }
 
-#update off-package manager apps
-#zoom, chrome, earth, yandex, sejda, nmap, ttyplot, nyxt, pandoc, tasker, lutris, mpris, monocraft
-export def apps-update [] {
-  #non github apps
-  zoom-update
-  chrome-update
-  earth-update
-  yandex-update
-  sejda-update
-  nmap-update
-  ttyplot-update
-
-  #github debs
+#update nyxt deb
+export def "apps-update nyxt" [] {
   github-app-update atlas-engineer nyxt
+}
+
+#update pandoc deb
+export def "apps-update pandoc" [] {
   github-app-update jgm pandoc
+}
+
+#update pandoc deb
+export def "apps-update taskerpermissions" [] {
   github-app-update joaomgcd Tasker-Permissions -a taskerpermissions
+}
+  
+#update lutris deb
+export def "apps-update lutris" [] {
   github-app-update lutris lutris
+}
 
-  #mpv mpris
+#update mpris (for mpv)
+export def "apps-update mpris" [] {
   github-app-update hoyon mpv-mpris -f so -d ([$env.MY_ENV_VARS.linux_backup "scripts"] | path join) -a mpris -j
-
-  #monocraft font
+}
+  
+#update monocraft font
+export def "apps-update monocraft" [] {
   let current_version = (
     open --raw ([$env.MY_ENV_VARS.linux_backup Monocraft.json] | path join) 
     | from json 
@@ -168,31 +191,72 @@ export def apps-update [] {
     | get version
   )
 
-  if $current_version != new_version {
+  if $current_version != $new_version {
     echo-g "New version of Monocraft downloaded, now patching nerd fonts..."
     nu ([$env.MY_ENV_VARS.linux_backup "software/appimages/patch-font.nu"] | path join)
   }
 }
 
 #update zoom
-export def zoom-update [] {
+export def "apps-update zoom" [] {
   cd $env.MY_ENV_VARS.debs
-
-  if (ls *.deb | find zoom | length) > 0 {
-    ls *.deb | find zoom | rm-pipe | ignore
-  }
   
-  echo-g "\ndownloading zoom..."
-  aria2c --download-result=hide https://zoom.us/client/latest/zoom_amd64.deb
+  let now = date now
 
-  let install = (input (echo-g "Would you like to install it? (y/n): "))
-  if $install == "y" {
+  let release_url = (
+    "https://support.zoom.us/" | hakrawler  
+    | lines 
+    | find articles 
+    | find release 
+    | find ($now | date format "%Y")
+    | uniq 
+    | first
+    | hakrawler 
+    | lines 
+    | find linux 
+    | first
+  )
+
+  if ($release_url | length) == 0 {
+    echo-r "no releases found this year"
+    return
+  }
+
+  let last_version = (
+    lynx -source $release_url 
+    | split row "Current Release" 
+    | last 
+    | split row "Download" 
+    | first 
+    | lines 
+    | find version 
+    | get 0 
+    | split row version 
+    | last 
+    | split row "</h3>" 
+    | first 
+    | str trim
+  )
+
+  let current_version = (open ([$env.MY_ENV_VARS.debs zoom.json] | path join) | get version)
+
+  if $current_version != $last_version {
+    ls | find zoom | find deb | rm-pipe
+
+    echo-g "\ndownloading zoom..."
+    aria2c --download-result=hide https://zoom.us/client/latest/zoom_amd64.deb
     sudo gdebi -n (ls *.deb | find zoom | get 0 | get name | ansi strip)
+
+    open ([$env.MY_ENV_VARS.debs zoom.json] | path join) 
+    | upsert version $last_version 
+    | save -f ([$env.MY_ENV_VARS.debs zoom.json] | path join)
+  } else {
+    echo-g "zoom already in its latest version!"
   }
 }
 
 #update chrome deb
-export def chrome-update [] {
+export def "apps-update chrome" [] {
   cd $env.MY_ENV_VARS.debs
 
   if (ls *.deb | find chrome | length) > 0 {
@@ -204,7 +268,7 @@ export def chrome-update [] {
 }
 
 #update google earth deb
-export def earth-update [] {
+export def "apps-update earth" [] {
   cd $env.MY_ENV_VARS.debs
 
   if (ls *.deb | find earth | length) > 0 {
@@ -216,7 +280,7 @@ export def earth-update [] {
 }
 
 #update yandex deb
-export def yandex-update [] {
+export def "apps-update yandex" [] {
   cd $env.MY_ENV_VARS.debs
 
   if (ls *.deb | find yandex | length) > 0 {
@@ -228,7 +292,7 @@ export def yandex-update [] {
 }
 
 #update sejda deb
-export def sejda-update [] {
+export def "apps-update sejda" [] {
   cd $env.MY_ENV_VARS.debs
 
   let new_file = (
@@ -275,7 +339,7 @@ export def sejda-update [] {
 }
 
 #update nmap
-export def nmap-update [] {
+export def "apps-update nmap" [] {
   cd $env.MY_ENV_VARS.debs
 
   let new_file = (
@@ -336,7 +400,7 @@ export def nmap-update [] {
 }
 
 #update ttyplot
-export def ttyplot-update [] {
+export def "apps-update ttyplot" [] {
   cd $env.MY_ENV_VARS.debs
 
   let current_version = (
@@ -358,7 +422,7 @@ export def ttyplot-update [] {
     | first 
     | split row "href=\"" 
     | last 
-    | split row "\">" 
+    | split row "\">"
     | first
   )
 
@@ -366,7 +430,7 @@ export def ttyplot-update [] {
 
   let new_version = ($filename | split row _ | get 1)
 
-  if $current_version != new_version {
+  if $current_version != $new_version {
     echo-g $"\nupdating ttyplot..."
 
     ls *.deb | find ttyplot | rm-pipe
@@ -379,7 +443,7 @@ export def ttyplot-update [] {
 }
 
 #update cmdg
-export def gmail-update [] {
+export def "apps-update gmail" [] {
   cd ~/software/cmdg
   git pull
   go build ./cmd/cmdg
@@ -387,7 +451,7 @@ export def gmail-update [] {
 }
 
 #update nushell
-export def nu-update [] {
+export def "apps-update nushell" [] {
   cd ~/software/nushell
   let status = (git status -s | lines)
 
@@ -401,7 +465,7 @@ export def nu-update [] {
 }
 
 #update maestral
-export def maestral-update [] {
+export def "apps-update maestral" [] {
   pip3 install --upgrade maestral
   pip3 install --upgrade maestral[gui]
 }
