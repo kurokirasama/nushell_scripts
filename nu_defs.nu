@@ -1581,6 +1581,11 @@ export def my-pdflatex [file?] {
   texfot pdflatex -interaction=nonstopmode -synctex=1 ($tex | path parse | get stem)
 }
 
+#fix green dirs
+export def fix-green-dirs [] {
+  get-dirs | each {|dir| chmod o-w $dir.name}
+}
+
 ## appimages
 
 #open balena-etche
