@@ -1586,6 +1586,67 @@ export def fix-green-dirs [] {
   get-dirs | each {|dir| chmod o-w $dir.name}
 }
 
+#network switcher 
+export def network-switcher [] {
+  let threshold = 10
+
+  try {nmcli -t -f ssid,signal,rate,in-use dev wifi rescan}
+
+  let known_networks_info = (
+    nmcli -m tabular -f name connection show 
+    | lines 
+    | str trim 
+    | find -v NAME 
+    | wrap known_networks
+  )
+
+  let current_network_name = (iwgetid -r)
+  let current_network_strength = (
+    nmcli -t -f ssid,signal,rate,in-use dev wifi list 
+    | lines 
+    | find "*" 
+    | get 0 
+    | split row : 
+    | get 1
+    | into int
+  )
+
+  echo-g $"current net: ($current_network_name), strength: ($current_network_strength)"
+
+  let network_list = (
+    nmcli -t -f ssid,signal,rate,in-use dev wifi list 
+    | lines 
+    | find -v $"($current_network_name):" 
+    | parse "{name}:{signal}:{speed}" 
+    | sort-by -r signal
+    | str trim
+  )
+
+  let number_nets = ($network_list | length)
+
+  echo-g "checking each network..."
+
+  for i in 0..($number_nets - 1) {
+    let net = ($network_list | get $i)
+    echo $"net: ($net.name), strength: ($net.signal)"
+    if ($net.name == "") {continue}
+
+    if ($net.name) in ($known_networks_info | get known_networks) {
+      if ($net.signal | into int) >= ($current_network_strength + $threshold) {
+        let notification = $"Switching to network ($net.name) that has a better signal \(($net.signal) > (($current_network_strength) + ($threshold))\)"
+        echo-g $notification
+        notify-send $notification
+        sudo nmcli device wifi connect $net.name
+        return
+      } else {
+        let notification = $"Network ($net.name) is well known but its signal's strength is not worth switching"
+        echo-g $notification
+        notify-send $notification
+      }
+    }
+  }
+}
+
 ## appimages
 
 #open balena-etche
