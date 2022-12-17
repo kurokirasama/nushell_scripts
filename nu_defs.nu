@@ -1647,6 +1647,30 @@ export def network-switcher [] {
   }
 }
 
+#wifi info
+export def wifi-info [] {
+  nmcli -t dev wifi 
+  | lines 
+  | str replace -a -s '\:' '|' 
+  | str replace -a -s ':' '#' 
+  | str replace -a -s '|' ':' 
+  | str replace -s "*" "❱" 
+  | split column '#' 
+  | rename in-use mac ssid mode channel rate signal bars security
+  | each {|row|
+      if ($row | get in-use) == "❱" {
+        $row 
+        | update cells {|value| 
+            [(ansi -e { fg: '#00ff00' attr: b }) $value] | str collect 
+          }
+      } else {
+        $row
+      }
+    }
+  | flatten
+  | reject in-use
+}
+
 ## appimages
 
 #open balena-etche

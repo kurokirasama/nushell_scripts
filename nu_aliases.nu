@@ -35,7 +35,6 @@ export alias copy = xclip -sel clip
 export alias takephoto = ffmpeg -y -f video4linux2 -s 1280x720 -i /dev/video0 -ss 0:0:2 -frames 1 /home/kira/photo.jpg
 export alias print-list = lpstat -R
 export alias listen-ports = (sudo netstat -tunlp | detect columns)
-export alias wifi-info = nmcli dev wifi
 export alias cable-ubb = nmcli con up "Cable UBB"
 export alias mpydf = pydf /media/kira/*
 export alias bat = bat --paging never --theme=ansi

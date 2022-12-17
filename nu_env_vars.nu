@@ -10,8 +10,12 @@ let-env PATH = (
   | append '/home/kira/go/bin' 
   | append '/home/kira/Yandex.Disk/Comandos_bash_for_nushell'
   | append $"/home/kira/R/x86_64-pc-linux-gnu-library/(ls /home/kira/R/x86_64-pc-linux-gnu-library | sort-by name | last | get name | split row "/" | last)/rush/exec"
+  | append "/usr/local/texlive/2022/bin/x86_64-linux"
   | uniq
 )
+
+# export MANPATH=$MANPATH:/usr/local/texlive/2022/texmf-dist/doc/man
+# export INFOPATH=$INFOPATH:/usr/local/texlive/2022/texmf-dist/doc/info
 
 let-env PWD_SIZE = ""
 let-env GIT_STATUS = 0
