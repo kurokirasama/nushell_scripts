@@ -464,3 +464,111 @@ export def "media delete-non-compressed" [file?] {
       }
     }
 }
+
+#search for a name in the media database
+export def "media find" [
+  search            #search term
+  --season(-s):int  #season number
+  --manga(-m)       #for searching manga
+  --no_manga(-n)    #exclude manga results
+] {
+  let database = (
+    ls $env.MY_ENV_VARS.media_database 
+    | where name =~ ".json" 
+    | openm
+  )
+  
+  let S = if ($season | is-empty) {
+      ""
+    } else {
+      $season | into string | str lpad -l 2 -c '0'
+  }
+
+  let results = if ($season | is-empty) {
+      $database | find -i $search
+    } else {
+      $database | find -i $search | find -i $"s($S)"
+    }
+
+  if $manga {
+    $results | find -i manga
+  } else if $no_manga {
+    $results | find -v Manga
+  } else {
+    $results
+  }
+  | ansi strip-table
+}
+
+#play first/last downloaded youtube video
+export def "media myt" [file?, --reverse(-r)] {
+  let inp = $in
+  let video = (
+    if not ($inp | is-empty) {
+      $inp | get name
+    } else if not ($file | is-empty) {
+      $file
+    } else if $reverse {
+      ls | sort-by modified -r | where type == "file" | last | get name
+    } else {
+      ls | sort-by modified | where type == "file" | last | get name
+    }
+  )
+  
+  ^mpv --ontop --window-scale=0.4 --save-position-on-quit --no-border $video
+
+  let delete = (input "delete file? (y/n): ")
+  if $delete == "y" {
+    rm $video
+  } else {
+    let move = (input "move file to pending? (y/n): ")
+    if $move == "y" {
+      mv $video pending
+    }
+  } 
+}
+
+#delete non wanted media in mps (youtube download folder)
+export def "media delete-mps" [] {
+  if $env.MY_ENV_VARS.mps !~ $env.PWD {
+    echo-r "wrong directory to run this"
+  } else {
+     le
+     | where type == "file" and ext !~ "mp4|mkv|webm|part" 
+     | par-each {|it| 
+         rm $"($it.name)" 
+         | ignore
+       }     
+  }
+}
+
+#mpv
+export def mpv [video?, --puya(-p)] {
+  let file = if ($video | is-empty) {$in} else {$video}
+
+  let file = (
+    switch ($file | typeof) {
+      "record": { 
+        $file
+        | get name
+        | ansi strip
+      },
+      "table": { 
+        $file
+        | get name
+        | get 0
+        | ansi strip
+      },
+    } { 
+        "otherwise": { 
+          $file
+        }
+      }
+  )
+
+  if not $puya {
+    ^mpv --save-position-on-quit --no-border $file
+  } else {
+    ^mpv --save-position-on-quit --no-border --sid=2 $file
+  } 
+}

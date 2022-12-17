@@ -25,57 +25,6 @@ export def show_banner [] {
     print $"(ansi green)($ellie.3)  (ansi light_purple)ﮫ (ansi light_purple_bold)Uptime (ansi reset)(ansi light_purple)($s.host.uptime)(ansi reset)"
 }
 
-#search for a name in the media database
-export def find-media [
-  search            #search term
-  --season(-s):int  #season number
-  --manga(-m)       #for searching manga
-  --no_manga(-n)    #exclude manga results
-] {
-  let database = (
-    ls $env.MY_ENV_VARS.media_database 
-    | where name =~ ".json" 
-    | openm
-  )
-  
-  let S = if ($season | is-empty) {
-      ""
-    } else {
-      $season | into string | str lpad -l 2 -c '0'
-  }
-
-  let results = if ($season | is-empty) {
-      $database | find -i $search
-    } else {
-      $database | find -i $search | find -i $"s($S)"
-    }
-
-  if $manga {
-    $results | find -i manga
-  } else if $no_manga {
-    $results | find -v Manga
-  } else {
-    $results
-  }
-  | ansi strip-table
-}
-
-#accumulate a list of files into the same table
-export def openm [
-  list? #list of files
-  #Example
-  #ls *.json | openm
-  #let list = ls *.json; openm $list
-] {
-  let list = if ($list | is-empty) {$in} else {$list}
-  
-  $list 
-  | get name
-  | reduce -f [] {|it, acc| 
-      $acc | append (open ($it | path expand))
-    }
-}
-
 #neofetch but nu (in progress)
 export def nufetch [--table(-t)] {
   if not $table {
@@ -276,38 +225,6 @@ export def xls2csv [
   libreoffice --headless --convert-to csv $inputFile
 }
 
-#compress all folder into a separate file and delete them
-export def "7z folders" [--not_delete(-n)] {
-  if not $not_delete {
-    bash -c "find . -maxdepth 1 -mindepth 1 -type d -print0 | parallel -0 --eta 7z a -t7z -sdel -bso0 -bsp0 -m0=lzma2 -mx=9 -ms=on -mmt=on {}.7z {}"
-  } else {
-    bash -c "find . -maxdepth 1 -mindepth 1 -type d -print0 | parallel -0 --eta 7z a -t7z -bso0 -bsp0 -m0=lzma2 -mx=9 -ms=on -mmt=on {}.7z {}"
-  }
-}
-
-#compress to 7z using max compression
-export def "7z max" [
-  filename: string  #existing or not existing 7z filename
-  ...rest:  string  #files to compress and extra flags for 7z (add flags between quotes)
-  --delete(-d)      #delete files after compression
-  #
-  # Example:
-  # compress all files in current directory and delete them
-  # 7z max filename * -d
-  # compress all files in current directory and split into pieces of 3Gb (b|k|m|g)
-  # 7z max filename * "-v3g"
-  # both
-  # 7z max filename * "-v3g -sdel"
-] {
-  if ($rest | is-empty) {
-    echo-r "no files to compress specified"
-  } else if ($delete | is-empty) or (not $delete) {
-    7z a -t7z -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" $rest
-  } else {
-    7z a -t7z -sdel -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" $rest
-  }
-}
-
 #check if drive is mounted
 export def is-mounted [drive:string] {
   (ls "~/media" | find $"($drive)" | length) > 0
@@ -418,6 +335,22 @@ export def openg [file?] {
   echo-g $"($url) copied to clipboard!"
 }
 
+#accumulate a list of files into the same table
+export def openm [
+  list? #list of files
+  #Example
+  #ls *.json | openm
+  #let list = ls *.json; openm $list
+] {
+  let list = if ($list | is-empty) {$in} else {$list}
+  
+  $list 
+  | get name
+  | reduce -f [] {|it, acc| 
+      $acc | append (open ($it | path expand))
+    }
+}
+
 #send to printer
 export def print-file [file?,--n_copies(-n):int] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
@@ -429,33 +362,6 @@ export def print-file [file?,--n_copies(-n):int] {
   }
 }
 
-#play first/last downloaded youtube video
-export def myt [file?, --reverse(-r)] {
-  let inp = $in
-  let video = (
-    if not ($inp | is-empty) {
-      $inp | get name
-    } else if not ($file | is-empty) {
-      $file
-    } else if $reverse {
-      ls | sort-by modified -r | where type == "file" | last | get name
-    } else {
-      ls | sort-by modified | where type == "file" | last | get name
-    }
-  )
-  
-  ^mpv --ontop --window-scale=0.4 --save-position-on-quit --no-border $video
-
-  let delete = (input "delete file? (y/n): ")
-  if $delete == "y" {
-    rm $video
-  } else {
-    let move = (input "move file to pending? (y/n): ")
-    if $move == "y" {
-      mv $video pending
-    }
-  } 
-}
 
 #search for specific process
 export def psn [name: string] {
@@ -548,7 +454,7 @@ export def union [a: list, b: list] {
 }
 
 #nushell source files info
-export def 'nu-sloc' [] {
+export def nu-sloc [] {
   let stats = (
     ls **/*.nu
     | select name
@@ -602,20 +508,6 @@ export def-env cdto-bash [] {
 export def-env which-cd [program] { 
   let dir = (which $program | get path | path dirname | str trim)
   cd $dir.0
-}
-
-#delete non wanted media in mps (youtube download folder)
-export def delete-mps [] {
-  if $env.MY_ENV_VARS.mps !~ $env.PWD {
-    echo-r "wrong directory to run this"
-  } else {
-     le
-     | where type == "file" and ext !~ "mp4|mkv|webm|part" 
-     | par-each {|it| 
-         rm $"($it.name)" 
-         | ignore
-       }     
-  }
 }
 
 #push to git
@@ -741,340 +633,9 @@ export def check-link [link?,timeout?:int] {
   }
 }
 
-#rm trough pipe
-#
-#Example
-#ls *.txt | first 5 | rm-pipe
-export def rm-pipe [] {
-  if not ($in | is-empty) {
-    get name 
-    | ansi strip
-    | par-each {|file| 
-        rm -rf $file
-      } 
-    | flatten
-  }
-}
-
-#cp trough pipe to same dir
-export def cp-pipe [
-  to: string#target directory
-  #
-  #Example
-  #ls *.txt | first 5 | cp-pipe ~/temp
-] {
-  get name 
-  | ansi strip
-  | each {|file| 
-      echo-g $"copying ($file)..." 
-      ^cp -r $file ($to | path expand) 
-    } 
-}
-
-#mv trough pipe to same dir
-export def mv-pipe [
-  to: string#target directory
-  #
-  #Example
-  #ls *.txt | first 5 | mv-pipe ~/temp
-] {
-  get name 
-  | ansi strip
-  | each {|file|
-      echo-g $"moving ($file)..." 
-      ^mv $file ($to | path expand)
-    }
-}
-
-#ls by date (newer last)
-export def lt [
-  --reverse(-r) #reverse order
-] {
-  if ($reverse | is-empty) or (not $reverse) {
-    ls | sort-by modified  
-  } else {
-    ls | sort-by modified -r
-  } 
-}
-
-#ls in text grid
-export def lg [
-  --date(-t)    #sort by date
-  --reverse(-r) #reverse order
-] {
-  let t = if $date {"true"} else {"false"}
-  let r = if $reverse {"true"} else {"false"}
-
-  switch $t {
-    "true": { 
-      switch $r {
-        "true": { 
-          ls | sort-by -r modified | grid -c
-        },
-        "false": { 
-          ls | sort-by modified | grid -c
-        }
-      }
-    },
-    "false": { 
-      switch $r {
-        "true": { 
-          ls | sort-by -i -r type name | grid -c
-        },
-        "false": { 
-          ls | sort-by -i type name | grid -c
-        }
-      }
-    }
-  }
-}
-
-#ls sorted by name
-export def ln [--du(-d)] {
-  if $du {
-    ls --du | sort-by -i type name 
-  } else {
-    ls | sort-by -i type name 
-  }
-}
-
-#ls only name
-export def lo [] {
-  ls 
-  | sort-by -i type name 
-  | reject type size modified 
-}
-
-#ls sorted by extension
-export def le [] {
-  ls
-  | sort-by -i type name 
-  | insert "ext" { 
-      $in.name 
-      | path parse 
-      | get extension 
-    } 
-  | sort-by ext
-}
-
-#get list of files recursively
-export def get-files [--full(-f),--dir(-d):string,--full_path(-F)] {
-  if $full {
-    if not ($dir | is-empty) {
-      if $full_path {
-        ls -f $"($dir)/**/*"
-        } else {
-          ls $"($dir)/**/*"
-        }
-    } else {
-      if $full_path {
-        ls -f **/*
-      } else {
-        ls **/*
-      }
-    }
-  } else {
-    if not ($dir | is-empty) {
-      if $full_path {
-        ls -f $"($dir)"
-      } else {
-        ls $"($dir)"
-      }
-    } else {
-      if $full_path {
-        ls -f
-      } else {
-        ls
-      }
-    }
-  } 
-  | where type == file 
-  | sort-by -i name
-}
-
-
-#find file in dir recursively
-export def find-file [search,--directory(-d):string] {
-  if ($directory | is-empty) {
-    get-files -f | where name =~ $search
-  } else {
-    get-files -f -d $directory | where name =~ $search
-  }
-}
-
-#get list of directories in current path
-export def get-dirs [dir?, --full(-f)] {
-  try {
-    if ($dir | is-empty) {
-      if $full {
-        ls **/*
-      } else {
-        ls
-      } 
-      | where type == dir 
-      | sort-by -i name
-    } else {
-      ls $dir
-      | where type == dir 
-      | sort-by -i name
-    }
-  } catch {
-    {name: ""}
-  }
-}
-
-#get devices connected to network
-export def get-devices [
-  device = "wlo1" #wlo1 for wifi (export default), eno1 for lan
-  #
-  #It needs nmap2json, installable (ubuntu at least) via
-  #
-  #sudo gem install nmap2json
-] {
-  let ipinfo = (
-    if (? | where name == pnet | length) > 0 {
-      pnet 
-      | where name == ($device) 
-      | get 0 
-      | get ips 
-      | where type == v4 
-      | get 0 
-      | get addr
-      | str replace '(?P<nums>\d+/)' '0/'
-    } else {
-      ip -json add 
-      | from json 
-      | where ifname =~ $"($device)" 
-      | select addr_info 
-      | flatten 
-      | find -v inet6 
-      | flatten 
-      | get local prefixlen 
-      | flatten 
-      | str collect '/' 
-      | str replace '(?P<nums>\d+/)' '0/'
-    }
-  )
-
-  let nmap_output = (sudo nmap -oX nmap.xml -sn $ipinfo --max-parallelism 10)
-
-  let nmap_output = (nmap2json convert nmap.xml | from json | get nmaprun | get host | get address)
-
-  let this_ip = ($nmap_output | last | get addr)
-
-  let ips = ($nmap_output 
-    | drop 1 
-    | flatten 
-    | where addrtype =~ ipv4 
-    | select addr 
-    | rename ip
-  )
-  
-  let macs_n_names = ($nmap_output 
-    | drop 1 
-    | flatten 
-    | where addrtype =~ mac 
-    | select addr vendor 
-    | rename mac name
-    | update name {|f|
-        if ($f.name | is-empty) {
-          "Unknown"
-        } else {
-          $f.name
-        }
-      }
-  )
-
-  let devices = ( $ips | merge $macs_n_names )
-
-  let known_devices = open ([$env.MY_ENV_VARS.linux_backup "known_devices.csv"] | path join)
-  let known_macs = ($known_devices | get mac | str upcase)
-
-  let known = ($devices | each {any $it.mac in $known_macs} | wrap known)
-
-  let devices = ($devices | merge $known)
-
-  let aliases = (
-    $devices 
-    | each {|row| 
-        if $row.known {
-          $known_devices | find $row.mac | get alias
-        } else {
-          " "
-        }
-      } 
-    | flatten 
-    | wrap alias
-  )
-   
-  rm nmap.xml | ignore 
-
-  $devices | merge $aliases
-}
-
 #verify if a column exist within a table
 export def is-column [name] { 
   $name in ($in | columns) 
-}
-
-#grep for nu
-export def grep-nu [
-  search   #search term
-  entrada?  #file or pipe
-  #
-  #Examples
-  #grep-nu search file.txt
-  #ls **/* | some_filter | grep-nu search 
-  #open file.txt | grep-nu search
-] {
-  if ($entrada | is-empty) {
-    if ($in | is-column name) {
-      grep -ihHn $search ($in | get name)
-    } else {
-      ($in | into string) | grep -ihHn $search
-    }
-  } else {
-      grep -ihHn $search $entrada
-  }
-  | lines 
-  | parse "{file}:{line}:{match}"
-  | str trim
-  | update match {|f| 
-      $f.match 
-      | nu-highlight
-    }
-  | rename "source file" "line number"
-}
-
-#get ips
-export def get-ips [
-  device =  "wlo1"  #wlo1 for wifi (export default), eno1 for lan
-] {
-  let internal = (ip -json add 
-    | from json 
-    | where ifname =~ $"($device)" 
-    | select addr_info 
-    | flatten | find -v inet6 
-    | flatten 
-    | get local 
-    | get 0
-  )
-
-  let external = (dig +short myip.opendns.com @resolver1.opendns.com)
-  
-  {internal: $internal, external: $external}
-}
-
-#join multiple pdfs
-export def join-pdfs [
-  ...rest: #list of pdf files to concatenate
-] {
-  if ($rest | is-empty) {
-    echo-r "not enough pdfs provided"
-  } else {
-    pdftk $rest cat output output.pdf
-    echo-g "pdf merged in output.pdf"
-  }
 }
 
 #send email via Gmail with signature files (posfix configuration required)
@@ -1258,91 +819,12 @@ export def set-screen [
 
 }
 
-#list used network sockets
-export def ls-ports [] {
-  let input = (^lsof +c 0xFFFF -i -n -P)
-  
-  let header = (
-    $input 
-    | lines
-    | take 1
-    | each { 
-        str downcase 
-        | str replace ' name$' ' name state'
-      }
-  )
-
-  let body = (
-    $input 
-    | lines
-    | skip 1
-    | each { 
-        str replace '([^)])$' '$1 (NONE)' 
-        | str replace ' \((.+)\)$' ' $1'
-      }
-  )
-  
-  [$header] 
-  | append $body
-  | to text
-  | detect columns
-  | upsert 'pid' { |r| 
-      $r.pid 
-      | into int 
-    }
-  | rename -c ['name' 'connection']
-  | reject 'command'
-  | into df
-  | join (ps -l | into df) 'pid' 'pid'
-  | into df
-  | into nu
-}
-
 #get files all at once from webpage using wget
 export def wget-all [
   webpage: string    #url to scrap
   ...extensions      #list of extensions separated by space
 ] {
   wget -A ($extensions | str collect ",") -m -p -E -k -K -np $webpage
-}
-
-#delete empty dirs recursively
-export def rm-empty-dirs [] {
-  ls --du **/* 
-  | where type == dir 
-  | where size <= 4.0Kib
-  | rm-pipe
-}
-
-#mpv
-export def mpv [video?, --puya(-p)] {
-  let file = if ($video | is-empty) {$in} else {$video}
-
-  let file = (
-    switch ($file | typeof) {
-      "record": { 
-        $file
-        | get name
-        | ansi strip
-      },
-      "table": { 
-        $file
-        | get name
-        | get 0
-        | ansi strip
-      },
-    } { 
-        "otherwise": { 
-          $file
-        }
-      }
-  )
-
-  if not $puya {
-    ^mpv --save-position-on-quit --no-border $file
-  } else {
-    ^mpv --save-position-on-quit --no-border --sid=2 $file
-  } 
 }
 
 #convert hh:mm:ss to duration
@@ -1418,18 +900,6 @@ export def build-string [...rest] {
   $rest | str collect ""
 }
 
-#open google analytics csv file
-export def open-analytics [$file?] {
-  let file = if ($file | is-empty) {$in | get name} else {$file}
-
-  open $file --raw 
-  | lines 
-  | find -v "#" 
-  | drop nth 0 
-  | str collect "\n" 
-  | from csv 
-}
-
 #umount all drives (duf)
 export def umall [user? = $env.USER] {
   duf -json 
@@ -1440,78 +910,6 @@ export def umall [user? = $env.USER] {
       echo-g $"umounting ($drive  | ansi strip)..."
       umount ($drive | ansi strip)
     }
-}
-
-#create media database for downloads and all mounted disks
-export def autolister [user = $env.USER] {
-  echo-g "listing Downloads..."
-  cd ~/Downloads
-  lister Downloads
-
-  let drives = try {
-    duf -json 
-    | from json 
-    | find $"/media/($user)" 
-    | get mount_point
-  } catch {
-    []
-  }
-
-  if ($drives | length) > 0 {
-    $drives
-    | each { |drive|
-        echo-g $"listing ($drive | ansi strip)..."
-        cd ($drive | ansi strip)
-        lister ($drive | ansi strip | path parse | get stem | split row " " | get 0)
-      }
-  }
-}
-
-#list all files ans save it to json in Dropbox/Directorios
-export def lister [file] {
-  let file = (["~/Dropbox/Directorios" $"($file).json"] | path join | path expand)
-
-  let df = try {
-      get-files -f -F 
-    } catch {
-      []
-    }
-
-  if ($df | length) == 0 {
-    if $file =~ "Downloads" and ($file | path expand | path exists) { 
-      rm $file
-    }
-    return
-  }
-
-  let last = ($df | into df | drop name) 
-
-  let df = (
-    $df
-    | each {|file| 
-      $file
-      | get name 
-      | parse $"{origin}/($env.USER)/{location}/{rest}"
-      }
-    | flatten
-  ) 
-
-  let first = ($df | select origin location | into df) 
-
-  let second = (
-    $df 
-    | select rest 
-    | each {|file| 
-      $file 
-      | get rest 
-      | path parse -e ''
-      } 
-    | into df 
-    | drop extension 
-    | rename [parent stem] [path file]
-  )
-
-  $first | append $second | append $last | into nu | save -f $file
 }
 
 #fix docker run error
@@ -1529,34 +927,6 @@ export def "ansi strip-table" [] {
       $cell
     }
   }
-}
-
-#create anime dirs according to files
-export def mk-anime [] {
-  try {
-    get-files
-  } catch {
-    echo-r "no files found"
-    return
-  }
-  | get name 
-  | each {|file| 
-      $file 
-      | parse "{fansub} {name} - {chapter}"
-    } 
-  | flatten 
-  | get name 
-  | uniq 
-  | each {|dir| 
-      if not ($dir | path expand | path exists) {
-        mkdir $dir
-      }
-
-      get-files 
-      | find -i $dir 
-      | mv-pipe $dir
-      | ignore
-    }
 }
 
 #yandex disk last synchronized items
@@ -1579,96 +949,6 @@ export def ydx-last [] {
 export def my-pdflatex [file?] {
   let tex = if ($file | is-empty) {$in | get name} else {$file}
   texfot pdflatex -interaction=nonstopmode -synctex=1 ($tex | path parse | get stem)
-}
-
-#fix green dirs
-export def fix-green-dirs [] {
-  get-dirs | each {|dir| chmod o-w $dir.name}
-}
-
-#network switcher 
-export def network-switcher [] {
-  let threshold = 10
-
-  try {nmcli -t -f ssid,signal,rate,in-use dev wifi rescan}
-
-  let known_networks_info = (
-    nmcli -m tabular -f name connection show 
-    | lines 
-    | str trim 
-    | find -v NAME 
-    | wrap known_networks
-  )
-
-  let current_network_name = (iwgetid -r)
-  let current_network_strength = (
-    nmcli -t -f ssid,signal,rate,in-use dev wifi list 
-    | lines 
-    | find "*" 
-    | get 0 
-    | split row : 
-    | get 1
-    | into int
-  )
-
-  echo-g $"current net: ($current_network_name), strength: ($current_network_strength)"
-
-  let network_list = (
-    nmcli -t -f ssid,signal,rate,in-use dev wifi list 
-    | lines 
-    | find -v $"($current_network_name):" 
-    | parse "{name}:{signal}:{speed}" 
-    | sort-by -r signal
-    | str trim
-  )
-
-  let number_nets = ($network_list | length)
-
-  echo-g "checking each network..."
-
-  for i in 0..($number_nets - 1) {
-    let net = ($network_list | get $i)
-    echo $"net: ($net.name), strength: ($net.signal)"
-    if ($net.name == "") {continue}
-
-    if ($net.name) in ($known_networks_info | get known_networks) {
-      if ($net.signal | into int) >= ($current_network_strength + $threshold) {
-        let notification = $"Switching to network ($net.name) that has a better signal \(($net.signal) > (($current_network_strength) + ($threshold))\)"
-        echo-g $notification
-        notify-send $notification
-        sudo nmcli device wifi connect $net.name
-        return
-      } else {
-        let notification = $"Network ($net.name) is well known but its signal's strength is not worth switching"
-        echo-g $notification
-        notify-send $notification
-      }
-    }
-  }
-}
-
-#wifi info
-export def wifi-info [] {
-  nmcli -t dev wifi 
-  | lines 
-  | str replace -a -s '\:' '|' 
-  | str replace -a -s ':' '#' 
-  | str replace -a -s '|' ':' 
-  | str replace -s "*" "❱" 
-  | split column '#' 
-  | rename in-use mac ssid mode channel rate signal bars security
-  | each {|row|
-      if ($row | get in-use) == "❱" {
-        $row 
-        | update cells {|value| 
-            [(ansi -e { fg: '#00ff00' attr: b }) $value] | str collect 
-          }
-      } else {
-        $row
-      }
-    }
-  | flatten
-  | reject in-use
 }
 
 ## appimages
