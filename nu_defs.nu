@@ -146,20 +146,6 @@ export def switch [
   }
 }
 
-#update nu config (after nushell update)
-export def update-nu-config [] {
-  ls (build-string $env.MY_ENV_VARS.nushell_dir "/**/*") 
-  | find -i default_config 
-  | update name {|n| 
-      $n.name 
-      | ansi strip
-    }  
-  | cp-pipe $nu.config-path
-
-  open ([$env.MY_ENV_VARS.linux_backup "append_to_config.nu"] | path join) | save --append $nu.config-path
-  nu -c $"source-env ($nu.config-path)"
-}
-
 #short help
 export def ? [...search] {
   if ($search | is-empty) {
@@ -303,16 +289,6 @@ export def pip3-upgrade [] {
       echo-g $"upgrading ($pkg.column1)..."
       pip3 install --upgrade $pkg.column1
     }
-}
-
-#green echo
-export def echo-g [string:string] {
-  echo $"(ansi -e { fg: '#00ff00' attr: b })($string)(ansi reset)"
-}
-
-#red echo
-export def echo-r [string:string] {
-  echo $"(ansi -e { fg: '#ff0000' attr: b })($string)(ansi reset)"
 }
 
 #open mcomix

@@ -469,3 +469,17 @@ export def "apps-update maestral" [] {
   pip3 install --upgrade maestral
   pip3 install --upgrade maestral[gui]
 }
+
+#update nu config (after nushell update)
+export def update-nu-config [] {
+  ls (build-string $env.MY_ENV_VARS.nushell_dir "/**/*") 
+  | find -i default_config 
+  | update name {|n| 
+      $n.name 
+      | ansi strip
+    }  
+  | cp-pipe $nu.config-path
+
+  open ([$env.MY_ENV_VARS.linux_backup "append_to_config.nu"] | path join) | save --append $nu.config-path
+  nu -c $"source-env ($nu.config-path)"
+}
