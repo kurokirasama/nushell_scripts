@@ -275,7 +275,7 @@ export def "media to" [
     echo-g $"($n_files) avi files found..."
 
     if $n_files > 0 {
-      bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta myffmpeg -n -loglevel 0 -i {} -b:a 64k {.}.mp4'
+      bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta myffmpeg -n -loglevel 0 -i {} -c:v copy -c:a aac {.}.mp4'
 
       let aacs = (ls **/* 
         | insert "ext" { 
