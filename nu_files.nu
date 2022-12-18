@@ -1,4 +1,4 @@
-#compress all folder into a separate file and delete them
+#compress all folders into a separate file and delete them
 export def "7z folders" [--not_delete(-n)] {
   if not $not_delete {
     bash -c "find . -maxdepth 1 -mindepth 1 -type d -print0 | parallel -0 --eta 7z a -t7z -sdel -bso0 -bsp0 -m0=lzma2 -mx=9 -ms=on -mmt=on {}.7z {}"
@@ -210,35 +210,6 @@ export def get-dirs [dir?, --full(-f)] {
   } catch {
     {name: ""}
   }
-}
-
-#grep for nu
-export def grep-nu [
-  search   #search term
-  entrada?  #file or pipe
-  #
-  #Examples
-  #grep-nu search file.txt
-  #ls **/* | some_filter | grep-nu search 
-  #open file.txt | grep-nu search
-] {
-  if ($entrada | is-empty) {
-    if ($in | is-column name) {
-      grep -ihHn $search ($in | get name)
-    } else {
-      ($in | into string) | grep -ihHn $search
-    }
-  } else {
-      grep -ihHn $search $entrada
-  }
-  | lines 
-  | parse "{file}:{line}:{match}"
-  | str trim
-  | update match {|f| 
-      $f.match 
-      | nu-highlight
-    }
-  | rename "source file" "line number"
 }
 
 #join multiple pdfs

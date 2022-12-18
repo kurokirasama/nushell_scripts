@@ -205,6 +205,35 @@ export def typeof [--full(-f)] {
     }
 }
 
+#grep for nu
+export def grep-nu [
+  search   #search term
+  entrada?  #file or pipe
+  #
+  #Examples
+  #grep-nu search file.txt
+  #ls **/* | some_filter | grep-nu search 
+  #open file.txt | grep-nu search
+] {
+  if ($entrada | is-empty) {
+    if ($in | is-column name) {
+      grep -ihHn $search ($in | get name)
+    } else {
+      ($in | into string) | grep -ihHn $search
+    }
+  } else {
+      grep -ihHn $search $entrada
+  }
+  | lines 
+  | parse "{file}:{line}:{match}"
+  | str trim
+  | update match {|f| 
+      $f.match 
+      | nu-highlight
+    }
+  | rename "source file" "line number"
+}
+
 #copy pwd
 export def cpwd [] {
   $env.PWD | xclip -sel clip
@@ -927,22 +956,6 @@ export def "ansi strip-table" [] {
       $cell
     }
   }
-}
-
-#yandex disk last synchronized items
-export def ydx-last [] {
-  yandex-disk status 
-  | split row "Last synchronized items:" 
-  | last 
-  | str trim 
-  | lines 
-  | str trim 
-  | each {|it| 
-      $it 
-      | split row "file: " 
-      | last 
-      | str replace -a "'" ""
-    }
 }
 
 #my pdflatex
