@@ -230,9 +230,11 @@ export def "media split-video" [
 #convert media files recursively to specified format
 export def "media to" [
   to:string #destination format (aac, mp3 or mp4)
+  --copy(-c)#copy video codec and audio to mp3 (for mp4 only)
   #
   #Examples (make sure there are only compatible files in all subdirectories)
   #media-to mp4 (avi to mp4)
+  #media-to mp4 -c (avi to mp4)
   #media-to aac (audio files to aac)
   #media-to mp3 (audio files to mp3)
 ] {
@@ -275,7 +277,11 @@ export def "media to" [
     echo-g $"($n_files) avi files found..."
 
     if $n_files > 0 {
-      bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta myffmpeg -n -loglevel 0 -i {} -c:v copy -c:a aac {.}.mp4'
+      if $copy {
+        bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta myffmpeg -n -loglevel 0 -i {} -c:v copy -c:a mp3 {.}.mp4'
+      } else {
+        bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta myffmpeg -n -loglevel 0 -i {} -c:v libx264 -c:a aac {.}.mp4'
+      }
 
       let aacs = (ls **/* 
         | insert "ext" { 
