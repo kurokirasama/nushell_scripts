@@ -75,6 +75,14 @@ export def nufetch [--table(-t)] {
           | str join " "
         }
       )
+    let wm = (
+      if $env.XDG_CURRENT_DESKTOP == "ubuntu:GNOME" {
+        "Mutter"
+      } else {
+        wmctrl -m | lines | first | split row ": " | last
+      }
+    )
+    let terminal = (xdotool getactivewindow | xargs -I {} xprop -id {} WM_CLASS | split row = | get 1 | str trim | split row , | get 0 | str replace -a "\"" "")
     let info = {} 
 
     $info
@@ -89,11 +97,11 @@ export def nufetch [--table(-t)] {
     | upsert shell $shell
     | upsert resolution $screen_res
     | upsert de $env.XDG_CURRENT_DESKTOP
-    | upsert wm "windows manager"
-    | upsert wmTheme "windows manager theme"
+    | upsert wm $wm
+    | upsert wmTheme (gsettings get org.gnome.shell.extensions.user-theme name | str replace -a "'" "")
     | upsert theme $theme
     | upsert icons $icons
-    | upsert terminal "terminal"
+    | upsert terminal $terminal
     | upsert cpu ($s.cpu | get brand | uniq | get 0)
     | upsert cores (($s.cpu | length) / 2)
     | upsert gpu $gpus
@@ -386,7 +394,8 @@ export def print-file [file?,--n_copies(-n):int] {
 
 
 #search for specific process
-export def psn [name: string] {
+export def psn [name?: string] {
+  let name = if ($name | is-empty) {$in} else {$name}
   ps -l | find -i $name
 }
 
