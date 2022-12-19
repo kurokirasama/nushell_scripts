@@ -21,7 +21,12 @@ let-env PWD_SIZE = ""
 let-env GIT_STATUS = 0
 
 let-env PROMPT_COMMAND = { [
-  (ansi -e { fg: '#000000' bg: '#00ff00' attr: b })
+  (if $env.LAST_EXIT_CODE == 0 || ($env.LAST_EXIT_CODE | is-empty) {
+    (ansi -e { fg: '#000000' bg: '#00ff00' attr: b })
+   } else {
+    (ansi -e { fg: '#ffffff' bg: '#ff0000' attr: b })
+   } 
+  )
   (if $env.PWD == $env.HOME {
     if $env.GIT_STATUS == 0 {
       [$"(char -u f31b) " ($env.PWD_SIZE)] | str collect
@@ -42,7 +47,12 @@ let-env PROMPT_COMMAND = { [
 let-env PROMPT_COMMAND_RIGHT = { $"(ansi -e { fg: '#ffffff' })(get_weather_by_interval 30min)(ansi reset)" }
 
 let-env PROMPT_INDICATOR = { [
-  (ansi -e { fg: '#00ff00' attr: b })
+  (if $env.LAST_EXIT_CODE == 0 || ($env.LAST_EXIT_CODE | is-empty) {
+    (ansi -e { fg: '#00ff00' attr: b })
+   } else {
+    (ansi -e { fg: '#ff0000' attr: b })
+   } 
+  )
   $"(char -u e0b0) "  
   (ansi reset)
   ] | str collect 
