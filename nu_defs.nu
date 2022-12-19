@@ -299,6 +299,22 @@ export def mcx [file?] {
   bash -c $'mcomix "($file)" 2>/dev/null &'
 }
 
+#open code
+export def open2 [file?,--raw] {
+  let file = if ($file | is-empty) {$in | get name | get 0} else {$file}
+  let extension = ($file | path parse | get extension)
+
+  if ($extension =~ "md|R|c|Rmd|nu|m") or ($extension | is-empty) {
+    bat $file
+  } else {
+    if $raw {
+      open --raw $file
+    } else {
+      open $file
+    }
+  }
+}
+
 #open file 
 export def openf [file?] {
   let file = if ($file | is-empty) {$in} else {$file}
