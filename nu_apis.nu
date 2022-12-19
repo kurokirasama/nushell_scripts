@@ -1,5 +1,5 @@
 #get bitly short link
-export def mbitly [longurl] {
+export def bitly [longurl] {
   if ($longurl | is-empty) {
     echo-r "no url provided"
   } else {
@@ -67,5 +67,40 @@ export def trans [
     $translated
   } else {
     echo-r $"error: bad request ($status)!"
+  }
+}
+
+#get rebrandly short link
+export def "rebrandly get" [longurl] {
+ if ($longurl | is-empty) {
+    echo-r "no url provided"
+  } else {
+    let credential = open-credential ([$env.MY_ENV_VARS.credentials "credential_rebrandly.json.asc"] | path join)
+    let api_key = ($credential | get api_key)
+    
+    let url = "https://api.rebrandly.com/v1/links"
+    let content = {"destination": $longurl}
+
+    let response = post $url $content -H ["apikey", $api_key] --content-type "application/json" -H ["UserAgent:","UserAgent,curl/7.68.0"]
+    let shorturl = ($response | get shortUrl)
+
+    $shorturl | copy
+    echo-g $"($shorturl) copied to clipboard!"
+  }
+} 
+
+#list rebrandly last 25 short links
+export def "rebrandly list" [longurl="www.google.com"] {
+ if ($longurl | is-empty) {
+    echo-r "no url provided"
+  } else {
+    let credential = open-credential ([$env.MY_ENV_VARS.credentials "credential_rebrandly.json.asc"] | path join)
+    let api_key = ($credential | get api_key)
+    
+    let base_url = "https://api.rebrandly.com/v1/links"
+    let url = $base_url + "?domain.id=" + $longurl + "&orderBy=createdAt&orderDir=desc&limit=25"
+
+    fetch $url -H ["apikey", $api_key] -H ["accept", "application/json"]
+    
   }
 }
