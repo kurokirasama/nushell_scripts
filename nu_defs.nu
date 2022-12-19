@@ -99,6 +99,7 @@ export def nufetch [--table(-t)] {
     | upsert gpu $gpus
     | upsert disk $disk
     | upsert memory $mem
+    | table -e
   }
 }
 
