@@ -1,14 +1,27 @@
 #modifying $env.config...
-let my_config = ($env.config)
+mut my_config = ($env.config)
 
 #restoring custom color config
 let my_color_config = ($my_config 
 	| get color_config 
 	| upsert shape_internalcall { fg: "##00b7ff" attr: b} 
 	| upsert shape_external "#00b7ff"
+	# | upsert filesize {|e| if $e == 0b {'white'} else if $e < 1mb {'cyan'} else if $e < 1gb {'cyan_bold'} else {'blue'}}
 )
 
-let my_config = (
+# $my_config.color_config.filesize = {|e| 
+# 	if $e == 0b {
+# 		'white'
+# 	} else if $e < 1mb {
+# 		'cyan'
+# 	} else if $e < 1gb {
+# 		'cyan_bold'
+# 	} else {
+# 		'blue'
+# 	}
+# }
+
+$my_config = (
 	$my_config 
 	| upsert table.trim.wrapping_try_keep_words false
 	| upsert color_config $my_color_config 
@@ -51,6 +64,9 @@ let hooks = {
       	{|before, after| 
       		try {print (ls | sort-by -i type name | grid -c)}      		
       	}
+      	{|before, after|
+      		zoxide add -- $env.PWD
+      	}
       ]
     }
     display_output: {
@@ -58,13 +74,10 @@ let hooks = {
     }
   }
 
-	  # let-env LAST_OUTPUT = $in;
-      # print ($env.LAST_OUTPUT | table);
-
-let my_config = ($my_config | upsert hooks $hooks)
+$my_config = ($my_config | upsert hooks $hooks)
 
 #restoring menus
-   let alias_menu = {
+let alias_menu = {
        name: alias_menu
        only_buffer_difference: false
        marker: "👀 "
@@ -108,7 +121,7 @@ let menus = (
 	}
 )
 
-let my_config = ($my_config | upsert "menus" $menus)
+$my_config = ($my_config | upsert "menus" $menus)
 
 #restoring keybinds
 ##alias
@@ -176,7 +189,7 @@ let keybindings = (
 	}
 )
 
-let my_config = ($my_config | upsert "keybindings" $keybindings)
+$my_config = ($my_config | upsert "keybindings" $keybindings)
 
 
 ##update right prompt
@@ -213,7 +226,7 @@ let keybindings = (
 	}
 )
 
-let my_config = ($my_config | upsert "keybindings" $keybindings)
+$my_config = ($my_config | upsert "keybindings" $keybindings)
 
 ##insert new line in terminal
 let insert_newline = (
@@ -246,7 +259,7 @@ let keybindings = (
 	}
 )
 
-let my_config = ($my_config | upsert "keybindings" $keybindings)
+$my_config = ($my_config | upsert "keybindings" $keybindings)
 
 #restoring table_trim
 let tableTrim = {
@@ -255,7 +268,7 @@ let tableTrim = {
     truncating_suffix: "❱" #...
   }
 
-let my_config = ($my_config | upsert table.trim $tableTrim)
+$my_config = ($my_config | upsert table.trim $tableTrim)
 
 #updating $env.config
 let-env config = $my_config  
