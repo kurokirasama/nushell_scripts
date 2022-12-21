@@ -22,7 +22,7 @@ export def "7z max" [
   # 7z max filename * "-v3g -sdel"
 ] {
   if ($rest | is-empty) {
-    echo-r "no files to compress specified"
+    return-error "no files to compress specified"
   } else if ($delete | is-empty) or (not $delete) {
     7z a -t7z -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" $rest
   } else {
@@ -217,7 +217,7 @@ export def join-pdfs [
   ...rest: #list of pdf files to concatenate
 ] {
   if ($rest | is-empty) {
-    echo-r "not enough pdfs provided"
+    return-error "not enough pdfs provided"
   } else {
     pdftk $rest cat output output.pdf
     echo-g "pdf merged in output.pdf"
@@ -301,7 +301,7 @@ export def mk-anime [] {
   try {
     get-files
   } catch {
-    echo-r "no files found"
+    return-error "no files found"
     return
   }
   | get name 

@@ -16,7 +16,7 @@ export def nu-crypt [
 			gpg --output $output_file --quiet --decrypt $file
 		}
 	} else {
-		echo-r "missing option -d or -f!"
+		return-error "missing option -d or -f!"
 	} 	
 }
 
@@ -29,7 +29,7 @@ export def open-credential [file?] {
 #save credentials
 export def save-credential [content:string,file:string] {
 	if ($file | is-empty) or ($content | is-empty) {
-		echo-r "missing arguments!"
+		return-error "missing arguments!"
 		return
 	}
 

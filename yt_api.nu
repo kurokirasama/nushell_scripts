@@ -77,10 +77,10 @@ export def ytm [
 
           }
       } else {
-        echo-r "artist not found!"
+        return-error "artist not found!"
       }    
     } else {
-      echo-r "playlist not found!"
+      return-error "playlist not found!"
     }
   }
 }
@@ -139,7 +139,7 @@ export def "ytm online" [
           bash -c $"mpv --msg-level=all=status --no-resume-playback --no-video --input-conf=($mpv_input) ($song.item.url)"
         }    
     } else {
-      echo-r "playlist not found!"
+      return-error "playlist not found!"
     }
   }
 }
@@ -480,7 +480,7 @@ export def "yt-api verify-token" [] {
     yt-api get-token 
     #yt-api refresh-token
   } else if ($response | is-column error) and ($response | get error  | get code) == 403 {
-    echo-r "youtube api quota excedeed!"
+    return-error "youtube api quota excedeed!"
   }
 }
 

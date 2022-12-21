@@ -35,7 +35,7 @@ export def "media trans-sub" [file?] {
           let translated = ($fixed_line | trans)
 
           if $translated =~ "error:" {
-            echo-r $"error while translating: ($translated)"
+            return-error $"error while translating: ($translated)"
             return
           } else {
             $translated | ansi strip | save --append $new_file
@@ -59,7 +59,7 @@ export def "media trans-sub" [file?] {
           let translated = ($fixed_line | trans)
 
           if $translated =~ "error:" {
-            echo-r $"error while translating: ($translated)"
+            return-error $"error while translating: ($translated)"
             return
           } else {
             $translated | ansi strip | save --append $new_file
@@ -104,7 +104,7 @@ export def "media sub-sync" [
 
     rm output.srt | ignore
   } else {
-    echo-r $"subtitle file ($file) doesn't exist in (pwd-short)"
+    return-error $"subtitle file ($file) doesn't exist in (pwd-short)"
   }
 }
 
@@ -261,7 +261,7 @@ export def "media to" [
       if $n_files == $aacs {
         echo-g $"audio conversion to ($to) done"
       } else {
-        echo-r $"audio conversion to ($to) done, but something might be wrong"
+        return-error $"audio conversion to ($to) done, but something might be wrong"
       }
     }
   #to mp4
@@ -294,7 +294,7 @@ export def "media to" [
       if $n_files == $aacs {
         echo-g $"video conversion to mp4 done"
       } else {
-        echo-r $"video conversion to mp4 done, but something might be wrong"
+        return-error "video conversion to mp4 done, but something might be wrong"
       }
     }
   }
@@ -433,7 +433,7 @@ export def "media compress-video" [
       }
     }
   } else {
-    echo-r $"no files found..."
+    return-error "no files found..."
   }
 }
 
@@ -537,7 +537,7 @@ export def "media myt" [file?, --reverse(-r)] {
 #delete non wanted media in mps (youtube download folder)
 export def "media delete-mps" [] {
   if $env.MY_ENV_VARS.mps !~ $env.PWD {
-    echo-r "wrong directory to run this"
+    return-error "wrong directory to run this"
   } else {
      le
      | where type == "file" and ext !~ "mp4|mkv|webm|part" 

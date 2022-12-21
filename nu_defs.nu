@@ -691,9 +691,9 @@ export def send-gmail [
   let inp = if ($in | is-empty) { "" } else { $in | into string }
 
   if ($body | is-empty) and ($inp | is-empty) {
-    echo-r "body unexport defined!!"
+    return-error "body unexport defined!!"
   } else if not (($from | str contains "@") and ($to | str contains "@")) {
-    echo-r "missing @ in email-from or email-to!!"
+    return-error "missing @ in email-from or email-to!!"
   } else {
     let signature_file = (
       switch $from {
@@ -825,7 +825,7 @@ export def set-screen [
       "right": { xrandr --output HDMI-1-1 --auto --right-of eDP },
       "left": { xrandr --output HDMI-1-1 --auto --left-of eDP }
     } { 
-      "otherwise": { echo-r "Side argument should be either right or left" }
+      "otherwise": { return-error "Side argument should be either right or left" }
     }
   } else {
     switch $side {
@@ -844,7 +844,7 @@ export def set-screen [
         }
       }
     } { 
-      "otherwise": { echo-r "Side argument should be either right or left" }
+      "otherwise": { return-error "Side argument should be either right or left" }
     }
   }
 
@@ -964,6 +964,11 @@ export def "ansi strip-table" [] {
 export def my-pdflatex [file?] {
   let tex = if ($file | is-empty) {$in | get name} else {$file}
   texfot pdflatex -interaction=nonstopmode -synctex=1 ($tex | path parse | get stem)
+}
+
+#generate error output
+export def return-error [msg] {
+  error make -u {msg: $"(echo-r $msg)"}
 }
 
 ## appimages

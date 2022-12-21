@@ -218,7 +218,7 @@ export def "apps-update zoom" [] {
   )
 
   if ($release_url | length) == 0 {
-    echo-r "no releases found this year"
+    return-error "no releases found this year"
     return
   }
 

@@ -1,7 +1,7 @@
 #get bitly short link
 export def bitly [longurl] {
   if ($longurl | is-empty) {
-    echo-r "no url provided"
+    return-error "no url provided!"
   } else {
     let bitly_credential = open-credential ([$env.MY_ENV_VARS.credentials "bitly_token.json.asc"] | path join)
     let Accesstoken = ($bitly_credential | get token)
@@ -38,8 +38,7 @@ export def trans [
 ] {
   let search = if ($text | is-empty) {$in} else {$text}
   if ($search | is-empty) {
-    echo-r "error: no search query provided!"
-    return
+    return-error "no search query provided!"
   } 
   
   let trans_credential = open-credential ([$env.MY_ENV_VARS.credentials "mymemory_token.json.asc"] | path join)
@@ -60,20 +59,19 @@ export def trans [
   if $status == 200 {
     let quota = ($response | get quotaFinished)
     if $quota {
-      echo-r "error: word quota limit excedeed!"
-      return
+      return-error "error: word quota limit excedeed!"
     }
   
     $translated
   } else {
-    echo-r $"error: bad request ($status)!"
+    return-error $"error: bad request ($status)!"
   }
 }
 
 #get rebrandly short link
 export def "rebrandly get" [longurl] {
  if ($longurl | is-empty) {
-    echo-r "no url provided"
+    return-error "no url provided"
   } else {
     let credential = open-credential ([$env.MY_ENV_VARS.credentials "credential_rebrandly.json.asc"] | path join)
     let api_key = ($credential | get api_key)
@@ -92,7 +90,7 @@ export def "rebrandly get" [longurl] {
 #list rebrandly last 25 short links
 export def "rebrandly list" [longurl="www.google.com"] {
  if ($longurl | is-empty) {
-    echo-r "no url provided"
+    return-error "no url provided"
   } else {
     let credential = open-credential ([$env.MY_ENV_VARS.credentials "credential_rebrandly.json.asc"] | path join)
     let api_key = ($credential | get api_key)
