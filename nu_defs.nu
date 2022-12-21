@@ -312,8 +312,10 @@ export def open2 [file?,--raw] {
   let file = if ($file | is-empty) {$in | get name | get 0} else {$file}
   let extension = ($file | path parse | get extension)
 
-  if ($extension =~ "md|R|c|Rmd|nu|m") or ($extension | is-empty) {
+  if ($extension =~ "md|R|c|Rmd|m") or ($extension | is-empty) {
     bat $file
+  } else if $extension =~ "nu" {
+    open $file | nu-highlight
   } else {
     if $raw {
       open --raw $file
@@ -794,7 +796,7 @@ export def matlab-cli [--ubb(-b)] {
 
 #create dir and cd into it
 export def-env mkcd [name: path] {
-  cd (mkdir $name -s | first)
+  cd (mkdir $name -v | first)
 }
 
 #backup sublime settings
