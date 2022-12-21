@@ -261,6 +261,43 @@ let keybindings = (
 
 $my_config = ($my_config | upsert "keybindings" $keybindings)
 
+##insert last argument
+let insert_last = (
+	{
+        name: insert_last_argument
+        modifier: alt
+        keycode: char_i
+        mode: emacs
+        event: [{  edit: InsertString,
+            	  value: "!$"
+
+          	   }
+               { send: Enter }]
+    }
+)
+
+let alias_menu_row = (
+	if ($keybindings | any {|row| $row.name == insert_last}) {
+		for $row in 0..(($keybindings | length) - 1) {
+			if ($keybindings | get $row | get name) == insert_last {
+				$row
+			}
+		}
+	} else {
+	-1
+	} 
+)
+
+let keybindings = (
+	if $alias_menu_row == -1 {
+		$keybindings | append $insert_last
+	} else {
+		$keybindings | drop nth ($alias_menu_row | get 0) | append $insert_last
+	}
+)
+
+$my_config = ($my_config | upsert "keybindings" $keybindings)
+
 #restoring table_trim
 let tableTrim = {
     methodology: truncating, # wrapping
