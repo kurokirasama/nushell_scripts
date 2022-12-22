@@ -349,6 +349,8 @@ export def rm-empty-dirs [] {
   | rm-pipe
 }
 
+#here because they are needed in this file
+
 #green echo
 export def echo-g [string:string] {
   echo $"(ansi -e { fg: '#00ff00' attr: b })($string)(ansi reset)"
@@ -357,4 +359,42 @@ export def echo-g [string:string] {
 #red echo
 export def echo-r [string:string] {
   echo $"(ansi -e { fg: '#ff0000' attr: b })($string)(ansi reset)"
+}
+
+#switch-case like instruction
+export def switch [
+  var                #input var to test
+  cases: record      #record with all cases
+  otherwise?: record #record code for otherwise
+  #
+  # Example:
+  # let x = "3"
+  # switch $x {
+  #   1: { echo "you chose one" },
+  #   2: { echo "you chose two" },
+  #   3: { echo "you chose three" }
+  # }
+  #
+  # let x = "4"
+  # switch $x {
+  #   1: { echo "you chose one" },
+  #   2: { echo "you chose two" },
+  #   3: { echo "you chose three" }
+  # } { otherwise: { echo "otherwise" }}
+  #
+] {
+  if ($cases | is-column $var) {
+    $cases 
+    | get $var 
+    | do $in
+  } else if not ($otherwise | is-empty) {
+    $otherwise 
+    | get "otherwise" 
+    | do $in
+  }
+}
+
+#verify if a column exist within a table
+export def is-column [name] { 
+  $name in ($in | columns) 
 }

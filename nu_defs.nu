@@ -122,39 +122,6 @@ export def left_prompt [] {
   }
 }
 
-#switch-case like instruction
-export def switch [
-  var                #input var to test
-  cases: record      #record with all cases
-  otherwise?: record #record code for otherwise
-  #
-  # Example:
-  # let x = "3"
-  # switch $x {
-  #   1: { echo "you chose one" },
-  #   2: { echo "you chose two" },
-  #   3: { echo "you chose three" }
-  # }
-  #
-  # let x = "4"
-  # switch $x {
-  #   1: { echo "you chose one" },
-  #   2: { echo "you chose two" },
-  #   3: { echo "you chose three" }
-  # } { otherwise: { echo "otherwise" }}
-  #
-] {
-  if ($cases | is-column $var) {
-    $cases 
-    | get $var 
-    | do $in
-  } else if not ($otherwise | is-empty) {
-    $otherwise 
-    | get "otherwise" 
-    | do $in
-  }
-}
-
 #short help
 export def ? [...search] {
   if ($search | is-empty) {
@@ -664,11 +631,6 @@ export def check-link [link?,timeout?:int] {
   } else {
     not (do -i { fetch $link -t $timeout} | is-empty)
   }
-}
-
-#verify if a column exist within a table
-export def is-column [name] { 
-  $name in ($in | columns) 
 }
 
 #send email via Gmail with signature files (posfix configuration required)
