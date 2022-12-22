@@ -195,19 +195,7 @@ export def get-devices [
     | where addrtype =~ mac  
     | reject addrtype 
     | rename mac name 
-  )
-
-  let macs_n_names = (
-    $macs_n_names
-    | select mac
-    | into df 
-    | append (
-        $macs_n_names 
-        | get name 
-        | wrap name 
-        | into df 
-      )
-    | into nu
+    | default null name
   )
 
   let devices = ( $ips | merge $macs_n_names )
