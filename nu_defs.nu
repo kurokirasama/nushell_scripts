@@ -491,10 +491,10 @@ export def nu-sloc [] {
 export def-env cd-pipe [] {
   let input = $in
   cd (
-      if ($input | path type) == file {
-          ($input | path dirname)
+      if ($input | path type -c [name] | get type) == file {
+          ($input | path expand | path dirname)
       } else {
-          $input
+          $input | get name
       }
   )
 }
