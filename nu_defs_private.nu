@@ -57,7 +57,7 @@ export def ubb_announce [message] {
 }  
 
 #upload weekly videos and post to discord
-export def up2ubb [year = 2022, sem = 01] {
+export def up2ubb [year = 2022, sem = 02] {
   let sem = ([($year | into string) "-" ($sem | into string | str lpad -l 2 -c '0')] | str collect)
 
   let mounted = ("~/gdrive/VClasses/" | path expand | path exists)
