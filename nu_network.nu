@@ -143,90 +143,96 @@ export def get-ips [
 }
 
 #get devices connected to network
-# export def get-devices [
-#   device = "wlo1" #wlo1 for wifi (export default), eno1 for lan
-#   #
-#   #It needs nmap2json, installable (ubuntu at least) via
-#   #
-#   #sudo gem install nmap2json
-# ] {
-#   let ipinfo = (
-#     if (? | where name == pnet | length) > 0 {
-#       pnet 
-#       | where name == ($device) 
-#       | get 0 
-#       | get ips 
-#       | where type == v4 
-#       | get 0 
-#       | get addr
-#       | str replace '(?P<nums>\d+/)' '0/'
-#     } else {
-#       ip -json add 
-#       | from json 
-#       | where ifname =~ $"($device)" 
-#       | select addr_info 
-#       | flatten 
-#       | find -v inet6 
-#       | flatten 
-#       | get local prefixlen 
-#       | flatten 
-#       | str collect '/' 
-#       | str replace '(?P<nums>\d+/)' '0/'
-#     }
-#   )
+export def get-devices [
+  device = "wlo1" #wlo1 for wifi (export default), eno1 for lan
+  #
+  #It needs nmap2json, installable (ubuntu at least) via
+  #
+  #sudo gem install nmap2json
+] {
+  let ipinfo = (
+    if (? | where name == pnet | length) > 0 {
+      pnet 
+      | where name == ($device) 
+      | get 0 
+      | get ips 
+      | where type == v4 
+      | get 0 
+      | get addr
+      | str replace '(?P<nums>\d+/)' '0/'
+    } else {
+      ip -json add 
+      | from json 
+      | where ifname =~ $"($device)" 
+      | select addr_info 
+      | flatten 
+      | find -v inet6 
+      | flatten 
+      | get local prefixlen 
+      | flatten 
+      | str collect '/' 
+      | str replace '(?P<nums>\d+/)' '0/'
+    }
+  )
 
-#   let nmap_output = (sudo nmap -oX nmap.xml -sn $ipinfo --max-parallelism 10)
+  let nmap_output = (sudo nmap -oX nmap.xml -sn $ipinfo --max-parallelism 10)
 
-#   let nmap_output = (nmap2json convert nmap.xml | from json | get nmaprun | get host | get address)
+  let nmap_output = (nmap2json convert nmap.xml | from json | get nmaprun | get host | get address)
 
-#   let this_ip = ($nmap_output | last | get addr)
+  let this_ip = ($nmap_output | last | get addr)
 
-#   let ips = ($nmap_output 
-#     | drop 1 
-#     | flatten 
-#     | where addrtype =~ ipv4 
-#     | select addr 
-#     | rename ip
-#   )
+  let ips = ($nmap_output 
+    | drop 1 
+    | flatten 
+    | where addrtype =~ ipv4 
+    | select addr 
+    | rename ip
+  )
   
-#   let macs_n_names = ($nmap_output 
-#     | drop 1 
-#     | flatten 
-#     | where addrtype =~ mac 
-#     | select addr vendor 
-#     | rename mac name
-#     | update name {|f|
-#         if ($f.name | is-empty) {
-#           "Unknown"
-#         } else {
-#           $f.name
-#         }
-#       }
-#   )
+  let macs_n_names = (
+    $nmap_output 
+    | flatten 
+    | where addrtype =~ mac  
+    | reject addrtype 
+    | rename mac name 
+  )
 
-#   let devices = ( $ips | merge $macs_n_names )
+  let macs_n_names = (
+    $macs_n_names
+    | select mac
+    | into df 
+    | append (
+        $macs_n_names 
+        | get name 
+        | wrap name 
+        | into df 
+      )
+    | into nu
+  )
 
-#   let known_devices = open ([$env.MY_ENV_VARS.linux_backup "known_devices.csv"] | path join)
-#   let known_macs = ($known_devices | get mac | str upcase)
+  let devices = ( $ips | merge $macs_n_names )
 
-#   let known = ($devices | each {|it| any $it.mac in $known_macs} | wrap known)
+  let known_devices = open ([$env.MY_ENV_VARS.linux_backup "known_devices.csv"] | path join)
+  let known_macs = ($known_devices | get mac | str upcase)
 
-#   let devices = ($devices | merge $known)
+  let known = ($devices | each {|it| $it.mac in $known_macs} | wrap known)
 
-#   let aliases = (
-#     $devices 
-#     | each {|row| 
-#         if $row.known {
-#           $known_devices | find $row.mac | get alias
-#         } else {
-#           " "
-#         }
-#       } 
-#     | flatten 
-#     | wrap alias
-#   )
+  let devices = ($devices | merge $known)
+
+  let aliases = (
+    $devices 
+    | each {|row| 
+        if $row.known {
+          $known_devices | find $row.mac | get alias
+        } else {
+          " "
+        }
+      } 
+    | flatten 
+    | wrap alias
+  )
    
-#   rm nmap.xml | ignore 
+  rm nmap.xml | ignore 
 
-#   $devices | merge $aliases
-# }
+  $devices | merge $aliases
+}
