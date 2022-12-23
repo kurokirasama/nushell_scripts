@@ -231,6 +231,7 @@ export def "media split-video" [
 export def "media to" [
   to:string #destination format (aac, mp3 or mp4)
   --copy(-c)#copy video codec and audio to mp3 (for mp4 only)
+  --mkv(-m) #include mkv files (for mp4 only)
   #
   #Examples (make sure there are only compatible files in all subdirectories)
   #media-to mp4 (avi to mp4)
@@ -278,9 +279,9 @@ export def "media to" [
 
     if $n_files > 0 {
       if $copy {
-        bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta myffmpeg -n -loglevel 0 -i {} -c:v copy -c:a mp3 {.}.mp4'
+        bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v copy -c:a mp3 {.}.mp4'
       } else {
-        bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta myffmpeg -n -loglevel 0 -i {} -c:v libx264 -c:a aac {.}.mp4'
+        bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v libx264 -c:a aac {.}.mp4'
       }
 
       let aacs = (ls **/* 
@@ -292,9 +293,43 @@ export def "media to" [
       )
 
       if $n_files == $aacs {
-        echo-g $"video conversion to mp4 done"
+        echo-g $"avi video conversion to mp4 done"
       } else {
         return-error "video conversion to mp4 done, but something might be wrong"
+      }
+    }
+
+    if $mkv {
+      let n_files = (ls **/*
+        | insert "ext" { 
+            $in.name | path parse | get extension
+          }  
+        | where ext =~ "avi"
+        | length
+      )
+
+      echo-g $"($n_files) mkv files found..."
+
+      if $n_files > 0 {
+        if $copy {
+          bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v copy -c:a mp3 -c:s mov_text {.}.mp4'
+        } else {
+          bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v libx264 -c:a aac -c:s mov_text {.}.mp4'
+        }
+
+        let aacs = (ls **/* 
+          | insert "ext" { 
+              $in.name | path parse | get extension
+            }  
+          | where ext =~ "mp4"
+          | length
+        )
+
+        if $n_files == $aacs {
+          echo-g $"mkv video conversion to mp4 done"
+        } else {
+          return-error "video conversion to mp4 done, but something might be wrong"
+        }
       }
     }
   }
@@ -423,13 +458,13 @@ export def "media compress-video" [
       if not $mkv {
         bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compressed_by_me.mp4"
       } else {
-        bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compressed_by_me.mp4"
+        bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:s mov_text {.}_compressed_by_me.mp4"
       }
     } else {
       if not $mkv {
         bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compressed_by_me.mp4"
       } else {
-        bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compressed_by_me.mp4"
+        bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:s mov_text {.}_compressed_by_me.mp4"
       }
     }
   } else {
