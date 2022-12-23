@@ -414,6 +414,7 @@ export def "media merge-videos-auto" [
 
 #reduce size of video files recursively, to mp4 x265
 export def "media compress-video" [
+  --file(-f):string         #single file
   --level(-l):int           #level of recursion (-maxdepth in ^find, minimun = 1).
   --crf(-c) = 28            #compression rate, range 0-51, sane range 18-28. Default 28.
   --vcodec(-v) = "libx265"  #video codec: libx264 | libx265 (default).
@@ -433,42 +434,57 @@ export def "media compress-video" [
   #
   #to delete original files
 ] {
-  let n_files = (
-    if ($level | is-empty) {
-      if not $mkv {
-        bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*'"
+  if ($file | is-empty) {
+    let n_files = (
+      if ($level | is-empty) {
+        if not $mkv {
+          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*'"
+        } else {
+          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*'"
+        }
       } else {
-        bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*'"
+        if not $mkv {
+          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*'"
+        } else {
+          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*'"
+        }
+      }
+      | lines 
+      | length
+    )
+
+    if $n_files > 0 {
+      echo-g $"($n_files) video files found..."
+
+      if ($level | is-empty) {
+        if not $mkv {
+          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compressed_by_me.mp4"
+        } else {
+          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:s mov_text {.}_compressed_by_me.mp4"
+        }
+      } else {
+        if not $mkv {
+          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compressed_by_me.mp4"
+        } else {
+          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:s mov_text {.}_compressed_by_me.mp4"
+        }
       }
     } else {
-      if not $mkv {
-        bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*'"
-      } else {
-        bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*'"
-      }
-    }
-    | lines 
-    | length
-  )
-
-  if $n_files > 0 {
-    echo-g $"($n_files) video files found..."
-
-    if ($level | is-empty) {
-      if not $mkv {
-        bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compressed_by_me.mp4"
-      } else {
-        bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:s mov_text {.}_compressed_by_me.mp4"
-      }
-    } else {
-      if not $mkv {
-        bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) {.}_compressed_by_me.mp4"
-      } else {
-        bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:s mov_text {.}_compressed_by_me.mp4"
-      }
+      return-error "no files found..."
     }
   } else {
-    return-error "no files found..."
+    let ext = ($file | path parse | get extension)
+    let name = ($file | path parse | get stem)
+    switch $ext {
+      "avi" : {myffmpeg -i $file -vcodec $vcodec -crf $crf $"($name)_compressed_by_me.mp4"},
+      "mkv" : {
+        try {
+          myffmpeg -i $file -vcodec $vcodec -crf $crf -c:s mov_text $"($name)_compressed_by_me.mp4"
+        } catch {
+          myffmpeg -i $file -vcodec $vcodec -c:s mov_text $"($name)_compressed_by_me.mp4"
+        }
+      }
+    }
   }
 }
 
