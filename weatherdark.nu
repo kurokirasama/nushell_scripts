@@ -270,18 +270,18 @@ def get_weather_for_prompt [loc] {
 
 def get_weather_icon [icon: string] {
     switch $icon {
-     "clear-day": {"☀️"},
-     "clear-night": {"🌑"},
-     "rain": {"🌧️"},
-     "snow": {"❄️"},
-     "sleet": {🌨️},
-     "wind": {"🌬️"},
-     "fog": {"🌫"},
-     "cloudy": {"☁️"},
-     "partly-cloudy-day": {"🌤️"},
-     "partly-cloudy-night": {"🌑☁️"},
-     "hail": {🌨},
-     "thunderstorm": {"🌩️"},
-     "tornado": {"🌪️"}
+     "clear-day": {(char -u f185)},
+     "clear-night": {(char -u f186)},
+     "rain": {(char -u e318)},
+     "snow": {(char -u fa97)},
+     "sleet": {(char -u e3ad)},
+     "wind": {(char -u fa9c)},
+     "fog": {(char -u fa90)},
+     "cloudy": {(char -u e312)},
+     "partly-cloudy-day": {(char -u e21d)},
+     "partly-cloudy-night": {(char -u e226)},
+     "hail": {(char -u fa91)},
+     "thunderstorm": {(char -u e31d)},
+     "tornado": {(char -u e351)}
     }
 }
