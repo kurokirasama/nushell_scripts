@@ -44,7 +44,19 @@ let-env PROMPT_COMMAND = { [
   (ansi reset)] | str collect
 }
 
-let-env PROMPT_COMMAND_RIGHT = { $"(ansi -e { fg: '#00ff00'})(char -u e0b2)(ansi reset)(ansi -e { fg: '#000000' bg: '#00ff00'})(get_weather_by_interval 30min)(char -u e0b3)(($env.CMD_DURATION_MS | into decimal) / 1000 | math round -p 2)s(ansi reset)" }
+let-env PROMPT_COMMAND_RIGHT = { 
+  if (term size).columns >= 80 {
+    [$"(ansi -e { fg: '#00ff00'})"
+    $"(char -u e0b2)"
+    $"(ansi reset)"
+    $"(ansi -e { fg: '#000000' bg: '#00ff00'})"
+    $"(get_weather_by_interval 30min)"
+    $"(char -u e0b3)"
+    $"(($env.CMD_DURATION_MS | into decimal) / 1000 | math round -p 2)s"
+    $"(ansi reset)"]
+    | str collect
+  } 
+}
 
 let-env PROMPT_INDICATOR = { [
   (if $env.LAST_EXIT_CODE == 0 or ($env.LAST_EXIT_CODE | is-empty) {
