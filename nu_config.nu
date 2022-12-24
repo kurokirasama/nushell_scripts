@@ -2,24 +2,23 @@
 mut my_config = ($env.config)
 
 #restoring custom color config
-let my_color_config = ($my_config 
+mut my_color_config = ($my_config 
 	| get color_config 
 	| upsert shape_internalcall { fg: "##00b7ff" attr: b} 
 	| upsert shape_external "#00b7ff"
-	# | upsert filesize {|e| if $e == 0b {'white'} else if $e < 1mb {'cyan'} else if $e < 1gb {'cyan_bold'} else {'blue'}}
 )
 
-# $my_config.color_config.filesize = {|e| 
-# 	if $e == 0b {
-# 		'white'
-# 	} else if $e < 1mb {
-# 		'cyan'
-# 	} else if $e < 1gb {
-# 		'cyan_bold'
-# 	} else {
-# 		'blue'
-# 	}
-# }
+$my_color_config.filesize = {|e| 
+	if $e == 0b {
+		'white'
+	} else if $e < 1mb {
+		'cyan'
+	} else if $e < 1gb {
+		'cyan_bold'
+	} else {
+		'blue'
+	}
+}
 
 $my_config = (
 	$my_config 
