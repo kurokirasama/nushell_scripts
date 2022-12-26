@@ -44,15 +44,30 @@ let-env PROMPT_COMMAND = { [
   (ansi reset)] | str collect
 }
 
+##black over green
+# let-env PROMPT_COMMAND_RIGHT = { 
+#   if (term size).columns >= 80 {
+#     [(ansi -e { fg: '#00ff00'})
+#     (char -u e0b2)
+#     (ansi reset)
+#     (ansi -e { fg: '#000000' bg: '#00ff00' attr: b})
+#     $"(get_weather_by_interval 30min)"
+#     (ansi reset)
+#     (ansi -e { fg: '#000000' bg: '#00ff00'})
+#     (char -u e0b3)
+#     $"(($env.CMD_DURATION_MS | into decimal) / 1000 | math round -p 3)s"
+#     (ansi reset)]
+#     | str collect
+#   } 
+# }
+
+##green over black
 let-env PROMPT_COMMAND_RIGHT = { 
   if (term size).columns >= 80 {
-    [(ansi -e { fg: '#00ff00'})
-    (char -u e0b2)
-    (ansi reset)
-    (ansi -e { fg: '#000000' bg: '#00ff00' attr: b})
+    [(ansi -e { fg: '#00ff00' attr: b})
     $"(get_weather_by_interval 30min)"
     (ansi reset)
-    (ansi -e { fg: '#000000' bg: '#00ff00'})
+    (ansi -e { fg: '#00ff00'})
     (char -u e0b3)
     $"(($env.CMD_DURATION_MS | into decimal) / 1000 | math round -p 3)s"
     (ansi reset)]
