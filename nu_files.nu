@@ -52,12 +52,17 @@ export def cp-pipe [
   #Example
   #ls *.txt | first 5 | cp-pipe ~/temp
 ] {
-  get name 
-  | ansi strip
-  | each {|file| 
-      echo-g $"copying ($file)..." 
-      ^cp -r $file ($to | path expand) 
-    } 
+  each {|file| 
+    let name = ($file | get name | ansi strip)
+    let to_file = ([$to $name] | path join | path expand) 
+    let exists = ($to_file | path exists)
+    let filesize = ($exists and ((ls $to_file | get size | get 0) == ($file | get size)))
+
+    if not ($exists and $filesize) {
+      echo-g $"copying ($name)..." 
+      ^cp -r $name ($to | path expand) 
+    }
+  } 
 }
 
 #mv trough pipe to same dir
