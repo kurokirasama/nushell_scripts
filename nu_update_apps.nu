@@ -10,7 +10,7 @@ export def apps-update [] {
   apps-update taskerpermissions
   apps-update lutris #ignore if ppa works again
   apps-update mpris
-  apps-update monocraft -p
+  apps-update monocraft -t ttf
   apps-update chrome
   apps-update earth
   apps-update yandex
@@ -95,7 +95,7 @@ export def github-app-update [
     }
   )
   
-  let exists = ((ls $"*.($file_type)" | find $app | length) > 0)
+  let exists = ((ls | find $app | find $file_type | length) > 0)
 
   if $exists {
     let current_version = (
@@ -177,14 +177,14 @@ export def "apps-update mpris" [] {
 }
   
 #update monocraft font
-export def "apps-update monocraft" [--to_patch(-p)] {
+export def "apps-update monocraft" [--to_patch(-p),--type(-t) = "otf"] {
   let current_version = (
     open --raw ([$env.MY_ENV_VARS.linux_backup Monocraft.json] | path join) 
     | from json 
     | get version
   )
   
-  github-app-update IdreesInc Monocraft -f otf -d $env.MY_ENV_VARS.linux_backup -j
+  github-app-update IdreesInc Monocraft -f $type -d $env.MY_ENV_VARS.linux_backup -j
   
   let new_version = (
     open ([$env.MY_ENV_VARS.linux_backup Monocraft.json] | path join) 
@@ -197,7 +197,7 @@ export def "apps-update monocraft" [--to_patch(-p)] {
       nu ([$env.MY_ENV_VARS.linux_backup "software/appimages/patch-font.nu"] | path join)
     } else {
       echo-g "New version of Monocraft downloaded, now installing..."
-      install-font ([$env.MY_ENV_VARS.linux_backup Monocraft.otf] | path join)
+      install-font ([$env.MY_ENV_VARS.linux_backup (ls $"($env.MY_ENV_VARS.linux_backup)/*.($type)" | sort-by modified | last | get name | ansi strip)] | path join)
     }
   }
 }
