@@ -10,7 +10,7 @@ export def apps-update [] {
   apps-update taskerpermissions
   apps-update lutris #ignore if ppa works again
   apps-update mpris
-  apps-update monocraft
+  apps-update monocraft -p
   apps-update chrome
   apps-update earth
   apps-update yandex
@@ -177,7 +177,7 @@ export def "apps-update mpris" [] {
 }
   
 #update monocraft font
-export def "apps-update monocraft" [] {
+export def "apps-update monocraft" [--to_patch(-p)] {
   let current_version = (
     open --raw ([$env.MY_ENV_VARS.linux_backup Monocraft.json] | path join) 
     | from json 
@@ -192,8 +192,13 @@ export def "apps-update monocraft" [] {
   )
 
   if $current_version != $new_version {
-    echo-g "New version of Monocraft downloaded, now patching nerd fonts..."
-    nu ([$env.MY_ENV_VARS.linux_backup "software/appimages/patch-font.nu"] | path join)
+    if $to_patch {
+      echo-g "New version of Monocraft downloaded, now patching nerd fonts..."
+      nu ([$env.MY_ENV_VARS.linux_backup "software/appimages/patch-font.nu"] | path join)
+    } else {
+      echo-g "New version of Monocraft downloaded, now installing..."
+      install-font ([$env.MY_ENV_VARS.linux_backup Monocraft.otf] | path join)
+    }
   }
 }
 
@@ -482,4 +487,10 @@ export def update-nu-config [] {
 
   open ([$env.MY_ENV_VARS.linux_backup "append_to_config.nu"] | path join) | save --append $nu.config-path
   nu -c $"source-env ($nu.config-path)"
+}
+
+#install font
+export def install-font [file] {
+  cp $file ~/.font
+  fc-cache -fv
 }
