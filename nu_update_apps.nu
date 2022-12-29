@@ -196,8 +196,9 @@ export def "apps-update monocraft" [--to_patch(-p),--type(-t) = "otf"] {
       echo-g "New version of Monocraft downloaded, now patching nerd fonts..."
       nu ([$env.MY_ENV_VARS.linux_backup "software/appimages/patch-font.nu"] | path join)
     } else {
-      echo-g "New version of Monocraft downloaded, now installing..."
-      install-font ([$env.MY_ENV_VARS.linux_backup (ls $"($env.MY_ENV_VARS.linux_backup)/*.($type)" | sort-by modified | last | get name | ansi strip)] | path join)
+      let font = ([$env.MY_ENV_VARS.linux_backup (ls $"($env.MY_ENV_VARS.linux_backup)/*.($type)" | sort-by modified | last | get name | ansi strip)] | path join)
+      echo-g $"New version of Monocraft downloaded, now installing ($font | path parse | get stem)..."
+      install-font $font
     }
   }
 }
@@ -491,6 +492,6 @@ export def update-nu-config [] {
 
 #install font
 export def install-font [file] {
-  cp $file ~/.font
+  cp $file ~/.fonts
   fc-cache -fv
 }
