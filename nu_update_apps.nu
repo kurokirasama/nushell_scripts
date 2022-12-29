@@ -10,7 +10,7 @@ export def apps-update [] {
   apps-update taskerpermissions
   apps-update lutris #ignore if ppa works again
   apps-update mpris
-  apps-update monocraft -t ttf
+  apps-update monocraft -p
   apps-update chrome
   apps-update earth
   apps-update yandex
@@ -177,7 +177,10 @@ export def "apps-update mpris" [] {
 }
   
 #update monocraft font
-export def "apps-update monocraft" [--to_patch(-p),--type(-t) = "otf"] {
+export def "apps-update monocraft" [
+  --to_patch(-p)      #to patch Monocraft.otf, else to use patched ttf
+  --type(-t) = "otf"  #"otf" if -p, else "ttf"
+] {
   let current_version = (
     open --raw ([$env.MY_ENV_VARS.linux_backup Monocraft.json] | path join) 
     | from json 
