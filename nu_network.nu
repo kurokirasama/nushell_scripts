@@ -224,3 +224,16 @@ export def get-devices [
 
   $devices | merge $aliases
 }
+
+#get wifi pass
+export def wifi-pass [] {
+  sudo grep "^psk=" /etc/NetworkManager/system-connections/* 
+  | lines 
+  | split column system-connections/ 
+  | get column2 
+  | each {|row| 
+      $row 
+      | parse "{net}.nmconnection:psk={password}"
+    } 
+  | flatten
+}

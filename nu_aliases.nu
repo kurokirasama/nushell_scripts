@@ -25,7 +25,6 @@ export alias netspeed = nload -u H -U H wlp2s0
 export alias cputemp = tlp-stat -t
 export alias coretemp = (sensors | grep Core)
 export alias batstat = (upower -i /org/freedesktop/UPower/devices/battery_BAT0 | grep -E "state|time|percentage")
-export alias get-wifipass = (sudo grep -hr "^psk=" /etc/NetworkManager/system-connections/ | lines | split row "=" | find -v "psk" | uniq)
 export alias copy = xclip -sel clip
 export alias takephoto = ffmpeg -y -f video4linux2 -s 1280x720 -i /dev/video0 -ss 0:0:2 -frames 1 /home/kira/photo.jpg
 export alias print-list = lpstat -R
