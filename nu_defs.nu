@@ -627,9 +627,17 @@ export def check-link [link?,timeout?:int] {
   let link = if ($link | is-empty) {$in} else {$link}
 
   if ($timeout | is-empty) {
-    not (do -i { fetch $link } | is-empty)
+    try {
+      fetch $link | ignore;true
+    } catch {
+      false
+    }
   } else {
-    not (do -i { fetch $link -t $timeout} | is-empty)
+    try {
+      fetch $link -t $timeout | ignore;true
+    } catch {
+      false
+    }
   }
 }
 
@@ -890,11 +898,6 @@ export def open-link [] {
   | openf
 }
 
-#build-string (temporary, replace all build-string instances by "+" syntax)
-export def build-string [...rest] {
-  $rest | str collect ""
-}
-
 #umount all drives (duf)
 export def umall [user? = $env.USER] {
   duf -json 
@@ -933,6 +936,11 @@ export def my-pdflatex [file?] {
 #generate error output
 export def return-error [msg] {
   error make -u {msg: $"(echo-r $msg)"}
+}
+
+#build-string (temporary, replace all build-string instances by "+" syntax)
+export def build-string [...rest] {
+  $rest | str collect ""
 }
 
 ## appimages
