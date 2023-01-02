@@ -436,16 +436,6 @@ export def "str repeat" [count: int] {
   } 
 }
 
-#string prepend
-export def "str prepend" [toprepend] { 
-  build-string $toprepend $in
-}
-
-#string append
-export def "str append" [toappend] { 
-  build-string $in $toappend
-}
-
 #join 2 lists
 export def union [a: list, b: list] {
   $a 

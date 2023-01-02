@@ -1,3 +1,13 @@
+#string prepend
+export def "str prepend" [toprepend] { 
+  build-string $toprepend $in
+}
+
+#string append
+export def "str append" [toappend] { 
+  build-string $in $toappend
+}
+
 #compress all folders into a separate file and delete them
 export def "7z folders" [--not_delete(-n)] {
   if not $not_delete {
@@ -402,4 +412,16 @@ export def switch [
 #verify if a column exist within a table
 export def is-column [name] { 
   $name in ($in | columns) 
+}
+
+#replicate directory structure to a new location
+export def replicate-tree [to:string] {
+  get-dirs -f
+  | each {|dir|
+      let new_dir = ($dir | get name | str prepend $"($to | path expand)/")
+      if not ($new_dir | path exists) {
+        echo-g $"creating ($new_dir)..."
+        mkdir $new_dir | ignore
+      }
+  }
 }
