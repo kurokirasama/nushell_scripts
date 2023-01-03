@@ -466,7 +466,11 @@ export def "media compress-video" [
         if not $mkv {
           bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_compressed_by_me.mp4"
         } else {
-          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_compressed_by_me.mp4"
+          try {
+            bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_compressed_by_me.mp4"
+          } catch {
+            bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_compressed_by_me.mp4"
+          }
         }
       }
     } else {
