@@ -325,9 +325,10 @@ export def openg [file?] {
    
   let url = (open $file 
     | lines 
-    | find -i url 
-    | split row "URL=" 
-    | get 0
+    | drop nth 0 
+    | parse "{field}={value}" 
+    | table2record 
+    | get url
   )
 
   $url | copy

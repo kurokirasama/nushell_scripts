@@ -3,8 +3,16 @@
 # - Air polution condition using airvisual api
 # - Street address using google maps api
 # - Version 3.0
-export def-env weatherds [] {
-    get_weather (get_location)
+export def-env weatherds [--home(-h),--ubb(-b)] {
+    if not $home {
+        if not $ubb {
+            get_weather (get_location)
+        } else {
+            get_weather (get_location -b)
+        }
+    } else {
+        get_weather (get_location -h)
+    }
 } 
 
 # Get weather for right command prompt
@@ -54,7 +62,7 @@ def locations [] {
     ]
 }
 
-def get_location [] {
+def get_location [--home(-h),--ubb(-b)] {
     let wifi = (iwgetid -r)
     let online = ( 
         locations 
@@ -67,8 +75,10 @@ def get_location [] {
     let table = (locations | merge $online | find true)
 
     # if ip address in your home isn't precise, you can force a location
-    if ($wifi =~ $env.MY_ENV_VARS.home_wifi) or ($table | length) == 0 { 
+    if ($wifi =~ $env.MY_ENV_VARS.home_wifi) or ($table | length) == 0 or $home { 
         "-36.877568,-73.148715" 
+    } else if $ubb or ($wifi =~ "wifi-ubb") {
+        "-36.821795,-73.014665" 
     } else { 
         let loc_json = (fetch ($table | select 0).0.location)
         if ($loc_json | is-column lat) {
@@ -82,7 +92,7 @@ def get_location [] {
 # dark sky
 def fetch_api [loc] {
     let apiKey = (
-        open-credential ([$env.MY_ENV_VARS.credentials "credentials.dark_sky.json.asc"] 
+        open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.dark_sky.json.asc"] 
             | path join) 
         | get api_key
     )
@@ -97,7 +107,7 @@ def fetch_api [loc] {
 # street address
 def get_address [loc] {
     let mapsAPIkey = (
-        open-credential ([$env.MY_ENV_VARS.credentials "googleAPIkeys.json.asc"] 
+        open-credential -u ([$env.MY_ENV_VARS.credentials "googleAPIkeys.json.asc"] 
             | path join) 
         | get general
     )
@@ -141,7 +151,7 @@ def uv_class [uvIndex] {
 # air pollution
 def get_airCond [loc] {
     let apiKey = (
-        open-credential ([$env.MY_ENV_VARS.credentials "credentials.air_visual.json.asc"] 
+        open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.air_visual.json.asc"] 
             | path join) 
         | get api_key
     )

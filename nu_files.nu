@@ -57,7 +57,8 @@ export def rm-pipe [] {
 
 #cp trough pipe to same dir
 export def cp-pipe [
-  to: string#target directory
+  to: string         #target directory
+  --no_overwrite(-n) #if filename exists, it creates a copy
   #
   #Example
   #ls *.txt | first 5 | cp-pipe ~/temp
@@ -68,9 +69,26 @@ export def cp-pipe [
     let exists = ($to_file | path exists)
     let filesize = ($exists and ((ls $to_file | get size | get 0) == ($file | get size)))
 
-    if not ($exists and $filesize) {
-      echo-g $"copying ($name)..." 
-      ^cp -r $name ($to | path expand) 
+    if not $no_overwrite {
+      if not ($exists and $filesize) {
+        echo-g $"copying ($name)..." 
+        ^cp -r $name ($to | path expand) 
+      }
+    } else {
+      if not $exists {
+        echo-g $"copying ($name)..." 
+        ^cp -r $name ($to | path expand) 
+      } else {
+        if ($file | get type) == "file" {
+          let ext = ($to_file | path parse | get extension)
+          let stem = ($to_file | path parse | get stem)
+          let n_files = (ls $"($stem)*" | length)
+          let to_file2 = ([$to (build-string $stem "_" ($n_files + 1) "." $ext)] | path join | path expand)
+
+          echo-g $"copying ($name) to ($to_file2)..."
+          ^cp $name $to_file2
+        }
+      }
     }
   } 
 }
