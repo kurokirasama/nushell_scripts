@@ -460,7 +460,7 @@ export def re-enamerate [prefix] {
     
     $new_name = ([$prefix "_" ($index | into string | str lpad -l $n_digits -c "0") "." ($info | get extension)] | str join)
 
-    if not ($new_name in $not_move) {
+    if not ($name in $not_move) {
       while ($new_name | path expand | path exists) {
         $not_move = ($not_move | append $new_name)
         $index = $index + 1
