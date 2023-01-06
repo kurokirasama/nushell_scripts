@@ -443,3 +443,31 @@ export def replicate-tree [to:string] {
       }
   }
 }
+
+#rename all files starting with certain prefix, enumerating them
+export def re-enamerate [prefix] {
+  let files = (get-files | where name =~ $"^($prefix)")
+  let n_files = ($files | length)
+  let n_digits = (($n_files | math log 10) + 1 | math floor | into int)
+
+  mut index = 0
+  mut not_move = []
+  mut new_name = ""
+
+  for i in 0..($n_files - 1) {
+    let name = ($files | get $i | get name)
+    let info = ($name | path parse)
+    
+    $new_name = ([$prefix "_" ($index | into string | str lpad -l $n_digits -c "0") "." ($info | get extension)] | str join)
+
+    if not ($new_name in $not_move) {
+      while ($new_name | path expand | path exists) {
+        $not_move = ($not_move | append $new_name)
+        $index = $index + 1
+        $new_name = ([$prefix "_" ($index | into string | str lpad -l $n_digits -c "0") "." ($info | get extension)] | str join)
+      }
+
+      mv $name $new_name | ignore
+    }
+  }
+}
