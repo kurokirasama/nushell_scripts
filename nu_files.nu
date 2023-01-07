@@ -259,9 +259,11 @@ export def join-pdfs [
 
 #create media database for downloads and all mounted disks
 export def autolister [user = $env.USER] {
+  let host = (sys | get host | get hostname)
+
   echo-g "listing Downloads..."
   cd ~/Downloads
-  lister Downloads
+  lister ("Downloads" + "_" + $host)
 
   let drives = try {
     duf -json 

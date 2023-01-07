@@ -1,10 +1,11 @@
 #!/usr/bin/env nu
 
 def main [user = "kira"] {
+	let host = (sys | get host | get hostname)
 
 	echo-g "listing Downloads..."
 	cd ~/Downloads
-	lister Downloads
+	lister ("Downloads" + "_" + $host)
 
 	let drives = try {
 		duf -json 
