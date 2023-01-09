@@ -292,12 +292,33 @@ export def "apps-update earth" [] {
 export def "apps-update yandex" [] {
   cd $env.MY_ENV_VARS.debs
 
-  if (ls *.deb | find yandex | length) > 0 {
-    ls *.deb | find yandex | rm-pipe | ignore
+  let new_date = (
+    fetch http://repo.yandex.ru/yandex-disk/?instant=1 
+    | lines 
+    | find amd64 
+    | get 0 
+    | split row </a> 
+    | last 
+    | str trim 
+    | split row " " 
+    | first 2 
+    | str collect " " 
+    | into datetime
+  )
+
+  let old_date = (open ([$env.MY_ENV_VARS.debs yandex.json] | path join) | get date | into datetime)
+
+  if $old_date < $new_date {
+    if (ls *.deb | find yandex | length) > 0 {
+      ls *.deb | find yandex | rm-pipe | ignore
+    }
+    
+    echo-g "\ndownloading yandex..."
+    aria2c --download-result=hide http://repo.yandex.ru/yandex-disk/yandex-disk_latest_amd64.deb 
+    sudo gdebi -n yandex-disk_latest_amd64.deb 
+  } else {
+    echo-g "yandex already in its latest version!"
   }
-  
-  echo-g "\ndownloading yandex..."
-  aria2c --download-result=hide http://repo.yandex.ru/yandex-disk/yandex-disk_latest_amd64.deb
 }
 
 #update sejda deb
