@@ -5,15 +5,15 @@ export def apps-update [] {
   apps-update sejda
   apps-update nmap
   apps-update ttyplot
+  apps-update chrome
+  apps-update earth
+  apps-update yandex
   apps-update nyxt
   apps-update pandoc
   apps-update taskerpermissions
   apps-update lutris #ignore if ppa works again
   apps-update mpris
   apps-update monocraft -p
-  apps-update chrome
-  apps-update earth
-  apps-update yandex
 }
 
 #get latest release info in github repo
@@ -135,7 +135,7 @@ export def github-app-update [
         }
       }
     } else {
-      echo-g $"($repo) already in its latest version!"
+      echo-g $"($repo) is already in its latest version!"
     }
 
   } else {
@@ -260,7 +260,7 @@ export def "apps-update zoom" [] {
     | upsert version $last_version 
     | save -f ([$env.MY_ENV_VARS.debs zoom.json] | path join)
   } else {
-    echo-g "zoom already in its latest version!"
+    echo-g "zoom is already in its latest version!"
   }
 }
 
@@ -268,24 +268,59 @@ export def "apps-update zoom" [] {
 export def "apps-update chrome" [] {
   cd $env.MY_ENV_VARS.debs
 
-  if (ls *.deb | find chrome | length) > 0 {
-    ls *.deb | find chrome | rm-pipe | ignore
-  }
+  let new_version = (
+    fetch "https://chromereleases.googleblog.com/2022/#:~:text=Chrome%20Dev%20for%20Android%20Update&text=We've%20just%20released%20Chrome,now%20available%20on%20Google%20Play." 
+    | query web -q 'script' 
+    | find "The Stable channel has been updated to" 
+    | get 0 
+    | query web -q span 
+    | find "The Stable channel has been updated to " 
+    | split row "The Stable channel has been updated to " 
+    | find for 
+    | get 0 
+    | split row ' for' 
+    | get 0 
+    | str trim
+  )
+
+  let current_version = (google-chrome-stable --version | split row "Google Chrome "  | str trim | last)
+
+  if $current_version != $new_version {
+    if (ls *.deb | find chrome | length) > 0 {
+      ls *.deb | find chrome | rm-pipe | ignore
+    }
   
-  echo-g "\ndownloading chrome..."
-  aria2c --download-result=hide https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+    echo-g "\ndownloading chrome..."
+    aria2c --download-result=hide https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+  } else {
+    echo-g "chrome is already in its latest version!"
+  }
 }
 
 #update google earth deb
 export def "apps-update earth" [] {
   cd $env.MY_ENV_VARS.debs
 
-  if (ls *.deb | find earth | length) > 0 {
-    ls *.deb | find earth | rm-pipe | ignore
+  let new_version = (
+    fetch "https://support.google.com/earth/answer/40901#zippy=%2Cearth-version" 
+    | query web -q a 
+    | find version 
+    | first
+  )
+
+  let current_version = (open ([$env.MY_ENV_VARS.debs earth.json] | path join) | get version)
+
+  if $current_version != $new_version {
+    if (ls *.deb | find earth | length) > 0 {
+      ls *.deb | find earth | rm-pipe | ignore
+    }
+    
+    echo-g "\ndownloading google earth..."
+    aria2c --download-result=hide https://dl.google.com/dl/earth/client/current/google-earth-pro-stable_current_amd64.deb
+    sudo gdebi -n google-earth-pro-stable_current_amd64.deb
+  } else {
+    echo-g "earth is already in its latest version!"
   }
-  
-  echo-g "\ndownloading google earth..."
-  aria2c --download-result=hide https://dl.google.com/dl/earth/client/current/google-earth-pro-stable_current_amd64.deb
 }
 
 #update yandex deb
@@ -317,7 +352,7 @@ export def "apps-update yandex" [] {
     aria2c --download-result=hide http://repo.yandex.ru/yandex-disk/yandex-disk_latest_amd64.deb 
     sudo gdebi -n yandex-disk_latest_amd64.deb 
   } else {
-    echo-g "yandex already in its latest version!"
+    echo-g "yandex is already in its latest version!"
   }
 }
 
@@ -358,7 +393,7 @@ export def "apps-update sejda" [] {
       aria2c --download-result=hide $url
       sudo gdebi -n $new_file
     } else {
-      echo-g "sedja already in its latest version!"
+      echo-g "sedja is already in its latest version!"
     }
 
   } else {
@@ -414,7 +449,7 @@ export def "apps-update nmap" [] {
       sudo gdebi -n $new_deb
       ls $new_file | rm-pipe | ignore
     } else {
-      echo-g "nmap already in its latest version!"
+      echo-g "nmap is already in its latest version!"
     }
 
   } else {
@@ -468,7 +503,7 @@ export def "apps-update ttyplot" [] {
 
     sudo gdebi -n $filename
   } else {
-    echo-g "ttyplot already in the latest version!"
+    echo-g "ttyplot is already in the latest version!"
   }
 }
 
@@ -490,7 +525,7 @@ export def "apps-update nushell" [] {
     bash install-all.sh
     update-nu-config
   } else {
-    echo-g "nushell already up to date!"
+    echo-g "nushell is already up to date!"
   }
 }
 

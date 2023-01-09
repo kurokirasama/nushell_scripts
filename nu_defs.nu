@@ -238,6 +238,9 @@ export def supgrade [--old(-o)] {
 
     echo-g "autoremoving..."
     sudo nala autoremove -y
+
+    echo-g "updating off apt apps..."
+    apps-update
   } else {
     echo-g "updating..."
     sudo apt update -y
@@ -247,6 +250,9 @@ export def supgrade [--old(-o)] {
 
     echo-g "autoremoving..."
     sudo apt autoremove -y
+
+    echo-g "updating off apt apps..."
+    apps-update
   }
 
   echo-g "updating rust..."
