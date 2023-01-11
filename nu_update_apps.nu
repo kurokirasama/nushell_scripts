@@ -535,6 +535,46 @@ export def "apps-update maestral" [] {
   pip3 install --upgrade maestral[gui]
 }
 
+#update-upgrade system
+export def supgrade [--old(-o)] {
+  if not $old {
+    echo-g "updating and upgrading..."
+    sudo nala upgrade -y
+
+    echo-g "autoremoving..."
+    sudo nala autoremove -y
+  } else {
+    echo-g "updating..."
+    sudo apt update -y
+
+    echo-g "upgrading..."
+    sudo apt upgrade -y
+
+    echo-g "autoremoving..."
+    sudo apt autoremove -y
+  }
+
+  echo-g "updating rust..."
+  rustup update
+
+  echo-g "updating off apt apps..."
+  apps-update
+
+  # echo-g "upgrading pip3 packages..."
+  # pip3-upgrade
+}
+
+#upgrade pip3 packages
+export def pip3-upgrade [] {
+  pip3 list --outdated --format=freeze 
+  | lines 
+  | split column "==" 
+  | each {|pkg| 
+      echo-g $"upgrading ($pkg.column1)..."
+      pip3 install --upgrade $pkg.column1
+    }
+}
+
 #update nu config (after nushell update)
 export def update-nu-config [] {
   ls (build-string $env.MY_ENV_VARS.nushell_dir "/**/*") 
