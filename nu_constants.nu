@@ -8,3 +8,4 @@ let phi = 1.6180339887498948	#Golden ratio
 
 # (fetch https://api.chucknorris.io/jokes/random).value
 fetch -H ["Accept" "text/plain"] https://icanhazdadjoke.com
+echo

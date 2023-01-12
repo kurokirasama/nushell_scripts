@@ -1,5 +1,5 @@
 #modifying $env.config...
-mut my_config = ($env.config)
+let my_config = $env.config
 
 #restoring custom color config
 mut my_color_config = ($my_config 
@@ -20,7 +20,7 @@ $my_color_config.filesize = {|e|
 	}
 }
 
-$my_config = (
+let my_config = (
 	$my_config 
 	| upsert table.trim.wrapping_try_keep_words false
 	| upsert color_config $my_color_config 
@@ -45,6 +45,16 @@ let hooks = {
         			0
     			}
 			)
+        },
+        {
+            let-env NETWORK = (
+                $env.NETWORK 
+                | upsert status (ping -c 1 -w 1 -q 1.1.1.1 | complete | get exit_code)
+            )
+            let-env NETWORK = (
+                $env.NETWORK
+                | upsert color (if $env.NETWORK.status == 0 {'#00ff00'} else {'#ffffff'})
+            )
         }
     ]
     pre_execution: [
@@ -70,229 +80,133 @@ let hooks = {
     }
   }
 
-$my_config = ($my_config | upsert hooks $hooks)
+let my_config = ($my_config | upsert hooks $hooks)
 
 #restoring menus
 let alias_menu = {
-       name: alias_menu
-       only_buffer_difference: false
-       marker: "👀 "
-       type: {
-           layout: columnar
-           columns: 1
-           col_width: 20
-           col_padding: 2
-       }
-       style: {
-           text: green
-           selected_text: green_reverse
-           description_text: yellow
-       }
-       source: { |buffer, position|
-           $nu.scope.aliases
-           | where alias == $buffer
-           | each { |it| {value: $it.expansion }}
-       }
-     }
+    name: alias_menu,
+    only_buffer_difference: false,
+    marker: "👀 ",
+    type: {
+        layout: columnar,
+        columns: 1,
+        col_width: 20,
+        col_padding: 2
+    },
+    style: {
+        text: green,
+        selected_text: green_reverse,
+        description_text: yellow
+    },
+    source: { |buffer, position|
+        $nu.scope.aliases
+        | where alias == $buffer
+        | each { |it| {value: $it.expansion }}
+    }
+}
 
-let menus = ($my_config | get menus)
+let menus = ($my_config | get menus | upsert idx {|el,id| $id})
 
 let alias_menu_row = (
-	if ($menus | any {|row| $row.name == alias_menu}) {
-		for $row in 0..(($menus | length) - 1) {
-			if ($menus | get $row | get name) == alias_menu {
-				$row
-			}
-		}
-	} else {
-	-1
-	} 
+	$menus 
+	| find "alias_menu" 
+	| try {
+      	get idx | get 0
+      } catch {
+        -1
+      }
 )
 
 let menus = (
-	if $alias_menu_row == -1 {
-		$menus | append $alias_menu
-	} else {
-		$menus | drop nth ($alias_menu_row | get 0) | append $alias_menu
-	}
+	$menus 
+	| where idx not-in [$alias_menu_row] 
+	| reject idx 
+	| append $alias_menu
 )
 
-$my_config = ($my_config | upsert "menus" $menus)
+let my_config = ($my_config | upsert menus $menus)
 
 #restoring keybinds
-##alias
-let alias_keybind = ({
-  	name: alias_menu
-  	modifier: alt
-  	keycode: char_a
-  	mode: [emacs, vi_normal, vi_insert]
-  	event: { send: menu name: alias_menu }
-})
-
-let keybindings = ($my_config | get keybindings)
-
-let alias_menu_row = (
-	if ($keybindings | any {|row| $row.name == alias_menu}) {
-		for $row in 0..(($keybindings | length) - 1) {
-			if ($keybindings | get $row | get name) == alias_menu {
-				$row
-			}
-		}
-	} else {
-	-1
-	} 
-)
-
-let keybindings = (
-	if $alias_menu_row == -1 {
-		$keybindings | append $alias_keybind
-	} else {
-		$keybindings | drop nth ($alias_menu_row | get 0) | append $alias_keybind
-	}
-)
-
-##reload
-let reload_keybind = (
+let keybindings = ($my_config | get keybindings | upsert idx {|el,id| $id})
+mut new_indexes = []
+let new_keybinds = [
 	{
-        name: reload_config
-        modifier: alt
-        keycode: char_x
-        mode: emacs
+  		name: "alias_menu",
+  		modifier: alt,
+  		keycode: char_a,
+  		mode: [emacs, vi_normal, vi_insert],
+  		event: { 
+  			send: menu,
+  			name: alias_menu 
+  		}
+  	},
+  	{
+        name: "reload_config",
+        modifier: alt,
+        keycode: char_x,
+        mode: emacs,
         event: {
           send: executehostcommand,
           cmd: $"source ($nu.config-path)"
-      }
-    }
-)
-
-let alias_menu_row = (
-	if ($keybindings | any {|row| $row.name == reload_config}) {
-		for $row in 0..(($keybindings | length) - 1) {
-			if ($keybindings | get $row | get name) == reload_config {
-				$row
-			}
-		}
-	} else {
-	-1
-	} 
-)
-
-let keybindings = (
-	if $alias_menu_row == -1 {
-		$keybindings | append $reload_keybind
-	} else {
-		$keybindings | drop nth ($alias_menu_row | get 0) | append $reload_keybind
-	}
-)
-
-$my_config = ($my_config | upsert "keybindings" $keybindings)
-
-
-##update right prompt
-let prompt_keybind = (
-	{
-        name: update_right_prompt
-        modifier: alt
-        keycode: char_p
-        mode: emacs
+      	}
+    },
+    {
+        name: "update_right_prompt",
+        modifier: alt,
+        keycode: char_p,
+        mode: emacs,
         event: {
           send: executehostcommand,
           cmd: $"source-env ([($env.MY_ENV_VARS.nu_scripts) update_right_prompt.nu] | path join)"
-      }        
-    }
-)
-
-let alias_menu_row = (
-	if ($keybindings | any {|row| $row.name == update_right_prompt}) {
-		for $row in 0..(($keybindings | length) - 1) {
-			if ($keybindings | get $row | get name) == update_right_prompt {
-				$row
-			}
-		}
-	} else {
-	-1
-	} 
-)
-
-let keybindings = (
-	if $alias_menu_row == -1 {
-		$keybindings | append $prompt_keybind
-	} else {
-		$keybindings | drop nth ($alias_menu_row | get 0) | append $prompt_keybind
-	}
-)
-
-$my_config = ($my_config | upsert "keybindings" $keybindings)
-
-##insert new line in terminal
-let insert_newline = (
-	{
-        name: insert_newline
-        modifier: alt
-        keycode: enter
-        mode: emacs
+      	}        
+    },
+    {
+        name: "insert_newline",
+        modifier: alt,
+        keycode: enter,
+        mode: emacs,
         event: { edit: insertnewline }
-    }
-)
-
-let alias_menu_row = (
-	if ($keybindings | any {|row| $row.name == insert_newline}) {
-		for $row in 0..(($keybindings | length) - 1) {
-			if ($keybindings | get $row | get name) == insert_newline {
-				$row
-			}
-		}
-	} else {
-	-1
-	} 
-)
-
-let keybindings = (
-	if $alias_menu_row == -1 {
-		$keybindings | append $insert_newline
-	} else {
-		$keybindings | drop nth ($alias_menu_row | get 0) | append $insert_newline
-	}
-)
-
-$my_config = ($my_config | upsert "keybindings" $keybindings)
-
-##insert last argument
-let insert_last = (
-	{
-        name: insert_last_argument
-        modifier: alt
-        keycode: char_i
-        mode: emacs
-        event: [{  edit: InsertString,
-            	  value: "!$"
-
-          	   }
+    },
+    {
+        name: "insert_last_argument",
+        modifier: alt,
+        keycode: char_i,
+        mode: emacs,
+        event: [{  
+        			edit: InsertString,
+            	  	value: "!$"
+          	   },
                { send: Enter }]
-    }
-)
+    	}
+]
 
-let alias_menu_row = (
-	if ($keybindings | any {|row| $row.name == insert_last}) {
-		for $row in 0..(($keybindings | length) - 1) {
-			if ($keybindings | get $row | get name) == insert_last {
-				$row
-			}
-		}
-	} else {
-	-1
-	} 
-)
+let n_new_k = ($new_keybinds | length)
 
-let keybindings = (
-	if $alias_menu_row == -1 {
-		$keybindings | append $insert_last
-	} else {
-		$keybindings | drop nth ($alias_menu_row | get 0) | append $insert_last
+let new_indexes = (
+	$new_keybinds 
+	| each {|key|
+		let name = ($key | get name)
+
+		$keybindings 
+		| find $name 
+		| try {
+      		get idx | get 0
+    	  } catch {
+      		-1
+    	  }
+		| get 0
 	}
 )
 
-$my_config = ($my_config | upsert "keybindings" $keybindings)
+##updating
+let keybindings = (
+	$keybindings 
+	| where idx not-in $new_indexes 
+	| reject idx
+	| append $new_keybinds
+)
+
+let my_config = ($my_config | upsert keybindings $keybindings)
 
 #restoring table_trim
 let tableTrim = {
@@ -301,7 +215,7 @@ let tableTrim = {
     truncating_suffix: "❱" #...
   }
 
-$my_config = ($my_config | upsert table.trim $tableTrim)
+let my_config = ($my_config | upsert table.trim $tableTrim)
 
 #updating $env.config
 let-env config = $my_config  

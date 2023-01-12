@@ -44,6 +44,8 @@ let-env PROMPT_COMMAND = { [
   (ansi reset)] | str collect
 }
 
+let-env NETWORK = {status:0, color: '#00ff00'}
+
 ##black over green
 # let-env PROMPT_COMMAND_RIGHT = { 
 #   if (term size).columns >= 80 {
@@ -64,7 +66,7 @@ let-env PROMPT_COMMAND = { [
 ##green over black
 let-env PROMPT_COMMAND_RIGHT = { 
   if (term size).columns >= 80 {
-    [(ansi -e { fg: '#00ff00' attr: b})
+    [(ansi -e { fg: $env.NETWORK.color attr: b})
     $"(get_weather_by_interval 30min)"
     (ansi reset)
     (ansi -e { fg: '#00ff00'})

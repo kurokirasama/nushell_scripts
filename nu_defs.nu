@@ -352,18 +352,40 @@ export def killn [name?] {
 export def jd [
   --ubb(-b)#check ubb jdownloader
 ] {
-  if ($ubb | is-empty) or (not $ubb) {
-    jdown
-  } else {
-    jdown -b 1
+  try {
+    let record = (
+      if ($ubb | is-empty) or (not $ubb) {
+        jdown
+      } else {
+        jdown -b 1
+      }
+      | from json
+    )
+
+    mut table = []
+    mut status = []
+    let fields = ($record | columns)
+    let n = ($fields | length)
+
+    for i in 0..($n - 1) {
+      let field = ($fields | get $i)
+      $table = ($table | append ($record | get $field))
+      $status = ($status | append ($field | str repeat ($record | get $field | length)))
+    }
+
+    let status = ($status | wrap status)
+
+    let cols = ($table | columns) 
+
+    for col in $cols {
+      $table = ($table | default null $col) 
+    }
+
+    $table | into df | append ($status | into df) | into nu
+
+  } catch {
+    return-error "could not connect to device!"
   }
-  | lines 
-  | each { |line| 
-      $line 
-      | from nuon 
-    } 
-  | flatten 
-  | flatten
 }
 
 #select column of a table (to table)
@@ -897,6 +919,17 @@ export def build-string [...rest] {
   $rest | str collect ""
 }
 
+#find index of a search term
+export def "find index" [name: string,default? = -1] {
+  $in
+  | upsert idx {|el,id| $id}
+  | find $name
+  | try {
+      get idx
+    } catch {
+      -1
+    }
+}
 ## appimages
 
 #open balena-etche

@@ -21,6 +21,11 @@ export def-env get_weather_by_interval [INTERVAL_WEATHER] {
     
     if ($weather_runtime_file | path exists) {
         let last_runtime_data = (open $weather_runtime_file)
+
+        if $env.NETWORK.status == 0 {
+            $last_runtime_data | get weather
+            return
+        }
     
         let LAST_WEATHER_TIME = ($last_runtime_data | get last_weather_time)
     
