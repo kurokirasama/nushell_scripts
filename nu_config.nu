@@ -45,22 +45,23 @@ let hooks = {
         			0
     			}
 			)
-        },
-        {
-            let-env NETWORK = (
-                $env.NETWORK 
-                | upsert status (ping -c 1 -w 1 -q 1.1.1.1 | complete | get exit_code)
-            )
-            let-env NETWORK = (
-                $env.NETWORK
-                | upsert color (if $env.NETWORK.status == 0 {'#00ff00'} else {'#ffffff'})
-            )
         }
     ]
     pre_execution: [
     	{
     		nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_pre_execution_hook.nu		
-    	}
+    	},
+        {
+            let-env NETWORK = (
+                $env.NETWORK 
+                | upsert status (check-link https://www.google.com)
+            )
+            
+            let-env NETWORK = (
+                $env.NETWORK
+                | upsert color (if $env.NETWORK.status {'#00ff00'} else {'#ffffff'})
+            )
+        }
     ]
     env_change: {
       PWD: [

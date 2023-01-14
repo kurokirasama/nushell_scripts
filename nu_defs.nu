@@ -375,13 +375,7 @@ export def jd [
 
     let status = ($status | wrap status)
 
-    let cols = ($table | columns) 
-
-    for col in $cols {
-      $table = ($table | default null $col) 
-    }
-
-    $table | into df | append ($status | into df) | into nu
+    $table | default table | into df | append ($status | into df) | into nu
 
   } catch {
     return-error "could not connect to device!"
@@ -707,8 +701,8 @@ export def reg-plugins [] {
 
 #stop network applications
 export def stop-net-apps [] {
-  t stop
-  ydx-stop
+  sudo service transmission-daemon stop
+  yandex-disk stop
   maestral stop
   killn jdown
 }
@@ -930,6 +924,23 @@ export def "find index" [name: string,default? = -1] {
       -1
     }
 }
+
+#default a full table 
+export def "default table" [
+  table?                    #table to process
+  --default_value(-d) = null#default value to use, default = null
+] {
+  mut tab = if ($table | is-empty) {$in} else {$table}
+  let cols = ($tab | columns) 
+  
+  for col in $cols {
+      $tab = ($tab | default $default_value $col) 
+  }
+
+  $tab
+}
+
+
 ## appimages
 
 #open balena-etche

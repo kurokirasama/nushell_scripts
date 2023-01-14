@@ -22,26 +22,25 @@ export def-env get_weather_by_interval [INTERVAL_WEATHER] {
     if ($weather_runtime_file | path exists) {
         let last_runtime_data = (open $weather_runtime_file)
 
-        if $env.NETWORK.status == 0 {
-            $last_runtime_data | get weather
-            return
-        }
+        if not $env.NETWORK.status {
+            $last_runtime_data | get weather    
+        } else {    
+            let LAST_WEATHER_TIME = ($last_runtime_data | get last_weather_time)
     
-        let LAST_WEATHER_TIME = ($last_runtime_data | get last_weather_time)
-    
-        if ($LAST_WEATHER_TIME | into datetime) + $INTERVAL_WEATHER < (date now) {
-            let WEATHER = (get_weather_for_prompt (get_location))
-            let NEW_WEATHER_TIME = (date now | date format '%Y-%m-%d %H:%M:%S %z')
-    
-            $last_runtime_data 
-            | upsert weather $"($WEATHER.Icon) ($WEATHER.Temperature)" 
-            | upsert weather_text $"($WEATHER.Condition) ($WEATHER.Temperature)" 
-            | upsert last_weather_time $NEW_WEATHER_TIME 
-            | save -f $weather_runtime_file
+            if ($LAST_WEATHER_TIME | into datetime) + $INTERVAL_WEATHER < (date now) {
+                let WEATHER = (get_weather_for_prompt (get_location))
+                let NEW_WEATHER_TIME = (date now | date format '%Y-%m-%d %H:%M:%S %z')
+        
+                $last_runtime_data 
+                | upsert weather $"($WEATHER.Icon) ($WEATHER.Temperature)" 
+                | upsert weather_text $"($WEATHER.Condition) ($WEATHER.Temperature)" 
+                | upsert last_weather_time $NEW_WEATHER_TIME 
+                | save -f $weather_runtime_file
 
-            $"($WEATHER.Icon) ($WEATHER.Temperature)"
-        } else {
-            $last_runtime_data | get weather
+                $"($WEATHER.Icon) ($WEATHER.Temperature)"
+            } else {
+                $last_runtime_data | get weather
+            }
         }
     } else {
         let WEATHER = (get_weather_for_prompt (get_location))
