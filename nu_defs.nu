@@ -870,14 +870,18 @@ export def open-link [] {
 
 #umount all drives (duf)
 export def umall [user? = $env.USER] {
-  duf -json 
-  | from json 
-  | find $"/media/($user)" 
-  | get mount_point
-  | each {|drive| 
-      echo-g $"umounting ($drive  | ansi strip)..."
-      umount ($drive | ansi strip)
-    }
+  try {
+    duf -json 
+    | from json 
+    | find $"/media/($user)" 
+    | get mount_point
+    | each {|drive| 
+        echo-g $"umounting ($drive  | ansi strip)..."
+        umount ($drive | ansi strip)
+      }
+  } catch {
+    return-error "device is busy!"
+  }
 }
 
 #fix docker run error
