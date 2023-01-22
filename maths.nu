@@ -222,7 +222,7 @@ export def randi [
 	random integer 0..$n
 }
 
-#random selection
+#random selection from a list
 export def rand-select [
 	x?	#list
 	#Select random element of x
