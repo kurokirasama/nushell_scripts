@@ -123,3 +123,6 @@ let-env MY_ENV_VARS = (
 #for cmdg
 let-env PAGER = "less"
 let-env VISUAL = "nano"
+
+#for gptcommit
+let-env OPENAI_API_KEY = (open-credential -u credentials.open-ai.json.asc | get api_key)

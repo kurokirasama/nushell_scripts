@@ -129,17 +129,12 @@ export def "math lcm" [a: int, b:int] {
 
 #Decimal number to custom base representation
 export def dec2base [
-	n: string	#decimal number
-	b: string	#base in [2,16]
+	number: int	#integer in decimal base
+	base: int	#base in [2,16]
 ] {
-	let base = if ( ($b | into int) < 2 or ($b | into int) > 16 ) {
-		echo "Wrong base, it must be an integer between 2 and 16"
-		10
-	} else {
-		$b | into int
-	}
-
-	let number = ($n | into int)
+	if $base < 2 or $base > 16 {
+		return-error "Wrong base, it must be an integer between 2 and 16"
+	} 
 
 	let chars = ['0' '1' '2' '3' '4' '5' '6' '7' '8' '9' 'A' 'B' 'C' 'D' 'E' 'F']
 	
@@ -150,6 +145,42 @@ export def dec2base [
 
 		[(dec2base $newNumber $base) ($chars | get ($number mod $base))] | str collect
 	}	
+}
+
+#Custom base representation number to decimal
+export def base2dec [
+	s:string	#string
+	b:int 		#base
+] {
+	let s = ($s | str downcase)
+
+	if $b < 1 or $b > 16 {
+		return-error "wrong base provided!"
+	}
+	if $b < 10 and ($s =~ $"[($b)-9]" or $s =~ '[a-f]') {
+		return-error "malformed string according to its base"
+	}
+	if $s =~ '[g-z]' {
+		return-error "malformed string!"
+	}
+
+	let length = (($s | str length) - 1)
+	mut decimal = 0
+	let s = ($s | split chars)
+
+	for i in 0..$length {
+		let digit = (
+			if ($s | get $i) =~ '[0-9]' {
+				$s | get $i | into int
+			} else if ($s | get $i) =~ '[a-f]' {
+				($s | get $i | into int) + 10
+			} else {
+				return-error "wrong character found!"
+			}
+		)
+		$decimal = ($decimal + $digit * $b ** ($length - $i))
+	}
+	return $decimal
 }
 
 # Scale list to [a,b] interval
