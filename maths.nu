@@ -267,7 +267,7 @@ export def "math fibonacci" [n:int] {
 }
 
 #skewness of a list of numbers
-export def "math skew" [x?] {
+export def "math skew" [x?:number] {
 	let list = if ($x | is-empty) {$in | into decimal} else {$x | into decimal}
 	let n = ($list | length)
 	let mean = ($list | math avg)
@@ -294,7 +294,7 @@ export def "math skew" [x?] {
 }
 
 #kurtosis of a list of numbers
-export def "math kurt" [x?] {
+export def "math kurt" [x?:number] {
 	let list = if ($x | is-empty) {$in | into decimal} else {$x | into decimal}
 	let n = ($list | length)
 	let mean = ($list | math avg)
