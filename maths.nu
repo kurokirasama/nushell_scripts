@@ -265,3 +265,57 @@ export def "math fibonacci" [n:int] {
 
 	return $fib
 }
+
+#skewness of a list of numbers
+export def "math skew" [x?] {
+	let list = if ($x | is-empty) {$in | into decimal} else {$x | into decimal}
+	let n = ($list | length)
+	let mean = ($list | math avg)
+	let std = ($list | math stddev)
+
+	if $std == 0 {
+		return-error "skewness undefined due to std been 0"
+	}
+
+	let sum = (
+		if ($list | typeof) == table {
+			$list | rename data
+		} else {
+			$list | wrap data
+		}
+		| update data {|it| 
+			($it.data - $mean) ** 3
+	  	  } 
+		| math sum 
+		| get data
+	)
+
+	return ($sum / ($n * $std ** 3))
+}
+
+#kurtosis of a list of numbers
+export def "math kurt" [x?] {
+	let list = if ($x | is-empty) {$in | into decimal} else {$x | into decimal}
+	let n = ($list | length)
+	let mean = ($list | math avg)
+	let std = ($list | math stddev)
+
+	if $std == 0 {
+		return-error "kurtosis undefined due to std been 0"
+	}
+
+	let sum = (
+		if ($list | typeof) == table {
+			$list | rename data
+		} else {
+			$list | wrap data
+		}
+		| update data {|it| 
+			($it.data - $mean) ** 4 
+	  	  } 
+		| math sum 
+		| get data
+	)
+
+	return ($sum / ($n * $std ** 4))
+}

@@ -577,14 +577,17 @@ export def pip3-upgrade [] {
 
 #update nu config (after nushell update)
 export def update-nu-config [] {
-  ls (build-string $env.MY_ENV_VARS.nushell_dir "/**/*") 
-  | find -i default_config 
-  | update name {|n| 
-      $n.name 
-      | ansi strip
-    }  
-  | cp-pipe $nu.config-path
+  let default = (
+    ls (build-string $env.MY_ENV_VARS.nushell_dir "/**/*") 
+      | find -i default_config 
+      | update name {|n| 
+          $n.name | ansi strip
+        }
+      | get name
+      | get 0
+  )
 
+  cp $default $nu.config-path
   open ([$env.MY_ENV_VARS.linux_backup "append_to_config.nu"] | path join) | save --append $nu.config-path
   nu -c $"source-env ($nu.config-path)"
 }
@@ -594,3 +597,22 @@ export def install-font [file] {
   cp $file ~/.fonts
   fc-cache -fv
 }
+
+#update cargo apps
+export def cargo-update [] {
+  let cargo_output = (
+    cargo install --list 
+    | lines 
+    | str trim 
+    | split column " "
+  )
+
+  let installed_apps = (
+    $cargo_output 
+    | get column1 
+    | uniq 
+    | find -v nu_plugin
+  )
+
+}
+
