@@ -63,33 +63,11 @@ export def cp-pipe [
   #Example
   #ls *.txt | first 5 | cp-pipe ~/temp
 ] {
-  each {|file| 
-    let name = ($file | get name | ansi strip)
-    let to_file = ([$to $name] | path join | path expand) 
-    let exists = ($to_file | path exists)
-    let filesize = ($exists and ((ls $to_file | get size | get 0) == ($file | get size)))
-
-    if not $no_overwrite {
-      if not ($exists and $filesize) {
-        echo-g $"copying ($name)..." 
-        ^cp -r $name ($to | path expand) 
-      }
-    } else {
-      if not $exists {
-        echo-g $"copying ($name)..." 
-        ^cp -r $name ($to | path expand) 
-      } else {
-        if ($file | get type) == "file" {
-          let ext = ($to_file | path parse | get extension)
-          let stem = ($to_file | path parse | get stem)
-          let n_files = (ls $"($stem)*" | length)
-          let to_file2 = ([$to (build-string $stem "_" ($n_files + 1) "." $ext)] | path join | path expand)
-
-          echo-g $"copying ($name) to ($to_file2)..."
-          ^cp $name $to_file2
-        }
-      }
-    }
+  get name
+  | ansi strip
+  | each {|file| 
+    echo-g $"copying ($file)..." 
+    ^cp -ur $file ($to | path expand) 
   } 
 }
 
@@ -104,7 +82,7 @@ export def mv-pipe [
   | ansi strip
   | each {|file|
       echo-g $"moving ($file)..." 
-      ^mv $file ($to | path expand)
+      ^mv -u $file ($to | path expand)
     }
 }
 
@@ -369,6 +347,11 @@ export def open-analytics [$file?] {
   | drop nth 0 
   | str collect "\n" 
   | from csv 
+}
+
+#delete empty google analytics csv files
+export def clean-analytics [$file?] {
+  ls | find Analytics | where size <= 151B | rm-pipe 
 }
 
 #fix green dirs
