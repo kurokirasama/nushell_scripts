@@ -598,6 +598,11 @@ export def install-font [file] {
   fc-cache -fv
 }
 
+#update whisper
+export def whisper-update [] {
+  pip install --upgrade --no-deps --force-reinstall git+https://github.com/openai/whisper.git
+}
+
 #update cargo apps
 export def cargo-update [] {
   let cargo_output = (
