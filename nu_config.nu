@@ -45,12 +45,7 @@ let hooks = {
         			0
     			}
 			)
-        }
-    ]
-    pre_execution: [
-    	{
-    		nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_pre_execution_hook.nu		
-    	},
+        },
         {
             let-env NETWORK = (
                 $env.NETWORK 
@@ -62,6 +57,11 @@ let hooks = {
                 | upsert color (if $env.NETWORK.status {'#00ff00'} else {'#ffffff'})
             )
         }
+    ]
+    pre_execution: [
+    	{
+    		nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_pre_execution_hook.nu		
+    	}
     ]
     env_change: {
       PWD: [
@@ -187,7 +187,6 @@ let new_indexes = (
 	$new_keybinds 
 	| each {|key|
 		let name = ($key | get name)
-
 		$keybindings 
 		| find $name 
 		| try {
@@ -220,3 +219,9 @@ let my_config = ($my_config | upsert table.trim $tableTrim)
 
 #updating $env.config
 let-env config = $my_config  
+
+try {
+    # (fetch https://api.chucknorris.io/jokes/random).value
+    fetch -H ["Accept" "text/plain"] https://icanhazdadjoke.com
+    echo
+}

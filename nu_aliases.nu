@@ -47,6 +47,11 @@ export alias unmute = amixer -q -D pulse sset Master unmute
 export alias max-vol = amixer -D pulse sset Master Playback 65536
 export alias "math mean" = math avg
 export alias "math std" = math stddev
+export alias pi = (math pi )
+export alias e = (math e)
+export alias tau = (math tau)
+export alias gamma = 0.5772156649015328
+export alias phi = 1.6180339887498948 
 
 # export alias hangouts = hangups --col-scheme solarized-dark
 # export alias myoctave = (octave --no-gui -q 2>/dev/null)

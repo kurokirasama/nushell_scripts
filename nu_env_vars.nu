@@ -44,7 +44,7 @@ let-env PROMPT_COMMAND = { [
   (ansi reset)] | str collect
 }
 
-let-env NETWORK = {status:0, color: '#00ff00'}
+let-env NETWORK = {status:false, color: '#00ff00'}
 
 ##black over green
 # let-env PROMPT_COMMAND_RIGHT = { 
@@ -125,4 +125,4 @@ let-env PAGER = "less"
 let-env VISUAL = "nano"
 
 #for gptcommit
-let-env OPENAI_API_KEY = (open-credential -u credentials.open-ai.json.asc | get api_key)
+let-env OPENAI_API_KEY = (open-credential -u ([$env.MY_ENV_VARS.credentials credentials.open-ai.json.asc] | path join) | get api_key)
