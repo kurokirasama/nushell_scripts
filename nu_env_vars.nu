@@ -123,6 +123,3 @@ let-env MY_ENV_VARS = (
 #for cmdg
 let-env PAGER = "less"
 let-env VISUAL = "nano"
-
-#for gptcommit
-let-env OPENAI_API_KEY = (open-credential -u ([$env.MY_ENV_VARS.credentials credentials.open-ai.json.asc] | path join) | get api_key)

@@ -481,7 +481,9 @@ export def-env which-cd [program] {
 }
 
 #push to git, needs gptcommit installed
-export def git-push [] {
+export def-env git-push [] {
+  let-env OPENAI_API_KEY = (open-credential -u ([$env.MY_ENV_VARS.credentials credentials.open-ai.json.asc] | path join) | get api_key)
+
   git add -A
   git status
   git commit# -am $"($m)"
