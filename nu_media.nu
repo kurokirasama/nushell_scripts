@@ -28,6 +28,7 @@ export def "media trans-sub" [file?] {
     touch $new_file
 
     open $file
+    | decode utf-8
     | lines
     | each -n {|line|
         if (not $line.item =~ "-->") and (not $line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
@@ -48,9 +49,10 @@ export def "media trans-sub" [file?] {
         print -n (echo-g $"\r($line.index / $lines * 100 | math round -p 3)%")
       } 
   } else {
-    let start = (open $new_file | lines | length)
+    let start = (open $new_file | decode utf-8 | lines | length)
 
     open $file
+    | decode utf-8
     | lines
     | last ($lines - $start)
     | each -n {|line|
