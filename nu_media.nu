@@ -20,7 +20,7 @@ export def "media trans-sub" [file?] {
 
   let $file_info = ($file | path parse)
   let new_file = $"($file_info | get stem)_translated.($file_info | get extension)"
-  let lines = (open $file | lines | length)
+  let lines = (open $file | decode utf-8 | lines | length)
 
   echo $"translating ($file)..."
 
