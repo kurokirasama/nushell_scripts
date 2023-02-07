@@ -14,7 +14,7 @@ export def bitly [longurl] {
       "long_url": $longurl
     }
 
-    let response = post $url $content --content-type "application/json" -H ["Authorization", $"Bearer ($Accesstoken)"]
+    let response = http post $url $content --content-type "application/json" -H ["Authorization", $"Bearer ($Accesstoken)"]
     let shorturl = ($response | get link)
 
     $shorturl | copy
@@ -52,7 +52,7 @@ export def trans [
 
   let url = $"https://api.mymemory.translated.net/get?q=($to_translate)&langpair=($from)%7C($to)&of=json&key=($key)&de=($user)"
   
-  let response = fetch $url
+  let response = http get $url
   let status = ($response | get responseStatus)
   let translated = ($response | get responseData | get translatedText)
   
@@ -79,7 +79,7 @@ export def "rebrandly get" [longurl] {
     let url = "https://api.rebrandly.com/v1/links"
     let content = {"destination": $longurl}
 
-    let response = post $url $content -H ["apikey", $api_key] --content-type "application/json" -H ["UserAgent:","UserAgent,curl/7.68.0"]
+    let response = http post $url $content -H ["apikey", $api_key] --content-type "application/json" -H ["UserAgent:","UserAgent,curl/7.68.0"]
     let shorturl = ($response | get shortUrl)
 
     $shorturl | copy
@@ -98,7 +98,7 @@ export def "rebrandly list" [longurl="www.google.com"] {
     let base_url = "https://api.rebrandly.com/v1/links"
     let url = $base_url + "?domain.id=" + $longurl + "&orderBy=createdAt&orderDir=desc&limit=25"
 
-    fetch $url -H ["apikey", $api_key] -H ["accept", "application/json"]
+    http get $url -H ["apikey", $api_key] -H ["accept", "application/json"]
     
   }
 }

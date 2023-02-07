@@ -30,7 +30,8 @@ export def "media trans-sub" [file?] {
     open $file
     | decode utf-8
     | lines
-    | each -n {|line|
+    | enumerate
+    | each {|line|
         if (not $line.item =~ "-->") and (not $line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
           let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
           let translated = ($fixed_line | trans)
@@ -55,7 +56,8 @@ export def "media trans-sub" [file?] {
     | decode utf-8
     | lines
     | last ($lines - $start)
-    | each -n {|line|
+    | enumerate
+    | each {|line|
         if (not $line.item =~ "-->") and (not $line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
           let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
           let translated = ($fixed_line | trans)

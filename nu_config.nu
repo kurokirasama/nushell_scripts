@@ -106,7 +106,7 @@ let alias_menu = {
     }
 }
 
-let menus = ($my_config | get menus | upsert idx {|el,id| $id})
+let menus = ($my_config | get menus | indexify idx)
 
 let alias_menu_row = (
 	$menus 
@@ -128,7 +128,7 @@ let menus = (
 let my_config = ($my_config | upsert menus $menus)
 
 #restoring keybinds
-let keybindings = ($my_config | get keybindings | upsert idx {|el,id| $id})
+let keybindings = ($my_config | get keybindings | indexify idx)
 mut new_indexes = []
 let new_keybinds = [
 	{
@@ -221,7 +221,7 @@ let my_config = ($my_config | upsert table.trim $tableTrim)
 let-env config = $my_config  
 
 try {
-    # (fetch https://api.chucknorris.io/jokes/random).value
-    fetch -H ["Accept" "text/plain"] https://icanhazdadjoke.com
+    # (http get https://api.chucknorris.io/jokes/random).value
+    http get -H ["Accept" "text/plain"] https://icanhazdadjoke.com
     echo
 }

@@ -84,7 +84,7 @@ def get_location [--home(-h),--ubb(-b)] {
     } else if $ubb or ($wifi =~ "wifi-ubb") {
         "-36.821795,-73.014665" 
     } else { 
-        let loc_json = (fetch ($table | select 0).0.location)
+        let loc_json = (http get ($table | select 0).0.location)
         if ($loc_json | is-column lat) {
             $"($loc_json.lat),($loc_json.lon)"
         } else {
@@ -105,7 +105,7 @@ def fetch_api [loc] {
 
     let url = $"https://api.darksky.net/forecast/($apiKey)/($loc)($options)"
     
-    fetch $url
+    http get $url
 }
 
 # street address
@@ -117,7 +117,7 @@ def get_address [loc] {
     )
     let url = $"https://maps.googleapis.com/maps/api/geocode/json?latlng=($loc)&sensor=true&key=($mapsAPIkey)"
 
-    fetch $url
+    http get $url
     | get results
     | get 0
     | get formatted_address
@@ -162,7 +162,7 @@ def get_airCond [loc] {
     let lat = (echo $loc | split row "," | get 0)
     let lon = (echo $loc | split row "," | get 1)
     let url = $"https://api.airvisual.com/v2/nearest_city?lat=($lat)&lon=($lon)&key=($apiKey)"
-    let aqius = ((fetch $url).data.current.pollution.aqius | into int)
+    let aqius = ((http get $url).data.current.pollution.aqius | into int)
 
     # clasification (standard)
     if $aqius < 51 { 

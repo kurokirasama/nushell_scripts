@@ -456,3 +456,35 @@ export def re-enamerate [prefix] {
     }
   }
 }
+
+#select pdf to open
+export def "open pdf" [
+    --launcher: string = "okular"
+    --no-swallow: bool
+    --swallower: string = "devour"
+    --from = $env.PWD
+] {
+    let choices = (
+        get-files
+        | find pdf
+        | ansi strip-table
+        | get name
+        | to text
+    )
+
+    let choice = (
+        $choices
+        | fzf --ansi
+        | str trim
+    )
+    if ($choice | is-empty) {
+        print "user chose to exit..."
+        return
+    }
+
+    if ($no_swallow) {
+        ^$launcher $choice
+    } else {
+        ^$swallower $launcher $choice
+    }
+}

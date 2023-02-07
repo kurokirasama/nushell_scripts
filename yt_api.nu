@@ -44,8 +44,7 @@ export def ytm [
 
     if ($to_play | length) > 0 {
       let songs = (
-        open $to_play 
-        | into df 
+        open-df $to_play 
         | drop-duplicates [id] 
         | into nu
       )
@@ -65,8 +64,9 @@ export def ytm [
       if ($len > 0) {
         $songs 
         | shuffle 
-        | each -n {|song|
-            fetch $"($song.item.thumbnail)" | save -f /tmp/thumbnail.jpg
+        | enumerate
+        | each {|song|
+            http get $"($song.item.thumbnail)" | save -f /tmp/thumbnail.jpg
             convert -density 384 -scale 256 -background transparent /tmp/thumbnail.jpg /tmp/thumbnail.ico
 
             notify-send $"($song.item.title)" $"($song.item.artist)" -t 5000 --icon=/tmp/thumbnail.ico
@@ -128,8 +128,9 @@ export def "ytm online" [
 
       $songs 
       | shuffle 
-      | each -n {|song|
-          fetch $"($song.item.thumbnail)" | save -f /tmp/thumbnail.jpg
+      | enumerate
+      | each {|song|
+          http get $"($song.item.thumbnail)" | save -f /tmp/thumbnail.jpg
           convert -density 384 -scale 256 -background transparent /tmp/thumbnail.jpg /tmp/thumbnail.ico
 
           notify-send $"($song.item.title)" $"($song.item.artist)" -t 5000 --icon=/tmp/thumbnail.ico
@@ -172,7 +173,7 @@ export def yt-api [
     }
   )
 
-  let response = fetch $"($url)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json']
+  let response = http get $"($url)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json']
  
   $response
 }
@@ -318,7 +319,7 @@ export def "yt-api update-all" [
         }
       )
 
-      post "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&key=($api_key)" -t 'application/json' -H ["Authorization", $"Bearer ($token)"] $body | ignore
+      http post "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&key=($api_key)" -t 'application/json' -H ["Authorization", $"Bearer ($token)"] $body | ignore
       sleep 10ms
 
     }   
@@ -455,7 +456,7 @@ export def "yt-api remove-duplicated-songs" [
         }
       )
 
-      post "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&key=($api_key)" -t 'application/json' -H ["Authorization", $"Bearer ($token)"] $body | ignore
+      http post "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&key=($api_key)" -t 'application/json' -H ["Authorization", $"Bearer ($token)"] $body | ignore
       sleep 10ms
 
     } 
@@ -471,7 +472,7 @@ export def "yt-api verify-token" [] {
   let token = ($youtube_credential | get token)
 
   let response = try {
-      fetch $"https://youtube.googleapis.com/youtube/v3/playlists?part=snippet&mine=true&key=($api_key)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json'] 
+      http get $"https://youtube.googleapis.com/youtube/v3/playlists?part=snippet&mine=true&key=($api_key)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json'] 
     } catch {
       {error: {code: 401}}
   }
@@ -567,7 +568,7 @@ export def "yt-api refresh-token" [] {
     | str replace -a "/" "%2F"
   )
 
-  post "https://accounts.google.com/o/oauth2/token" $"client_id=($client_id)&client_secret=($client_secret)&refresh_token=($refresh_token)&grant_type=refresh_token" -t application/x-www-form-urlencoded
+  http post "https://accounts.google.com/o/oauth2/token" $"client_id=($client_id)&client_secret=($client_secret)&refresh_token=($refresh_token)&grant_type=refresh_token" -t application/x-www-form-urlencoded
 
   # curl -X POST "https://accounts.google.com/o/oauth2/token" -d $"client_id=($client_id)&client_secret=($client_secret)&refresh_token=($refresh_token)&grant_type=refresh_token" -H "Content-Type: application/x-www-form-urlencoded"
 }
@@ -577,14 +578,14 @@ export def "yt-api refresh-token" [] {
 ## testing
 
 # export def "yt-api verify-token" [url,token] {
-#   let response = fetch $"($url)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json']
+#   let response = http get $"($url)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json']
 
 #   if ($response | is-column error) {
 #     let client = (open ~/Yandex.Disk/Backups/linux/credentials/credentials.youtube.json | get client_id)
 #     let refresh_token = (open ~/Yandex.Disk/Backups/linux/credentials/credentials.youtube.json | get refresh_token)
 #     let secret = (open ~/Yandex.Disk/Backups/linux/credentials/credentials.youtube.json | get client_secret)
 
-#     let response = (post "https://www.googleapis.com/oauth2/v4/token" -t 'application/json' {
+#     let response = (http post "https://www.googleapis.com/oauth2/v4/token" -t 'application/json' {
 #         "client_id": ($client),
 #         "client_secret": ($secret),
 #         "refresh_token": ($refresh_token),
@@ -608,7 +609,7 @@ export def test-api [] {
   let refresh_token = ($youtube_credential | get refresh_token)
   let secret = ($youtube_credential | get client_secret)
 
-  let response = (post "https://www.googleapis.com/oauth2/v4/token" -t 'application/json' {
+  let response = (http post "https://www.googleapis.com/oauth2/v4/token" -t 'application/json' {
      "client_id": ($client),
      "client_secret": ($secret),
      "refresh_token": ($refresh_token),
@@ -619,7 +620,7 @@ export def test-api [] {
   $response | save -f test.json 
 }
 
- # let response = (post "https://accounts.google.com/o/oauth2/token/" $"client_id=($client)&client_secret=($secret)&refresh_token=($refresh_token)&grant_type=refresh_token&access_type=offline&prompt=consent&scope=https://www.googleapis.com/auth/youtube"2 -t "text/html"
+ # let response = (http post "https://accounts.google.com/o/oauth2/token/" $"client_id=($client)&client_secret=($secret)&refresh_token=($refresh_token)&grant_type=refresh_token&access_type=offline&prompt=consent&scope=https://www.googleapis.com/auth/youtube"2 -t "text/html"
   # )
 # https://accounts.google.com/o/oauth2/auth?client_id=676765289577-ek34fcbppprtcvtt7sd98ioodvapojci.apps.googleusercontent.com&redirect_uri=http%3A%2F%2Flocalhost%2Foauth2callback&scope=https://www.googleapis.com/auth/youtube&response_type=token
 
@@ -630,8 +631,8 @@ export def test-api [] {
 
 # export def get-yt-playlist [
 #   pid         #playlist id
-#   nos? = 500  #number of song to fetch
-#   --all       #fetch all songs
+#   nos? = 500  #number of song to http get
+#   --all       #http get all songs
 # ] {
 #   ls
 # # $playlists | flatten | where title == jp  | get id

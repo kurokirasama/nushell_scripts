@@ -600,13 +600,13 @@ export def check-link [link?,timeout?:int] {
 
   if ($timeout | is-empty) {
     try {
-      fetch $link | ignore;true
+      http get $link | ignore;true
     } catch {
       false
     }
   } else {
     try {
-      fetch $link -t $timeout | ignore;true
+      http get $link -t $timeout | ignore;true
     } catch {
       false
     }
@@ -711,13 +711,13 @@ export def stop-net-apps [] {
 
 #add a hidden column with the content of the # column
 export def indexify [
-  column_name: string = 'index' #export default: index
+  column_name?: string = 'index' #export default: index
   ] { 
-  each -n {|it| 
-    $it.item 
-    | upsert $column_name $it.index 
-    | move $column_name --before ($it.item | columns).0 
-  } 
+  enumerate 
+  | upsert $column_name {|el| 
+      $el.index
+    } 
+  | flatten
 }
 
 #reset alpine authentification
@@ -810,7 +810,8 @@ export def "into duration-from-hhmmss" [hhmmss?] {
     $hhmmss   
   }
   | split row :
-  | each -n {|row| 
+  | enumerate
+  | each {|row| 
       ($row.item | into int) * (60 ** (2 - $row.index))
     } 
   | math sum
@@ -932,19 +933,19 @@ export def "find index" [name: string,default? = -1] {
 }
 
 #default a full table 
-export def "default table" [
-  table?                    #table to process
-  --default_value(-d) = null#default value to use, default = null
-] {
-  mut tab = if ($table | is-empty) {$in} else {$table}
-  let cols = ($tab | columns) 
+# export def "default table" [
+#   table?                    #table to process
+#   --default_value(-d) = null#default value to use, default = null
+# ] {
+#   mut tab = if ($table | is-empty) {$in} else {$table}
+#   let cols = ($tab | columns) 
   
-  for col in $cols {
-      $tab = ($tab | default $default_value $col) 
-  }
+#   for col in $cols {
+#       $tab = ($tab | default $default_value $col) 
+#   }
 
-  $tab
-}
+#   $tab
+# }
 
 
 ## appimages

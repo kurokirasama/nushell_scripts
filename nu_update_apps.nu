@@ -28,12 +28,12 @@ export def get-github-latest [
   )
 
   let assets_url = (
-    fetch $"https://api.github.com/repos/($owner)/($repo)/releases/latest" -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
+    http get $"https://api.github.com/repos/($owner)/($repo)/releases/latest" -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
     | select assets_url tag_name
   )
 
   let info = (
-    fetch $assets_url.assets_url -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
+    http get $assets_url.assets_url -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
     | find $file_type 
     | get 0
     | select name browser_download_url
@@ -269,7 +269,7 @@ export def "apps-update chrome" [] {
   cd $env.MY_ENV_VARS.debs
 
   let new_version = (
-    fetch "https://chromereleases.googleblog.com/2022/#:~:text=Chrome%20Dev%20for%20Android%20Update&text=We've%20just%20released%20Chrome,now%20available%20on%20Google%20Play." 
+    http get "https://chromereleases.googleblog.com/2022/#:~:text=Chrome%20Dev%20for%20Android%20Update&text=We've%20just%20released%20Chrome,now%20available%20on%20Google%20Play." 
     | query web -q 'script' 
     | find "The Stable channel has been updated to" 
     | get 0 
@@ -302,7 +302,7 @@ export def "apps-update earth" [] {
   cd $env.MY_ENV_VARS.debs
 
   let new_version = (
-    fetch "https://support.google.com/earth/answer/40901#zippy=%2Cearth-version" 
+    http get "https://support.google.com/earth/answer/40901#zippy=%2Cearth-version" 
     | query web -q a 
     | find version 
     | first
@@ -328,7 +328,7 @@ export def "apps-update yandex" [] {
   cd $env.MY_ENV_VARS.debs
 
   let new_date = (
-    fetch http://repo.yandex.ru/yandex-disk/?instant=1 
+    http get http://repo.yandex.ru/yandex-disk/?instant=1 
     | lines 
     | find amd64 
     | get 0 
@@ -361,7 +361,7 @@ export def "apps-update sejda" [] {
   cd $env.MY_ENV_VARS.debs
 
   let new_file = (
-    fetch https://www.sejda.com/es/desktop 
+    http get https://www.sejda.com/es/desktop 
     | lines 
     | find linux 
     | find deb 
@@ -408,7 +408,7 @@ export def "apps-update nmap" [] {
   cd $env.MY_ENV_VARS.debs
 
   let new_file = (
-    fetch https://nmap.org/dist 
+    http get https://nmap.org/dist 
     | lines 
     | find "href=\"nmap"  
     | find rpm 
@@ -479,7 +479,7 @@ export def "apps-update ttyplot" [] {
   )
   
   let url = (
-    fetch https://packages.debian.org/sid/amd64/ttyplot/download
+    http get https://packages.debian.org/sid/amd64/ttyplot/download
     | lines 
     | find .deb 
     | find http 
@@ -621,3 +621,21 @@ export def cargo-update [] {
 
 }
 
+#update gmail token
+# export def "gmail-update-token" [] {
+#   let credentials = (open-credential ([$env.MY_ENV_VARS.credentials cmdg-credentials.json.asc] | path join ))
+#   let client_id = ($credentials | get client_id)
+#   let client_secret = ($credentials | get client_secret)
+
+
+#   sh $"expect -c 'cmdg --configure; expect \"ClientID:\"; send \"($client_id)\r\"; interact'"
+
+#   cmdg --configure
+#   expect "ClientID:" 
+#   send $client_id
+#   interact
+
+#   expect "ClientSecret:"
+#   send $client_secret
+#   interact
+# }

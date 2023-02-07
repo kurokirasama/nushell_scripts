@@ -57,7 +57,7 @@ export def "t add-from-file" [
 
 #get info of a torrent download 
 export def "t info" [
-  id:int  #id of the torrent to fetch
+  id:int  #id of the torrent to http get
 ] {
   transmission-remote -t $id -n 'transmission:transmission' -i
 }
