@@ -131,7 +131,7 @@ export def github-app-update [
       if $file_type == "deb" {
         let install = (input (echo-g "Would you like to install it now? (y/n): "))
         if $install == "y" {
-          sudo gdebi -n $info.name
+          sudo gdebi -n ($info.name | ansi strip)
         }
       }
     } else {
