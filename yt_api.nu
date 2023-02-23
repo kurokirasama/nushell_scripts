@@ -43,11 +43,12 @@ export def ytm [
     let to_play = ($playlists | find $playlist | ansi strip | get 0)
 
     if ($to_play | length) > 0 {
-      let songs = (
-        open-df $to_play 
-        | drop-duplicates [id] 
-        | into nu
-      )
+      let songs = open $to_play
+      # let songs = (
+      #   open-df $to_play 
+      #   | drop-duplicates [id] 
+      #   | into nu
+      # )
 
       let songs = (
         if not ($artist | is-empty) {
@@ -423,12 +424,14 @@ export def "yt-api remove-duplicated-songs" [
   echo-g "geting songs and droping duplicates..."
   let songs = yt-api get-songs $the_playlist.id
 
-  let unique_songs = (
-    $songs
-    | into df 
-    | drop-duplicates [id] 
-    | into nu
-  )
+  # let unique_songs = (
+  #   $songs
+  #   | into df 
+  #   | drop-duplicates [id] 
+  #   | into nu
+  # )
+
+  let unique_songs = $songs
 
   echo-g $"removing songs from ($the_playlist.title)..."
   let header2 = "Accept: application/json"

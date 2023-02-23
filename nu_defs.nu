@@ -282,6 +282,11 @@ export def openf [file?] {
   bash -c $'xdg-open "($file)" 2>/dev/null &'
 }
 
+#open last file
+export def openl [] {
+  lt | last | openf
+}
+
 #open google drive file 
 export def openg [file?] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
@@ -932,6 +937,14 @@ export def "find index" [name: string,default? = -1] {
     }
 }
 
+#calculates elements that are in list a but not in list b
+export def setdiff [a,b] {
+  $a 
+  | each {|n| 
+    if $n not-in $b {$n} 
+  }
+}
+
 #default a full table 
 # export def "default table" [
 #   table?                    #table to process
@@ -954,4 +967,3 @@ export def "find index" [name: string,default? = -1] {
 export def balena [] {
   bash -c $"([$env.MY_ENV_VARS.appImages 'balenaEtcher.AppImage'] | path join) 2>/dev/null &"
 }
-
