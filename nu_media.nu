@@ -114,11 +114,11 @@ export def "media sub-sync" [
 
 #remove audio noise from video
 export def "media remove-audio-noise" [
-  file      #video file name with extension
-  start     #start (hh:mm:ss) of audio noise (no speaker)
-  end       #end (hh:mm:ss) of audio noise (no speaker)
-  noiseLevel#level reduction adjustment (0.2-0.3)
-  output    #output file name with extension (same extension as $file)
+  file       #video file name with extension
+  start      #start (hh:mm:ss) of audio noise (no speaker)
+  end        #end (hh:mm:ss) of audio noise (no speaker)
+  noiseLevel #level reduction adjustment (0.2-0.3)
+  output     #output file name with extension (same extension as $file)
 ] {
   if (ls ([$env.PWD tmp*] | path join) | length) > 0 {
     rm tmp*
@@ -151,7 +151,7 @@ export def "media remove-audio-noise" [
 #screen record to mp4
 export def "media screen-record" [
   file = "video"  #output filename without extension (export default: "video")
-  --audio = true    #whether to record with audio or not (export default: true)
+  --audio = true  #whether to record with audio or not (export default: true)
 ] {
   if $audio {
     ffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i :0.0+0,0 -f alsa -ac 2 -i pulse -acodec aac -strict experimental $"($file).mp4"
@@ -233,9 +233,9 @@ export def "media split-video" [
 
 #convert media files recursively to specified format
 export def "media to" [
-  to:string #destination format (aac, mp3 or mp4)
-  --copy(-c)#copy video codec and audio to mp3 (for mp4 only)
-  --mkv(-m) #include mkv files (for mp4 only)
+  to:string  #destination format (aac, mp3 or mp4)
+  --copy(-c) #copy video codec and audio to mp3 (for mp4 only)
+  --mkv(-m)  #include mkv files (for mp4 only)
   #
   #Examples (make sure there are only compatible files in all subdirectories)
   #media-to mp4 (avi to mp4)
@@ -363,8 +363,8 @@ export def "media merge-subs" [
 
 #merge videos
 export def "media merge-videos" [
-  list  #text file with list of videos to merge
-  output#output file
+  list   #text file with list of videos to merge
+  output #output file
   #
   #To get a functional output, all audio sample rate must be the same
   #check with video-info video_file
@@ -388,8 +388,8 @@ export def "media merge-videos" [
 
 #auto merge all videos in dir
 export def "media merge-videos-auto" [
-  ext   #unique extension of all videos to merge
-  output#output file
+  ext    #unique extension of all videos to merge
+  output #output file
   #
   #To get a functional output, all audio sample rate must be the same
   #check with video-info video_file
@@ -593,7 +593,7 @@ export def "media find" [
   let S = if ($season | is-empty) {
       ""
     } else {
-      $season | into string | str lpad -l 2 -c '0'
+      $season | into string | fill -a r -c "0" -w 2
   }
 
   let results = if ($season | is-empty) {

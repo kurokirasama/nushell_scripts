@@ -43,7 +43,7 @@ def lister [file] {
 		return
 	}
 
-	let last = ($df | into df | drop name) 
+	let last = ($df | dfr into-df | dfr drop name) 
 
 	let df = (
 		$df
@@ -55,7 +55,7 @@ def lister [file] {
 		| flatten
 	) 
 
-	let first = ($df | select origin location | into df) 
+	let first = ($df | select origin location | dfr into-df) 
 
 	let second = (
 		$df 
@@ -65,12 +65,12 @@ def lister [file] {
 			| get rest 
 			| path parse -e ''
 		  } 
-		| into df 
-		| drop extension 
-		| rename [parent stem] [path file]
+		| dfr into-df 
+		| dfr drop extension 
+		| dfr rename [parent stem] [path file]
 	)
 
-	$first | append $second | append $last | into nu | save -f $file
+	$first | dfr append $second | dfr append $last | dfr into-nu | save -f $file
 }
 
 #get list of files recursively

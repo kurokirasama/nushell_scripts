@@ -14,10 +14,10 @@ do -i {nethogs -c 2 -t -d 5}
 	| get stem
   } 
 | update UP {|up| 
-	$up.UP | str rpad -l 7 -c '0'
+	$up.UP | fill -a l -c "0" -w 7
   } 
 | update DOWN {|up| 
-	$up.DOWN | str rpad -l 7 -c '0'
+	$up.DOWN | fill -a l -c "0" -w 7
   } 
 | format "{NAME}:{UP}:{DOWN}" 
 | str collect "\n"

@@ -34,13 +34,16 @@ export def get-github-latest [
 
   let info = (
     http get $assets_url.assets_url -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
-    | find $file_type 
-    | get 0
     | select name browser_download_url
     | upsert version $assets_url.tag_name
+    | find $file_type 
   )
 
-  $info
+  if ($info | length) > 0 {
+    $info | get 0
+  } else {
+    []
+  }
 }
 
 #update github app release
@@ -55,6 +58,8 @@ export def github-app-update [
   cd $down_dir
 
   let info = get-github-latest $owner $repo -f $file_type
+
+  if ($info | is-empty) {return}
 
   let url = ($info | get browser_download_url | ansi strip)
 
@@ -250,7 +255,7 @@ export def "apps-update zoom" [] {
   let current_version = (open ([$env.MY_ENV_VARS.debs zoom.json] | path join) | get version)
 
   if $current_version != $last_version {
-    ls | find zoom | find deb | rm-pipe
+    ls | find zoom | find deb | rm-pipe | ignore
 
     echo-g "\ndownloading zoom..."
     aria2c --download-result=hide https://zoom.us/client/latest/zoom_amd64.deb

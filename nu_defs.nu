@@ -355,7 +355,7 @@ export def killn [name?] {
 
 #jdownloader downloads info
 export def jd [
-  --ubb(-b)#check ubb jdownloader
+  --ubb(-b) #check ubb jdownloader
 ] {
   try {
     let record = (
@@ -380,7 +380,7 @@ export def jd [
 
     let status = ($status | wrap status)
 
-    $table | default table | into df | append ($status | into df) | into nu
+    $table | default table | dfr into-df | append ($status | dfr into-df) | dfr into-nu
 
   } catch {
     return-error "could not connect to device!"
@@ -487,11 +487,9 @@ export def-env which-cd [program] {
 
 #push to git, needs gptcommit installed
 export def-env git-push [] {
-  let-env OPENAI_API_KEY = (open-credential -u ([$env.MY_ENV_VARS.credentials credentials.open-ai.json.asc] | path join) | get api_key)
-
   git add -A
   git status
-  git commit# -am $"($m)"
+  git commit # -am $"($m)"
   git push #origin main  
 }
 
@@ -611,7 +609,7 @@ export def check-link [link?,timeout?:int] {
     }
   } else {
     try {
-      http get $link -t $timeout | ignore;true
+      http get $link -m $timeout | ignore;true
     } catch {
       false
     }
@@ -835,9 +833,9 @@ export def "into hhmmss" [dur:duration] {
     | into int
   )
 
-  let h = (($seconds / 3600) | into int | into string | str lpad -l 2 -c '0')
-  let m = (($seconds / 60 ) | into int | into string | str lpad -l 2 -c '0')
-  let s = ($seconds mod 60 | into string | str lpad -l 2 -c '0')
+  let h = (($seconds / 3600) | into int | into string | fill -a r -c "0" -w 2)
+  let m = (($seconds / 60 ) | into int | into string | fill -a r -c "0" -w 2)
+  let s = ($seconds mod 60 | into string | fill -a r -c "0" -w 2)
 
   $"($h):($m):($s)"
 }

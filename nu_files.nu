@@ -49,7 +49,7 @@ export def rm-pipe [] {
     get name 
     | ansi strip
     | par-each {|file| 
-        rm -rf $file
+        rm -rf $file | ignore
       } 
     | flatten
   }
@@ -67,13 +67,13 @@ export def cp-pipe [
   | ansi strip
   | each {|file| 
     echo-g $"copying ($file)..." 
-    ^cp -ur $file ($to | path expand) 
+    ^cp -ur $file ($to | path expand) | ignore
   } 
 }
 
 #mv trough pipe to same dir
 export def mv-pipe [
-  to: string#target directory
+  to: string #target directory
   #
   #Example
   #ls *.txt | first 5 | mv-pipe ~/temp
@@ -279,7 +279,7 @@ export def lister [file] {
     return
   }
 
-  let last = ($df | into df | drop name) 
+  let last = ($df | dfr into-df | dfr drop name) 
 
   let df = (
     $df
@@ -291,7 +291,7 @@ export def lister [file] {
     | flatten
   ) 
 
-  let first = ($df | select origin location | into df) 
+  let first = ($df | select origin location | dfr into-df) 
 
   let second = (
     $df 
@@ -301,12 +301,12 @@ export def lister [file] {
       | get rest 
       | path parse -e ''
       } 
-    | into df 
-    | drop extension 
-    | rename [parent stem] [path file]
+    | dfr into-df 
+    | dfr drop extension 
+    | dfr rename [parent stem] [path file]
   )
 
-  $first | append $second | append $last | into nu | save -f $file
+  $first | dfr append $second | dfr append $last | dfr into-nu | save -f $file
 }
 
 #create anime dirs according to files
@@ -443,13 +443,13 @@ export def re-enamerate [prefix] {
     let name = ($files | get $i | get name)
     let info = ($name | path parse)
     
-    $new_name = ([$prefix "_" ($index | into string | str lpad -l $n_digits -c "0") "." ($info | get extension)] | str join)
+    $new_name = ([$prefix "_" ($index | into string | fill -a r -c "0" -w $n_digits) "." ($info | get extension)] | str join)
 
     if not ($name in $not_move) {
       while ($new_name | path expand | path exists) {
         $not_move = ($not_move | append $new_name)
         $index = $index + 1
-        $new_name = ([$prefix "_" ($index | into string | str lpad -l $n_digits -c "0") "." ($info | get extension)] | str join)
+        $new_name = ([$prefix "_" ($index | into string | fill -a r -c "0" -w $n_digits) "." ($info | get extension)] | str join)
       }
 
       mv $name $new_name | ignore

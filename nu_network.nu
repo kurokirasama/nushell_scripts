@@ -117,10 +117,9 @@ export def ls-ports [] {
     }
   | rename -c ['name' 'connection']
   | reject 'command'
-  | into df
-  | join (ps -l | into df) 'pid' 'pid'
-  | into df
-  | into nu
+  | dfr into-df
+  | join (ps -l | dfr into-df) 'pid' 'pid'
+  | dfr into-nu
 }
 
 #get ips
