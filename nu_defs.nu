@@ -321,7 +321,7 @@ export def openm [
 
 #send to printer
 export def print-file [file?,--n_copies(-n):int] {
-  let file = if ($file | is-empty) {$in | get name} else {$file}
+  let file = if ($file | is-empty) {$in | get name | ansi strip} else {$file}
   
   if ($n_copies | is-empty) {
     lp $file
@@ -697,7 +697,7 @@ export def reg-plugins [] {
   | find nu_plugin 
   | find -v example
   | each {|file|
-      if (grp $file $nu.plugin-path | length) == 0 {
+      if (grep-nu $file $nu.plugin-path | length) == 0 {
         echo-g $"registering ($file)..."
         nu -c $'register ($file)'    
       } 

@@ -16,7 +16,7 @@ export def-env weatherds [--home(-h),--ubb(-b)] {
 } 
 
 # Get weather for right command prompt
-export def-env get_weather_by_interval [INTERVAL_WEATHER] {
+export def-env get_weather_by_interval [INTERVAL_WEATHER:duration] {
     let weather_runtime_file = (($env.HOME) | path join .weather_runtime_file.json)
     
     if ($weather_runtime_file | path exists) {
@@ -27,7 +27,7 @@ export def-env get_weather_by_interval [INTERVAL_WEATHER] {
         } else {    
             let LAST_WEATHER_TIME = ($last_runtime_data | get last_weather_time)
     
-            if ($LAST_WEATHER_TIME | into datetime) + $INTERVAL_WEATHER < (date now) {
+            if ($LAST_WEATHER_TIME | into datetime) + ($INTERVAL_WEATHER | into duration) < (date now) {
                 let WEATHER = (get_weather_for_prompt (get_location))
                 let NEW_WEATHER_TIME = (date now | date format '%Y-%m-%d %H:%M:%S %z')
         
