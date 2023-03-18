@@ -20,7 +20,7 @@ let-env PATH = (
 let-env PWD_SIZE = ""
 let-env GIT_STATUS = 0
 
-let-env PROMPT_COMMAND = { [
+let-env PROMPT_COMMAND = {|| [
   (if $env.LAST_EXIT_CODE == 0 or ($env.LAST_EXIT_CODE | is-empty) {
     (ansi -e { fg: '#000000' bg: '#00ff00' attr: b })
    } else {
@@ -64,7 +64,7 @@ let-env NETWORK = {status:false, color: '#00ff00'}
 # }
 
 ##green over black
-let-env PROMPT_COMMAND_RIGHT = { 
+let-env PROMPT_COMMAND_RIGHT = {||
   if (term size).columns >= 80 {
     [(ansi -e { fg: $env.NETWORK.color attr: b})
     $"(get_weather_by_interval 30min)"
@@ -77,7 +77,7 @@ let-env PROMPT_COMMAND_RIGHT = {
   } 
 }
 
-let-env PROMPT_INDICATOR = { [
+let-env PROMPT_INDICATOR = {|| [
   (if $env.LAST_EXIT_CODE == 0 or ($env.LAST_EXIT_CODE | is-empty) {
     (ansi -e { fg: '#00ff00' attr: b })
    } else {

@@ -261,19 +261,19 @@ export def openf [file?] {
 
   let file = (
     switch ($file | typeof) {
-      "record": { 
+      "record": {|| 
         $file
         | get name
         | ansi strip
       },
-      "table": { 
+      "table": {||
         $file
         | get name
         | get 0
         | ansi strip
       },
     } { 
-        "otherwise": { 
+        "otherwise": {||
           $file
         }
       }
@@ -342,7 +342,7 @@ export def killn [name?] {
   if not ($name | is-empty) {
     ps -l
     | find -i $name 
-    | par-each {
+    | par-each {||
         kill -f $in.pid
       }
   } else {
@@ -415,7 +415,7 @@ export def pwd-short [] {
 export def "str repeat" [count: int] { 
   each {|it| 
     let str = $it; echo 1..$count 
-    | each { 
+    | each {||
         echo $str 
       } 
   } 
@@ -644,10 +644,10 @@ export def send-gmail [
   } else {
     let signature_file = (
       switch $from {
-        $env.MY_ENV_VARS.mail : {echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_kurokirasama_signature"] | path join)},
-        $env.MY_ENV_VARS.mail_ubb : {echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_ubb_signature"] | path join)},
-        $env.MY_ENV_VARS.mail_lmgg : {echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_lmgg_signature"] | path join)}
-      } {otherwise : {echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_other_signature"] | path join)}}
+        $env.MY_ENV_VARS.mail : {|| echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_kurokirasama_signature"] | path join)},
+        $env.MY_ENV_VARS.mail_ubb : {|| echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_ubb_signature"] | path join)},
+        $env.MY_ENV_VARS.mail_lmgg : {|| echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_lmgg_signature"] | path join)}
+      } {otherwise : {|| echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_other_signature"] | path join)}}
     )
 
     let signature = (open $signature_file)
@@ -769,21 +769,21 @@ export def set-screen [
 ] {
   if not $home {
     switch $side {
-      "right": { xrandr --output HDMI-1-1 --auto --right-of eDP },
-      "left": { xrandr --output HDMI-1-1 --auto --left-of eDP }
+      "right": {|| xrandr --output HDMI-1-1 --auto --right-of eDP },
+      "left": {|| xrandr --output HDMI-1-1 --auto --left-of eDP }
     } { 
-      "otherwise": { return-error "Side argument should be either right or left" }
+      "otherwise": {|| return-error "Side argument should be either right or left" }
     }
   } else {
     switch $side {
-      "right": { 
+      "right": {||
         if $hdmi == "right" {
           xrandr --output HDMI-1-1 --auto --right-of eDP-1-1
         } else {
           xrandr --output HDMI-0 --auto --right-of eDP-1-1
         } 
       },
-      "left": { 
+      "left": {||
         if $hdmi == "right" {
           xrandr --output HDMI-1-1 --auto --left-of eDP-1-1 
         } else {
@@ -791,7 +791,7 @@ export def set-screen [
         }
       }
     } { 
-      "otherwise": { return-error "Side argument should be either right or left" }
+      "otherwise": {|| return-error "Side argument should be either right or left" }
     }
   }
 

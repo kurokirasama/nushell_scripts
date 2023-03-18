@@ -256,7 +256,7 @@ export def "media to" [
       bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.3gp" -not -name "*.($to)" -print0 | parallel -0 --eta myffmpeg -n -loglevel 0 -i {} -c:a ($to) -b:a 64k {.}.($to)'
 
       let aacs = (ls **/* 
-        | insert "ext" { 
+        | insert "ext" {|| 
             $in.name | path parse | get extension
           }  
         | where ext =~ $to 
@@ -272,7 +272,7 @@ export def "media to" [
   #to mp4
   } else if $to =~ "mp4" {
     let n_files = (ls **/*
-        | insert "ext" { 
+        | insert "ext" {|| 
             $in.name | path parse | get extension
           }  
         | where ext =~ "avi"
@@ -289,7 +289,7 @@ export def "media to" [
       }
 
       let aacs = (ls **/* 
-        | insert "ext" { 
+        | insert "ext" {|| 
             $in.name | path parse | get extension
           }  
         | where ext =~ "mp4"
@@ -305,7 +305,7 @@ export def "media to" [
 
     if $mkv {
       let n_files = (ls **/*
-        | insert "ext" { 
+        | insert "ext" {|| 
             $in.name | path parse | get extension
           }  
         | where ext =~ "avi"
@@ -322,7 +322,7 @@ export def "media to" [
         }
 
         let aacs = (ls **/* 
-          | insert "ext" { 
+          | insert "ext" {|| 
               $in.name | path parse | get extension
             }  
           | where ext =~ "mp4"
@@ -509,7 +509,7 @@ export def "media compress-video" [
     let name = ($file | path parse | get stem)
 
     switch $ext {
-      "avi" : {
+      "avi" : {||
         try {
           echo-g "trying myffmpeg..."
           myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_compressed_by_me.mp4"
@@ -519,7 +519,7 @@ export def "media compress-video" [
           ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_compressed_by_me.mp4"
         }
       },
-      "mp4" : {
+      "mp4" : {||
         try {
           echo-g "trying myffmpeg..."
           myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_compressed_by_me.mp4"
@@ -529,7 +529,7 @@ export def "media compress-video" [
           ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_compressed_by_me.mp4"
         }
       },
-      "mkv" : {
+      "mkv" : {||
         try {
           echo-g "trying myffmpeg..."
           myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac -c:s mov_text $"($name)_compressed_by_me.mp4"
@@ -660,19 +660,19 @@ export def mpv [video?, --puya(-p)] {
 
   let file = (
     switch ($file | typeof) {
-      "record": { 
+      "record": {|| 
         $file
         | get name
         | ansi strip
       },
-      "table": { 
+      "table": {||
         $file
         | get name
         | get 0
         | ansi strip
       },
     } { 
-        "otherwise": { 
+        "otherwise": {|| 
           $file
         }
       }

@@ -509,7 +509,7 @@ export def "yt-api get-token" [] {
 
   let content = (
     $youtube_credential  
-    | upsert token {
+    | upsert token {||
         $url 
         | split row "#" 
         | get 1 
@@ -546,7 +546,7 @@ export def "yt-api get-refresh-token" [] {
 
   let content = (
     $youtube_credential  
-    | upsert refresh_token {
+    | upsert refresh_token {||
         $url 
         | split row "=" 
         | get 1 

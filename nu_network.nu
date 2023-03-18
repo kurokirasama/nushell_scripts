@@ -91,7 +91,7 @@ export def ls-ports [] {
     $input 
     | lines
     | take 1
-    | each { 
+    | each {||
         str downcase 
         | str replace ' name$' ' name state'
       }
@@ -101,7 +101,7 @@ export def ls-ports [] {
     $input 
     | lines
     | skip 1
-    | each { 
+    | each {|| 
         str replace '([^)])$' '$1 (NONE)' 
         | str replace ' \((.+)\)$' ' $1'
       }
@@ -118,7 +118,7 @@ export def ls-ports [] {
   | rename -c ['name' 'connection']
   | reject 'command'
   | dfr into-df
-  | join (ps -l | dfr into-df) 'pid' 'pid'
+  | dfr join (ps -l | dfr into-df) 'pid' 'pid'
   | dfr into-nu
 }
 

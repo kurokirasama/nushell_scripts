@@ -33,7 +33,7 @@ let my_config = (
 #restoring hooks
 let hooks = {
     pre_prompt: [
-        {
+        {||
         	let-env GIT_STATUS = (
     			try {
         			if (ls .git | length) > 0 and (git status -s | str length) > 0 {
@@ -46,7 +46,7 @@ let hooks = {
     			}
 			)
         },
-        {
+        {||
             let-env NETWORK = (
                 $env.NETWORK 
                 | upsert status (check-link https://www.google.com)
@@ -59,7 +59,7 @@ let hooks = {
         }
     ]
     pre_execution: [
-    	{
+    	{||
     		nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_pre_execution_hook.nu		
     	}
     ]
@@ -76,7 +76,7 @@ let hooks = {
       	}
       ]
     }
-    display_output: {
+    display_output: {||
        table
     }
   }

@@ -582,6 +582,7 @@ export def pip3-upgrade [] {
 
 #update nu config (after nushell update)
 export def update-nu-config [] {
+  #config
   let default = (
     ls (build-string $env.MY_ENV_VARS.nushell_dir "/**/*") 
       | find -i default_config 
@@ -594,6 +595,20 @@ export def update-nu-config [] {
 
   cp $default $nu.config-path
   open ([$env.MY_ENV_VARS.linux_backup "append_to_config.nu"] | path join) | save --append $nu.config-path
+
+  #env
+  let default = (
+    ls (build-string $env.MY_ENV_VARS.nushell_dir "/**/*") 
+      | find -i default_env 
+      | update name {|n| 
+          $n.name | ansi strip
+        }
+      | get name
+      | get 0
+  )
+
+  cp $default $nu.env-path
+
   nu -c $"source-env ($nu.config-path)"
 }
 

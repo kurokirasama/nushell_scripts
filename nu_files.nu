@@ -106,22 +106,22 @@ export def lg [
   let r = if $reverse {"true"} else {"false"}
 
   switch $t {
-    "true": { 
+    "true": {||
       switch $r {
-        "true": { 
+        "true": {||
           ls | sort-by -r modified | grid -c
         },
-        "false": { 
+        "false": {||
           ls | sort-by modified | grid -c
         }
       }
     },
-    "false": { 
+    "false": {||
       switch $r {
-        "true": { 
+        "true": {||
           ls | sort-by -i -r type name | grid -c
         },
-        "false": { 
+        "false": {||
           ls | sort-by -i type name | grid -c
         }
       }
@@ -149,7 +149,7 @@ export def lo [] {
 export def le [] {
   ls
   | sort-by -i type name 
-  | insert "ext" { 
+  | insert "ext" {|in|
       $in.name 
       | path parse 
       | get extension 
