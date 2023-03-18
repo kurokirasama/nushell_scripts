@@ -67,7 +67,7 @@ export def cp-pipe [
   | ansi strip
   | each {|file| 
     echo-g $"copying ($file)..." 
-    ^cp -ur $file ($to | path expand) | ignore
+    ^cp -ur $file ($to | path expand)
   } 
 }
 
@@ -371,12 +371,12 @@ export def rm-empty-dirs [] {
 
 #green echo
 export def echo-g [string:string] {
-  echo $"(ansi -e { fg: '#00ff00' attr: b })($string)(ansi reset)"
+  print (echo $"(ansi -e { fg: '#00ff00' attr: b })($string)(ansi reset)")
 }
 
 #red echo
 export def echo-r [string:string] {
-  echo $"(ansi -e { fg: '#ff0000' attr: b })($string)(ansi reset)"
+  print (echo $"(ansi -e { fg: '#ff0000' attr: b })($string)(ansi reset)")
 }
 
 #switch-case like instruction
