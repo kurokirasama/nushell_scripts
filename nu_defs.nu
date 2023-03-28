@@ -357,34 +357,12 @@ export def killn [name?] {
 export def jd [
   --ubb(-b) #check ubb jdownloader
 ] {
-  try {
-    let record = (
-      if ($ubb | is-empty) or (not $ubb) {
-        jdown
-      } else {
-        jdown -b 1
-      }
-      | from json
-    )
-
-    mut table = []
-    mut status = []
-    let fields = ($record | columns)
-    let n = ($fields | length)
-
-    for i in 0..($n - 1) {
-      let field = ($fields | get $i)
-      $table = ($table | append ($record | get $field))
-      $status = ($status | append ($field | str repeat ($record | get $field | length)))
-    }
-
-    let status = ($status | wrap status)
-
-    $table | default table | dfr into-df | append ($status | dfr into-df) | dfr into-nu
-
-  } catch {
-    return-error "could not connect to device!"
+  if ($ubb | is-empty) or (not $ubb) {
+    jdown
+  } else {
+    jdown -b 1
   }
+  | from json
 }
 
 #select column of a table (to table)
@@ -589,12 +567,12 @@ export def gnu-plot [
     $title
   }
 
-  $x | to tsv | save data0.txt 
-  sed 1d data0.txt | save data.txt
+  $x | to tsv | save -f data0.txt
+  sed 1d data0.txt | save -f data.txt -f
   
   gnuplot -e $"set terminal dumb; unset key;set title '($title)';plot 'data.txt' w l lt 0;"
 
-  rm data*.txt | ignore
+ rm -f data*.txt
 } 
 
 #check validity of a link

@@ -371,7 +371,7 @@ export def rm-empty-dirs [] {
 
 #green echo
 export def echo-g [string:string] {
-  print (echo $"(ansi -e { fg: '#00ff00' attr: b })($string)(ansi reset)")
+  echo $"(ansi -e { fg: '#00ff00' attr: b })($string)(ansi reset)"
 }
 
 #red echo
