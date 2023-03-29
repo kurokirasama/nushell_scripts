@@ -20,7 +20,6 @@ export alias mount-onedrive = onedrive-fuse mount ~/onedrive
 export alias um-gdrive = fusermount -u ~/gdrive
 export alias um-odrive = fusermount -u ~/onedrive
 export alias png = ping -c 4 -w 4 -q 1.1.1.1
-export alias dpx-status = (maestral status | lines | parse "{item}  {status}" | str trim | drop nth 0)
 export alias netspeed = nload -u H -U H wlp2s0
 export alias cputemp = tlp-stat -t
 export alias coretemp = (sensors | grep Core)

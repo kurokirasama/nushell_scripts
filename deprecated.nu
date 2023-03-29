@@ -1,3 +1,206 @@
+#search for anime
+export def grep-anime [search] {
+  let result = (grep -ihHn $search ~/Dropbox/Directorios/anime*.txt ~/Dropbox/Directorios/torrent*.txt ~/Dropbox/Directorios/downloads*.txt 
+    | lines 
+    | parse "{file}:{line}:{match}"
+    | update file {|f|
+         $f 
+         | get file 
+         | split row '/' 
+         | last
+      }
+    | str trim
+    | find -v "/"
+    | rename "source file" "line number"
+  )
+
+  let found = ($result | get match | parse "{size} {file}")
+
+  $result | reject match | merge $found
+}
+
+#search for manga
+export def grep-manga [search] {
+  let result = ( grep -ihHn $search ~/Dropbox/Directorios/manga*.txt
+    | lines 
+    | parse "{file}:{line}:{match}"
+    | update file {|f|
+         $f 
+         | get file 
+         | split row '/' 
+         | last
+      }
+    | str trim
+    | find -v "/"
+    | rename "source file" "line number"
+  )
+
+  let found = ($result | get match | parse "{size} {file}")
+
+  $result | reject match | merge $found
+}
+
+#search for series
+export def grep-series [search:string,season?:int] {
+  let result = (grep -ihHn $search ~/Dropbox/Directorios/series*.txt ~/Dropbox/Directorios/torrent*.txt
+      | lines 
+      | parse "{file}:{line}:{match}"
+      | update file {|f|
+           $f 
+           | get file 
+           | split row '/' 
+           | last
+       }
+      | str trim
+      | find -v "/"
+      | rename "source file" "line number"
+  )
+
+  let result = (
+    if ($result | is-column column4) {
+      $result | reject column4
+    } else {
+      $result
+    }
+  )
+
+  let found = ($result | get match | into string | parse "{size} {file}")
+
+  let S = if ($season | is-empty) {
+      ""
+    } else {
+      $season | into string | str lpad -l 2 -c '0'
+  }
+
+  $result | reject match | merge $found | find -i $"s($S)" 
+}
+
+#umount all drives (lsblk)
+def umall [user? = "kira"] {
+  lsblk 
+  | lines 
+  | drop nth 0 
+  | parse "{rest} /{mountpoint}" 
+  | reject rest 
+  | find -i $"media/($user)" 
+  | update mountpoint {|f| 
+      build-string "/" $f.mountpoint
+  }
+  | get mountpoint 
+  | each {|drive| 
+      echo $"umounting ($drive)..."
+      umount $drive
+  }
+}
+
+#get devices connected to network
+def get-devices [
+  device? #wifi or lan
+] {
+
+  let device = if ($device | empty?) {"wlo1"} else {$device}
+  let ipinfo = (ip -json add 
+    | from json 
+    | where ifname =~ $"($device)" 
+    | select addr_info 
+    | flatten 
+    | find -v inet6 
+    | flatten 
+    | get local prefixlen 
+    | flatten 
+    | str collect '/' 
+    | str replace '(?P<nums>\d+/)' '0/'
+  )
+
+  let nmap_output = (sudo nmap -sn $ipinfo --max-parallelism 10)
+
+  let ips = ($nmap_output 
+    | lines 
+    | find report 
+    | split row ' ' 
+    | find --regex '(?P<nums>\d+)' 
+    | drop 
+    | str replace -s '(' '' 
+    | str replace -s ')' '' 
+    | wrap ip
+  )
+  
+  let macs_n_names = ($nmap_output | lines | find MAC | split row ': ' | find '(')
+  let macs = ($macs_n_names | split row '('  | find -v ')' | str replace ' ' '' | wrap mac)
+  let names = ($macs_n_names | split row '(' | find ')' | str replace -s ')' '' | wrap name)
+
+  let devices = ( [$ips $macs $names] 
+    | reduce {|it, acc| 
+        $acc | merge { $it }
+      }
+  )
+
+  let known_devices = (open '~/Yandex.Disk/Backups/linux/known_devices.csv')
+  let known_macs = ($known_devices | get mac | str upcase)
+
+  let known = ($devices | each {any? $it.mac in $known_macs} | wrap known)
+
+  let devices = ($devices | merge {$known})
+
+  let aliases = ($devices | each {|row| 
+    if $row.known {
+      $known_devices | find $row.mac | get alias
+    } else {
+      " "
+    }
+  } | flatten | wrap alias
+  )
+   
+  $devices | merge {$aliases}
+}
+
+#get bitly short link
+export def mbitly [longurl] {
+  if ($longurl | is-empty) {
+    echo-r "no url provided"
+  } else {
+    let bitly_credential = open ([$env.MY_ENV_VARS.credentials "bitly_token.json"] | path join)
+    let Accesstoken = ($bitly_credential | get token)
+    let username = ($bitly_credential | get username)
+    
+    let url = $"https://api-ssl.bitly.com/v3/shorten?access_token=($Accesstoken)&login=($username)&longUrl=($longurl)"
+    let shorturl = (fetch $url | get data | get url)
+
+    $shorturl | copy
+    echo-g $"($shorturl) copied to clipboard!"
+  }
+}
+
+#sin function
+export def "math sin" [ ] {
+    each {|x| "s(" + $"($x)" + ")\n" | bc -l | into decimal }
+}
+
+#cos function
+export def "math cos" [ ] {
+    each {|x| "c(" + $"($x)" + ")\n" | bc -l | into decimal }
+}
+
+#natural log function
+export def "math ln" [ ] {
+    each {|x| "l(" + $"($x)" + ")\n" | bc -l | into decimal }
+}
+
+## special characters (nerd fonts)
+# e0a0-3
+# e0b0-9
+# e0ba-f
+# e0c0-8
+# e0ca
+# e0cc-f
+# e0d0-4
+# "❱ "
+
+## colors 
+# 345eeb
+
+
+
 # Weather Script based on IP Address 
 # - Weather using dark weather api
 # - Air polution condition using airvisual api
@@ -29,15 +232,20 @@ export def-env get_weather_by_interval [INTERVAL_WEATHER:duration] {
     
             if ($LAST_WEATHER_TIME | into datetime) + ($INTERVAL_WEATHER | into duration) < (date now) {
                 let WEATHER = (get_weather_for_prompt (get_location))
-                let NEW_WEATHER_TIME = (date now | date format '%Y-%m-%d %H:%M:%S %z')
-        
-                $last_runtime_data 
-                | upsert weather $"($WEATHER.Icon) ($WEATHER.Temperature)" 
-                | upsert weather_text $"($WEATHER.Condition) ($WEATHER.Temperature)" 
-                | upsert last_weather_time $NEW_WEATHER_TIME 
-                | save -f $weather_runtime_file
 
-                $"($WEATHER.Icon) ($WEATHER.Temperature)"
+                if $WEATHER.mystatus {
+                    let NEW_WEATHER_TIME = (date now | date format '%Y-%m-%d %H:%M:%S %z')
+            
+                    $last_runtime_data 
+                    | upsert weather $"($WEATHER.Icon) ($WEATHER.Temperature)" 
+                    | upsert weather_text $"($WEATHER.Condition) ($WEATHER.Temperature)" 
+                    | upsert last_weather_time $NEW_WEATHER_TIME 
+                    | save -f $weather_runtime_file
+    
+                    $"($WEATHER.Icon) ($WEATHER.Temperature)"
+                } else {
+                    $last_runtime_data | get weather
+                }
             } else {
                 $last_runtime_data | get weather
             }
@@ -103,9 +311,17 @@ def fetch_api [loc] {
 
     let options = "?lang=en&units=si&exclude=minutely,hourly,flags"
 
-    let url = $"https://api.darksky.net/forecast/($apiKey)/($loc)($options)"
+    let url = $"https://api.darksky.nett/forecast/($apiKey)/($loc)($options)"
     
-    http get $url
+    let response = (
+        try {
+            http get $url | upsert mystatus true
+        } catch {
+            {"mystatus": false}
+        }
+    )
+
+    return $response
 }
 
 # street address
@@ -266,6 +482,10 @@ def get_weather_for_prompt [loc] {
     
     let response = (fetch_api $loc)
 
+    if not $response.mystatus {
+        return $response
+    }
+
     ## current conditions
     let cond = $response.currently.summary
     let temp = $response.currently.temperature
@@ -279,7 +499,7 @@ def get_weather_for_prompt [loc] {
     }
 
     # echo $"($current.Icon) ($current.Temperature)"
-    $current
+    return ($current | upsert mystatus $response.mystatus)
 }
 
 def get_weather_icon [icon: string] {

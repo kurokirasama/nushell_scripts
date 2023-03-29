@@ -660,9 +660,9 @@ export def send-gmail [
 #get code of custom command
 export def code [command,--raw] {
   if ($raw | is-empty) {
-    view-source $command | nu-highlight
+    view source $command | nu-highlight
   } else {
-    view-source $command
+    view source $command
   }
 }
 
@@ -711,9 +711,9 @@ export def reset-alpine-auth [] {
 #run matlab in cli
 export def matlab-cli [--ubb(-b)] {
   if not $ubb {
-    matlab19 -nosplash -nodesktop -sd $"\"($env.PWD)\"" -logfile "/home/kira/Dropbox/matlab/log19.txt"
+    matlab19 -nosplash -nodesktop -sd $"\"($env.PWD)\"" -logfile "/home/kira/Dropbox/matlab/log19.txt" -r "setenv('SHELL', '/bin/bash');"
   } else {
-    matlab19_ubb -nosplash -nodesktop -sd $"\"($env.PWD)\"" -logfile "/home/kira/Dropbox/matlab/log19.txt"
+    matlab19_ubb -nosplash -nodesktop -sd $"\"($env.PWD)\"" -logfile "/home/kira/Dropbox/matlab/log19.txt" -r "setenv('SHELL', '/bin/bash');"
   }
 }
 
@@ -919,6 +919,11 @@ export def setdiff [a,b] {
   | each {|n| 
     if $n not-in $b {$n} 
   }
+}
+
+#maestral status
+export def "dpx status" [] {
+  maestral status | lines | parse "{item}  {status}" | str trim | drop nth 0
 }
 
 #default a full table 
