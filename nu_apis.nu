@@ -18,7 +18,7 @@ export def bitly [longurl] {
     let shorturl = ($response | get link)
 
     $shorturl | copy
-    echo-g $"($shorturl) copied to clipboard!"
+    print (echo-g $"($shorturl) copied to clipboard!")
   }
 }
 

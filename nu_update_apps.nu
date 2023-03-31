@@ -122,7 +122,7 @@ export def github-app-update [
     )
 
     if $current_version != $new_version {
-      echo-g $"\nupdating ($repo)..."
+      print (echo-g $"\nupdating ($repo)...")
       rm $"*($app)*.($file_type)" | ignore
       aria2c --download-result=hide $url
 
@@ -140,11 +140,11 @@ export def github-app-update [
         }
       }
     } else {
-      echo-g $"($repo) is already in its latest version!"
+      print (echo-g $"($repo) is already in its latest version!")
     }
 
   } else {
-    echo-g $"\ndownloading ($repo)..."
+    print (echo-g $"\ndownloading ($repo)...")
     aria2c --download-result=hide $url
 
     if $file_type == "deb" {
@@ -201,11 +201,11 @@ export def "apps-update monocraft" [
 
   if $current_version != $new_version {
     if $to_patch {
-      echo-g "New version of Monocraft downloaded, now patching nerd fonts..."
+      print (echo-g "New version of Monocraft downloaded, now patching nerd fonts...")
       nu ([$env.MY_ENV_VARS.linux_backup "software/appimages/patch-font.nu"] | path join)
     } else {
       let font = ([$env.MY_ENV_VARS.linux_backup (ls $"($env.MY_ENV_VARS.linux_backup)/*.($type)" | sort-by modified | last | get name | ansi strip)] | path join)
-      echo-g $"New version of Monocraft downloaded, now installing ($font | path parse | get stem)..."
+      print (echo-g $"New version of Monocraft downloaded, now installing ($font | path parse | get stem)...")
       install-font $font
     }
   }
@@ -257,7 +257,7 @@ export def "apps-update zoom" [] {
   if $current_version != $last_version {
     ls | find zoom | find deb | rm-pipe | ignore
 
-    echo-g "\ndownloading zoom..."
+    print (echo-g "\ndownloading zoom...")
     aria2c --download-result=hide https://zoom.us/client/latest/zoom_amd64.deb
     sudo gdebi -n (ls *.deb | find zoom | get 0 | get name | ansi strip)
 
@@ -265,7 +265,7 @@ export def "apps-update zoom" [] {
     | upsert version $last_version 
     | save -f ([$env.MY_ENV_VARS.debs zoom.json] | path join)
   } else {
-    echo-g "zoom is already in its latest version!"
+    print (echo-g "zoom is already in its latest version!")
   }
 }
 
@@ -295,10 +295,10 @@ export def "apps-update chrome" [] {
       ls *.deb | find chrome | rm-pipe | ignore
     }
   
-    echo-g "\ndownloading chrome..."
+    print (echo-g "\ndownloading chrome...")
     aria2c --download-result=hide https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
   } else {
-    echo-g "chrome is already in its latest version!"
+    print (echo-g "chrome is already in its latest version!")
   }
 }
 
@@ -320,11 +320,11 @@ export def "apps-update earth" [] {
       ls *.deb | find earth | rm-pipe | ignore
     }
     
-    echo-g "\ndownloading google earth..."
+    print (echo-g "\ndownloading google earth...")
     aria2c --download-result=hide https://dl.google.com/dl/earth/client/current/google-earth-pro-stable_current_amd64.deb
     sudo gdebi -n google-earth-pro-stable_current_amd64.deb
   } else {
-    echo-g "earth is already in its latest version!"
+    print (echo-g "earth is already in its latest version!")
   }
 }
 
@@ -353,11 +353,11 @@ export def "apps-update yandex" [] {
       ls *.deb | find yandex | rm-pipe | ignore
     }
     
-    echo-g "\ndownloading yandex..."
+    print (echo-g "\ndownloading yandex...")
     aria2c --download-result=hide http://repo.yandex.ru/yandex-disk/yandex-disk_latest_amd64.deb 
     sudo gdebi -n yandex-disk_latest_amd64.deb 
   } else {
-    echo-g "yandex is already in its latest version!"
+    print (echo-g "yandex is already in its latest version!")
   }
 }
 
@@ -393,16 +393,16 @@ export def "apps-update sejda" [] {
     )
 
     if $current_version != $new_version {
-      echo-g "\nupdating sedja..."
+      print (echo-g "\nupdating sedja...")
       rm sejda*.deb | ignore
       aria2c --download-result=hide $url
       sudo gdebi -n $new_file
     } else {
-      echo-g "sedja is already in its latest version!"
+      print (echo-g "sedja is already in its latest version!")
     }
 
   } else {
-    echo-g "\ndownloading sedja..."
+    print (echo-g "\ndownloading sedja...")
     aria2c --download-result=hide $url
     sudo gdebi -n $new_file
   }
@@ -443,7 +443,7 @@ export def "apps-update nmap" [] {
     )
 
     if $current_version != $new_version {
-      echo-g "\nupdating nmap..."
+      print (echo-g "\nupdating nmap...")
       rm nmap*.deb | ignore
 
       aria2c --download-result=hide $url
@@ -454,11 +454,11 @@ export def "apps-update nmap" [] {
       sudo gdebi -n $new_deb
       ls $new_file | rm-pipe | ignore
     } else {
-      echo-g "nmap is already in its latest version!"
+      print (echo-g "nmap is already in its latest version!")
     }
 
   } else {
-    echo-g "\ndownloading nmap..."
+    print (echo-g "\ndownloading nmap...")
     aria2c --download-result=hide $url
     sudo alien -v -k $new_file
 
@@ -501,14 +501,14 @@ export def "apps-update ttyplot" [] {
   let new_version = ($filename | split row _ | get 1)
 
   if $current_version != $new_version {
-    echo-g $"\nupdating ttyplot..."
+    print (echo-g $"\nupdating ttyplot...")
 
     ls *.deb | find ttyplot | rm-pipe
     aria2c --download-result=hide $url
 
     sudo gdebi -n $filename
   } else {
-    echo-g "ttyplot is already in the latest version!"
+    print (echo-g "ttyplot is already in the latest version!")
   }
 }
 
@@ -530,7 +530,7 @@ export def "apps-update nushell" [] {
     bash install-all.sh
     update-nu-config
   } else {
-    echo-g "nushell is already up to date!"
+    print (echo-g "nushell is already up to date!")
   }
 }
 
@@ -543,26 +543,26 @@ export def "apps-update maestral" [] {
 #update-upgrade system
 export def supgrade [--old(-o)] {
   if not $old {
-    echo-g "updating and upgrading..."
+    print (echo-g "updating and upgrading...")
     sudo nala upgrade -y
 
-    echo-g "autoremoving..."
+    print (echo-g "autoremoving...")
     sudo nala autoremove -y
   } else {
-    echo-g "updating..."
+    print (echo-g "updating...")
     sudo apt update -y
 
-    echo-g "upgrading..."
+    print (echo-g "upgrading...")
     sudo apt upgrade -y
 
-    echo-g "autoremoving..."
+    print (echo-g "autoremoving...")
     sudo apt autoremove -y
   }
 
-  echo-g "updating rust..."
+  print (echo-g "updating rust...")
   rustup update
 
-  echo-g "updating off apt apps..."
+  print (echo-g "updating off apt apps...")
   apps-update
 
   # echo-g "upgrading pip3 packages..."
@@ -575,7 +575,7 @@ export def pip3-upgrade [] {
   | lines 
   | split column "==" 
   | each {|pkg| 
-      echo-g $"upgrading ($pkg.column1)..."
+      print (echo-g $"upgrading ($pkg.column1)...")
       pip3 install --upgrade $pkg.column1
     }
 }
@@ -619,8 +619,18 @@ export def install-font [file] {
 }
 
 #update whisper
-export def whisper-update [] {
+export def "apps-update whisper" [] {
   pip install --upgrade --no-deps --force-reinstall git+https://github.com/openai/whisper.git
+}
+
+#update gptcomit
+export def "apps-update gptcommit" [] {
+  cargo install --locked gptcommit --force
+}
+
+#update chatgpt
+export def "apps-update chatgpt" [] {
+  pip3 install git+https://github.com/mmabrouk/chatgpt-wrapper --upgrade
 }
 
 #update cargo apps

@@ -1,4 +1,5 @@
 export alias dsitcl = bash -c 'docker run --rm -it -v "/home/kira/Dropbox/Documentos/Clases/UBB/DataScienceAtTheCommandLine/Files/data":/data datasciencetoolbox/dsatcl2e'
+export alias s = subl
 export alias install-nu-plugin = cargo install --path .
 export alias nu-clean = cargo clean
 export alias get-keybindings = $env.config.keybindings
