@@ -83,7 +83,7 @@ export def "rebrandly get" [longurl] {
     let shorturl = ($response | get shortUrl)
 
     $shorturl | copy
-    echo-g $"($shorturl) copied to clipboard!"
+    print (echo-g $"($shorturl) copied to clipboard!")
   }
 } 
 

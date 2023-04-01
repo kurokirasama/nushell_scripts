@@ -124,28 +124,28 @@ export def "media remove-audio-noise" [
     rm tmp*
   }
 
-  echo-g "extracting video..."
+  print (echo-g "extracting video...")
   myffmpeg -loglevel 1 -i $"($file)" -vcodec copy -an tmpvid.mp4
 
-  echo-g "extracting audio..."
+  print (echo-g "extracting audio...")
   myffmpeg -loglevel 1 -i $"($file)" -acodec pcm_s16le -ar 128k -vn tmpaud.wav
 
-  echo-g "extracting noise..."
+  print (echo-g "extracting noise...")
   myffmpeg -loglevel 1 -i $"($file)" -acodec pcm_s16le -ar 128k -vn -ss $start -t $end tmpnoiseaud.wav
 
-  echo-g "creating noise profile..."
+  print (echo-g "creating noise profile...")
   sox tmpnoiseaud.wav -n noiseprof tmpnoise.prof
 
-  echo-g "cleaning noise from audio file..."
+  print (echo-g "cleaning noise from audio file...")
   sox tmpaud.wav tmpaud-clean.wav noisered tmpnoise.prof $noiseLevel
 
-  echo-g "merging clean audio with video file..."
+  print (echo-g "merging clean audio with video file...")
   myffmpeg -loglevel 1 -i tmpvid.mp4 -i tmpaud-clean.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 128k $output
 
-  echo-g "done!"
+  print (echo-g "done!")
   notify-send "noise removal done!"
 
-  echo-g "don't forget to remove tmp* files"
+  print (echo-g "don't forget to remove tmp* files")
 }
 
 #screen record to mp4
@@ -221,13 +221,13 @@ export def "media split-video" [
     let segment_start = into hhmmss (($it - 1) * $seg_duration)
     let segment_end = into hhmmss ($seg_end + ($it - 1) * $seg_duration + $delta)
 
-    echo-g $"generating part ($it): ($segment_start) - ($segment_end)..."
+    print (echo-g $"generating part ($it): ($segment_start) - ($segment_end)...")
     media cut-video $file $segment_start $segment_end -a $it
   }
 
   let segment_start = into hhmmss (($n_segments - 1) * $seg_duration)
 
-  echo-g $"generating part ($n_segments): ($segment_start) - ($full_hhmmss)..."
+  print (echo-g $"generating part ($n_segments): ($segment_start) - ($full_hhmmss)...")
   media cut-video $file $segment_start $full_hhmmss -a $n_segments
 }
 
@@ -250,7 +250,7 @@ export def "media to" [
         | length
     )
 
-    echo-g $"($n_files) audio files found..."
+    print (echo-g $"($n_files) audio files found...")
 
     if $n_files > 0 {
       bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.3gp" -not -name "*.($to)" -print0 | parallel -0 --eta myffmpeg -n -loglevel 0 -i {} -c:a ($to) -b:a 64k {.}.($to)'
@@ -264,7 +264,7 @@ export def "media to" [
       )
 
       if $n_files == $aacs {
-        echo-g $"audio conversion to ($to) done"
+        print (echo-g $"audio conversion to ($to) done")
       } else {
         return-error $"audio conversion to ($to) done, but something might be wrong"
       }
@@ -279,7 +279,7 @@ export def "media to" [
         | length
     )
 
-    echo-g $"($n_files) avi files found..."
+    print (echo-g $"($n_files) avi files found...")
 
     if $n_files > 0 {
       if $copy {
@@ -297,7 +297,7 @@ export def "media to" [
       )
 
       if $n_files == $aacs {
-        echo-g $"avi video conversion to mp4 done"
+        print (echo-g $"avi video conversion to mp4 done")
       } else {
         return-error "video conversion to mp4 done, but something might be wrong"
       }
@@ -312,7 +312,7 @@ export def "media to" [
         | length
       )
 
-      echo-g $"($n_files) mkv files found..."
+      print (echo-g $"($n_files) mkv files found...")
 
       if $n_files > 0 {
         if $copy {
@@ -330,7 +330,7 @@ export def "media to" [
         )
 
         if $n_files == $aacs {
-          echo-g $"mkv video conversion to mp4 done"
+          print (echo-g $"mkv video conversion to mp4 done")
         } else {
           return-error "video conversion to mp4 done, but something might be wrong"
         }
@@ -379,10 +379,10 @@ export def "media merge-videos" [
   #file '/path/to/file/fileN'"
   #~~~
 ] {
-  echo-g "merging videos..."
+  print (echo-g "merging videos...")
   myffmpeg -f concat -safe 0 -i $"($list)" -c copy $"($output)"
   
-  echo-g "done!"
+  print (echo-g "done!")
   notify-send "video merging done!"
 }
 
@@ -409,10 +409,10 @@ export def "media merge-videos-auto" [
       echo (build-string "file \'" (($env.PWD) | path join $file) "\'\n") | save --append list.txt
     }
 
-  echo-g "merging videos..."
+  print (echo-g "merging videos...")
   myffmpeg -f concat -safe 0 -i list.txt -c copy $"($output)"
       
-  echo-g "done!"
+  print (echo-g "done!")
   notify-send "video merging done!"
 }
 
@@ -458,45 +458,45 @@ export def "media compress-video" [
     )
 
     if $n_files > 0 {
-      echo-g $"($n_files) video files found..."
+      print (echo-g $"($n_files) video files found...")
 
       if ($level | is-empty) {
         if not $mkv {
           try {
-            echo-g "trying myffmpeg..."
+            print (echo-g "trying myffmpeg...")
             bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_compressed_by_me.mp4"
           } catch {
-            echo-r "failed myffmpeg..."
-            echo-g "trying ffmpeg..."
+            print (echo-r "failed myffmpeg...")
+            print (echo-g "trying ffmpeg...")
             bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_compressed_by_me.mp4"
           }
         } else {
           try {
-            echo-g "trying myffmpeg..."
+            print (echo-g "trying myffmpeg...")
             bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_compressed_by_me.mp4"
           } catch {
-            echo-r "failed myffmpeg..."
-            echo-g "trying ffmpeg..."
+            print (echo-r "failed myffmpeg...")
+            print (echo-g "trying ffmpeg...")
             bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_compressed_by_me.mp4"
           }
         }
       } else {
         if not $mkv {
           try {
-            echo-g "trying myffmpeg..."
+            print (echo-g "trying myffmpeg...")
             bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_compressed_by_me.mp4"
           } catch {
-            echo-r "failed myffmpeg..."
-            echo-g "trying ffmpeg..."
+            print (echo-r "failed myffmpeg...")
+            print (echo-g "trying ffmpeg...")
             bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_compressed_by_me.mp4"
           }
         } else {
           try {
-            echo-g "trying myffmpeg..."
+            print (echo-g "trying myffmpeg...")
             bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_compressed_by_me.mp4"
           } catch {
-            echo-r "failed myffmpeg..."
-            echo-g "trying ffmpeg..."
+            print (echo-r "failed myffmpeg...")
+            print (echo-g "trying ffmpeg...")
             bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*compressed_by_me*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_compressed_by_me.mp4"
           }
         }
@@ -511,31 +511,31 @@ export def "media compress-video" [
     switch $ext {
       "avi" : {||
         try {
-          echo-g "trying myffmpeg..."
+          print (echo-g "trying myffmpeg...")
           myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_compressed_by_me.mp4"
         } catch {
-          echo-r "failed myffmpeg..."
-          echo-g "trying ffmpeg..."
+          print (echo-r "failed myffmpeg...")
+          print (echo-g "trying ffmpeg...")
           ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_compressed_by_me.mp4"
         }
       },
       "mp4" : {||
         try {
-          echo-g "trying myffmpeg..."
+          print (echo-g "trying myffmpeg...")
           myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_compressed_by_me.mp4"
         } catch {
-          echo-r "failed myffmpeg..."
-          echo-g "trying ffmpeg..."
+          print (echo-r "failed myffmpeg...")
+          print (echo-g "trying ffmpeg...")
           ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_compressed_by_me.mp4"
         }
       },
       "mkv" : {||
         try {
-          echo-g "trying myffmpeg..."
+          print (echo-g "trying myffmpeg...")
           myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac -c:s mov_text $"($name)_compressed_by_me.mp4"
         } catch {
-          echo-r "failed myffmpeg..."
-          echo-g "trying ffmpeg..."
+          print (echo-r "failed myffmpeg...")
+          print (echo-g "trying ffmpeg...")
           ffmpeg -i $file -vcodec $vcodec -c:a aac -c:s mov_text $"($name)_compressed_by_me.mp4"
         }
       }

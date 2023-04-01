@@ -1,3 +1,9 @@
+export old-alias ncdu = ncdu --color dark
+export old-alias tree = tree -h
+export old-alias grp = grep-nu
+export old-alias cal = cal --week-start monday
+export old-alias bat = bat --paging never --theme=ansi
+export old-alias tokei = (tokei . | grep -v = | from tsv)
 export alias dsitcl = bash -c 'docker run --rm -it -v "/home/kira/Dropbox/Documentos/Clases/UBB/DataScienceAtTheCommandLine/Files/data":/data datasciencetoolbox/dsatcl2e'
 export alias s = subl
 export alias install-nu-plugin = cargo install --path .
@@ -5,9 +11,6 @@ export alias nu-clean = cargo clean
 export alias get-keybindings = $env.config.keybindings
 export alias goto-nuconfigdir = ($nu.config-path | goto)
 export alias open-config = subl $nu.config-path
-export old-alias tree = tree -h
-export old-alias grp = grep-nu
-export old-alias cal = cal --week-start monday
 export alias adbtasker = adb -s 9cdd570d tcpip 5555
 export alias gmail = cmdg -shell "/home/kira/.cargo/bin/nu"
 export alias wsp = whatscli
@@ -31,15 +34,12 @@ export alias print-list = lpstat -R
 export alias listen-ports = (sudo netstat -tunlp | detect columns)
 export alias cable-ubb = nmcli con up "Cable UBB"
 export alias mpydf = pydf /media/kira/*
-export old-alias bat = bat --paging never --theme=ansi
-export old-alias tokei = (tokei . | grep -v = | from tsv)
 export alias apagar = systemctl poweroff -i
 export alias reiniciar = systemctl reboot -i
 export alias get-mac = open /sys/class/net/wlo1/address
 export alias cblue = (echo "connect 34:82:C5:47:E3:3B" | bluetoothctl)
 export alias ram = (free -h  | from ssv | rename type total used free | select type used free total)
 export alias get-wg = xdotool selectwindow getwindowgeometry
-export old-alias ncdu = ncdu --color dark
 export alias ytcli = yt set show_video True, set fullscreen False, set search_music False, set player mpv, set notifier notify-send, set order date, set user_order date, set playerargs "default"
 export alias btop = btm --battery --hide_avg_cpu --group
 export alias mute = amixer -q -D pulse sset Master mute
@@ -47,11 +47,6 @@ export alias unmute = amixer -q -D pulse sset Master unmute
 export alias max-vol = amixer -D pulse sset Master Playback 65536
 export alias "math mean" = math avg
 export alias "math std" = math stddev
-export alias pi = (math pi )
-export alias e = (math e)
-export alias tau = (math tau)
-export alias gamma = 0.5772156649015328
-export alias phi = 1.6180339887498948 
 
 # export alias hangouts = hangups --col-scheme solarized-dark
 # export alias myoctave = (octave --no-gui -q 2>/dev/null)

@@ -68,8 +68,8 @@ def main():
         "childCount": download.get("childCount", ""),
         "eta": download.get("eta", ""),
         "speed": download.get("speed") / (2**20) if "speed" in download else "",
-        "bytesLoaded": download.get("bytesLoaded", "") / 1000000,
-        "bytesTotal": download.get("bytesTotal", "") / 1000000,
+        "bytesLoaded": str(download.get("bytesLoaded", "") / 1000000) if "bytesLoaded" in download and download["bytesLoaded"] is not None else "",
+        "bytesTotal": str(download.get("bytesTotal", "") / 1000000) if "bytesTotal" in download and download["bytesTotal"] is not None else "",
       }
    
    downloads.append(download_info)

@@ -66,7 +66,7 @@ export def cp-pipe [
   get name
   | ansi strip
   | each {|file| 
-    echo-g $"copying ($file)..." 
+    print (echo-g $"copying ($file)..." )
     ^cp -ur $file ($to | path expand)
   } 
 }
@@ -81,7 +81,7 @@ export def mv-pipe [
   get name 
   | ansi strip
   | each {|file|
-      echo-g $"moving ($file)..." 
+      print (echo-g $"moving ($file)..." )
       ^mv -u $file ($to | path expand)
     }
 }
@@ -231,7 +231,7 @@ export def join-pdfs [
     return-error "not enough pdfs provided"
   } else {
     pdftk $rest cat output output.pdf
-    echo-g "pdf merged in output.pdf"
+    print (echo-g "pdf merged in output.pdf")
   }
 }
 
@@ -239,7 +239,7 @@ export def join-pdfs [
 export def autolister [user = $env.USER] {
   let host = (sys | get host | get hostname)
 
-  echo-g "listing Downloads..."
+  print (echo-g "listing Downloads...")
   cd ~/Downloads
   lister ("Downloads" + "_" + $host)
 
@@ -255,7 +255,7 @@ export def autolister [user = $env.USER] {
   if ($drives | length) > 0 {
     $drives
     | each { |drive|
-        echo-g $"listing ($drive | ansi strip)..."
+        print (echo-g $"listing ($drive | ansi strip)...")
         cd ($drive | ansi strip)
         lister ($drive | ansi strip | path parse | get stem | split row " " | get 0)
       }
@@ -376,7 +376,7 @@ export def echo-g [string:string] {
 
 #red echo
 export def echo-r [string:string] {
-  print (echo $"(ansi -e { fg: '#ff0000' attr: b })($string)(ansi reset)")
+  echo $"(ansi -e { fg: '#ff0000' attr: b })($string)(ansi reset)"
 }
 
 #switch-case like instruction
@@ -423,7 +423,7 @@ export def replicate-tree [to:string] {
   | each {|dir|
       let new_dir = ($dir | get name | str prepend $"($to | path expand)/")
       if not ($new_dir | path exists) {
-        echo-g $"creating ($new_dir)..."
+        print (echo-g $"creating ($new_dir)...")
         mkdir $new_dir | ignore
       }
   }

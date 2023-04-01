@@ -300,7 +300,7 @@ export def openg [file?] {
   )
 
   $url | copy
-  echo-g $"($url) copied to clipboard!"
+  print (echo-g $"($url) copied to clipboard!")
 }
 
 #accumulate a list of files into the same table
@@ -676,7 +676,7 @@ export def reg-plugins [] {
   | find -v example
   | each {|file|
       if (grep-nu $file $nu.plugin-path | length) == 0 {
-        echo-g $"registering ($file)..."
+        print (echo-g $"registering ($file)...")
         nu -c $'register ($file)'    
       } 
     }
@@ -860,7 +860,7 @@ export def umall [user? = $env.USER] {
     | find $"/media/($user)" 
     | get mount_point
     | each {|drive| 
-        echo-g $"umounting ($drive  | ansi strip)..."
+        print (echo-g $"umounting ($drive  | ansi strip)...")
         umount ($drive | ansi strip)
       }
   } catch {
