@@ -73,7 +73,7 @@ export def wifi-info [] {
       if ($row | get in-use) == "❱" {
         $row 
         | update cells {|value| 
-            [(ansi -e { fg: '#00ff00' attr: b }) $value] | str collect 
+            [(ansi -e { fg: '#00ff00' attr: b }) $value] | str join 
           }
       } else {
         $row
@@ -169,7 +169,7 @@ export def get-devices [
       | flatten 
       | get local prefixlen 
       | flatten 
-      | str collect '/' 
+      | str join '/' 
       | str replace '(?P<nums>\d+/)' '0/'
     }
   )
@@ -199,7 +199,7 @@ export def get-devices [
 
   let devices = ( $ips | merge $macs_n_names )
 
-  let known_devices = open ([$env.MY_ENV_VARS.linux_backup "known_devices.csv"] | path join)
+  let known_devices = (open ([$env.MY_ENV_VARS.linux_backup "known_devices.csv"] | path join))
   let known_macs = ($known_devices | get mac | str upcase)
 
   let known = ($devices | each {|it| $it.mac in $known_macs} | wrap known)

@@ -8,6 +8,11 @@ export def "str append" [toappend] {
   build-string $in $toappend
 }
 
+#build-string (temporary, replace all build-string instances by "+" syntax)
+export def build-string [...rest] {
+  $rest | str join ""
+}
+
 #compress all folders into a separate file and delete them
 export def "7z folders" [--not_delete(-n)] {
   if not $not_delete {
@@ -243,14 +248,14 @@ export def autolister [user = $env.USER] {
   cd ~/Downloads
   lister ("Downloads" + "_" + $host)
 
-  let drives = try {
+  let drives = (try {
     duf -json 
     | from json 
     | find $"/media/($user)" 
     | get mount_point
   } catch {
     []
-  }
+  })
 
   if ($drives | length) > 0 {
     $drives
@@ -266,11 +271,12 @@ export def autolister [user = $env.USER] {
 export def lister [file] {
   let file = (["~/Dropbox/Directorios" $"($file).json"] | path join | path expand)
 
-  let df = try {
+  let df = (try {
       get-files -f -F 
     } catch {
       []
     }
+  )
 
   if ($df | length) == 0 {
     if $file =~ "Downloads" and ($file | path expand | path exists) { 
@@ -345,7 +351,7 @@ export def open-analytics [$file?] {
   | lines 
   | find -v "#" 
   | drop nth 0 
-  | str collect "\n" 
+  | str join "\n" 
   | from csv 
 }
 

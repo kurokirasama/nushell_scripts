@@ -218,7 +218,7 @@ def get_weather [loc] {
     let air_cond = (get_airCond $loc)
 
     ## Current conditions
-    let cond = get_weather_description_from_code ($response.realtime.data.values.weatherCode | into string)
+    let cond = (get_weather_description_from_code ($response.realtime.data.values.weatherCode | into string))
     let temp = $response.realtime.data.values.temperature
     let wind = $response.realtime.data.values.windSpeed * 3.6 
     let humi = $response.realtime.data.values.humidity 
@@ -332,7 +332,7 @@ def get_weather_for_prompt [loc] {
     }
 
     ## current conditions
-    let cond = get_weather_description_from_code ($response.realtime.data.values.weatherCode | into string)
+    let cond = (get_weather_description_from_code ($response.realtime.data.values.weatherCode | into string))
     let temp = $response.realtime.data.values.temperature
     let temperature = $"($temp)°C"
 
@@ -377,7 +377,7 @@ def get_weather_icon [icon_description: string] {
         "heavy-rain": {|| (char -u e317)},
         "snow": {|| (char -u fa97)},
         "light-snow": {|| (char -u e31a)},
-        "heavy-snow": {|| (char -u 1F328)},
+        "heavy-snow": {|| (char -u "1F328")},
         "flurries": {|| (char -u e35e)},
         "freezing-drizzle": {|| (char -u fb7d)},
         "sleet": {|| (char -u e3ad)},

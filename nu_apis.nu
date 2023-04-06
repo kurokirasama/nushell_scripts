@@ -3,7 +3,7 @@ export def bitly [longurl] {
   if ($longurl | is-empty) {
     return-error "no url provided!"
   } else {
-    let bitly_credential = open-credential ([$env.MY_ENV_VARS.credentials "bitly_token.json.asc"] | path join)
+    let bitly_credential = (open-credential ([$env.MY_ENV_VARS.credentials "bitly_token.json.asc"] | path join))
     let Accesstoken = ($bitly_credential | get token)
     let guid = ($bitly_credential | get guid)
     
@@ -14,7 +14,7 @@ export def bitly [longurl] {
       "long_url": $longurl
     }
 
-    let response = http post $url $content --content-type "application/json" -H ["Authorization", $"Bearer ($Accesstoken)"]
+    let response = (http post $url $content --content-type "application/json" -H ["Authorization", $"Bearer ($Accesstoken)"])
     let shorturl = ($response | get link)
 
     $shorturl | copy
@@ -41,18 +41,18 @@ export def trans [
     return-error "no search query provided!"
   } 
   
-  let trans_credential = open-credential ([$env.MY_ENV_VARS.credentials "mymemory_token.json.asc"] | path join)
+  let trans_credential = (open-credential ([$env.MY_ENV_VARS.credentials "mymemory_token.json.asc"] | path join))
   let key = ($trans_credential | get token)
   let user = ($trans_credential | get username)
 
   let from = if ($from | is-empty) {"en-US"} else {$from}
   let to = if ($to | is-empty) {"es-ES"} else {$to}
 
-  let to_translate = ($search | str collect "%20")
+  let to_translate = ($search | str join "%20")
 
   let url = $"https://api.mymemory.translated.net/get?q=($to_translate)&langpair=($from)%7C($to)&of=json&key=($key)&de=($user)"
   
-  let response = http get $url
+  let response = (http get $url)
   let status = ($response | get responseStatus)
   let translated = ($response | get responseData | get translatedText)
   
@@ -73,13 +73,13 @@ export def "rebrandly get" [longurl] {
  if ($longurl | is-empty) {
     return-error "no url provided"
   } else {
-    let credential = open-credential ([$env.MY_ENV_VARS.credentials "credential_rebrandly.json.asc"] | path join)
+    let credential = (open-credential ([$env.MY_ENV_VARS.credentials "credential_rebrandly.json.asc"] | path join))
     let api_key = ($credential | get api_key)
     
     let url = "https://api.rebrandly.com/v1/links"
     let content = {"destination": $longurl}
 
-    let response = http post $url $content -H ["apikey", $api_key] --content-type "application/json" -H ["UserAgent:","UserAgent,curl/7.68.0"]
+    let response = (http post $url $content -H ["apikey", $api_key] --content-type "application/json" -H ["UserAgent:","UserAgent,curl/7.68.0"])
     let shorturl = ($response | get shortUrl)
 
     $shorturl | copy
@@ -92,7 +92,7 @@ export def "rebrandly list" [longurl="www.google.com"] {
  if ($longurl | is-empty) {
     return-error "no url provided"
   } else {
-    let credential = open-credential ([$env.MY_ENV_VARS.credentials "credential_rebrandly.json.asc"] | path join)
+    let credential = (open-credential ([$env.MY_ENV_VARS.credentials "credential_rebrandly.json.asc"] | path join))
     let api_key = ($credential | get api_key)
     
     let base_url = "https://api.rebrandly.com/v1/links"

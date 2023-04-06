@@ -15,7 +15,7 @@ export def "geek find" [
       | complete 
       | get stdout
     } else {
-      let command = (build-string "geeknote find --search " $search " " ($rest | str collect ' '))
+      let command = (build-string "geeknote find --search " $search " " ($rest | str join ' '))
       do -i {nu -c $command} 
       | complete 
       | get stdout
@@ -44,7 +44,7 @@ export def "geek show" [
       | complete 
       | get stdout
     } else {
-      let command = (build-string "geeknote show " ($item | into string) " " ($rest | str collect ' '))
+      let command = (build-string "geeknote show " ($item | into string) " " ($rest | str join ' '))
       do -i {nu -c $command} 
       | complete 
       | get stdout
@@ -67,7 +67,7 @@ export def "geek edit" [
   if ($rest | is-empty) {
     geeknote edit $item
   } else {
-    let command = (build-string "geeknote edit " ($item | into string) " " ($rest | str collect ' '))
+    let command = (build-string "geeknote edit " ($item | into string) " " ($rest | str join ' '))
     nu -c $command
   }
 }

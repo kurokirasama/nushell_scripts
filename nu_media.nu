@@ -218,14 +218,14 @@ export def "media split-video" [
   let seg_end = $seg_duration
 
   for $it in 1..($n_segments - 1) {
-    let segment_start = into hhmmss (($it - 1) * $seg_duration)
-    let segment_end = into hhmmss ($seg_end + ($it - 1) * $seg_duration + $delta)
+    let segment_start = (into hhmmss (($it - 1) * $seg_duration))
+    let segment_end = (into hhmmss ($seg_end + ($it - 1) * $seg_duration + $delta))
 
     print (echo-g $"generating part ($it): ($segment_start) - ($segment_end)...")
     media cut-video $file $segment_start $segment_end -a $it
   }
 
-  let segment_start = into hhmmss (($n_segments - 1) * $seg_duration)
+  let segment_start = (into hhmmss (($n_segments - 1) * $seg_duration))
 
   print (echo-g $"generating part ($n_segments): ($segment_start) - ($full_hhmmss)...")
   media cut-video $file $segment_start $full_hhmmss -a $n_segments
@@ -552,7 +552,7 @@ export def "media delete-non-compressed" [file?] {
       $file 
       | get name 
       | split row "_compressed_by_me" 
-      | str collect "" 
+      | str join "" 
       | path expand
     }
   | wrap name

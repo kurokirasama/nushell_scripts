@@ -43,7 +43,7 @@ export def ytm [
     let to_play = ($playlists | find $playlist | ansi strip | get 0)
 
     if ($to_play | length) > 0 {
-      let songs = open $to_play
+      let songs = (open $to_play)
       # let songs = (
       #   open-df $to_play 
       #   | drop-duplicates [id] 
@@ -72,7 +72,7 @@ export def ytm [
 
             notify-send $"($song.item.title)" $"($song.item.artist)" -t 5000 --icon=/tmp/thumbnail.ico
             tiv /tmp/thumbnail.ico 
-            echo-g $"now playing ($song.item.title) by ($song.item.artist) [($song.index)/($len)]..."
+            print (echo-g $"now playing ($song.item.title) by ($song.item.artist) [($song.index)/($len)]...")
 
             bash -c $"mpv --msg-level=all=status --no-resume-playback --no-video --input-conf=($mpv_input) ($song.item.url)"
 
@@ -113,7 +113,7 @@ export def "ytm online" [
     let to_play = ($playlists | where title =~ $playlist | first | get id)
 
     if ($to_play | length) > 0 {
-      let songs = yt-api get-songs $to_play
+      let songs = (yt-api get-songs $to_play)
 
       let songs = (
         if not ($artist | is-empty) {
@@ -136,7 +136,7 @@ export def "ytm online" [
 
           notify-send $"($song.item.title)" $"($song.item.artist)" -t 5000 --icon=/tmp/thumbnail.ico
           tiv /tmp/thumbnail.ico 
-          echo-g $"now playing ($song.item.title) by ($song.item.artist) [($song.index)/($len)]..."
+          print (echo-g $"now playing ($song.item.title) by ($song.item.artist) [($song.index)/($len)]...")
 
           bash -c $"mpv --msg-level=all=status --no-resume-playback --no-video --input-conf=($mpv_input) ($song.item.url)"
         }    
@@ -155,7 +155,7 @@ export def yt-api [
   #verify and update token
   yt-api verify-token
 
-  let youtube_credential = open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join)
+  let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
 
@@ -174,7 +174,7 @@ export def yt-api [
     }
   )
 
-  let response = http get $"($url)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json']
+  let response = (http get $"($url)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json'])
  
   $response
 }
@@ -272,10 +272,10 @@ export def "yt-api download-music-playlists" [
   $playlists
   | each {|playlist|
       let filename = $"([($downloadDir) ($playlist.title)] | path join).json"
-      let songs = yt-api get-songs $playlist.id
+      let songs = (yt-api get-songs $playlist.id)
       
       if ($songs | length) > 0 {
-        echo-g $"\nsaving ($playlist.title) into ($filename)..."
+        print (echo-g $"\nsaving ($playlist.title) into ($filename)...")
         $songs | sort-by artist | save -f $filename
       }
     }
@@ -286,7 +286,7 @@ export def "yt-api update-all" [
   --playlist1 = "all_music"
   --playlist2 = "new_likes"
 ] {
-  let youtube_credential = open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join)
+  let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
   let response = yt-api
@@ -304,9 +304,9 @@ export def "yt-api update-all" [
   let from = ($playlists | find $playlist2 | get id | get 0)
   let to = ($playlists | find $playlist1 | get id | get 0)
 
-  let to_add = yt-api get-songs $from
+  let to_add = (yt-api get-songs $from)
 
-  echo-g $"copying playlist items from ($playlist2) to ($playlist1)..."
+  print (echo-g $"copying playlist items from ($playlist2) to ($playlist1)...")
   $to_add 
   | each {|song|
       let body = (
@@ -325,7 +325,7 @@ export def "yt-api update-all" [
 
     }   
 
-  echo-g $"deleting playlist items from ($playlist2)..."
+  print (echo-g $"deleting playlist items from ($playlist2)...")
   let header2 = "Accept: application/json"
 
   $to_add 
@@ -337,7 +337,7 @@ export def "yt-api update-all" [
       sleep 10ms
     }
 
-  echo-g $"updating local database..."
+  print (echo-g $"updating local database...")
   yt-api download-music-playlists
 }
 
@@ -345,8 +345,8 @@ export def "yt-api update-all" [
 export def "yt-api empty-playlist" [playlist?:string] {
   let response = yt-api
 
-  echo-g "listing playlists..."
-  let youtube_credential = open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join)
+  print (echo-g "listing playlists...")
+  let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
 
@@ -360,7 +360,7 @@ export def "yt-api empty-playlist" [playlist?:string] {
     | rename -c [snippet title]
   )
 
-  echo-g "selecting playlist to process..."
+  print (echo-g "selecting playlist to process...")
   let the_playlist = (
     if ($playlist | is-empty) {
       $playlists
@@ -371,10 +371,10 @@ export def "yt-api empty-playlist" [playlist?:string] {
     }
   )
 
-  echo-g "geting songs..."
-  let songs = yt-api get-songs $the_playlist.id
+  print (echo-g "geting songs...")
+  let songs = (yt-api get-songs $the_playlist.id)
 
-  echo-g $"removing songs from ($the_playlist.title)..."
+  print (echo-g $"removing songs from ($the_playlist.title)...")
   let header2 = "Accept: application/json"
 
   $songs
@@ -395,8 +395,8 @@ export def "yt-api remove-duplicated-songs" [
 ] {
   let response = yt-api
 
-  echo-g "listing playlists..."
-  let youtube_credential = open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join)
+  print (echo-g "listing playlists...")
+  let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
 
@@ -410,7 +410,7 @@ export def "yt-api remove-duplicated-songs" [
     | rename -c [snippet title]
   )
 
-  echo-g "selecting playlist to process..."
+  print (echo-g "selecting playlist to process...")
   let the_playlist = (
     if ($playlist | is-empty) {
       $playlists
@@ -421,8 +421,8 @@ export def "yt-api remove-duplicated-songs" [
     }
   )
 
-  echo-g "geting songs and droping duplicates..."
-  let songs = yt-api get-songs $the_playlist.id
+  print (echo-g "geting songs and droping duplicates...")
+  let songs = (yt-api get-songs $the_playlist.id)
 
   # let unique_songs = (
   #   $songs
@@ -433,7 +433,7 @@ export def "yt-api remove-duplicated-songs" [
 
   let unique_songs = $songs
 
-  echo-g $"removing songs from ($the_playlist.title)..."
+  print (echo-g $"removing songs from ($the_playlist.title)...")
   let header2 = "Accept: application/json"
 
   $songs
@@ -445,7 +445,7 @@ export def "yt-api remove-duplicated-songs" [
       sleep 10ms
     }
 
-  echo-g $"adding non duplicated songs to ($the_playlist.title)..."
+  print (echo-g $"adding non duplicated songs to ($the_playlist.title)...")
   $unique_songs 
   | each {|song|
       let body = (
@@ -464,21 +464,21 @@ export def "yt-api remove-duplicated-songs" [
 
     } 
 
-  echo-g "updating local database..."
+  print (echo-g "updating local database...")
   yt-api download-music-playlists
 }
 
 #verify if youtube api token has expired
 export def "yt-api verify-token" [] {
-  let youtube_credential = open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join)
+  let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
 
-  let response = try {
-      http get $"https://youtube.googleapis.com/youtube/v3/playlists?part=snippet&mine=true&key=($api_key)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json'] 
-    } catch {
-      {error: {code: 401}}
-  }
+  let response = (try {
+        http get $"https://youtube.googleapis.com/youtube/v3/playlists?part=snippet&mine=true&key=($api_key)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json'] 
+      } catch {
+        {error: {code: 401}}
+    })
 
   if ($response | is-column error) and ($response | get error  | get code) != 403 {
     yt-api get-token 
@@ -490,7 +490,7 @@ export def "yt-api verify-token" [] {
 
 #update youtube api token
 export def "yt-api get-token" [] {
-  let youtube_credential = open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join)
+  let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
   let client = ($youtube_credential | get client_id)
 
   let uri = (
@@ -503,9 +503,9 @@ export def "yt-api get-token" [] {
   
   echo $"https://accounts.google.com/o/oauth2/auth?client_id=($client)&redirect_uri=($uri)&scope=https://www.googleapis.com/auth/youtube&response_type=token&approval_prompt=force" | copy
 
-  echo-g "url copied to clipboard, now paste on browser..."
+  print (echo-g "url copied to clipboard, now paste on browser...")
 
-  let url = input (echo-g "Copy response url here: ")
+  let url = (input (echo-g "Copy response url here: "))
 
   let content = (
     $youtube_credential  
@@ -527,7 +527,7 @@ export def "yt-api get-token" [] {
 
 #get youtube api refresh token
 export def "yt-api get-refresh-token" [] {
-  let youtube_credential = open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join)
+  let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
   let client = ($youtube_credential | get client_id)
 
   let uri = (
@@ -540,9 +540,9 @@ export def "yt-api get-refresh-token" [] {
   
   echo $"https://accounts.google.com/o/oauth2/auth?client_id=($client)&redirect_uri=($uri)&scope=https://www.googleapis.com/auth/youtube&response_type=code&access_type=offline&prompt=consent" | copy
 
-  echo-g "url copied to clipboard, now paste on browser..."
+  print (echo-g "url copied to clipboard, now paste on browser...")
 
-  let url = input (echo-g "Copy response url here: ")
+  let url = (input (echo-g "Copy response url here: "))
 
   let content = (
     $youtube_credential  
@@ -559,7 +559,7 @@ export def "yt-api get-refresh-token" [] {
 
 #refresh youtube api token via refresh token (in progress)
 export def "yt-api refresh-token" [] {
-  let youtube_credential = open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join)
+  let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
   let client_id = ($youtube_credential | get client_id)
   let client_secret = ($youtube_credential | get client_secret)
   let refresh_token = ($youtube_credential | get refresh_token)
@@ -605,7 +605,7 @@ export def "yt-api refresh-token" [] {
 
 
 export def test-api [] {
-  let youtube_credential = open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join)
+  let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
   let client = ($youtube_credential | get client_id)

@@ -7,7 +7,7 @@ if not ("~/.autolister.json" | path expand | path exists) {
 
 #checking conditions
 let interval = 24hr 
-let now = date now
+let now = (date now)
 let update = ((open ~/.autolister.json | get updated | into datetime) + $interval < $now)
 
 if $update {

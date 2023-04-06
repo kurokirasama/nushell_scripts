@@ -7,7 +7,7 @@ if not ("~/.pwd_sizes.json" | path expand | path exists) {
 #checking conditions
 let interval = 12hr 
 let last_record = (open ~/.pwd_sizes.json | where directory == $env.PWD)
-let now = date now
+let now = (date now)
 let not_update = if ($last_record | length) == 0 {
     false
 } else {

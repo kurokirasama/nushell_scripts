@@ -47,7 +47,7 @@ export def nufetch [--table(-t)] {
       | find "*+" 
       | parse "   {resolution} {rest}" 
       | get resolution 
-      | str collect ", "
+      | str join ", "
     )
     let theme = (
       gsettings get org.gnome.desktop.interface gtk-theme 
@@ -134,15 +134,15 @@ export def ? [...search] {
         help commands 
       }
     } else if ($search | first | str contains "^") {
-      tldr ($search | str collect "-" | split row "^" | get 0) | nu-highlight
-    } else if (which ($search | str collect " ") | get path | get 0) =~ "Nushell" {
-      if (which ($search | str collect " ") | get path | get 0) =~ "alias" {
+      tldr ($search | str join "-" | split row "^" | get 0) | nu-highlight
+    } else if (which ($search | str join " ") | get path | get 0) =~ "Nushell" {
+      if (which ($search | str join " ") | get path | get 0) =~ "alias" {
         get-aliases | find ($search | first) 
       } else {
-        help ($search | str collect " ") | nu-highlight
+        help ($search | str join " ") | nu-highlight
       }
     } else {
-      tldr ($search | str collect "-") | nu-highlight
+      tldr ($search | str join "-") | nu-highlight
     }
   }
 }
@@ -473,7 +473,7 @@ export def-env git-push [] {
 
 #web search in terminal
 export def gg [...search: string] {
-  ddgr -n 5 ($search | str collect ' ')
+  ddgr -n 5 ($search | str join ' ')
 }
 
 #habitipy dailies done all
@@ -489,7 +489,9 @@ export def hab-dailies-done [] {
     | into int  
   )
 
-  habitipy dailies done $to_do 
+  if not ($to_do | is-empty) {
+    habitipy dailies done $to_do 
+  }
 }
 
 #countdown alarm 
@@ -649,7 +651,7 @@ export def send-gmail [
             [$env.PWD $file] 
             | path join
           } 
-        | str collect " --attach="
+        | str join " --attach="
         | str prepend "--attach="
       )
       bash -c $"\'echo ($BODY) | mail ($ATTACHMENTS) -r ($from) -s \"($subject)\" ($to) --debug-level 10\'"
@@ -780,7 +782,7 @@ export def wget-all [
   webpage: string    #url to scrap
   ...extensions      #list of extensions separated by space
 ] {
-  wget -A ($extensions | str collect ",") -m -p -E -k -K -np $webpage
+  wget -A ($extensions | str join ",") -m -p -E -k -K -np $webpage
 }
 
 #convert hh:mm:ss to duration
@@ -894,11 +896,6 @@ export def my-pdflatex [file?] {
 #generate error output
 export def return-error [msg] {
   error make -u {msg: $"(echo-r $msg)"}
-}
-
-#build-string (temporary, replace all build-string instances by "+" syntax)
-export def build-string [...rest] {
-  $rest | str collect ""
 }
 
 #find index of a search term

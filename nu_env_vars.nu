@@ -29,19 +29,19 @@ let-env PROMPT_COMMAND = {|| [
   )
   (if $env.PWD == $env.HOME {
     if $env.GIT_STATUS == 0 {
-      [$"(char -u f31b) " ($env.PWD_SIZE)] | str collect
+      [$"(char -u f31b) " ($env.PWD_SIZE)] | str join
     } else {
-      [$"(char -u f31b) " ($env.PWD_SIZE) $"(char -u eafc)" ($env.GIT_STATUS)] | str collect
+      [$"(char -u f31b) " ($env.PWD_SIZE) $"(char -u eafc)" ($env.GIT_STATUS)] | str join
     }
    } else {
     if $env.GIT_STATUS == 0 {
-      [$"(char -u f31b) " ($env.PWD_SIZE) $"(char -u e0b1)" (left_prompt)] | str collect
+      [$"(char -u f31b) " ($env.PWD_SIZE) $"(char -u e0b1)" (left_prompt)] | str join
     } else {
-      [$"(char -u f31b) " ($env.PWD_SIZE) $"(char -u eafc)" ($env.GIT_STATUS) $"(char -u e0b1)" (left_prompt)] | str collect 
+      [$"(char -u f31b) " ($env.PWD_SIZE) $"(char -u eafc)" ($env.GIT_STATUS) $"(char -u e0b1)" (left_prompt)] | str join 
     }
    } 
   )
-  (ansi reset)] | str collect
+  (ansi reset)] | str join
 }
 
 let-env NETWORK = {status:false, color: '#00ff00'}
@@ -59,7 +59,7 @@ let-env NETWORK = {status:false, color: '#00ff00'}
 #     (char -u e0b3)
 #     $"(($env.CMD_DURATION_MS | into decimal) / 1000 | math round -p 3)s"
 #     (ansi reset)]
-#     | str collect
+#     | str join
 #   } 
 # }
 
@@ -73,7 +73,7 @@ let-env PROMPT_COMMAND_RIGHT = {||
     (char -u e0b3)
     $"(($env.CMD_DURATION_MS | into decimal) / 1000 | math round -p 3)s"
     (ansi reset)]
-    | str collect
+    | str join
   } 
 }
 
@@ -86,7 +86,7 @@ let-env PROMPT_INDICATOR = {|| [
   )
   $"(char -u e0b0) "  
   (ansi reset)
-  ] | str collect 
+  ] | str join 
 }
 
 let-env BROWSER = "lynx"

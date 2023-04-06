@@ -20,7 +20,7 @@ do -i {nethogs -c 2 -t -d 5}
 	$up.DOWN | fill -a l -c "0" -w 7
   } 
 | format "{NAME}:{UP}:{DOWN}" 
-| str collect "\n"
+| str join "\n"
 | save -f /home/kira/.nethogs
 
 echo "\n" | save --append /home/kira/.nethogs

@@ -57,7 +57,7 @@ export def github-app-update [
 ] {
   cd $down_dir
 
-  let info = get-github-latest $owner $repo -f $file_type
+  let info = (get-github-latest $owner $repo -f $file_type)
 
   if ($info | is-empty) {return}
 
@@ -215,7 +215,7 @@ export def "apps-update monocraft" [
 export def "apps-update zoom" [] {
   cd $env.MY_ENV_VARS.debs
   
-  let now = date now
+  let now = (date now)
 
   let release_url = (
     "https://support.zoom.us/" | hakrawler  
@@ -342,7 +342,7 @@ export def "apps-update yandex" [] {
     | str trim 
     | split row " " 
     | first 2 
-    | str collect " " 
+    | str join " " 
     | into datetime
   )
 

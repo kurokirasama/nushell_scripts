@@ -7,14 +7,14 @@ def main [user = "kira"] {
 	cd ~/Downloads
 	lister ("Downloads" + "_" + $host)
 
-	let drives = try {
+	let drives = (try {
 		duf -json 
   	| from json 
   	| find $"/media/($user)" 
   	| get mount_point
 	} catch {
 		[]
-	}
+	})
 
 	if ($drives | length) > 0 {
 		$drives
@@ -30,11 +30,11 @@ def main [user = "kira"] {
 def lister [file] {
 	let file = (["~/Dropbox/Directorios" $"($file).json"] | path join | path expand)
 
-	let df = try {
-			get-files -f -F 
-		} catch {
-			[]
-		}
+	let df = (try {
+				get-files -f -F 
+			} catch {
+				[]
+			})
 
 	if ($df | length) == 0 {
 		if $file =~ "Downloads" and ($file | path expand | path exists) { 
