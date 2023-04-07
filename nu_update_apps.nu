@@ -332,6 +332,8 @@ export def "apps-update earth" [] {
 export def "apps-update yandex" [] {
   cd $env.MY_ENV_VARS.debs
 
+  let file = ([$env.MY_ENV_VARS.debs yandex.json] | path join) 
+  
   let new_date = (
     http get http://repo.yandex.ru/yandex-disk/?instant=1 
     | lines 
@@ -346,7 +348,7 @@ export def "apps-update yandex" [] {
     | into datetime
   )
 
-  let old_date = (open ([$env.MY_ENV_VARS.debs yandex.json] | path join) | get date | into datetime)
+  let old_date = (open $file | get date | into datetime)
 
   if $old_date < $new_date {
     if (ls *.deb | find yandex | length) > 0 {
@@ -356,6 +358,11 @@ export def "apps-update yandex" [] {
     print (echo-g "\ndownloading yandex...")
     aria2c --download-result=hide http://repo.yandex.ru/yandex-disk/yandex-disk_latest_amd64.deb 
     sudo gdebi -n yandex-disk_latest_amd64.deb 
+
+    open $file 
+    | upsert date (date now | date format) 
+    | save -f $file
+
   } else {
     print (echo-g "yandex is already in its latest version!")
   }
@@ -631,6 +638,11 @@ export def "apps-update gptcommit" [] {
 #update chatgpt
 export def "apps-update chatgpt" [] {
   pip3 install git+https://github.com/mmabrouk/chatgpt-wrapper --upgrade
+}
+
+#update manim
+export def "apps-update manim" [] {
+  pip3 install manim --upgrade
 }
 
 #update cargo apps
