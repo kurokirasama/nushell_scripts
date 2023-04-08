@@ -923,6 +923,11 @@ export def "dpx status" [] {
   maestral status | lines | parse "{item}  {status}" | str trim | drop nth 0
 }
 
+#qr code generator
+export def qrenc [url] {
+  curl $"https://qrenco.de/($url)"
+}
+
 #default a full table 
 # export def "default table" [
 #   table?                    #table to process

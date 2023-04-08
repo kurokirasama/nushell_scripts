@@ -23,7 +23,7 @@ export def-env get_weather_by_interval [INTERVAL_WEATHER:duration] {
         let last_runtime_data = (open $weather_runtime_file)
 
         if not $env.NETWORK.status {
-            $last_runtime_data | get weather    
+            return ($last_runtime_data | get weather)
         } else {    
             let LAST_WEATHER_TIME = ($last_runtime_data | get last_weather_time)
     
@@ -39,12 +39,12 @@ export def-env get_weather_by_interval [INTERVAL_WEATHER:duration] {
                     | upsert last_weather_time $NEW_WEATHER_TIME 
                     | save -f $weather_runtime_file
     
-                    $"($WEATHER.Icon) ($WEATHER.Temperature)"
+                    return $"($WEATHER.Icon) ($WEATHER.Temperature)"
                 } else {
-                    $last_runtime_data | get weather
+                    return ($last_runtime_data | get weather)
                 }
             } else {
-                $last_runtime_data | get weather
+                return ($last_runtime_data | get weather)
             }
         }
     } else {
@@ -57,7 +57,7 @@ export def-env get_weather_by_interval [INTERVAL_WEATHER:duration] {
         } 
     
         $WEATHER_DATA | save -f $weather_runtime_file
-        $WEATHER
+        return ($WEATHER)
     }
 }
 
@@ -288,13 +288,14 @@ def get_weather [loc] {
           }
         | rename windSpeed
     )
-
+     
+        # | update precipitationProbabilityAvg {|f| $f.precipitationProbabilityAvg * 100} 
+    
     $forecast = (
         $forecast 
         | update windSpeedAvg {|f| $f.windSpeedAvg * 3.6} 
         | update rainIntensityAvg {|f| $f.rainIntensityAvg * 24}
         | update uvIndexAvg {|f| uv_class $f.uvIndexAvg}
-        | update precipitationProbabilityAvg {|f| $f.precipitationProbabilityAvg * 100} 
         | update weatherCodeMax {|f| get_weather_description_from_code ($f.weatherCodeMax | into string)} 
         | update windSpeedAvg {|f| $"(desc_wind $f.windSpeedAvg) \(($f.windSpeedAvg | into string -d 2)\)"} 
         | reject index
@@ -358,8 +359,8 @@ def get_weather_for_prompt [loc] {
     let icon = (get_weather_icon $icon_description)
 
     let current = {
-        Condition: ($cond)
-        Temperature: ($temperature)
+        Condition: ($cond),
+        Temperature: ($temperature),
         Icon: ($icon)
     }
 
@@ -416,7 +417,7 @@ def get_icon_description_from_code [
         }
     )
 
-    switch $code {
+    switch ($code | into string) {
         "1000" : {|| if $day {"clear-day"} else {"clear-night"}},
         "1100" : {|| if $day {"mostly-clear-day"} else {"mostly-clear-night"}},
         "1101" : {|| if $day {"partly-cloudy-day"} else {"partly-cloudy-night"}},       
