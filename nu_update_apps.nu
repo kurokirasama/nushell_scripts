@@ -274,16 +274,14 @@ export def "apps-update chrome" [] {
   cd $env.MY_ENV_VARS.debs
 
   let new_version = (
-    http get "https://chromereleases.googleblog.com/2022/#:~:text=Chrome%20Dev%20for%20Android%20Update&text=We've%20just%20released%20Chrome,now%20available%20on%20Google%20Play." 
+    http get https://chromereleases.googleblog.com/ 
     | query web -q 'script' 
-    | find "The Stable channel has been updated to" 
+    | find "The Stable channel is being updated to" 
     | get 0 
     | query web -q span 
-    | find "The Stable channel has been updated to " 
-    | split row "The Stable channel has been updated to " 
-    | find for 
+    | find "Platform" 
     | get 0 
-    | split row ' for' 
+    | split row "(" 
     | get 0 
     | str trim
   )
