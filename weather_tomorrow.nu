@@ -229,7 +229,8 @@ def get_weather [loc] {
         | get 0 
         | get values 
         | get sunriseTime 
-        | into datetime -o -4 
+        | into datetime
+        | date to-timezone local
         | date format "%H:%M:%S"
     )
 
@@ -238,7 +239,8 @@ def get_weather [loc] {
         | get 0 
         | get values 
         | get sunsetTime 
-        | into datetime -o -4 
+        | into datetime 
+        | date to-timezone local
         | date format "%H:%M:%S"
     )
 
