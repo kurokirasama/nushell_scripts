@@ -112,59 +112,114 @@ export def "media sub-sync" [
   }
 }
 
-#remove audio noise from video
-export def "media remove-audio-noise" [
-  file       #video file name with extension
-  start      #start (hh:mm:ss) of audio noise (no speaker)
-  end        #end (hh:mm:ss) of audio noise (no speaker)
-  noiseLevel #level reduction adjustment (0.2-0.3)
-  output     #output file name with extension (same extension as $file)
+#remove audio noise 
+export def "media remove-noise" [
+  file                #audio file name with extension
+  start               #start (hh:mm:ss) of audio noise (no speaker)
+  end                 #end (hh:mm:ss) of audio noise (no speaker)
+  noiseLevel          #level reduction adjustment (0.2-0.3)
+  output?             #output file name with extension
+  --delete(-d) = true #wether to delete existing tmp files or not (default true)
 ] {
-  if (ls ([$env.PWD tmp*] | path join) | length) > 0 {
-    rm tmp*
+
+  if $delete {
+    try {
+      ls ([$env.PWD tmp*] | path join) | rm-pipe
+    }
   }
 
-  print (echo-g "extracting video...")
-  myffmpeg -loglevel 1 -i $"($file)" -vcodec copy -an tmpvid.mp4
+  let filename = ($file | path parse | get stem)
 
-  print (echo-g "extracting audio...")
-  myffmpeg -loglevel 1 -i $"($file)" -acodec pcm_s16le -ar 128k -vn tmpaud.wav
+  let output = (
+    if ($output | is-empty) {
+      $"($filename)-clean.wav"
+    } else {
+      $output
+    }
+  ) 
 
-  print (echo-g "extracting noise...")
-  myffmpeg -loglevel 1 -i $"($file)" -acodec pcm_s16le -ar 128k -vn -ss $start -t $end tmpnoiseaud.wav
+  print (echo-g "extracting noise segment...")
+  myffmpeg -loglevel 1 -i $file -acodec pcm_s16le -ar 128k -vn -ss $start -t $end $"tmp($filename).wav"
 
   print (echo-g "creating noise profile...")
-  sox tmpnoiseaud.wav -n noiseprof tmpnoise.prof
+  sox $"tmp($filename).wav" -n noiseprof $"tmp($filename).prof"
 
   print (echo-g "cleaning noise from audio file...")
-  sox tmpaud.wav tmpaud-clean.wav noisered tmpnoise.prof $noiseLevel
+  sox $file $output noisered $"tmp($filename).prof" $noiseLevel
 
-  print (echo-g "merging clean audio with video file...")
-  myffmpeg -loglevel 1 -i tmpvid.mp4 -i tmpaud-clean.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 128k $output
+  notify-send "noise removal done!"
+}
+
+#remove audio noise from video
+export def "media remove-audio-noise" [
+  file            #video file name with extension
+  start           #start (hh:mm:ss) of audio noise (no speaker)
+  end             #end (hh:mm:ss) of audio noise (no speaker)
+  noiseLevel      #level reduction adjustment (0.2-0.3)
+  output?         #output file name with extension (same extension as $file)
+  --merge = true  #wether to merge clean audio with video (default = true)
+] {
+  try {
+    ls ([$env.PWD tmp*] | path join) | rm-pipe
+  }
+
+  let filename = ($file | path parse | get stem)
+  let ext = ($file | path parse | get extension)
+
+  let output = (
+    if ($output | is-empty) {
+      $"($filename)-clean.($ext)"
+    } else {
+      $output
+    }
+  ) 
+
+  let outputA = $"tmp($filename)-clean.wav"
+
+  print (echo-g "extracting video...")
+  myffmpeg -loglevel 1 -i $"($file)" -vcodec copy -an $"tmp($file)"
+
+  print (echo-g "extracting audio...")
+  myffmpeg -loglevel 1 -i $"($file)" -acodec pcm_s16le -ar 128k -vn $"tmp($filename).wav"
+
+  media remove-noise $"tmp($filename).wav" $start $end $noiseLevel $outputA --delete false
+
+  if $merge {
+    print (echo-g "merging clean audio with video file...")
+    myffmpeg -loglevel 1 -i $file -i $outputA -map 0:v -map 1:a -c:v copy -c:a aac -b:a 128k $output
+  }
 
   print (echo-g "done!")
   notify-send "noise removal done!"
-
-  print (echo-g "don't forget to remove tmp* files")
 }
 
 #screen record to mp4
 export def "media screen-record" [
-  file = "video"  #output filename without extension (export default: "video")
-  --audio = true  #whether to record with audio or not (export default: true)
+  file = "video"  #output filename without extension (default: "video")
+  --audio = true  #wether to record with audio or not (default: true)
 ] {
   if $audio {
-    ffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i :0.0+0,0 -f alsa -ac 2 -i pulse -acodec aac -strict experimental $"($file).mp4"
+    print (echo-g "recording screen with audio...")
+    ffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f alsa -ac 2 -i pulse -acodec aac -strict experimental $"($file).mp4"
   } else {
-    ffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i :0.0+0,0 $"($file).mp4"
+    print (echo-g "recording screen without audio...")
+    ffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" $"($file).mp4"
   }
+  print (echo-g "recording finished...")
 }
 
 #remove audio from video file
 export def "media remove-audio" [
-  input_file: string          #the input file
-  output_file = "video.mp4"  #the output file
+  input_file: string  #the input file
+  output_file?       #the output file
 ] {
+  let output_file = (
+    if ($output_file | is-empty) {
+      $"($input_file | path parse | get stem)-noaudio.($input_file | path parse | get extension)"
+    } else {
+      $output_file
+    }
+  )
   myffmpeg -n -loglevel 0 -i $input_file -c copy -an $output_file
 }
 
@@ -683,4 +738,101 @@ export def mpv [video?, --puya(-p)] {
   } else {
     ^mpv --save-position-on-quit --no-border --sid=2 $file
   } 
+}
+
+#extract audio from video file
+export def "media extract-audio" [filename] {
+  let file = ($filename | path parse | get stem)
+
+  print (echo-g "extracting audio...")
+  myffmpeg -loglevel 1 -i $"($filename)" -acodec pcm_s16le -ar 128k -vn $"($file).wav"
+}
+
+#audio to text transcription 
+export def "media audio2text" [filename] {
+  let file = ($filename | path parse | get stem)
+
+  print (echo-g $"reproduce ($filename) and select start and end time for noise segment, leave empty if no noise..." )
+  let start = (input "start? (hh:mm:ss): ")
+  let end = (input "end? (hh:mm:ss): ")
+
+  if ($start | is-empty) or ($end | is-empty) {
+    print (echo-g "generating temp file...")
+    if ($filename | path parse | get extension) =~ "wav" {
+      cp $filename $"tmp($file)-clean.wav"
+    } else {
+      myffmpeg -loglevel 1 -i $"($filename)" -acodec pcm_s16le -ar 128k -vn $"tmp($file)-clean.wav"
+    }
+  } else {
+    media remove-noise $filename $start $end 0.3 $"tmp($file)-clean.wav" --delete false
+  }
+
+  print (echo-g "transcribing to text...")
+  whisper $"tmp($file)-clean.wav" --language Spanish --output_format txt --verbose False
+}
+
+#screen record to text transcription 
+export def "media screen2text" [--transcribe = true] {
+  let file = (date now | date format "%Y%m%d_%H%M%S")
+
+  if not ("~/Documents/Transcriptions" | path exists) {
+    ^mkdir -p ~/Documents/Transcriptions 
+  }
+
+  cd ~/Documents/Transcriptions
+  
+  try {
+    media screen-record $file
+  }
+
+  media extract-audio $"($file).mp4"
+
+  media audio2text $"($file).wav"
+
+  if $transcribe {
+    media transcription-summary $"tmp($file | path parse | get stem)-clean.txt"
+  }
+}
+
+#resume transcription text via gpt 
+export def "media transcription-summary" [
+  file                #text file name with transcription text
+  --gpt4(-g) = false  #wether to use gpt-4 (default false)
+  --upload(-u) = true #wether to upload to gdrive (default true) 
+] {
+  let pre_prompt = (open ([$env.MY_ENV_VARS.credentials chagpt_prompt.json] | path join) | get prompt)
+
+  let prompt = (
+    $pre_prompt
+    | str append "\n" 
+    | str append (open $file)
+  )
+
+  let output = $"($file | path parse | get stem)_summary.md"
+
+  print (echo-g "getting summary of the transcription...")
+  if $gpt4 {
+    chatgpt -m gpt4 $prompt | save -f $output
+  } else {
+    chatgpt $prompt | save -f $output
+  }
+
+  let up_folder = "/home/kira/gdrive/Depto/DireccionEscuelaIngenieria/NotasReunionesAi"
+  let mounted = ($up_folder | path expand | path exists)
+
+  if $upload {
+    if not $mounted {
+      print (echo-g "mounting gdrive...")
+      mount-ubb
+    }
+
+    print (echo-g "uploading summary to gdrive...")
+    cp $output $up_folder
+  }
+}
+
+#audio 2 transcription summary via chatgpt
+export def "media audio2summary" [filename,--upload = true] {
+  media audio2text $filename
+  media transcription-summary $"tmp($filename | path parse | get stem)-clean.txt" --upload $upload
 }
