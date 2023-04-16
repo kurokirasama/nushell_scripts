@@ -5,15 +5,15 @@ export def apps-update [] {
   apps-update sejda
   apps-update nmap
   apps-update ttyplot
-  apps-update chrome
-  apps-update earth
-  apps-update yandex
   apps-update nyxt
   apps-update pandoc
   apps-update taskerpermissions
   apps-update lutris #ignore if ppa works again
   apps-update mpris
   apps-update monocraft -p
+  apps-update chrome
+  apps-update earth
+  apps-update yandex
 }
 
 #get latest release info in github repo

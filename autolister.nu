@@ -3,7 +3,7 @@
 def main [user = "kira"] {
 	let host = (sys | get host | get hostname)
 
-	echo-g "listing Downloads..."
+	print (echo-g "listing Downloads...")
 	cd ~/Downloads
 	lister ("Downloads" + "_" + $host)
 
@@ -19,7 +19,7 @@ def main [user = "kira"] {
 	if ($drives | length) > 0 {
 		$drives
 		| each { |drive|
-				echo-g $"listing ($drive | ansi strip)..."
+				print (echo-g $"listing ($drive | ansi strip)...")
 				cd ($drive | ansi strip)
 				lister ($drive | ansi strip | path parse | get stem | split row " " | get 0)
 			}
