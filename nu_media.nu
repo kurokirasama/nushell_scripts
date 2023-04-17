@@ -85,7 +85,7 @@ export def "media sub-sync" [
   --t1:string      #time position of delay d1 (hh:mm:ss)
   --d2:string      #delay at the end or at time specified by t2
   --t2:string      #time position of delay d2 (hh:mm:ss)t
-  --no_backup:int  #wether to not backup $file or yes (export default no:0, ie, it will backup)
+  --no_backup:int  #whether to not backup $file or yes (export default no:0, ie, it will backup)
   #
   #Examples
   #sub-sync file.srt "-4"
@@ -119,7 +119,7 @@ export def "media remove-noise" [
   end                 #end (hh:mm:ss) of audio noise (no speaker)
   noiseLevel          #level reduction adjustment (0.2-0.3)
   output?             #output file name with extension
-  --delete(-d) = true #wether to delete existing tmp files or not (default true)
+  --delete(-d) = true #whether to delete existing tmp files or not (default true)
 ] {
 
   if $delete {
@@ -157,7 +157,7 @@ export def "media remove-audio-noise" [
   end             #end (hh:mm:ss) of audio noise (no speaker)
   noiseLevel      #level reduction adjustment (0.2-0.3)
   output?         #output file name with extension (same extension as $file)
-  --merge = true  #wether to merge clean audio with video (default = true)
+  --merge = true  #whether to merge clean audio with video (default = true)
 ] {
   try {
     ls ([$env.PWD tmp*] | path join) | rm-pipe
@@ -196,7 +196,7 @@ export def "media remove-audio-noise" [
 #screen record to mp4
 export def "media screen-record" [
   file = "video"  #output filename without extension (default: "video")
-  --audio = true  #wether to record with audio or not (default: true)
+  --audio = true  #whether to record with audio or not (default: true)
 ] {
   if $audio {
     print (echo-g "recording screen with audio...")
@@ -772,7 +772,9 @@ export def "media audio2text" [filename] {
 }
 
 #screen record to text transcription 
-export def "media screen2text" [--transcribe = true] {
+export def "media screen2text" [
+--transcribe = true #whether to transcribe or not. Default true, false means it just extracts audio
+] {
   let file = (date now | date format "%Y%m%d_%H%M%S")
 
   if not ("~/Documents/Transcriptions" | path exists) {
@@ -797,8 +799,8 @@ export def "media screen2text" [--transcribe = true] {
 #resume transcription text via gpt 
 export def "media transcription-summary" [
   file                #text file name with transcription text
-  --gpt4(-g) = false  #wether to use gpt-4 (default false)
-  --upload(-u) = true #wether to upload to gdrive (default true) 
+  --gpt4(-g) = false  #whether to use gpt-4 (default false)
+  --upload(-u) = true #whether to upload to gdrive (default true) 
 ] {
   let pre_prompt = (open ([$env.MY_ENV_VARS.credentials chagpt_prompt.json] | path join) | get prompt)
 
@@ -810,14 +812,14 @@ export def "media transcription-summary" [
 
   let output = $"($file | path parse | get stem)_summary.md"
 
-  print (echo-g "getting summary of the transcription...")
+  print (echo-g "asking chatgpt for a summary of the transcription...")
   if $gpt4 {
     chatgpt -m gpt4 $prompt | save -f $output
   } else {
     chatgpt $prompt | save -f $output
   }
 
-  let up_folder = "/home/kira/gdrive/Depto/DireccionEscuelaIngenieria/NotasReunionesAi"
+  let up_folder = $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory
   let mounted = ($up_folder | path expand | path exists)
 
   if $upload {
@@ -832,7 +834,10 @@ export def "media transcription-summary" [
 }
 
 #audio 2 transcription summary via chatgpt
-export def "media audio2summary" [filename,--upload = true] {
+export def "media audio2summary" [
+  filename
+  --upload = true #whether to upload the summary to gdrive (dafault true)
+] {
   media audio2text $filename
   media transcription-summary $"tmp($filename | path parse | get stem)-clean.txt" --upload $upload
 }

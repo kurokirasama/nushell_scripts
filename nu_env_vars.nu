@@ -118,6 +118,7 @@ let-env MY_ENV_VARS = (
   | upsert mail_lmgg "luismiguelgomezguzman@gmail.com"
   | upsert l_prompt "short"
   | upsert data "/home/kira/Yandex.Disk/cards"
+  | upsert gdriveTranscriptionSummaryDirectory "/home/kira/gdrive/Depto/DireccionEscuelaIngenieria/NotasReunionesAi"
 )
 
 #for cmdg
