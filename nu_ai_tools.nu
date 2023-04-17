@@ -9,7 +9,8 @@ export def ai [] {
       METHODS\n
       - `ai audio2text`
       - `ai screen2text`
-      - `ai transcription-summary`\n"
+      - `ai transcription-summary`
+      - `ai audio2summary`\n"
     | nu-highlight
   ) 
 }
@@ -100,7 +101,7 @@ export def "ai transcription-summary" [
 }
 
 #audio 2 transcription summary via chatgpt
-export def "media audio2summary" [
+export def "ai audio2summary" [
   filename
   --upload = true #whether to upload the summary to gdrive (dafault true)
 ] {
