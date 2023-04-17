@@ -5,12 +5,7 @@ let-env PATH = (
       | split row ":"  
     } 
   | flatten
-  | append '/usr/local/Polyspace/R2019b/bin' 
-  | append '/usr/local/go/bin' 
-  | append '/home/kira/go/bin' 
-  | append '/home/kira/Yandex.Disk/Comandos_bash_for_nushell'
-  | append $"/home/kira/R/x86_64-pc-linux-gnu-library/(ls /home/kira/R/x86_64-pc-linux-gnu-library | sort-by name | last | get name | split row "/" | last)/rush/exec"
-  | append "/usr/local/texlive/2022/bin/x86_64-linux"
+  | append whatEverYouNeed
   | uniq
 )
 
@@ -97,28 +92,26 @@ let-env MY_ENV_VARS = {}
 
 let-env MY_ENV_VARS = (
   $env.MY_ENV_VARS 
-  | upsert linux_backup "/home/kira/Yandex.Disk/Backups/linux"
-  | upsert nu_scripts "/home/kira/Yandex.Disk/Backups/linux/nu_scripts"
-  | upsert credentials "/home/kira/Yandex.Disk/Backups/linux/credentials"
-  | upsert debs "/home/kira/Yandex.Disk/Backups/linux/debs"
-  | upsert youtube_database "/home/kira/Yandex.Disk/Backups/linux/youtube_music_playlists"
-  | upsert appImages "/home/kira/Yandex.Disk/Backups/linux/software/appimages"
-  | upsert local_manga "/home/kira/Downloads/Manga"
-  | upsert external_manga "/home/kira/media/Seagate Expansion Drive/Manga/mangaPORver"
-  | upsert zoom "/home/kira/Documents/Zoom"
-  | upsert mps "/home/kira/Yandex.Disk/mps"
-  | upsert nushell_dir "/home/kira/software/nushell"
-  | upsert media_database "/home/kira/Dropbox/Directorios"
-  | upsert home_wifi "Kira"
-  | upsert google_calendars "Clases|Congresos|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Certamenes y Tests|Familia"
-  | upsert google_calendars_full "TV Shows|Contacts|Festivos en Chile|Cuentas|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Clases|Certamenes y Tests|Familia|Congresos"
-  | upsert termux_ip "192.168.4.142"
-  | upsert mail "kurokirasama@gmail.com"
-  | upsert mail_ubb "lgomez@ubiobio.cl"
-  | upsert mail_lmgg "luismiguelgomezguzman@gmail.com"
+  | upsert linux_backup "path"
+  | upsert nu_scripts "path"
+  | upsert credentials "path"
+  | upsert debs "path"
+  | upsert youtube_database "path"
+  | upsert appImages "path"
+  | upsert local_manga "path"
+  | upsert external_manga "path"
+  | upsert zoom "path"
+  | upsert mps "path"
+  | upsert nushell_dir "path"
+  | upsert media_database "path"
+  | upsert home_wifi "name"
+  | upsert google_calendars "cal1|cal2"
+  | upsert google_calendars_full "cal1|cal2|cal3"
+  | upsert termux_ip "ip"
+  | upsert mail "mail"
   | upsert l_prompt "short"
-  | upsert data "/home/kira/Yandex.Disk/cards"
-  | upsert gdriveTranscriptionSummaryDirectory "/home/kira/gdrive/Depto/DireccionEscuelaIngenieria/NotasReunionesAi"
+  | upsert data "path"
+  | upsert gdriveTranscriptionSummaryDirectory "path"
 )
 
 #for cmdg
