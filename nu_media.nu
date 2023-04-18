@@ -193,14 +193,33 @@ export def "media remove-audio-noise" [
   notify-send "noise removal done!"
 }
 
-#screen record to mp4
+#screen record of audio to mp3
 export def "media screen-record" [
   file = "video"  #output filename without extension (default: "video")
   --audio = true  #whether to record with audio or not (default: true)
 ] {
   if $audio {
     print (echo-g "recording screen with audio...")
-    ffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f alsa -ac 2 -i pulse -acodec aac -strict experimental $"($file).mp4"
+    let device = (
+      pacmd list-sources 
+      | lines 
+      | find "name:" 
+      | ansi strip 
+      | parse "{name}: <{device}>" 
+      | reject name 
+      | find alsa_input
+      | get device
+      | get 0
+      | ansi strip
+      )
+
+    try {
+      print (echo-g "trying myffmpeg...")
+      myffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f alsa -ac 2 -i pulse -acodec aac -strict experimental $"($file).mp4"
+    } catch {
+      print (echo-r "myffmpeg failed...")
+      ffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -f pulse -i bluez_sink.34_82_C5_47_E3_3B.a2dp_sink.monitor -filter_complex "[1:a][2:a]amerge=inputs=2[a]" -map 0:v -map "[a]" -ac 2 -c:v libx264 -crf 23 -preset fast -c:a aac -b:a 192k -strict experimental $"($file).mp4"
+    }
   } else {
     print (echo-g "recording screen without audio...")
     ffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" $"($file).mp4"
@@ -741,9 +760,15 @@ export def mpv [video?, --puya(-p)] {
 }
 
 #extract audio from video file
-export def "media extract-audio" [filename] {
+export def "media extract-audio" [
+  filename
+  --audio_format(-a) = "mp3" #audio output format, wav or mp3 (default)
+] {
   let file = ($filename | path parse | get stem)
 
   print (echo-g "extracting audio...")
-  myffmpeg -loglevel 1 -i $"($filename)" -acodec pcm_s16le -ar 128k -vn $"($file).wav"
+  switch $audio_format {
+    "mp3" : {|| ffmpeg -loglevel 1 -i $"($filename)" -ar 44100 -ac 2 -ab 192k -f mp3 -vn $"($file).mp3"},
+    "wav" : {|| ffmpeg -loglevel 1 -i $"($filename)" -acodec pcm_s16le -ar 128k -vn $"($file).wav"}
+  }
 }
