@@ -27,6 +27,7 @@ let my_config = (
 	| upsert show_banner false
 	| upsert ls.clickable_links false
 	| upsert table.mode rounded
+    | upsert table.show_empty false
 	| upsert history.file_format sqlite
 )
 

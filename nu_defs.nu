@@ -782,7 +782,7 @@ export def wget-all [
   webpage: string    #url to scrap
   ...extensions      #list of extensions separated by space
 ] {
-  wget -A ($extensions | str join ",") -m -p -E -k -K -np $webpage
+  wget -A ($extensions | str join ",") -m -p -E -k -K -np --restrict-file-names=windows $webpage
 }
 
 #convert hh:mm:ss to duration

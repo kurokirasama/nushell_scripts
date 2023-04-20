@@ -93,7 +93,7 @@ export def "ytm online" [
   --artist(-a):string     #search by artist in all_likes
 ] {
   let mpv_input = ([$env.MY_ENV_VARS.linux_backup "scripts/mpv_input.conf"] | path join)
-  let response = yt-api
+  let response = (yt-api)
 
   let playlists = (
     $response 
@@ -251,7 +251,7 @@ export def "yt-api get-songs" [
 export def "yt-api download-music-playlists" [
   --downloadDir(-d) = $env.MY_ENV_VARS.youtube_database #download directory, export default: $env.MY_ENV_VARS.youtube_database
 ] {
-  let response = yt-api
+  let response = (yt-api)
 
   let playlists = (
     $response 
@@ -289,7 +289,7 @@ export def "yt-api update-all" [
   let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
-  let response = yt-api
+  let response = (yt-api)
 
   let playlists = (
     $response 
@@ -343,7 +343,7 @@ export def "yt-api update-all" [
 
 #delete all songs of a playlist
 export def "yt-api empty-playlist" [playlist?:string] {
-  let response = yt-api
+  let response = (yt-api)
 
   print (echo-g "listing playlists...")
   let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
@@ -393,7 +393,7 @@ export def "yt-api remove-duplicated-songs" [
   #
   #Does not work if there are more than 50 duplicates, due to youtube api quota
 ] {
-  let response = yt-api
+  let response = (yt-api)
 
   print (echo-g "listing playlists...")
   let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
@@ -538,9 +538,12 @@ export def "yt-api get-refresh-token" [] {
     | str replace -a "/" "%2F"
   )
   
-  echo $"https://accounts.google.com/o/oauth2/auth?client_id=($client)&redirect_uri=($uri)&scope=https://www.googleapis.com/auth/youtube&response_type=code&access_type=offline&prompt=consent" | copy
+  let url = $"https://accounts.google.com/o/oauth2/auth?client_id=($client)&redirect_uri=($uri)&scope=https://www.googleapis.com/auth/youtube&response_type=code&access_type=offline&prompt=consent"
 
-  print (echo-g "url copied to clipboard, now paste on browser...")
+  $url | copy
+
+  print (echo $url)
+  print (echo-g "url copied to clipboard, now paste on browser")
 
   let url = (input (echo-g "Copy response url here: "))
 
