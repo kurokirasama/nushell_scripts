@@ -59,7 +59,7 @@ export def "ai screen2text" [
   ai audio2text $"($file).wav"
 
   if $transcribe {
-    ai transcription-summary $"tmp($file | path parse | get stem)-clean.txt"
+    ai transcription-summary $"($file | path parse | get stem)-clean.txt"
   }
 }
 
@@ -74,42 +74,33 @@ export def "ai transcription-summary" [
   let output = $"($file | path parse | get stem)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = 2500
+  let max_words = 2000
   let n_words = (wc -w $file | awk '{print $1}' | into int)
 
   if $n_words > $max_words {
     print (echo-g $"splitting input file ($file)...")
 
-    let words_per_line = (awk '{ total += NF } END { print total/NR }' $file | into decimal | math round)
-    let n_lines_per_part = (($max_words / $words_per_line) | math round)
-    let n_lines = (open $file | lines | length)
-    mut n_parts = (($n_lines / $n_lines_per_part) | math ceil)
+    let filenames = $"($file | path parse | get stem)_split_"
 
-    let filenames = $"($file | path parse | get stem)_"
+    let split_command = ("awk '{total+=NF; print > " + $"\"($filenames)\"" + "int(total/" + $"($max_words)" + ")" + "\".txt\"}'" + $" \"($file)\"")
   
-    ^split -d -l $n_lines_per_part $file $filenames --additional-suffix=.txt
+    bash -c $split_command
 
-    # combining the last 2 if the last one is too short
-    let last_file = (open $"($filenames)($n_parts - 1 |  fill -a r -c '0' -w 2).txt")
-    if ($last_file | lines | length) < ($n_lines_per_part / 5) {
-      $last_file | save --append $"($filenames)($n_parts - 2 | fill -a r -c '0' -w 2).txt"
-      rm $"($filenames)($n_parts - 1 |  fill -a r -c '0' -w 2).txt"
+    let files = (ls | find split | find -v summary)
 
-      $n_parts = ($n_parts - 1)
-    }
-
-    for i in 0..($n_parts - 1) {
-      let this_file = $"($filenames)($i | fill -a r -c '0' -w 2).txt"
-      ai transcription-summary-single $this_file -u false -g $gpt4
+    $files | each {|split_file|
+      ai transcription-summary-single ($split_file | get name | ansi strip) -u false -g $gpt4
     }
 
     let temp_output = $"($file | path parse | get stem)_summaries.md"
-    print (echo-g "combining the results into ($temp_output)...")
+    print (echo-g $"combining the results into ($temp_output)...")
     touch $temp_output
 
-    for i in 0..($n_parts - 1) {
-      echo "Part ($i):\n" | save --append $temp_output
-      open $"($filenames)($i | fill -a r -c '0' -w 2)_summary.txt" | save --append $temp_output
+    let files = (ls | find split | find summary | enumerate)
+
+    $files | each {|split_file|
+      echo $"Parte ($split_file.index):\n" | save --append $temp_output
+      open ($split_file.item.name | ansi strip) | save --append $temp_output
       echo "\n" | save --append $temp_output
     }
 
@@ -182,9 +173,13 @@ export def "ai transcription-summary-single" [
 
 #audio 2 transcription summary via chatgpt
 export def "ai audio2summary" [
-  filename
+  file
   --upload = true #whether to upload the summary to gdrive (dafault true)
 ] {
-  ai audio2text $filename
-  ai transcription-summary $"tmp($filename | path parse | get stem)-clean.txt" --upload $upload
+  ai audio2text $file
+  ai transcription-summary $"($file | path parse | get stem)-clean.txt" --upload $upload
+  if $upload {
+    print (echo-g $"uploading ($file)...")
+    cp ($file) ($env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory)
+  }
 }
