@@ -28,7 +28,7 @@ export def "ai audio2text" [filename] {
     if ($filename | path parse | get extension) =~ "mp3" {
       cp $filename $"($file)-clean.mp3"
     } else {
-      myffmpeg -loglevel 1 -i $"($filename)" -acodec libmp3lame -ab 128k -vn $"($file)-clean.mp3"
+      ffmpeg -loglevel 1 -i $"($filename)" -acodec libmp3lame -ab 128k -vn $"($file)-clean.mp3"
     }
   } else {
     media remove-noise $filename $start $end 0.2 $"($file)-clean.wav" --delete false
