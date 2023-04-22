@@ -13,8 +13,13 @@ export def "media mpv-info" [file?] {
   ^mpv -vo null -ao null -frames 0 $video
 }
 
-#translate subtitle via mymemmory api
-export def "media trans-sub" [file?] {
+#translate subtitle to spanish via mymemmory api
+export def "media trans-sub" [
+  file?
+  --from = "en-US" #from which language you are translating (default english: en-US)
+  #
+  #`? trans` for more info on languages
+] {
   let file = if ($file | is-empty) {$file | get name} else {$file}
   dos2unix -q $file
 
@@ -34,7 +39,7 @@ export def "media trans-sub" [file?] {
     | each {|line|
         if (not $line.item =~ "-->") and (not $line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
           let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
-          let translated = ($fixed_line | trans)
+          let translated = ($fixed_line | trans --from $from)
 
           if $translated =~ "error:" {
             return-error $"error while translating: ($translated)"

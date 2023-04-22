@@ -191,15 +191,17 @@ export def "ai audio2summary" [
 #generate subtitles of video file via whisper and mymemmory api
 export def "ai generate-subtitles" [
   file                        #input video file
-  --language(-l) = "English"  #language of input video file
-  --translate(-t)             #to translate to spanish
+  --language(-l) = "en-US"    #language of input video file (default english: en-US)
+  --not_translate(-n)         #to not translate to spanish
+  #
+  #`? trans` for more info on languages
 ] {
   let filename = ($file | path parse | get stem)
 
   media extract-audio $file 
   ai audio2text $"($filename).mp3" -o srt 
 
-  if $translate {
-    media trans-sub $"($filename).srt" 
+  if not $not_translate {
+    media trans-sub $"($filename).srt" --from $language
   }
 }

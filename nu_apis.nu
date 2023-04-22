@@ -24,9 +24,9 @@ export def bitly [longurl] {
 
 #translate text using mymemmory api
 export def trans [
-  ...text:string   #search query
-  --from:string     #from which language you are translating (export default english)
-  --to:string       #to which language you are translating (export default spanish)
+  ...text:string    #search query
+  --from:string     #from which language you are translating (default english)
+  --to:string       #to which language you are translating (default spanish)
   #
   #Use ISO standar names for the languages, for example:
   #english: en-US
