@@ -114,14 +114,14 @@ export def "media sub-sync" [
 
 #remove audio noise 
 export def "media remove-noise" [
-  file                #audio file name with extension
-  start               #start (hh:mm:ss) of audio noise (no speaker)
-  end                 #end (hh:mm:ss) of audio noise (no speaker)
-  noiseLevel          #level reduction adjustment (0.2-0.3)
-  output?             #output file name with extension
-  --delete(-d) = true #whether to delete existing tmp files or not (default true)
+  file                 #audio file name with extension
+  start                #start (hh:mm:ss) of audio noise (no speaker)
+  end                  #end (hh:mm:ss) of audio noise (no speaker)
+  noiseLevel           #level reduction adjustment (0.2-0.3)
+  output?              #output file name without extension, wav or mp3 produced
+  --delete(-d) = true  #whether to delete existing tmp files or not (default true)
+  --outExt(-E) = "wav" #output format, mp3 or wav (default)
 ] {
-
   if $delete {
     try {
       ls ([$env.PWD tmp*] | path join) | rm-pipe
@@ -129,23 +129,40 @@ export def "media remove-noise" [
   }
 
   let filename = ($file | path parse | get stem)
+  let ext = ($file | path parse | get extension)
+
+  if $ext !~ "wav" {
+    print (echo-g "converting input file to wav format...")
+    myffmpeg -loglevel 1 -i $file $"($filename).wav"
+  }
 
   let output = (
     if ($output | is-empty) {
       $"($filename)-clean.wav"
     } else {
-      $output
+      $"($output).wav"
     }
   ) 
 
   print (echo-g "extracting noise segment...")
-  myffmpeg -loglevel 1 -i $file -acodec pcm_s16le -ar 128k -vn -ss $start -t $end $"tmp($filename).wav"
+  myffmpeg -loglevel 1 -i $"($filename).wav" -acodec pcm_s16le -ar 128k -vn -ss $start -t $end $"tmpSeg($filename).wav"
 
   print (echo-g "creating noise profile...")
-  sox $"tmp($filename).wav" -n noiseprof $"tmp($filename).prof"
+  sox $"tmpSeg($filename).wav" -n noiseprof $"tmp($filename).prof"
 
   print (echo-g "cleaning noise from audio file...")
-  sox $file $output noisered $"tmp($filename).prof" $noiseLevel
+  sox $"($filename).wav" $output noisered $"tmp($filename).prof" $noiseLevel
+
+  if $outExt =~ "mp3" {
+    print (echo-g "converting output file to mp3 format...")
+    ffmpeg -loglevel 1 -i $output -acodec libmp3lame -ab 128k -vn $"($output | path parse | get stem).mp3"
+
+    mv $output $"tmp($output)"
+  }
+
+  if $ext !~ "wav" {
+    mv $"($filename).wav" $"tmp($filename).wav"
+  }
 
   notify-send "noise removal done!"
 }

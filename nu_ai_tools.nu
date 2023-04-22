@@ -16,7 +16,11 @@ export def ai [] {
 }
 
 #audio to text transcription via whisper
-export def "ai audio2text" [filename] {
+export def "ai audio2text" [
+  filename                    #audio file input
+  --language(-l) = "Spanish"  #language of audio file
+  --output_format(-o) = "txt" #output format: txt (default), vtt, srt, tsv, json, all
+] {
   let file = ($filename | path parse | get stem)
 
   print (echo-g $"reproduce ($filename) and select start and end time for noise segment, leave empty if no noise..." )
@@ -31,11 +35,11 @@ export def "ai audio2text" [filename] {
       ffmpeg -loglevel 1 -i $"($filename)" -acodec libmp3lame -ab 128k -vn $"($file)-clean.mp3"
     }
   } else {
-    media remove-noise $filename $start $end 0.2 $"($file)-clean.wav" --delete false
+    media remove-noise $filename $start $end 0.2 $"($file)-clean" -d false -E mp3
   }
 
   print (echo-g "transcribing to text...")
-  whisper $"($file)-clean.mp3" --language Spanish --output_format txt --verbose False
+  whisper $"($file)-clean.mp3" --language language --output_format $output_format --verbose False
 }
 
 #screen record to text transcription 
