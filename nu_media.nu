@@ -13,7 +13,7 @@ export def "media mpv-info" [file?] {
   ^mpv -vo null -ao null -frames 0 $video
 }
 
-#translate subtitle
+#translate subtitle via mymemmory api
 export def "media trans-sub" [file?] {
   let file = if ($file | is-empty) {$file | get name} else {$file}
   dos2unix -q $file

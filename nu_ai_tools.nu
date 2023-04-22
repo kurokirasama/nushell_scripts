@@ -39,7 +39,7 @@ export def "ai audio2text" [
   }
 
   print (echo-g "transcribing to text...")
-  whisper $"($file)-clean.mp3" --language language --output_format $output_format --verbose False
+  whisper $"($file)-clean.mp3" --language $language --output_format $output_format --verbose False
 }
 
 #screen record to text transcription 
@@ -188,15 +188,7 @@ export def "ai audio2summary" [
   }
 }
 
-#translate text via whisper
-export def "ai translate" [
-  file 
-  --to = "Spanish"
-] {
-  ls
-}
-
-#generate subtitles of video file
+#generate subtitles of video file via whisper and mymemmory api
 export def "ai generate-subtitles" [
   file                        #input video file
   --language(-l) = "English"  #language of input video file
@@ -208,6 +200,6 @@ export def "ai generate-subtitles" [
   ai audio2text $"($filename).mp3" -o srt 
 
   if $translate {
-    ai translate $"($filename).srt" 
+    media trans-sub $"($filename).srt" 
   }
 }
