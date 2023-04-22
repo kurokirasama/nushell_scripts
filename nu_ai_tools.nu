@@ -187,3 +187,27 @@ export def "ai audio2summary" [
     cp ($file) ($env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory)
   }
 }
+
+#translate text via whisper
+export def "ai translate" [
+  file 
+  --to = "Spanish"
+] {
+  ls
+}
+
+#generate subtitles of video file
+export def "ai generate-subtitles" [
+  file                        #input video file
+  --language(-l) = "English"  #language of input video file
+  --translate(-t)             #to translate to spanish
+] {
+  let filename = ($file | path parse | get stem)
+
+  media extract-audio $file 
+  ai audio2text $"($filename).mp3" -o srt 
+
+  if $translate {
+    ai translate $"($filename).srt" 
+  }
+}
