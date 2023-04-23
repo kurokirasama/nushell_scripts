@@ -316,31 +316,58 @@ export def lister [file] {
 }
 
 #create anime dirs according to files
-export def mk-anime [] {
-  try {
-    get-files
-  } catch {
-    return-error "no files found"
-    return
-  }
-  | get name 
-  | each {|file| 
-      $file 
-      | parse "{fansub} {name} - {chapter}"
-    } 
-  | flatten 
-  | get name 
-  | uniq 
-  | each {|dir| 
-      if not ($dir | path expand | path exists) {
-        mkdir $dir
-      }
-
-      get-files 
-      | find -i $dir 
-      | mv-pipe $dir
-      | ignore
+export def mk-anime [--wzf] {
+  if not $wzf {
+    try {
+      get-files
+    } catch {
+      return-error "no files found"
+      return
     }
+    | get name 
+    | each {|file| 
+        $file 
+        | parse "{fansub} {name} - {chapter}"
+      } 
+    | flatten 
+    | get name 
+    | uniq 
+    | each {|dir| 
+        if not ($dir | path expand | path exists) {
+          mkdir $dir
+        }
+
+        get-files 
+        | find -i $dir 
+        | mv-pipe $dir
+        | ignore
+      }
+  } else {
+    try {
+      get-files
+    } catch {
+      return-error "no files found"
+      return
+    }
+    | get name 
+    | each {|file| 
+        $file 
+        | parse "[{fansub}]{name}_Capitulo{rest}"
+      } 
+    | flatten 
+    | get name 
+    | uniq 
+    | each {|dir| 
+        if not ($dir | ansi strip | path expand | path exists) {
+          mkdir $dir
+        }
+
+        get-files 
+        | find -i $dir 
+        | mv-pipe $dir
+        | ignore
+      }
+  }
 }
 
 #open google analytics csv file
