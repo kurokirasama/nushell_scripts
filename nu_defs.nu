@@ -727,10 +727,11 @@ export def-env mkcd [name: path] {
 #backup sublime settings
 export def "sublime backup" [] {
   cd $env.MY_ENV_VARS.linux_backup
+
   let source_dir = "~/.config/sublime-text"
   
-  7z max sublime-installedPackages ([$source_dir "Installed Packages"] | path join)
-  7z max sublime-Packages ([$source_dir "Packages"] | path join)
+  7z max sublime-Packages.7z ([$source_dir "Packages"] | path join | path expand)
+  7z max sublime-installedPackages.7z ([$source_dir "Installed Packages"] | path join | path expand)
 }
 
 #restore sublime settings
