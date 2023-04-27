@@ -856,7 +856,9 @@ export def open-link [] {
 }
 
 #umount all drives (duf)
-export def umall [user? = $env.USER] {
+export def umall [user?] {
+  let user = if ($user | is-empty) {$env.USER} else {$user}
+
   try {
     duf -json 
     | from json 
@@ -927,6 +929,38 @@ export def "dpx status" [] {
 #qr code generator
 export def qrenc [url] {
   curl $"https://qrenco.de/($url)"
+}
+
+#date formatting
+export def "date my-format" [
+  date?: string #date in form 
+  --extra = ""  #some text to append to the date (default empty)
+  #
+  #format date in the form Mmm ss, hh:mm
+  #Example: "Apr 24, 15:08"
+] {
+  let date = if ($date | is-empty) {$in} else {$date}
+
+  date now 
+  | date format "%Y"
+  | str append " " 
+  | str append $date
+  | str append "+00:00" 
+  | into datetime 
+  | date format "%Y.%m.%d_%H.%M"
+  | str append $extra
+}
+
+#date renaming
+export def rename-date [file,--extra = ""] {
+  let extension = ($file | path parse | get extension)
+  let new_name = (
+    $file 
+    | path parse
+    | get stem 
+    | date my-format --extra $extra
+    | str append $".($extension)"
+  )
 }
 
 #default a full table 

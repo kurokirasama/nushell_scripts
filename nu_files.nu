@@ -241,7 +241,8 @@ export def join-pdfs [
 }
 
 #create media database for downloads and all mounted disks
-export def autolister [user = $env.USER] {
+export def autolister [user?] {
+  let user = if ($user | is-empty) {$env.USER} else {$user}
   let host = (sys | get host | get hostname)
 
   print (echo-g "listing Downloads...")

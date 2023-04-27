@@ -1,5 +1,6 @@
 
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_aliases.nu *
+use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_alias_defs.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_files.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_crypt.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_defs.nu *
