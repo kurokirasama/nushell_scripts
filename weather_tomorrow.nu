@@ -309,17 +309,28 @@ def get_weather [loc] {
     let canIplot = (try {[1 2] | plot;true} catch {false})
 
     if $canIplot {
-        print ($data | select uvIndexAvg | rename uvIndex | plot-table --title "UV Index")
-        print ($windSpeedAvg | plot-table --title "Wind Speed")
-        print (($forecast | select "Humidity (%)") | plot-table --title "Humidity")
-        print (($forecast | select "Precip. Intensity (mm)") | plot-table --title "Prec. Int.")
-        print (($forecast | select "Precip. Prob. (%)") | plot-table --title "Prec. Prob")
+        print ($data | select uvIndexAvg | rename uvIndex | plot-table --title "UV Index" --width 150)
+        print (echo "\n")
+
+        print ($windSpeedAvg | plot-table --title "Wind Speed" --width 150)
+        print (echo "\n")
+
+        print (($forecast | select "Humidity (%)") | plot-table --title "Humidity" --width 150)
+        print (echo "\n")
+
+        print (($forecast | select "Precip. Intensity (mm)") | plot-table --title "Prec. Int." --width 150)
+        print (echo "\n")
+
+        print (($forecast | select "Precip. Prob. (%)") | plot-table --title "Prec. Prob" --width 150)
+        print (echo "\n")
 
         # let hum_prob = ($forecast | select "Humidity (%)" "Precip. Prob. (%)")
-        # print ($hum_prob | plot-table --title "Humidity vs Precip. Prob.")
+        # print ($hum_prob | plot-table --title "Humidity vs Precip. Prob." --width 150)
+        # print (echo "\n")
 
         let temp_minmax = ($forecast | select "T° min (°C)" "T° max (°C)")
-        print ($temp_minmax | plot-table --title "T° min vs T° max")
+        print ($temp_minmax | plot-table --title "T° min vs T° max" --width 150)
+        print (echo "\n")
     } else {
         $windSpeedAvg | gnu-plot
         $data | select uvIndexAvg | rename uvIndex | gnu-plot
