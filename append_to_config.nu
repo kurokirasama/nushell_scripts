@@ -1,6 +1,4 @@
 
-use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_aliases.nu *
-use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_alias_defs.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_files.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_crypt.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_defs.nu *
@@ -16,7 +14,10 @@ use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_gcal.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_geek.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/yt_api.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/maths.nu *
+use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_plots.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/zoxide.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/weather_tomorrow.nu [weather,get_weather_by_interval]
+use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_aliases.nu *
+use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_alias_defs.nu *
 source-env /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_env_vars.nu
 source-env /home/kira/Yandex.Disk/Backups/linux/nu_scripts/nu_config.nu

@@ -306,13 +306,29 @@ def get_weather [loc] {
 
 
     ## plots
-    $windSpeedAvg | gnu-plot
-    ($forecast | select "Humidity (%)") | gnu-plot
-    ($forecast | select "Precip. Intensity (mm)") | gnu-plot
-    ($forecast | select "Precip. Prob. (%)") | gnu-plot
-    $data | select uvIndexAvg | rename uvIndex | gnu-plot
-    ($forecast | select "T° max (°C)") | gnu-plot
-    ($forecast | select "T° min (°C)") | gnu-plot
+    let canIplot = (try {[1 2] | plot;true} catch {false})
+
+    if $canIplot {
+        print ($data | select uvIndexAvg | rename uvIndex | plot-table --title "UV Index")
+        print ($windSpeedAvg | plot-table --title "Wind Speed")
+        print (($forecast | select "Humidity (%)") | plot-table --title "Humidity")
+        print (($forecast | select "Precip. Intensity (mm)") | plot-table --title "Prec. Int.")
+        print (($forecast | select "Precip. Prob. (%)") | plot-table --title "Prec. Prob")
+
+        # let hum_prob = ($forecast | select "Humidity (%)" "Precip. Prob. (%)")
+        # print ($hum_prob | plot-table --title "Humidity vs Precip. Prob.")
+
+        let temp_minmax = ($forecast | select "T° min (°C)" "T° max (°C)")
+        print ($temp_minmax | plot-table --title "T° min vs T° max")
+    } else {
+        $windSpeedAvg | gnu-plot
+        $data | select uvIndexAvg | rename uvIndex | gnu-plot
+        ($forecast | select "Humidity (%)") | gnu-plot
+        ($forecast | select "Precip. Intensity (mm)") | gnu-plot
+        ($forecast | select "Precip. Prob. (%)") | gnu-plot
+        ($forecast | select "T° max (°C)") | gnu-plot
+        ($forecast | select "T° min (°C)") | gnu-plot
+    }
 
     ## forecast
     print ("Forecast for today:")

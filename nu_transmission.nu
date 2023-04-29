@@ -81,7 +81,7 @@ export def "t remove-delete" [
 ] {
   if ($ids | is-empty) {
     $in
-    | find -v "Sum:"
+    | where ID !~ "Sum:"
     | get ID 
     | each {|id| 
         transmission-remote -t $id -n 'transmission:transmission' -rad

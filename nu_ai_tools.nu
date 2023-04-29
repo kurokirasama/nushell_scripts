@@ -73,6 +73,10 @@ export def "ai transcription-summary" [
   --gpt4(-g) = false  #whether to use gpt-4 (default false)
   --upload(-u) = true #whether to upload to gdrive (default true) 
 ] {
+  #removing existing temp files
+  ls | where name =~ "split|summaries" | rm-pipe
+
+  #definitions
   let up_folder = $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory
   let mounted = ($up_folder | path expand | path exists)
   let output = $"($file | path parse | get stem)_summary.md"
@@ -90,7 +94,7 @@ export def "ai transcription-summary" [
   
     bash -c $split_command
 
-    let files = (ls | find split | find -v summary)
+    let files = (ls | find split | where name !~ summary)
 
     $files | each {|split_file|
       ai transcription-summary-single ($split_file | get name | ansi strip) -u false -g $gpt4
@@ -192,11 +196,7 @@ export def "ai audio2summary" [
 export def "ai generate-subtitles" [
   file                               #input video file
   --language(-l) = "en-US/English"   #language of input video file, mymmemory/whisper (default en-US/English)
-<<<<<<< HEAD
   --translate(-t) = false            #to translate to spanish (default false)
-=======
-  --not_translate(-n)                #to not translate to spanish
->>>>>>> 98ff51bb8379de2a828227a558091ce607d2669f
   #
   #`? trans` and `whisper --help` for more info on languages
 ] {
@@ -205,11 +205,7 @@ export def "ai generate-subtitles" [
   media extract-audio $file 
   ai audio2text $"($filename).mp3" -o srt -l ($language | split row "/" | get 1)
 
-<<<<<<< HEAD
   if $translate {
-=======
-  if not $not_translate {
->>>>>>> 98ff51bb8379de2a828227a558091ce607d2669f
     media trans-sub $"($filename).srt" --from ($language | split row "/" | get 0)
   }
 }
