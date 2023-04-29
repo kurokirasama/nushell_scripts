@@ -2,7 +2,7 @@
 # - Weather using tomorrow.io api
 # - Air polution condition using airvisual api
 # - Street address using google maps api
-# - Version 1.0
+# - Version 2.0
 export def-env weather [--home(-h),--ubb(-b)] {
     if not $home {
         if not $ubb {
