@@ -3,15 +3,15 @@
 # - Air polution condition using airvisual api
 # - Street address using google maps api
 # - Version 2.0
-export def-env weather [--home(-h),--ubb(-b)] {
+export def-env weather [--home(-h),--ubb(-b),--plot = true] {
     if not $home {
         if not $ubb {
-            get_weather (get_location)
+            get_weather (get_location) --plot $plot
         } else {
-            get_weather (get_location -b)
+            get_weather (get_location -b) --plot $plot
         }
     } else {
-        get_weather (get_location -h)
+        get_weather (get_location -h) --plot $plot
     }
 } 
 
@@ -212,7 +212,7 @@ def get_airCond [loc] {
 }
 
 # parse all the information
-def get_weather [loc] {
+def get_weather [loc, --plot = true] {
     let response = (fetch_api $loc)
     let address = (get_address $loc)
     let air_cond = (get_airCond $loc)
@@ -306,41 +306,43 @@ def get_weather [loc] {
 
 
     ## plots
-    let canIplot = (try {[1 2] | plot;true} catch {false})
+    if $plot {
+        let canIplot = (try {[1 2] | plot;true} catch {false})
 
-    if $canIplot {
-        print ($data | select uvIndexAvg | rename uvIndex | plot-table --title "UV Index" --width 150)
-        print (echo "\n")
+        if $canIplot {
+            print ($data | select uvIndexAvg | rename uvIndex | plot-table --title "UV Index" --width 150)
+            print (echo "\n")
 
-        print ($windSpeedAvg | plot-table --title "Wind Speed" --width 150)
-        print (echo "\n")
+            print ($windSpeedAvg | plot-table --title "Wind Speed" --width 150)
+            print (echo "\n")
 
-        print (($forecast | select "Humidity (%)") | plot-table --title "Humidity" --width 150)
-        print (echo "\n")
+            print (($forecast | select "Humidity (%)") | plot-table --title "Humidity" --width 150)
+            print (echo "\n")
 
-        print (($forecast | select "Precip. Intensity (mm)") | plot-table --title "Prec. Int." --width 150)
-        print (echo "\n")
+            print (($forecast | select "Precip. Intensity (mm)") | plot-table --title "Prec. Int." --width 150)
+            print (echo "\n")
 
-        print (($forecast | select "Precip. Prob. (%)") | plot-table --title "Prec. Prob" --width 150)
-        print (echo "\n")
+            print (($forecast | select "Precip. Prob. (%)") | plot-table --title "Prec. Prob" --width 150)
+            print (echo "\n")
 
-        # let hum_prob = ($forecast | select "Humidity (%)" "Precip. Prob. (%)")
-        # print ($hum_prob | plot-table --title "Humidity vs Precip. Prob." --width 150)
-        # print (echo "\n")
+            # let hum_prob = ($forecast | select "Humidity (%)" "Precip. Prob. (%)")
+            # print ($hum_prob | plot-table --title "Humidity vs Precip. Prob." --width 150)
+            # print (echo "\n")
 
-        let temp_minmax = ($forecast | select "T° min (°C)" "T° max (°C)")
-        print ($temp_minmax | plot-table --title "T° min vs T° max" --width 150)
-        print (echo "\n")
-    } else {
-        $windSpeedAvg | gnu-plot
-        $data | select uvIndexAvg | rename uvIndex | gnu-plot
-        ($forecast | select "Humidity (%)") | gnu-plot
-        ($forecast | select "Precip. Intensity (mm)") | gnu-plot
-        ($forecast | select "Precip. Prob. (%)") | gnu-plot
-        ($forecast | select "T° max (°C)") | gnu-plot
-        ($forecast | select "T° min (°C)") | gnu-plot
+            let temp_minmax = ($forecast | select "T° min (°C)" "T° max (°C)")
+            print ($temp_minmax | plot-table --title "T° min vs T° max" --width 150)
+            print (echo "\n")
+        } else {
+            $windSpeedAvg | gnu-plot
+            $data | select uvIndexAvg | rename uvIndex | gnu-plot
+            ($forecast | select "Humidity (%)") | gnu-plot
+            ($forecast | select "Precip. Intensity (mm)") | gnu-plot
+            ($forecast | select "Precip. Prob. (%)") | gnu-plot
+            ($forecast | select "T° max (°C)") | gnu-plot
+            ($forecast | select "T° min (°C)") | gnu-plot
+        }
     }
-
+    
     ## forecast
     print ("Forecast for today:")
     print ($forecast | get 0) 
