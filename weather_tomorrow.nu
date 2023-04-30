@@ -3,15 +3,15 @@
 # - Air polution condition using airvisual api
 # - Street address using google maps api
 # - Version 2.0
-export def-env weather [--home(-h),--ubb(-b),--plot = true] {
+export def-env weather [--home(-h),--ubb(-b),--no_plot] {
     if not $home {
         if not $ubb {
-            get_weather (get_location) --plot $plot
+            get_weather (get_location) --plot (not $no_plot)
         } else {
-            get_weather (get_location -b) --plot $plot
+            get_weather (get_location -b) --plot (not $no_plot)
         }
     } else {
-        get_weather (get_location -h) --plot $plot
+        get_weather (get_location -h) --plot (not $no_plot)
     }
 } 
 
