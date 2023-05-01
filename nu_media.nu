@@ -17,6 +17,7 @@ export def "media mpv-info" [file?] {
 export def "media trans-sub" [
   file?
   --from = "en-US" #from which language you are translating (default english: en-US)
+  --openai         #use openai api to make the translations
   #
   #`? trans` for more info on languages
 ] {
@@ -39,7 +40,7 @@ export def "media trans-sub" [
     | each {|line|
         if (not $line.item =~ "-->") and (not $line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
           let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
-          let translated = ($fixed_line | trans --from $from)
+          let translated = ($fixed_line | trans --from $from --openai $openai)
 
           if $translated =~ "error:" {
             return-error $"error while translating: ($translated)"
@@ -65,7 +66,7 @@ export def "media trans-sub" [
     | each {|line|
         if (not $line.item =~ "-->") and (not $line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
           let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
-          let translated = ($fixed_line | trans)
+          let translated = ($fixed_line | trans --from $from --openai $openai)
 
           if $translated =~ "error:" {
             return-error $"error while translating: ($translated)"

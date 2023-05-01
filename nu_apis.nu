@@ -22,11 +22,13 @@ export def bitly [longurl] {
   }
 }
 
-#translate text using mymemmory api
+#translate text using mymemmory or openai api
 export def trans [
   ...text:string    #search query
   --from:string     #from which language you are translating (default english)
   --to:string       #to which language you are translating (default spanish)
+  --openai = false  #to use openai api instead of mymemmory (default false)
+  --gpt4 = false    #use gpt4 for translating (default false)
   #
   #Use ISO standar names for the languages, for example:
   #english: en-US
@@ -41,31 +43,60 @@ export def trans [
     return-error "no search query provided!"
   } 
   
-  let trans_credential = (open-credential ([$env.MY_ENV_VARS.credentials "mymemory_token.json.asc"] | path join))
-  let key = ($trans_credential | get token)
-  let user = ($trans_credential | get username)
+  match $openai {
+    false => {
+      let trans_credential = (open-credential ([$env.MY_ENV_VARS.credentials "mymemory_token.json.asc"] | path join))
+      let key = ($trans_credential | get token)
+      let user = ($trans_credential | get username)
 
-  let from = if ($from | is-empty) {"en-US"} else {$from}
-  let to = if ($to | is-empty) {"es-ES"} else {$to}
+      let from = if ($from | is-empty) {"en-US"} else {$from}
+      let to = if ($to | is-empty) {"es-ES"} else {$to}
 
-  let to_translate = ($search | str join "%20")
+      let to_translate = ($search | str join "%20")
 
-  let url = $"https://api.mymemory.translated.net/get?q=($to_translate)&langpair=($from)%7C($to)&of=json&key=($key)&de=($user)"
+      let url = $"https://api.mymemory.translated.net/get?q=($to_translate)&langpair=($from)%7C($to)&of=json&key=($key)&de=($user)"
   
-  let response = (http get $url)
-  let status = ($response | get responseStatus)
-  let translated = ($response | get responseData | get translatedText)
+      let response = (http get $url)
+      let status = ($response | get responseStatus)
+      let translated = ($response | get responseData | get translatedText)
   
-  if $status == 200 {
-    let quota = ($response | get quotaFinished)
-    if $quota {
-      return-error "error: word quota limit excedeed!"
+      if $status == 200 {
+        let quota = ($response | get quotaFinished)
+        if $quota {
+          return-error "error: word quota limit excedeed!"
+        }
+  
+        return $translated
+      } else {
+        return-error $"error: bad request ($status)!"
+      }
     }
-  
-    $translated
-  } else {
-    return-error $"error: bad request ($status)!"
+
+    true => {
+      let pre_prompt = (open ([$env.MY_ENV_VARS.credentials chagpt_prompt.json] | path join) | get prompt3)
+
+      let prompt = (
+        $pre_prompt
+        | str append $search
+      )
+
+      try {
+        let translated = (
+          if $gpt4 {
+            chatgpt -m gpt4 $prompt
+          } else {
+            chatgpt $prompt
+          }
+          | ^sed '/^\s*$/d'
+        )
+
+        return $translated
+      } catch {
+        return-error "Some error ocurred!!"
+      }
+    }
   }
+  
 }
 
 #get rebrandly short link
