@@ -117,7 +117,11 @@ export def "ai transcription-summary" [
     let prompt = (
       $pre_prompt
       | str append "\n" 
+      | str append "```"
+      | str append "\n" 
       | str append (open $temp_output)
+      | str append "\n" 
+      | str append "```"
     )
 
     print (echo-g $"asking chatgpt to combine the results in ($temp_output)...")
@@ -158,7 +162,11 @@ export def "ai transcription-summary-single" [
   let prompt = (
     $pre_prompt
     | str append "\n" 
+    | str append "```"
+    | str append "\n" 
     | str append (open $file)
+    | str append "\n" 
+    | str append "```"
   )
 
   print (echo-g $"asking chatgpt for a summary of the file ($file)...")
