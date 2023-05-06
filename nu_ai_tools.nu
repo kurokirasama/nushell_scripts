@@ -126,9 +126,9 @@ export def "ai transcription-summary" [
 
     print (echo-g $"asking chatgpt to combine the results in ($temp_output)...")
     if $gpt4 {
-      chatgpt -m gpt4 $prompt | save -f $output
+      chatgpt -p temp03_summarizer_gpt4] $prompt | save -f $output
     } else {
-      chatgpt $prompt | save -f $output
+      chatgpt -p temp03_summarizer_gpt3.5 $prompt | save -f $output
     }
 
     if $upload {
@@ -171,9 +171,9 @@ export def "ai transcription-summary-single" [
 
   print (echo-g $"asking chatgpt for a summary of the file ($file)...")
   if $gpt4 {
-    chatgpt -m gpt4 $prompt | save -f $output
+    chatgpt -p temp03_summarizer_gpt4 $prompt | save -f $output
   } else {
-    chatgpt $prompt | save -f $output
+    chatgpt -p temp03_summarizer_gpt3.5 $prompt | save -f $output
   }
 
   if $upload {

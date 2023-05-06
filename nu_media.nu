@@ -702,7 +702,7 @@ export def "media find" [
   if $manga {
     $results | find -i manga
   } else if $no_manga {
-    $results | find -v Manga
+    $results | where path !~ Manga
   } else {
     $results
   }
