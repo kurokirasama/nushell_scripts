@@ -196,7 +196,7 @@ export def "ai audio2summary" [
   ai transcription-summary $"($file | path parse | get stem)-clean.txt" --upload $upload
   if $upload {
     print (echo-g $"uploading ($file)...")
-    cp ($file) ($env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory)
+    cp $"($file | path parse | get stem)-clean.mp3" ($env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory)
   }
 }
 
