@@ -223,6 +223,5 @@ let-env config = $my_config
 
 try {
     # (http get https://api.chucknorris.io/jokes/random).value
-    http get -H ["Accept" "text/plain"] https://icanhazdadjoke.com
-    echo
+    print (http get -H ["Accept" "text/plain"] https://icanhazdadjoke.com)
 }
