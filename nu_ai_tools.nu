@@ -231,3 +231,25 @@ export def "ai generate-subtitles-pipe" [
       ai generate-subtitles ($file | ansi strip) -l $language -t $translate
     }
 }
+
+export def "ai git-push" [--gpt4] {
+  print (echo-g "asking chatgpt to summarize the differences in the repository...")
+  let pre_prompt = (open ([$env.MY_ENV_VARS.credentials chagpt_prompt.json] | path join) | get prompt4)
+  let git_diff = (git diff)
+  let prompt = ($pre_prompt + "\n" + $git_diff)
+  let commit = (
+    if $gpt4 {
+      chatgpt -p temp03_gitcommits_summarizer_gpt4 $prompt
+    } else {
+      chatgpt -p temp03_gitcommits_summarizer_gpt3.5 $prompt
+    }
+  )
+
+  print (echo-g "pushing changes with this commit message:")
+  print (echo $commit)
+
+  git add -A
+  git status
+  git commit -am $commit
+  git push #origin main
+}
