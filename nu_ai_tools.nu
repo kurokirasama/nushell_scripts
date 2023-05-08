@@ -232,6 +232,7 @@ export def "ai generate-subtitles-pipe" [
     }
 }
 
+#generate a git commit message via chatgot and push the changes
 export def "ai git-push" [--gpt4] {
   print (echo-g "asking chatgpt to summarize the differences in the repository...")
   let pre_prompt = (open ([$env.MY_ENV_VARS.credentials chagpt_prompt.json] | path join) | get prompt4)
