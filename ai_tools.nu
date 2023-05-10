@@ -254,7 +254,7 @@ export def "ai git-push" [
   print (echo-g "resulting commit message:")
   print (echo $commit)
 
-  print (echo-g "pushing the changes with that commit message\n")
+  print (echo-g "pushing the changes with that commit message...\n")
   git add -A
   git status
   git commit -am $commit
