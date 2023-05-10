@@ -1,5 +1,5 @@
 #geeknote wrapper for accesing evernote
-export def geek [] {}
+export def "geek help" [] {}
 
 #geeknote find
 export def "geek find" [

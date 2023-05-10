@@ -10,7 +10,8 @@ export def ai [] {
       - `ai audio2text`
       - `ai screen2text`
       - `ai transcription-summary`
-      - `ai audio2summary`\n"
+      - `ai audio2summary`
+      - `ai git-push`\n"
     | nu-highlight
   ) 
 }
@@ -112,7 +113,7 @@ export def "ai transcription-summary" [
       echo "\n" | save --append $temp_output
     }
 
-    let pre_prompt = (open ([$env.MY_ENV_VARS.credentials chagpt_prompt.json] | path join) | get prompt2)
+    let pre_prompt = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join) | get prompt2)
 
     let prompt = (
       $pre_prompt
@@ -126,9 +127,9 @@ export def "ai transcription-summary" [
 
     print (echo-g $"asking chatgpt to combine the results in ($temp_output)...")
     if $gpt4 {
-      chatgpt -p temp03_summarizer_gpt4] $prompt | save -f $output
+      chatgpt -p temp05_summarizer_gpt4 $prompt | save -f $output
     } else {
-      chatgpt -p temp03_summarizer_gpt3.5 $prompt | save -f $output
+      chatgpt -p temp05_summarizer_gpt3.5 $prompt | save -f $output
     }
 
     if $upload {
@@ -157,7 +158,7 @@ export def "ai transcription-summary-single" [
   let mounted = ($up_folder | path expand | path exists)
   let output = $"($file | path parse | get stem)_summary.md"
 
-  let pre_prompt = (open ([$env.MY_ENV_VARS.credentials chagpt_prompt.json] | path join) | get prompt1)
+  let pre_prompt = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join) | get prompt1)
 
   let prompt = (
     $pre_prompt
@@ -171,9 +172,9 @@ export def "ai transcription-summary-single" [
 
   print (echo-g $"asking chatgpt for a summary of the file ($file)...")
   if $gpt4 {
-    chatgpt -p temp03_summarizer_gpt4 $prompt | save -f $output
+    chatgpt -p temp05_summarizer_gpt4 $prompt | save -f $output
   } else {
-    chatgpt -p temp03_summarizer_gpt3.5 $prompt | save -f $output
+    chatgpt -p temp05_summarizer_gpt3.5 $prompt | save -f $output
   }
 
   if $upload {
@@ -233,9 +234,13 @@ export def "ai generate-subtitles-pipe" [
 }
 
 #generate a git commit message via chatgot and push the changes
-export def "ai git-push" [--gpt4] {
+export def "ai git-push" [
+  --gpt4
+  #
+  #Inspired by https://github.com/zurawiki/gptcommit
+] {
   print (echo-g "asking chatgpt to summarize the differences in the repository...")
-  let pre_prompt = (open ([$env.MY_ENV_VARS.credentials chagpt_prompt.json] | path join) | get prompt4)
+  let pre_prompt = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join) | get prompt4)
   let git_diff = (git diff)
   let prompt = ($pre_prompt + "\n" + $git_diff)
   let commit = (

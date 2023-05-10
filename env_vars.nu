@@ -5,7 +5,7 @@ let-env PATH = (
       | split row ":"  
     } 
   | flatten
-  | append whatEverYouNeed
+  | append whatYouNeed
   | uniq
 )
 
@@ -98,20 +98,16 @@ let-env MY_ENV_VARS = (
   | upsert debs "path"
   | upsert youtube_database "path"
   | upsert appImages "path"
-  | upsert local_manga "path"
-  | upsert external_manga "path"
-  | upsert zoom "path"
-  | upsert mps "path"
   | upsert nushell_dir "path"
   | upsert media_database "path"
-  | upsert home_wifi "name"
+  | upsert home_wifi "home_wifi"
   | upsert google_calendars "cal1|cal2"
   | upsert google_calendars_full "cal1|cal2|cal3"
-  | upsert termux_ip "ip"
-  | upsert mail "mail"
+  | upsert mail "mail1"
   | upsert l_prompt "short"
   | upsert data "path"
   | upsert gdriveTranscriptionSummaryDirectory "path"
+  | upsert chatgpt_config "path"
 )
 
 #for cmdg

@@ -1,5 +1,5 @@
 #gcalcli wrapper for accesing google calendar
-export def gcal [] {}
+export def "gcal help" [] {}
 
 #add event to google calendar, also usable without arguments
 export def "gcal add" [

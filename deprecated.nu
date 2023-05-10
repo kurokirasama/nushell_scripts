@@ -108,7 +108,7 @@ def get-devices [
     | flatten 
     | get local prefixlen 
     | flatten 
-    | str collect '/' 
+    | str join '/' 
     | str replace '(?P<nums>\d+/)' '0/'
   )
 

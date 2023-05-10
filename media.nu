@@ -1,5 +1,5 @@
 #tools to deal with media files
-export def media [] {}
+export def "media help" [] {}
 
 #video info
 export def "media video-info" [file?] {

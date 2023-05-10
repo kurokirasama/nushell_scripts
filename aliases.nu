@@ -2,7 +2,7 @@ export alias ncdu = ncdu --color dark
 export alias tree = tree -h
 export alias grp = grep-nu
 export alias cal = cal --week-start monday
-export alias bat = bat --paging never --theme=ansi
+export alias bat = bat --paging=never --theme=ansi
 export alias dsitcl = bash -c 'docker run --rm -it -v "/home/kira/Dropbox/Documentos/Clases/UBB/DataScienceAtTheCommandLine/Files/data":/data datasciencetoolbox/dsatcl2e'
 export alias s = subl
 export alias install-nu-plugin = cargo install --path .
