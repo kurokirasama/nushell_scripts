@@ -463,13 +463,13 @@ export def-env which-cd [program] {
   cd $dir.0
 }
 
-#push to git, needs gptcommit installed
-export def-env git-push [] {
-  git add -A
-  git status
-  git commit # -am $"($m)"
-  git push #origin main  
-}
+#push to git, uses gptcommit if installed
+# export def-env git-push [] {
+#   git add -A
+#   git status
+#   git commit # -am $"($m)"
+#   git push #origin main  
+# }
 
 #web search in terminal
 export def gg [...search: string] {

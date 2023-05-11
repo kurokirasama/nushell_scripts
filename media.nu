@@ -216,32 +216,49 @@ export def "media remove-audio-noise" [
   notify-send "noise removal done!"
 }
 
-#screen record of audio to mp3
+#screen record
 export def "media screen-record" [
   file = "video"  #output filename without extension (default: "video")
   --audio = true  #whether to record with audio or not (default: true)
+  #
+  #Pending: making sure it works in a video call
 ] {
   if $audio {
     print (echo-g "recording screen with audio...")
-    let device = (
+    let devices = (
       pacmd list-sources 
       | lines 
       | find "name:" 
       | ansi strip 
       | parse "{name}: <{device}>" 
-      | reject name 
-      | find alsa_input
+      | where device =~ "alsa_input|blue"
       | get device
-      | get 0
       | ansi strip
       )
 
-    try {
-      print (echo-g "trying myffmpeg...")
-      myffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f alsa -ac 2 -i pulse -acodec aac -strict experimental $"($file).mp4"
-    } catch {
-      print (echo-r "myffmpeg failed...")
-      ffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -f pulse -i bluez_sink.34_82_C5_47_E3_3B.a2dp_sink.monitor -filter_complex "[1:a][2:a]amerge=inputs=2[a]" -map 0:v -map "[a]" -ac 2 -c:v libx264 -crf 23 -preset fast -c:a aac -b:a 192k -strict experimental $"($file).mp4"
+    let bluetooth_not_connected = ($devices | find blue | is-empty)
+
+    if $bluetooth_not_connected {
+      let device = ($devices | find alsa_input | get 0 | ansi strip)
+    
+      try {
+        print (echo-g "trying myffmpeg...")
+        myffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -acodec aac -strict experimental $"($file).mp4"
+      } catch {
+        print (echo-r "myffmpeg failed...")
+        ffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -acodec aac -strict experimental $"($file).mp4"
+      }
+    } else {
+      let alsa = ($devices | find alsa_input | get 0 | ansi strip)
+      let blue = ($devices | find blue | get 0 | ansi strip)
+
+      try {
+        print (echo-g "trying myffmpeg...")
+        myffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $blue -f pulse -ac 2 -i $alsa -filter_complex amerge=inputs=2 -acodec aac -strict experimental $"($file).mp4"
+      } catch {
+        print (echo-r "myffmpeg failed...")
+        ffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $blue -f pulse -ac 2 -i $alsa -filter_complex amerge=inputs=2 -acodec aac -strict experimental $"($file).mp4"
+      }
     }
   } else {
     print (echo-g "recording screen without audio...")

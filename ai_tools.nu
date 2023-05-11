@@ -260,3 +260,46 @@ export def "ai git-push" [
   git commit -am $commit
   git push #origin main
 }
+
+#wrapper to simplify the call to chatgpt using profiles
+export def askgpt [
+  prompt?:string   # string with the prompt
+  profile?:string  # profile to use (default: temp07_programmer_gpt4)
+  --programmer(-p) # use profile temp07_programmer_gpt4 directly, takes precedende over $profile 
+  #
+  #For normal questions, use `chatgpt` directly
+] {
+    let prompt = if ($prompt | is-empty) {$in} else {$prompt}
+    mut selection = -1
+    mut profiles = []
+    mut the_profile = ""
+
+    if (not $programmer) {
+      if ($profile | is-empty) {
+        $profiles = (
+           get-dirs ~/.config/chatgpt-wrapper/profiles/ 
+           | get name 
+           | split column "/" 
+           | get column7
+        )
+      
+        print (echo-g "You didn't provide a profile. The available profiles are:")
+        print ($profiles)
+        $selection = (input (echo-g "Please select a profile: "))
+
+        $the_profile = (
+          if ($selection | is-empty) {
+            "temp07_programmer_gpt4"
+          } else {
+            $profiles | get ($selection | into int)
+          }
+        )
+      } else {
+        $the_profile = $profile
+      }       
+    } else {
+      $the_profile = "temp07_programmer_gpt4"
+    }
+
+    chatgpt -p $the_profile $prompt
+}
