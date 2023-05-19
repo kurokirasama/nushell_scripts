@@ -168,8 +168,8 @@ export def "ai git-push" [
   #
   #Inspired by https://github.com/zurawiki/gptcommit
 ] {
-  let max_words = 1400
-  let max_words_short = 1930
+  let max_words = if $gpt4 {2400} else {1400}
+  let max_words_short = if $gpt4 {3400} else {1930}
 
   print (echo-g "asking chatgpt to summarize the differences in the repository...")
   let question = (git diff)
