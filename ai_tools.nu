@@ -102,7 +102,7 @@ export def chat_gpt [
     } else if $delim_with_backtips {
       $preprompt + "\n" + "'''" + "\n" + $prompt + "\n" + "'''"
     } else {
-      $preprompt + "\n" + $prompt
+      $preprompt + $prompt
     } 
   )
 
@@ -289,7 +289,7 @@ export def "ai transcription-summary" [
   let output = $"($file | path parse | get stem)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = 2000
+  let max_words = if $gpt4 {4000} else {2000}
   let n_words = (wc -w $file | awk '{print $1}' | into int)
 
   if $n_words > $max_words {
@@ -323,11 +323,9 @@ export def "ai transcription-summary" [
 
     print (echo-g $"asking chatgpt to combine the results in ($temp_output)...")
     if $gpt4 {
-      chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d -m "gpt-4"
-      | save -f $output
+      chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d -m "gpt-4" | save -f $output
     } else {
-      chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d
-      | save -f $output
+      chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d | save -f $output
     }
 
     if $upload {
@@ -360,11 +358,9 @@ export def "ai transcription-summary-single" [
 
   print (echo-g $"asking chatgpt for a summary of the file ($file)...")
   if $gpt4 {
-    chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d -m "gpt-4"
-    | save -f $output
+    chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d -m "gpt-4" | save -f $output
   } else {
-    chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d
-    | save -f $output
+    chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d | save -f $output
   }
 
   if $upload {
@@ -381,10 +377,11 @@ export def "ai transcription-summary-single" [
 #audio 2 transcription summary via chatgpt
 export def "ai audio2summary" [
   file
-  --upload = true #whether to upload the summary to gdrive (dafault true)
+  --gpt4(-g) = false  #whether to use gpt-4 (default false)
+  --upload(-u) = true #whether to upload the summary and audio to gdrive (dafault true)
 ] {
   ai audio2text $file
-  ai transcription-summary $"($file | path parse | get stem)-clean.txt" --upload $upload
+  ai transcription-summary $"($file | path parse | get stem)-clean.txt" -u $upload -g $gpt4
   if $upload {
     print (echo-g $"uploading ($file)...")
     cp $"($file | path parse | get stem)-clean.mp3" ($env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory)
@@ -479,7 +476,7 @@ export def "ai yt-summary" [
   let output = $"($title)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = 2000
+  let max_words = if $gpt4 {4000} else {2000}
   let n_words = (wc -w $the_subtitle | awk '{print $1}' | into int)
 
   if $n_words > $max_words {
@@ -513,21 +510,13 @@ export def "ai yt-summary" [
 
     let pre_prompt = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join) | get prompt6)
 
-    let prompt = (
-      $pre_prompt
-      | str append "\n" 
-      | str append "```"
-      | str append "\n" 
-      | str append (open $temp_output)
-      | str append "\n" 
-      | str append "```"
-    )
+    let prompt = (open $temp_output)
 
     print (echo-g $"asking chatgpt to combine the results in ($temp_output)...")
     if $gpt4 {
-      chatgpt -p temp05_summarizer_gpt4 $prompt | save -f $output
+      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d -m "gpt-4" | save -f $output
     } else {
-      chatgpt -p temp05_summarizer_gpt3.5 $prompt | save -f $output
+      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d | save -f $output
     }
 
     return
@@ -538,28 +527,16 @@ export def "ai yt-summary" [
 
 #resume youtube video transcription text via gpt
 export def "ai yt-transcription-summary" [
-  text                #transcription text
+  prompt              #transcription text
   output              #output name without extension
   --gpt4(-g) = false  #whether to use gpt-4 (default false)
 ] {
   let output_file = $"($output)_summary.md"
 
-  let pre_prompt = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join) | get prompt5)
-
-  let prompt = (
-    $pre_prompt
-    | str append "\n" 
-    | str append "```"
-    | str append "\n" 
-    | str append $text
-    | str append "\n" 
-    | str append "```"
-  )
-
   print (echo-g $"asking chatgpt for a summary of the file ($output)...")
   if $gpt4 {
-    chatgpt -p temp05_summarizer_gpt4 $prompt | save -f $output_file
+    chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt summarize_ytvideo -d -m "gpt-4" | save -f $output_file
   } else {
-    chatgpt -p temp05_summarizer_gpt3.5 $prompt | save -f $output_file
+    chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt summarize_ytvideo -d | save -f $output_file
   }
 }

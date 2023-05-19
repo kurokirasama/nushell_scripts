@@ -73,27 +73,16 @@ export def trans [
     }
 
     true => {
-      let pre_prompt = (open ([$env.MY_ENV_VARS.credentials chagpt_prompt.json] | path join) | get prompt3)
-
-      let prompt = (
-        $pre_prompt
-        | str append $search
+      let prompt = ($search | str join " ")
+      let translated = (
+        if $gpt4 {
+          chat_gpt $prompt -t 0.8 --select_system spanish_translator --select_preprompt trans_to_spanish -m gpt-4
+        } else {
+          chat_gpt $prompt -t 0.8 --select_system spanish_translator --select_preprompt trans_to_spanish
+        }
       )
 
-      try {
-        let translated = (
-          if $gpt4 {
-            chatgpt -m gpt4 $prompt
-          } else {
-            chatgpt $prompt
-          }
-          | ^sed '/^\s*$/d'
-        )
-
-        return $translated
-      } catch {
-        return-error "Some error ocurred!!"
-      }
+      return $translated
     }
   }
   
