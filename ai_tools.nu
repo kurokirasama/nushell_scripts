@@ -129,9 +129,11 @@ export def chat_gpt [
 export def askgpt [
   prompt?:string          # string with the prompt, can be piped
   --programmer(-p)        # use programmer system message with temp 0.7, else use assistant with temp 0.9
-  --gpt4(-g)              # use gpt-4 instead of gpt-3.5-turbo
+  --teacher(-t)           # use teacher system message with temp 0.9, else use assistant with temp 0.9
   --temperature(-t):float # takes precedence over the 0.7 and 0.9
+  --gpt4(-g)              # use gpt-4 instead of gpt-3.5-turbo
   #
+  #Only programmer xor teacher system messages allowed.
   #For more personalization use `chat_gpt`
   #For chained questions, use `chatgpt`
 ] {
@@ -147,15 +149,25 @@ export def askgpt [
     }
   )
 
-  let answer = (
-    if $programmer and $gpt4 {
-      chat_gpt $prompt -t $temp --select_system programer -m gpt-4
-    } else if $programmer {
-      chat_gpt $prompt -t $temp --select_system programer
-    } else if $gpt4 {
-      chat_gpt $prompt -t $temp --select_system assistant -m gpt-4
+  if $programmer and $teacher {
+    return-error "Only programmer xor teacher system messages allowed!"
+  }
+
+  let system = (
+    if $programmer {
+      "programmer"
+    } else if $teacher {
+      "teacher"
     } else {
-      chat_gpt $prompt -t $temp --select_system assistant
+      "assistant"
+    }
+  )
+
+  let answer = (
+    if $gpt4 {
+      chat_gpt $prompt -t $temp --select_system $system -m gpt-4
+    } else {
+      chat_gpt $prompt -t $temp --select_system $system
     } 
   )
 
