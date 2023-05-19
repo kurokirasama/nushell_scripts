@@ -661,6 +661,16 @@ export def cargo-update [] {
 
 }
 
+#update yewtube
+export def "apps-update yewtube" [] {
+  pip3 install --user yewtube --upgrade
+}
+
+#update yt-dlp (youtube-dl fork)
+export def "apps-update yt-dlp" [] {
+  yt-dlp -U
+}
+
 #update gmail token
 # export def "gmail-update-token" [] {
 #   let credentials = (open-credential ([$env.MY_ENV_VARS.credentials cmdg-credentials.json.asc] | path join ))
