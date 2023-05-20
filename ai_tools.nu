@@ -219,7 +219,7 @@ export def "ai git-push" [
   git add -A
   git status
   git commit -am $commit
-  git push #origin main
+  git push origin main
 }
 
 #audio to text transcription via whisper
