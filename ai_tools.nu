@@ -1,7 +1,8 @@
 #ai tools
-export def ai [] {
+export def "ai help" [] {
   print (
     echo "This set of tools need a few dependencies installed:\n
+      ffmpeg\n
       whisper:\n
         pip install git+https://github.com/openai/whisper.git\n
       chatgpt-wrapper:\n
@@ -9,14 +10,15 @@ export def ai [] {
       yt-dlp:\n 
         python3 -m pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz\n
       METHODS\n
-      - `ai audio2text`
-      - `ai screen2text`
-      - `ai transcription-summary`
-      - `ai audio2summary`
-      - `ai git-push`
-      - `ai yt-summary`
-      - `chat_gpt`
-      - `askgpt`\n"
+      - ai audio2text
+      - ai audio2summary
+      - ai screen2text
+      - ai transcription-summary
+      - ai yt-summary
+      - ai generate-subtitles
+      - ai git-push
+      - chat_gpt
+      - askgpt\n"
     | nu-highlight
   ) 
 }
