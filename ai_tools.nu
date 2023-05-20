@@ -204,7 +204,7 @@ export def "ai git-push" [
         }
       }
     } catch {
-      input ("Something happened with chatgpt. Enter your commit message or leave empty to stop: ")
+      input (echo-g "Something happened with chatgpt. Enter your commit message or leave empty to stop: ")
     }
   )
 
