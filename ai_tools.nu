@@ -33,7 +33,7 @@ export def chat_gpt [
     --pre_prompt(-p)                              # select pre-prompt from list
     --select_system: string                       # directly select system message    
     --select_preprompt: string                    # directly select pre_prompt
-    --delim_with_backtips(-d)                     # to delimit prompt (not pre-prompt) with triple backquotes (')
+    --delim_with_backquotes(-d)                   # to delimit prompt (not pre-prompt) with triple backquotes (')
     #
     #Available models at https://platform.openai.com/docs/models, but some of them are:
     # - gpt-4 (8192 tokens)
@@ -97,11 +97,11 @@ export def chat_gpt [
   }
 
   let prompt = (
-    if ($preprompt | is-empty) and $delim_with_backtips {
+    if ($preprompt | is-empty) and $delim_with_backquotes {
       "'''" + "\n" + $prompt + "\n" + "'''"
     } else if ($preprompt | is-empty) {
       $prompt
-    } else if $delim_with_backtips {
+    } else if $delim_with_backquotes {
       $preprompt + "\n" + "'''" + "\n" + $prompt + "\n" + "'''"
     } else {
       $preprompt + $prompt
