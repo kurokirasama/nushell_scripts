@@ -194,15 +194,15 @@ export def "ai git-push" [
     try {
       if $gpt4 {
         try {
-          chat_gpt $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m "gpt-4")
+          chat_gpt $prompt -t 0.4 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m "gpt-4")
         } catch {
-          chat_gpt $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d -m "gpt-4"
+          chat_gpt $prompt_short -t 0.4 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d -m "gpt-4"
         }
       } else {
         try {
-          chat_gpt $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d
+          chat_gpt $prompt -t 0.4 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d
         } catch {
-          chat_gpt $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d
+          chat_gpt $prompt_short -t 0.4 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d
         }
       }
     } catch {
