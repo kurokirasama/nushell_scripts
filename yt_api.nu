@@ -218,9 +218,8 @@ export def "yt-api get-songs" [
       }
     | upsert title {|item| 
         $item.snippet.title
-      } 
-    | find -v "Deleted video"
-    | find -v "Private video"
+      } #   | find -v "Deleted video"  | find -v "Private video"
+    | where title !~ "Deleted video|Private video"
     | upsert artist {|item| 
         $item.snippet.videoOwnerChannelTitle 
         | str replace ' - Topic' ''
@@ -237,7 +236,7 @@ export def "yt-api get-songs" [
   #next pages via recursion
   let songs = (
     if ($nextpageToken | typeof) == string {
-      print -n (echo-g $"\rgetting page ($nextpageToken)...")
+      print -n (echo $"\rgetting page ($nextpageToken)...")
       $songs | append (yt-api get-songs $pid --ptoken $nextpageToken)
     } else {
       $songs
@@ -271,11 +270,12 @@ export def "yt-api download-music-playlists" [
 
   $playlists
   | each {|playlist|
+      print (echo-g $"getting ($playlist.title)'s songs...")
       let filename = $"([($downloadDir) ($playlist.title)] | path join).json"
       let songs = (yt-api get-songs $playlist.id)
       
       if ($songs | length) > 0 {
-        print (echo-g $"\nsaving ($playlist.title) into ($filename)...")
+        print (echo-g $"\nsaving into ($filename)...")
         $songs | sort-by artist | save -f $filename
       }
     }
@@ -501,9 +501,8 @@ export def "yt-api get-token" [] {
     | str replace -a "/" "%2F"
   )
   
-  echo $"https://accounts.google.com/o/oauth2/auth?client_id=($client)&redirect_uri=($uri)&scope=https://www.googleapis.com/auth/youtube&response_type=token&approval_prompt=force" | copy
-
-  print (echo-g "url copied to clipboard, now paste on browser...")
+  print (echo-g "click on this url:")
+  print ($"https://accounts.google.com/o/oauth2/auth?client_id=($client)&redirect_uri=($uri)&scope=https://www.googleapis.com/auth/youtube&response_type=token&approval_prompt=force")
 
   let url = (input (echo-g "Copy response url here: "))
 
