@@ -549,11 +549,11 @@ export def check-link [link?,timeout?:int] {
 
 #send email via Gmail with signature files (posfix configuration required)
 export def send-gmail [
-  to:string                         #email to
-  subject:string                    #email subject
-  --body:string                     #email body, use double quotes to use escape characters like \n
-  --from = $env.MY_ENV_VARS.mail    #email from, export default: $MY_ENV_VARS.mail
-  ...attachments                    #email attachments file names list (in current directory), separated by comma
+  to:string       #email to
+  subject:string  #email subject
+  --body:string   #email body, use double quotes to use escape characters like \n
+  --from:string   #email from, export default: $MY_ENV_VARS.mail
+  ...attachments  #email attachments file names list (in current directory), separated by comma
   #
   #Examples:
   #-Body from cli:
@@ -567,6 +567,7 @@ export def send-gmail [
   # open file.txt | send-gmail test@gmail.com "the subject" this_file.txt,other_file.pdf,other.srt
 ] {
   let inp = if ($in | is-empty) { "" } else { $in | into string }
+  let from = if ($from | is-empty) {$env.MY_ENV_VARS.mail} else {$from}
 
   if ($body | is-empty) and ($inp | is-empty) {
     return-error "body unexport defined!!"

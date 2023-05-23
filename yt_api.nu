@@ -248,8 +248,9 @@ export def "yt-api get-songs" [
 
 #download youtube music playlist to local database
 export def "yt-api download-music-playlists" [
-  --downloadDir(-d) = $env.MY_ENV_VARS.youtube_database #download directory, export default: $env.MY_ENV_VARS.youtube_database
+  --downloadDir(-d):string #download directory, export default: $env.MY_ENV_VARS.youtube_database
 ] {
+  let downloadDir = if ($downloadDir | is-empty) {$env.MY_ENV_VARS.youtube_database} else {$downloadDir}
   let response = (yt-api)
 
   let playlists = (

@@ -496,8 +496,10 @@ export def "open pdf" [
     --launcher: string = "okular"
     --no-swallow: bool
     --swallower: string = "devour"
-    --from = $env.PWD
+    --from
 ] {
+  let from = if ($from | is-empty) {$env.PWD} else {$from}
+  
     let choices = (
         get-files
         | find pdf

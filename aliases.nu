@@ -32,7 +32,6 @@ export alias apagar = systemctl poweroff -i
 export alias reiniciar = systemctl reboot -i
 export alias get-mac = open /sys/class/net/wlo1/address
 export alias get-wg = xdotool selectwindow getwindowgeometry
-export alias ytcli = yt set show_video True, set fullscreen False, set search_music False, set player mpv, set notifier notify-send, set order date, set user_order date, set playerargs "default"
 export alias btop = btm --battery --hide_avg_cpu --group
 export alias mute = amixer -q -D pulse sset Master mute
 export alias unmute = amixer -q -D pulse sset Master unmute

@@ -51,10 +51,11 @@ export def github-app-update [
   owner:string
   repo:string
   --file_type(-f) = "deb"
-  --down_dir(-d) = $env.MY_ENV_VARS.debs
+  --down_dir(-d):string
   --alternative_name(-a):string
   --version_from_json(-j)
 ] {
+  let down_dir = if ($down_dir | is-empty) {$env.MY_ENV_VARS.debs} else {$down_dir}
   cd $down_dir
 
   let info = (get-github-latest $owner $repo -f $file_type)
@@ -546,7 +547,7 @@ export def "apps-update maestral" [] {
 }
 
 #update-upgrade system
-export def supgrade [--old(-o)] {
+export def supgrade [--old(-o),--apps(-a)] {
   if not $old {
     print (echo-g "updating and upgrading...")
     sudo nala upgrade -y
@@ -567,8 +568,10 @@ export def supgrade [--old(-o)] {
   print (echo-g "updating rust...")
   rustup update
 
-  print (echo-g "updating off apt apps...")
-  apps-update
+  if $apps {
+    print (echo-g "updating off apt apps...")
+    apps-update
+  }
 
   # echo-g "upgrading pip3 packages..."
   # pip3-upgrade

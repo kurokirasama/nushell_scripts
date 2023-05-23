@@ -37,3 +37,8 @@ export def cblue [] {
 export def ram [] {
   free -h  | from ssv | rename type total used free | select type used free total
 }
+
+#yewtube
+export def ytcli [] {
+  yt set show_video True, set fullscreen False, set search_music False, set player mpv, set notifier notify-send, set order date, set user_order date, set playerargs "default", userpl kurokirasama
+}
