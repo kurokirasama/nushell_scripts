@@ -8,7 +8,6 @@ export alias s = subl
 export alias install-nu-plugin = cargo install --path .
 export alias nu-clean = cargo clean
 export alias open-config = subl $nu.config-path
-export alias adbtasker = adb -s 9cdd570d tcpip 5555
 export alias gmail = cmdg -shell "/home/kira/.cargo/bin/nu"
 export alias wsp = whatscli
 export alias ssh-amara = ssh -X amara@192.168.0.31 -p 5699

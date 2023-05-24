@@ -42,3 +42,9 @@ export def ram [] {
 export def ytcli [] {
   yt set show_video True, set fullscreen False, set search_music False, set player mpv, set notifier notify-send, set order date, set user_order date, set playerargs "default", userpl kurokirasama
 }
+
+#adbtasker
+export def adbtasker [] {
+  adb -s 9cdd570d tcpip 5555
+  adb shell pm grant com.fb.fluid android.permission.WRITE_SECURE_SETTINGS
+}
