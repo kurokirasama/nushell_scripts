@@ -1,10 +1,12 @@
 #!/usr/bin/env nu
 
 #xiaomi poco x3 pro
+##remove
+adb shell pm uninstall -k --user 0 com.facebook.appmanager
+adb shell pm uninstall -k --user 0 com.facebook.services
+adb shell pm uninstall -k --user 0 com.facebook.system
+
 ##disable
-adb shell pm disable-user --user 0 com.facebook.appmanager
-adb shell pm disable-user --user 0 com.facebook.services
-adb shell pm disable-user --user 0 com.facebook.system
 adb shell pm disable-user --user 0 com.miui.analytics
 adb shell pm disable-user --user 0 com.miui.cloudbackup
 adb shell pm disable-user --user 0 com.miui.backup
