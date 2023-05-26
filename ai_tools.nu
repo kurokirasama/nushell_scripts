@@ -186,7 +186,7 @@ export def "ai git-push" [
   let max_words_short = if $gpt4 {3400} else {1930}
 
   print (echo-g "asking chatgpt to summarize the differences in the repository...")
-  let question = (git diff)
+  let question = (git diff | str replace "\"" "'" -a)
   let prompt = ($question | ^awk ("'BEGIN{total=0} {total+=NF; if(total<=(" + $"($max_words)" + ")) print; else exit}'"))
   let prompt_short = ($question | ^awk ("'BEGIN{total=0} {total+=NF; if(total<=(" + $"($max_words_short)" + ")) print; else exit}'"))
 
