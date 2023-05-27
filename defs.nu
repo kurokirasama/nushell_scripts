@@ -299,7 +299,7 @@ export def openg [file?] {
     | get url
   )
 
-  $url | copy
+  $url | xclip -sel clip
   print (echo-g $"($url) copied to clipboard!")
 }
 
