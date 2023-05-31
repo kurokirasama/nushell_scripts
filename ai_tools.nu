@@ -70,10 +70,8 @@ export def chat_gpt [
 
   mut ssystem = ""
   if ($list_system and ($select_system | is-empty)) {
-    let columns = ($system_messages | columns) 
-    print ($columns)
-    let selection = (input (echo-g "Select system message: "))
-    $ssystem = ($system_messages | get ($columns | get ($selection | into int)))
+    let selection = ($system_messages | columns | input list (echo-g "Select system message: "))
+    $ssystem = ($system_messages | get $selection)
   } else if (not ($select_system | is-empty)) {
     try {
       $ssystem = ($system_messages | get $select_system)
@@ -86,10 +84,8 @@ export def chat_gpt [
 
   mut preprompt = ""
   if ($pre_prompt and ($select_preprompt | is-empty)) {
-    let columns = ($pre_prompts | columns) 
-    print ($columns)
-    let selection = (input (echo-g "Select pre-prompt: "))
-    $preprompt = ($pre_prompts | get ($columns | get ($selection | into int)))
+    let selection = ($pre_prompts | columns | input list (echo-g "Select pre-prompt: "))
+    $preprompt = ($pre_prompts | get $selection)
   } else if (not ($select_preprompt | is-empty)) {
     try {
       $preprompt = ($pre_prompts | get $select_preprompt)

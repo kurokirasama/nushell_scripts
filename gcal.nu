@@ -9,7 +9,15 @@ export def "gcal add" [
   where?      #location
   duration?   #duration in minutes
 ] {
-  let calendar = if ($calendar | is-empty) {input (echo-g "calendar: ")} else {$calendar}
+  let calendar = (
+    if ($calendar | is-empty) {
+      $env.MY_ENV_VARS.google_calendars_full 
+      | split row "|"
+      | input list (echo-g "Select calendar: ")
+    } else {
+      $calendar
+    }
+  )
   let title = if ($title | is-empty) {input (echo-g "title: ")} else {$title}
   let when = if ($when | is-empty) {input (echo-g "when: ")} else {$when}
   let where = if ($where | is-empty) {input (echo-g "where: ")} else {$where}
