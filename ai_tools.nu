@@ -61,6 +61,7 @@ export def chat_gpt [
     # - --select_system > --list_system > --system
     # - --select_preprompt > --pre_prompt
 ] {
+  let prompt = if ($prompt | is-empty) {$in} else {$prompt}
   if ($prompt | is-empty) {
     return-error "Empty prompt!!!"
   }
