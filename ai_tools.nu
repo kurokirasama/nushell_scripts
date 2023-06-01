@@ -307,7 +307,7 @@ export def "ai transcription-summary" [
 
     let filenames = $"($file | path parse | get stem)_split_"
 
-    let split_command = ("awk '{total+=NF; print > " + $"\"($filenames)\"" + "int(total/" + $"($max_words)" + ")" + "\".txt\"}'" + $" \"($file)\"")
+    let split_command = ("awk '{total+=NF; print > " + $"\"($filenames)\"" + "sprintf(\"%03d\",int(total/" + $"($max_words)" + "))" + "\".txt\"}'" + $" \"($file)\"")
   
     bash -c $split_command
 
