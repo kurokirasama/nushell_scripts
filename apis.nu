@@ -27,8 +27,8 @@ export def trans [
   ...text:string    #search query
   --from:string     #from which language you are translating (default english)
   --to:string       #to which language you are translating (default spanish)
-  --openai = false  #to use openai api instead of mymemmory, only translate to spanish (default false)
-  --gpt4 = false    #use gpt4 for translating (default false)
+  --openai:bool = false  #to use openai api instead of mymemmory, only translate to spanish (default false)
+  --gpt4:bool = false    #use gpt4 for translating (default false)
   #
   #Use ISO standar names for the languages, for example:
   #english: en-US

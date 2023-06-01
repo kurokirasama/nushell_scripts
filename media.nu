@@ -25,19 +25,19 @@ export def "media trans-sub" [
   dos2unix -q $file
 
   let $file_info = ($file | path parse)
+  let file_content = (cat $file | decode utf-8 | lines)
   let new_file = $"($file_info | get stem)_translated.($file_info | get extension)"
-  let lines = (open $file | decode utf-8 | lines | length)
+  let lines = ($file_content | length)
 
   echo $"translating ($file)..."
 
   if not ($new_file | path expand | path exists) {
     touch $new_file
 
-    open $file
-    | decode utf-8
-    | lines
+    $file_content
     | enumerate
     | each {|line|
+        print (echo $line.item)
         if (not $line.item =~ "-->") and (not $line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
           let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
           let translated = ($fixed_line | trans --from $from --openai $openai)
@@ -46,6 +46,8 @@ export def "media trans-sub" [
             return-error $"error while translating: ($translated)"
             return
           } else {
+            print (echo ($line.item + "\ntranslated to\n" + $translated))
+
             $translated | ansi strip | save --append $new_file
             "\n" | save --append $new_file
           }
@@ -53,14 +55,12 @@ export def "media trans-sub" [
           $line.item | save --append $new_file
           "\n" | save --append $new_file
         }
-        print -n (echo-g $"\r($line.index / $lines * 100 | math round -p 3)%")
+        # print -n (echo-g $"\r($line.index / $lines * 100 | math round -p 3)%")
       } 
   } else {
-    let start = (open $new_file | decode utf-8 | lines | length)
+    let start = (cat $new_file | decode utf-8 | lines | length)
 
-    open $file
-    | decode utf-8
-    | lines
+    $file_content
     | last ($lines - $start)
     | enumerate
     | each {|line|
@@ -72,6 +72,8 @@ export def "media trans-sub" [
             return-error $"error while translating: ($translated)"
             return
           } else {
+            print (echo ($line.item + "\ntranslated to\n" + $translated))
+
             $translated | ansi strip | save --append $new_file
             "\n" | save --append $new_file
           }
@@ -79,7 +81,7 @@ export def "media trans-sub" [
           $line.item | save --append $new_file
           "\n" | save --append $new_file
         }
-        print -n (echo-g $"\r(($line.index + $start) / $lines * 100 | math round -p 3)%")
+        # print -n (echo-g $"\r(($line.index + $start) / $lines * 100 | math round -p 3)%")
       } 
   } 
 }
