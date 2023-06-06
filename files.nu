@@ -54,7 +54,7 @@ export def rm-pipe [] {
     get name 
     | ansi strip
     | par-each {|file| 
-        rm -rf $file | ignore
+        ^rm -rf $file | ignore
       } 
     | flatten
   }

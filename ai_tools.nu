@@ -25,7 +25,7 @@ export def "ai help" [] {
 
 #single call chatgpt wrapper
 export def chat_gpt [
-    prompt: string                                # the query to Chat GPT
+    prompt?: string                               # the query to Chat GPT
     --model(-m) = "gpt-3.5-turbo"                 # the model gpt-3.5-turbo (default), gpt-4, etc
     --system(-s) = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9                       # the temperature of the model
@@ -128,7 +128,7 @@ export def chat_gpt [
 export def askgpt [
   prompt?:string          # string with the prompt, can be piped
   --programmer(-p)        # use programmer system message with temp 0.7, else use assistant with temp 0.9
-  --teacher(-t)           # use teacher system message with temp 0.9, else use assistant with temp 0.9
+  --teacher(-s)           # use teacher (sensei) system message with temp 0.9, else use assistant with temp 0.9
   --temperature(-t):float # takes precedence over the 0.7 and 0.9
   --gpt4(-g)              # use gpt-4 instead of gpt-3.5-turbo
   #

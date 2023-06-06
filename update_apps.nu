@@ -274,18 +274,11 @@ export def "apps-update zoom" [] {
 export def "apps-update chrome" [] {
   cd $env.MY_ENV_VARS.debs
 
-  let new_version = (
-    http get https://chromereleases.googleblog.com/ 
-    | query web -q 'script' 
-    | find "The Stable channel is being updated to" 
-    | get 0 
-    | query web -q span 
-    | find "Platform" 
-    | get 0 
-    | split row "(" 
-    | get 0 
-    | str trim
-  )
+  let html = (http get https://chromereleases.googleblog.com/ | query web -q 'script' | find extended | get 0)
+  let text = ($html | chat_gpt --select_system html_parser --select_preprompt parse_html)
+
+  let prompt = ("From the following text delimited by triple backquotes ('), extract only the linux version number of Chrome that is mentioned:\n'''\n" + $text + "\n'''\nReturn your response in json format with the unique key 'version'")
+  let new_version = ($prompt | askgpt -t 0.2 | from json | get version)
 
   let current_version = (google-chrome-stable --version | split row "Google Chrome "  | str trim | last)
 
