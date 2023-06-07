@@ -131,12 +131,19 @@ export def askgpt [
   --teacher(-s)           # use teacher (sensei) system message with temp 0.9, else use assistant with temp 0.9
   --temperature(-t):float # takes precedence over the 0.7 and 0.9
   --gpt4(-g)              # use gpt-4 instead of gpt-3.5-turbo
+  --fast(-f)              # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
   #
   #Only programmer xor teacher system messages allowed.
   #For more personalization use `chat_gpt`
   #For chained questions, use `chatgpt`
 ] {
-  let prompt = if ($prompt | is-empty) {$in} else {$prompt}
+  let prompt = (
+    if not $fast {
+      if ($prompt | is-empty) {$in} else {$prompt}
+    } else {
+      open ~/Yandex.Disk/ChatGpt/prompt.md
+    }
+  )
     
   let temp = (
     if ($temperature | is-empty) and $programmer {
@@ -170,7 +177,11 @@ export def askgpt [
     } 
   )
 
-  return $answer
+  if $fast {
+    $answer | save -f ~/Yandex.Disk/ChatGpt/answer.md
+  } else {
+    return $answer  
+  } 
 }
 
 #generate a git commit message via chatgot and push the changes
