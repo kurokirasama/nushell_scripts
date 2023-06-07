@@ -78,7 +78,8 @@ export def cp-pipe [
 
 #mv trough pipe to same dir
 export def mv-pipe [
-  to: string #target directory
+  to: string  #target directory
+  --force(-f) #force rewrite of file
   #
   #Example
   #ls *.txt | first 5 | mv-pipe ~/temp
@@ -87,7 +88,11 @@ export def mv-pipe [
   | ansi strip
   | each {|file|
       print (echo-g $"moving ($file)..." )
-      ^mv -u $file ($to | path expand)
+      if $force {
+        ^mv -u $file ($to | path expand)
+      } else {
+        ^mv -f $file ($to | path expand)
+      }
     }
 }
 
