@@ -271,7 +271,7 @@ export def "apps-update zoom" [] {
   let now = (date now)
 
   let release_url = (
-    "https:///" | hakrawler  #https://support.zoom.us/hc/en-us
+    "https://support.zoom.us/" | hakrawler  #https://support.zoom.us/hc/en-us
     | lines 
     | find articles 
     | find release 
