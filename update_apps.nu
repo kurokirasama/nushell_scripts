@@ -1,19 +1,71 @@
 #update off-package manager apps
 #zoom, chrome, earth, yandex, sedja, nmap, ttyplot, nyxt, pandoc, taskerpermission, lutris, mpris, monocraft
 export def apps-update [] {
-  apps-update zoom
-  apps-update sejda
-  apps-update nmap
-  apps-update ttyplot
-  apps-update nyxt
-  apps-update pandoc
-  apps-update taskerpermissions
-  apps-update lutris #ignore if ppa works again
-  apps-update mpris
-  apps-update monocraft -p
-  apps-update yandex
-  apps-update earth
-  apps-update chrome
+  try {
+    apps-update zoom
+  } catch {
+    print (echo-r "Something went wrong with zoom instalation!")
+  }
+  try {
+    apps-update sejda
+  } catch {
+    print (echo-r "Something went wrong with sejda instalation!")
+  }
+  try {
+    apps-update nmap
+  } catch {
+    print (echo-r "Something went wrong with nmap instalation!")
+  }
+  try {
+    apps-update ttyplot
+  } catch {
+    print (echo-r "Something went wrong with ttyplot instalation!")
+  }
+  try {
+    apps-update nyxt
+  } catch {
+    print (echo-r "Something went wrong with nyxt instalation!")
+  }
+  try {
+    apps-update pandoc
+  } catch {
+    print (echo-r "Something went wrong with pandoc instalation!")
+  }
+  try {
+    apps-update taskerpermissions
+  } catch {
+    print (echo-r "Something went wrong with taskerpermissions instalation!")
+  }
+  try {
+    apps-update lutris #ignore if ppa works again
+  } catch {
+    print (echo-r "Something went wrong with lutris instalation!")
+  }
+  try {
+    apps-update mpris
+  } catch {
+    print (echo-r "Something went wrong with mpris instalation!")
+  }
+  try {
+    apps-update monocraft -p
+  } catch {
+    print (echo-r "Something went wrong with monocraft instalation!")
+  }
+  try {
+    apps-update yandex
+  } catch {
+    print (echo-r "Something went wrong with yandex instalation!")
+  }
+  try {
+    apps-update earth
+  } catch {
+    print (echo-r "Something went wrong with earth instalation!")
+  }
+  try {
+    apps-update chrome
+  } catch {
+    print (echo-r "Something went wrong with chrome instalation!")
+  }
 }
 
 #get latest release info in github repo
@@ -219,7 +271,7 @@ export def "apps-update zoom" [] {
   let now = (date now)
 
   let release_url = (
-    "https://support.zoom.us/hc/en-us" | hakrawler  
+    "https:///" | hakrawler  #https://support.zoom.us/hc/en-us
     | lines 
     | find articles 
     | find release 
