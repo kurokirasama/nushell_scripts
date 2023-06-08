@@ -219,7 +219,7 @@ export def "apps-update zoom" [] {
   let now = (date now)
 
   let release_url = (
-    "https://support.zoom.us/" | hakrawler  
+    "https://support.zoom.us/hc/en-us" | hakrawler  
     | lines 
     | find articles 
     | find release 
@@ -522,15 +522,9 @@ export def "apps-update gmail" [] {
 #update nushell
 export def "apps-update nushell" [] {
   cd ~/software/nushell
-  let status = (git status -s | lines)
-
-  if ($status | length) > 0 {
-    git pull
-    bash install-all.sh
-    update-nu-config
-  } else {
-    print (echo-g "nushell is already up to date!")
-  }
+  git pull
+  bash scripts/install-all.sh
+  update-nu-config
 }
 
 #update maestral
