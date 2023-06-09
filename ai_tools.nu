@@ -335,7 +335,7 @@ export def "ai transcription-summary" [
     let files = (ls | find split | find summary | enumerate)
 
     $files | each {|split_file|
-      echo $"Parte ($split_file.index):\n" | save --append $temp_output
+      echo $"\n\nParte ($split_file.index):\n\n" | save --append $temp_output
       open ($split_file.item.name | ansi strip) | save --append $temp_output
       echo "\n" | save --append $temp_output
     }
