@@ -13,6 +13,7 @@ export def "ai help" [] {
       - ai audio2text
       - ai audio2summary
       - ai screen2text
+      - ai video2text
       - ai transcription-summary
       - ai yt-summary
       - ai generate-subtitles
@@ -289,6 +290,22 @@ export def "ai screen2text" [
   media extract-audio $"($file).mp4"
 
   ai audio2text $"($file).mp3"
+
+  if $transcribe {
+    ai transcription-summary $"($file | path parse | get stem)-clean.txt"
+  }
+}
+
+#video to text transcription 
+export def "ai video2text" [
+file?:string        #video file name with extension
+--transcribe = true #whether to transcribe or not. Default true, false means it just extracts audio
+] {
+  let file = if ($file | is-empty) {$in} else {$file}
+  
+  media extract-audio $file
+
+  ai audio2text $"($file | path parse | get stem).mp3"
 
   if $transcribe {
     ai transcription-summary $"($file | path parse | get stem)-clean.txt"
