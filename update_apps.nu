@@ -1,5 +1,4 @@
 #update off-package manager apps
-#zoom, chrome, earth, yandex, sedja, nmap, ttyplot, nyxt, pandoc, taskerpermission, lutris, mpris, monocraft
 export def apps-update [] {
   try {
     apps-update zoom
