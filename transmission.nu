@@ -1,5 +1,29 @@
 #transmission wrapper
-export def t [] {}
+export def "t help" [] {
+  print (
+    echo "transmission-daemon wrapper.\n
+      METHODS\n
+      - t start
+      - t stop
+      - t reload
+      - t list
+      - t basic-stats
+      - t full-stats
+      - t ui
+      - t add
+      - t add-from-file
+      - t info
+      - t remove
+      - t remove-delete
+      - t remove-done
+      - t remove-name
+      - t start-torrent
+      - t start-all-torrents
+      - t stop-torrent
+      - t stop-all-torrents\n"
+    | nu-highlight
+  )
+}
 
 #transmission start
 export def "t start" [] {
