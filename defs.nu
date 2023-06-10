@@ -365,45 +365,9 @@ export def jd [
   | from json
 }
 
-#select column of a table (to table)
-export def column [n] { 
-  transpose 
-  | select $n 
-  | transpose 
-  | select column1 
-  | headers
-}
-
-#get column of a table (to list)
-export def column2 [n] { 
-  transpose 
-  | get $n 
-  | transpose 
-  | get column1 
-  | skip 1
-}
-
 #short pwd
 export def pwd-short [] {
-  $env.PWD 
-  | str replace $nu.home-path '~' -s
-}
-
-#string repeat
-export def "str repeat" [count: int] { 
-  each {|it| 
-    let str = $it; echo 1..$count 
-    | each {||
-        echo $str 
-      } 
-  } 
-}
-
-#join 2 lists
-export def union [a: list, b: list] {
-  $a 
-  | append $b 
-  | uniq
+  $env.PWD | str replace $nu.home-path '~' -s
 }
 
 #nushell source files info
@@ -462,14 +426,6 @@ export def-env which-cd [program] {
   let dir = (which $program | get path | path dirname | str trim)
   cd $dir.0
 }
-
-#push to git, uses gptcommit if installed
-# export def-env git-push [] {
-#   git add -A
-#   git status
-#   git commit # -am $"($m)"
-#   git push #origin main  
-# }
 
 #web search in terminal
 export def gg [...search: string] {
@@ -644,17 +600,6 @@ export def stop-net-apps [] {
   killn jdown
 }
 
-#add a hidden column with the content of the # column
-export def indexify [
-  column_name?: string = 'index' #export default: index
-  ] { 
-  enumerate 
-  | upsert $column_name {|el| 
-      $el.index
-    } 
-  | flatten
-}
-
 #reset alpine authentification
 export def reset-alpine-auth [] {
   rm ~/.pine-passfile
@@ -673,7 +618,8 @@ export def matlab-cli [--ubb(-b)] {
 
 #create dir and cd into it
 export def-env mkcd [name: path] {
-  cd (mkdir $name -v | first)
+  mkdir $name
+  cd $name
 }
 
 #backup sublime settings
@@ -738,75 +684,6 @@ export def wget-all [
   wget -A ($extensions | str join ",") -m -p -E -k -K -np --restrict-file-names=windows $webpage
 }
 
-#convert hh:mm:ss to duration
-export def "into duration-from-hhmmss" [hhmmss?] {
-  if ($hhmmss | is-empty) {
-    $in
-  } else {
-    $hhmmss   
-  }
-  | split row :
-  | enumerate
-  | each {|row| 
-      ($row.item | into int) * (60 ** (2 - $row.index))
-    } 
-  | math sum
-  | into string 
-  | str append sec
-  | into duration
-}
-
-#convert duration to hh:mm:ss
-export def "into hhmmss" [dur:duration] {
-  let seconds = (
-    $dur
-    | into duration --convert sec
-    | split row " "
-    | get 0
-    | into int
-  )
-
-  let h = (($seconds / 3600) | into int | into string | fill -a r -c "0" -w 2)
-  let m = (($seconds / 60 ) | into int | into string | fill -a r -c "0" -w 2)
-  let s = ($seconds mod 60 | into string | fill -a r -c "0" -w 2)
-
-  $"($h):($m):($s)"
-}
-
-#returns a filtered table that has distinct values in the specified column
-export def uniq-by [
-  column: string  #the column to scan for duplicate values
-] {
-  reduce { |item, acc|
-    if ($acc | any { |storedItem|
-      ($storedItem | get $column) == ($item | get $column)
-    }) {
-      $acc
-    } else {
-      $acc | append $item
-    }
-  }
-}
-
-#get total sizes of ls output
-export def sum-size [] {
-  get size | math sum
-}
-
-#table to record
-export def table2record [] {
-  transpose -r -d 
-}
-
-#extract first link from text
-export def open-link [] {
-  lines 
-  | find http
-  | first 
-  | get 0
-  | openf
-}
-
 #umount all drives (duf)
 export def umall [user?] {
   let user = if ($user | is-empty) {$env.USER} else {$user}
@@ -831,17 +708,6 @@ export def fix-docker [] {
   newgrp docker
 }
 
-#ansi strip table
-export def "ansi strip-table" [] {
-  update cells {|cell|
-    if ($cell | describe) == string { 
-      $cell | ansi strip
-    } else {
-      $cell
-    }
-  }
-}
-
 #my pdflatex
 export def my-pdflatex [file?] {
   let tex = if ($file | is-empty) {$in | get name} else {$file}
@@ -853,26 +719,6 @@ export def return-error [msg] {
   error make -u {msg: $"(echo-r $msg)"}
 }
 
-#find index of a search term
-export def "find index" [name: string,default? = -1] {
-  $in
-  | upsert idx {|el,id| $id}
-  | find $name
-  | try {
-      get idx
-    } catch {
-      -1
-    }
-}
-
-#calculates elements that are in list a but not in list b
-export def setdiff [a,b] {
-  $a 
-  | each {|n| 
-    if $n not-in $b {$n} 
-  }
-}
-
 #maestral status
 export def "dpx status" [] {
   maestral status | lines | parse "{item}  {status}" | str trim | drop nth 0
@@ -881,38 +727,6 @@ export def "dpx status" [] {
 #qr code generator
 export def qrenc [url] {
   curl $"https://qrenco.de/($url)"
-}
-
-#date formatting
-export def "date my-format" [
-  date?: string #date in form 
-  --extra = ""  #some text to append to the date (default empty)
-  #
-  #format date in the form Mmm ss, hh:mm
-  #Example: "Apr 24, 15:08"
-] {
-  let date = if ($date | is-empty) {$in} else {$date}
-
-  date now 
-  | date format "%Y"
-  | str append " " 
-  | str append $date
-  | str append "+00:00" 
-  | into datetime 
-  | date format "%Y.%m.%d_%H.%M"
-  | str append $extra
-}
-
-#date renaming
-export def rename-date [file,--extra = ""] {
-  let extension = ($file | path parse | get extension)
-  let new_name = (
-    $file 
-    | path parse
-    | get stem 
-    | date my-format --extra $extra
-    | str append $".($extension)"
-  )
 }
 
 #default a full table 
