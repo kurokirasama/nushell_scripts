@@ -1,5 +1,15 @@
 #gcalcli wrapper for accesing google calendar
-export def "gcal help" [] {}
+export def "gcal help" [] {
+  print (
+    echo "gcalcli wrapper:\n
+      METHODS\n
+      - gcal add
+      - gcal agenda
+      - gcal semana
+      - gcal mes\n"
+    | nu-highlight
+  ) 
+}
 
 #add event to google calendar, also usable without arguments
 export def "gcal add" [

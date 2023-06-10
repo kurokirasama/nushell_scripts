@@ -1,5 +1,32 @@
 #tools to deal with media files
-export def "media help" [] {}
+export def "media help" [] {
+  print (
+    echo "media manipulation and visualization tools: ffmpeg, sox, subsync and mpv required.\n
+      METHODS\n
+      - media video-info
+      - media mpv-info
+      - media trans-sub
+      - media sub-sync
+      - media remove-noise
+      - media remove-audio-noise
+      - media screen-record
+      - media remove-audio
+      - media cut-video
+      - media split-video
+      - media cut-audio
+      - media extract-audio
+      - media merge-videos
+      - media merge-videos-auto
+      - media compress-video
+      - media delete-non-compressed
+      - media find
+      - media myt
+      - media delete-mps
+      - mpv (alias)
+      - media to\n"
+    | nu-highlight
+  ) 
+}
 
 #video info
 export def "media video-info" [file?] {
