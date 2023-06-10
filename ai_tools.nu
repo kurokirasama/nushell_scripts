@@ -48,6 +48,9 @@ export def chat_gpt [
     # - get_diff_summarizer
     # - meeting_summarizer
     # - ytvideo_summarizer
+    # - teacher
+    # - spanish_translator
+    # - html_parser
     #
     #Available pre_prompts are:
     # - empty
@@ -55,8 +58,10 @@ export def chat_gpt [
     # - consolidate_transcription
     # - trans_to_spanish
     # - summarize_git_diff
+    # - summarize_git_diff_short
     # - summarize_ytvideo
     # - consolidate_ytvideo
+    # - parse_html
     #
     #Note that:
     # - --select_system > --list_system > --system
