@@ -27,7 +27,7 @@ export def "ai help" [] {
 #single call chatgpt wrapper
 export def chat_gpt [
     prompt?: string                               # the query to Chat GPT
-    --model(-m) = "gpt-3.5-turbo"                 # the model gpt-3.5-turbo (default), gpt-4, etc
+    --model(-m) = "gpt-3.5-turbo"                 # the model gpt-3.5-turbo, gpt-4, etc
     --system(-s) = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9                       # the temperature of the model
     --list_system(-l)                             # select system message from list
