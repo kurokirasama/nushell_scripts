@@ -122,3 +122,71 @@ export def "rebrandly list" [longurl="www.google.com"] {
     
   }
 }
+
+#get eta via maps api
+export def get_maps_eta [
+  origin:string       #origin gps coordinates or address
+  destination:string  #destination gps coordinates or adress
+  --directions(-d)    #whether to show directions (default: false)
+  --mode = "driving"  #driving mode (driving, transit, walking)
+  --avoid             #whether to avoid highways (default:false)
+] {
+  let api_key = (open-credential ([$env.MY_ENV_VARS.credentials "googleAPIkeys.json.asc"] | path join) | get general)
+
+  let origin_address = (
+    if $origin =~ '^(-?\d+\.\d+),(-?\d+\.\d+)$' {
+      http get ("https://maps.googleapis.com/maps/api/geocode/json?latlng=" + $origin + "&sensor=true&key=" + $api_key)
+      | get results 
+      | get formatted_address 
+      | get 0
+    } else {
+      $origin
+    } 
+  )
+  
+  let destination_address = (
+    if $destination =~ '^(-?\d+\.\d+),(-?\d+\.\d+)$' {
+      http get ("https://maps.googleapis.com/maps/api/geocode/json?latlng=" + $destination + "&sensor=true&key=" + $api_key) 
+      | get results 
+      | get formatted_address 
+      | get 0 
+    } else {
+      $destination
+    }
+  )
+
+  let avoid_option = if $avoid {"&avoid=highways"} else {""} 
+
+  let url = ("https://maps.googleapis.com/maps/api/directions/json?origin=" + $origin + "&destination=" + $destination + "&mode=" + $mode + "&departure_time=now&key=" + $api_key + $avoid_option)
+
+  let response = (http get $url)
+
+  let distance = $response.routes.legs.0.distance.text.0
+  let steps = $response.routes.legs.0.steps
+  let duration = $response.routes.legs.0.duration.text.0
+
+  let directions_steps = (
+      $steps.0.html_instructions 
+      | to text 
+      | chat_gpt --select_system html_parser --select_preprompt parse_html 
+      | lines 
+      | wrap directions 
+      | dfr into-df 
+      | dfr append ($steps.0.duration.text | wrap duration | dfr into-df) 
+      | dfr into-nu
+  )
+
+  let output = { 
+    origin: $origin_address,
+    destination: $destination_address,
+    distance: $distance,
+    duration: $duration,
+    mode: $mode
+  }
+
+  if $directions {
+    print (echo $directions_steps)
+  }
+
+  return $output
+}
