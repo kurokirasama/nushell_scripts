@@ -27,8 +27,8 @@ export def trans [
   ...text:string    #search query
   --from:string     #from which language you are translating (default english)
   --to:string       #to which language you are translating (default spanish)
-  --openai:bool = false  #to use openai api instead of mymemmory, only translate to spanish (default false)
-  --gpt4:bool = false    #use gpt4 for translating (default false)
+  --openai          #to use openai api instead of mymemmory, only translate to spanish (default false)
+  --gpt4            #use gpt4 for translating (default false)
   #
   #Use ISO standar names for the languages, for example:
   #english: en-US
@@ -127,7 +127,6 @@ export def "rebrandly list" [longurl="www.google.com"] {
 export def get_maps_eta [
   origin:string       #origin gps coordinates or address
   destination:string  #destination gps coordinates or adress
-  --directions(-d)    #whether to show directions (default: false)
   --mode = "driving"  #driving mode (driving, transit, walking)
   --avoid             #whether to avoid highways (default:false)
 ] {
@@ -176,7 +175,7 @@ export def get_maps_eta [
       | dfr into-nu
   )
 
-  let output = { 
+  let info = { 
     origin: $origin_address,
     destination: $destination_address,
     distance: $distance,
@@ -184,8 +183,9 @@ export def get_maps_eta [
     mode: $mode
   }
 
-  if $directions {
-    print (echo $directions_steps)
+  let output = {
+    info: $info
+    direction: $directions_steps
   }
 
   return $output
