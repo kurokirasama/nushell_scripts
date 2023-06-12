@@ -126,7 +126,7 @@ export def "rebrandly list" [longurl="www.google.com"] {
 #get eta via maps api
 export def get_maps_eta [
   origin:string       #origin gps coordinates or address
-  destination:string  #destination gps coordinates or adress
+  destination:string  #destination gps coordinates or address
   --mode = "driving"  #driving mode (driving, transit, walking)
   --avoid             #whether to avoid highways (default:false)
 ] {
