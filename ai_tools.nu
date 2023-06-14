@@ -40,6 +40,7 @@ export def chat_gpt [
     # - gpt-4 (8192 tokens)
     # - gpt-4-32k (32768 tokens)
     # - gpt-3.5-turbo (4096 tokens)
+    # - gpt-3.5-turbo-16k (16384 tokens)
     # - text-davinci-003 (4097 tokens)
     #
     #Available system messages are:
