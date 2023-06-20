@@ -117,15 +117,18 @@ export def chat_gpt [
   let site = "https://api.openai.com/v1/chat/completions"
   let request = {
       model: $model,
-      messages: [{
+      messages: [
+        {
           role: "system"
           content: $system
-      }]
+        },
+        {
+          role: "user"
+          content: $prompt
+        }
+      ]
       temperature: $temp
   }
-
-  let modified_request = ($request.messages.0 | append [{"role": "user", "content": $"($prompt)"}])
-  let request = ($request | upsert messages $modified_request)
 
   let answer = (http post -t application/json -H $header $site $request)  
   return $answer.choices.0.message.content
@@ -466,9 +469,9 @@ export def "ai generate-subtitles-pipe" [
 
 #get a summary of a youtube video via chatgpt
 export def "ai yt-summary" [
-  url:string    # video url
-  --lang = "en" # language of the summary (default english: en)
-  --gpt4(-g)    # to use gpt4 instead of gpt-3.5
+  url?:string       # video url
+  --lang = "en"     # language of the summary (default english: en)
+  --gpt4(-g)        # to use gpt4 instead of gpt-3.5
   #
   #Two characters words for languages
   #es: spanish
@@ -477,7 +480,9 @@ export def "ai yt-summary" [
   #example sans subs https://www.youtube.com/watch?v=wa6dpyBu2gE
   #example with subs https://www.youtube.com/watch?v=MciOgsEOHZM
   #deleting previous temp file
-  if ((ls yt_temp* | length) > 0) {rm yt_temp* | ignore}
+
+  if ((ls | find yt_temp | length) > 0) {rm yt_temp* | ignore}
+  
   #getting the subtitle
   yt-dlp -N 10 --write-info-json $url --output yt_temp
 
@@ -491,7 +496,7 @@ export def "ai yt-summary" [
     #first try auto-subs then whisper
     yt-dlp -N 10 --write-auto-subs $url --output yt_temp
 
-    if ((ls yt_temp*.vtt | length) > 0) {
+    if ((ls | find yt_temp | find vtt | length) > 0) {
       ffmpeg -i (ls yt_temp*.vtt | get 0 | get name) $"($title).srt"
     } else {
       print (echo-g "downloading audio...")
@@ -520,7 +525,7 @@ export def "ai yt-summary" [
   let output = $"($title)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gpt4 {4000} else {2000}
+  let max_words = if $gpt4 {3500} else {1500}
   let n_words = (wc -w $the_subtitle | awk '{print $1}' | into int)
 
   if $n_words > $max_words {
@@ -528,15 +533,15 @@ export def "ai yt-summary" [
 
     let filenames = $"($title)_split_"
 
-    let split_command = ("awk '{total+=NF; print > " + $"\"($filenames)\"" + "int(total/" + $"($max_words)" + ")" + "\".txt\"}'" + $" \"($the_subtitle)\"")
+    let split_command = ("awk '{total+=NF; print > " + $"\"($filenames)\"" + "sprintf(\"%03d\",int(total/" + $"($max_words)" + "))" + "\".txt\"}'" + $" \"($the_subtitle)\"")
   
     bash -c $split_command
 
-    let files = (ls | find split | where name !~ summary)
+    let files = (ls | find split | where name !~ summary | ansi strip-table)
 
     $files | each {|split_file|
-      let t_input = (open ($split_file | get name | ansi strip))
-      let t_output = ($split_file | get name | ansi strip | path parse | get stem)
+      let t_input = (open ($split_file | get name))
+      let t_output = ($split_file | get name | path parse | get stem)
       ai yt-transcription-summary $t_input $t_output -g $gpt4
     }
 
@@ -547,12 +552,10 @@ export def "ai yt-summary" [
     let files = (ls | find split | find summary | enumerate)
 
     $files | each {|split_file|
-      echo $"Resumen de la parte ($split_file.index):\n" | save --append $temp_output
+      echo $"\n\nResumen de la parte ($split_file.index):\n\n" | save --append $temp_output
       open ($split_file.item.name | ansi strip) | save --append $temp_output
       echo "\n" | save --append $temp_output
     }
-
-    let pre_prompt = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join) | get prompt6)
 
     let prompt = (open $temp_output)
 
