@@ -190,3 +190,59 @@ export def get_maps_eta [
 
   return $output
 }
+
+#clp exchange rates via fixer.io API
+export def exchange_rates [
+  new_currency?:string  #include unique new currency
+  --symbols(-s)         #only show available symbols
+  #
+  #Show CLP/CLF,USD,BTC,new_currency exchange
+] {
+  let api_key = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.fixer.io.json.asc"] | path join) | get api_key)
+
+  if (not $symbols) {
+    let url = (
+      if ($new_currency | is-empty) {
+        $"http://data.fixer.io/api/latest?access_key=($api_key)&symbols=CLP,CLF,USD,BTC"
+      } else {
+        $"http://data.fixer.io/api/latest?access_key=($api_key)&symbols=CLP,CLF,USD,BTC,($new_currency)"
+      }
+    )
+    let response = (http get $url)
+  
+    if not $response.success {
+      return-error $response.error
+    }
+  
+    let eur_usd = (1 / $response.rates.USD)
+    let eur_btc = (1 / $response.rates.BTC)
+    let eur_clf = (1 / $response.rates.CLF)
+    let eur_new = if ($new_currency | is-empty) {0} else {1 / ($response.rates | get $new_currency)}
+
+    let output = (
+      if ($new_currency | is-empty) {
+        {
+          UF:  ($eur_clf * $response.rates.CLP)
+          USD: ($eur_usd * $response.rates.CLP),
+          EUR: $response.rates.CLP,
+          BTC: ($eur_btc * $response.rates.CLP)
+        }
+      } else {
+        {
+          UF:  ($eur_clf * $response.rates.CLP)
+          USD: ($eur_usd * $response.rates.CLP),
+          EUR: $response.rates.CLP,
+          BTC: ($eur_btc * $response.rates.CLP),
+          $"($new_currency)": ($eur_new * $response.rates.CLP)
+        }
+      }
+    )
+    
+    return $output
+
+  } else {
+    let url_symbols = $"http://data.fixer.io/api/symbols?access_key=($api_key)"
+    let symbols = (http get $url_symbols)
+    return $symbols.symbols
+  }
+}

@@ -45,6 +45,7 @@ export def chat_gpt [
     #
     #Available system messages are:
     # - assistant
+    # - psychologist
     # - programer
     # - get_diff_summarizer
     # - meeting_summarizer
@@ -137,13 +138,16 @@ export def chat_gpt [
 #fast call to my chat_gpt wrapper
 export def askgpt [
   prompt?:string          # string with the prompt, can be piped
+  system?:string          # string with the system message. It has precedence over the system message flags
   --programmer(-p)        # use programmer system message with temp 0.7, else use assistant with temp 0.9
-  --teacher(-s)           # use teacher (sensei) system message with temp 0.9, else use assistant with temp 0.9
+  --teacher(-s)           # use teacher (sensei) system message with temp 0.95, else use assistant with temp 0.9
+  --rubb(-r)              # use rubb system message with temperature 0.5, else use assistant with temp 0.9
+  --list_system(-l)       # select system message from list (takes precedence over flags)
   --temperature(-t):float # takes precedence over the 0.7 and 0.9
   --gpt4(-g)              # use gpt-4 instead of gpt-3.5-turbo
   --fast(-f)              # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
   #
-  #Only programmer xor teacher system messages allowed.
+  #Only one system message flag allowwed.
   #For more personalization use `chat_gpt`
   #For chained questions, use `chatgpt`
 ] {
@@ -156,35 +160,44 @@ export def askgpt [
   )
     
   let temp = (
-    if ($temperature | is-empty) and $programmer {
-      0.7
-    } else if ($temperature | is-empty) {
-      0.9
-    } else {
-      $temperature
-    }
+    if ($temperature | is-empty) {
+      match [$programmer, $teacher, $rubb] {
+        [true,false,false] => 0.7,
+        [false,true,false] => 0.95,
+        [false,false,true] => 0.5,
+        [false,false,false] => 0.9
+        _ => {return-error "only one system message flag allowed"},
+      }
+   } else {
+    $temperature
+   }
   )
 
-  if $programmer and $teacher {
-    return-error "Only programmer xor teacher system messages allowed!"
-  }
-
-  let system = (
-    if $programmer {
-      "programmer"
-    } else if $teacher {
-      "teacher"
+   let system = (
+    if ($system | is-empty) {
+      if $list_system {
+        ""
+      } else if $programmer {
+        "programmer"
+      } else if $teacher {
+        "teacher"
+      } else if $rubb {
+        "rubb"
+      } else {
+        "assistant"
+      }
     } else {
-      "assistant"
+      $system
     }
   )
 
   let answer = (
-    if $gpt4 {
-      chat_gpt $prompt -t $temp --select_system $system -m gpt-4
-    } else {
-      chat_gpt $prompt -t $temp --select_system $system
-    } 
+    match [$gpt4,$list_system] {
+      [true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4},
+      [true,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4},
+      [false,true] => {chat_gpt $prompt -t $temp -l},
+      [false,false] => {chat_gpt $prompt -t $temp --select_system $system}
+    }
   )
 
   if $fast {
