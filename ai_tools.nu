@@ -53,6 +53,7 @@ export def chat_gpt [
     # - teacher
     # - spanish_translator
     # - html_parser
+    # - rubb
     #
     #Available pre_prompts are:
     # - empty
