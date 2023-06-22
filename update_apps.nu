@@ -709,7 +709,7 @@ export def "apps-update yewtube" [] {
 
 #update yt-dlp (youtube-dl fork)
 export def "apps-update yt-dlp" [] {
-  yt-dlp -U
+  python3 -m pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz
 }
 
 #update gmail token
