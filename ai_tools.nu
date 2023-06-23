@@ -208,7 +208,7 @@ export def askgpt [
   } 
 }
 
-#generate a git commit message via chatgot and push the changes
+#generate a git commit message via chatgpt and push the changes
 export def "ai git-push" [
   --gpt4(-g)
   #
@@ -321,14 +321,15 @@ export def "ai screen2text" [
 
 #video to text transcription 
 export def "ai video2text" [
-file?:string        #video file name with extension
---transcribe = true #whether to transcribe or not. Default true, false means it just extracts audio
+  file?:string                #video file name with extension
+  --language(-l) = "Spanish"  #language of audio file
+  --transcribe = true #whether to transcribe or not. Default true, false means it just extracts audio
 ] {
   let file = if ($file | is-empty) {$in} else {$file}
   
   media extract-audio $file
 
-  ai audio2text $"($file | path parse | get stem).mp3"
+  ai audio2text $"($file | path parse | get stem).mp3" -l $language
 
   if $transcribe {
     ai transcription-summary $"($file | path parse | get stem)-clean.txt"
@@ -449,7 +450,7 @@ export def "ai audio2summary" [
   }
 }
 
-#generate subtitles of video file via whisper and mymemmory api
+#generate subtitles of video file via whisper and mymemmory/openai api
 export def "ai generate-subtitles" [
   file                               #input video file
   --language(-l) = "en-US/English"   #language of input video file, mymmemory/whisper (default en-US/English)
@@ -493,8 +494,8 @@ export def "ai yt-summary" [
 ] {
   #example sans subs https://www.youtube.com/watch?v=wa6dpyBu2gE
   #example with subs https://www.youtube.com/watch?v=MciOgsEOHZM
+  
   #deleting previous temp file
-
   if ((ls | find yt_temp | length) > 0) {rm yt_temp* | ignore}
   
   #getting the subtitle
@@ -600,4 +601,84 @@ export def "ai yt-transcription-summary" [
   } else {
     chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt summarize_ytvideo -d | save -f $output_file
   }
+}
+
+#get a summary of a video or audio via chatgpt
+export def "ai media-summary" [
+  file:string            # video or audio file name with extension
+  --lang(-l) = "Spanish" # language of the summary
+  --gpt4(-g)             # to use gpt4 instead of gpt-3.5
+  #
+  #Two characters words for languages
+  #es: spanish
+  #fr: french
+] {
+  let file = if ($file | is-empty) {$in | get name} else {$file}
+  let title = ($file | path parse | get stem) 
+  let extension = ($file | path parse | get extension) 
+  let media_type = (askgpt $"does the extension file format ($extension) correspond to and audio or a video file? Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio or none." | from json | get answer)
+
+  if $media_type =~ video {
+    ai video2text $file -l $lang
+  } else if $media_type =~ audio {
+    ai audio2text $file -l $lang
+  } else {
+    return-error $"wrong media type: ($extension)"
+  }
+
+  print (echo-g $"transcription file saved as ($title)-clean.txt")
+  let the_subtitle = $"($title)-clean.txt"
+
+  #removing existing temp files
+  ls | where name =~ "split|summaries" | rm-pipe
+
+  #definitions
+  let output = $"($title)_summary.md"
+
+  # dealing with the case when the transcription files has too many words for chatgpt
+  let max_words = if $gpt4 {3500} else {1500}
+  let n_words = (wc -w $the_subtitle | awk '{print $1}' | into int)
+
+  if $n_words > $max_words {
+    print (echo-g $"splitting transcription of ($title)...")
+
+    let filenames = $"($title)_split_"
+
+    let split_command = ("awk '{total+=NF; print > " + $"\"($filenames)\"" + "sprintf(\"%03d\",int(total/" + $"($max_words)" + "))" + "\".txt\"}'" + $" \"($the_subtitle)\"")
+  
+    bash -c $split_command
+
+    let files = (ls | find split | where name !~ summary | ansi strip-table)
+
+    $files | each {|split_file|
+      let t_input = (open ($split_file | get name))
+      let t_output = ($split_file | get name | path parse | get stem)
+      ai yt-transcription-summary $t_input $t_output -g $gpt4
+    }
+
+    let temp_output = $"($title)_summaries.md"
+    print (echo-g $"combining the results into ($temp_output)...")
+    touch $temp_output
+
+    let files = (ls | find split | find summary | enumerate)
+
+    $files | each {|split_file|
+      echo $"\n\nResumen de la parte ($split_file.index):\n\n" | save --append $temp_output
+      open ($split_file.item.name | ansi strip) | save --append $temp_output
+      echo "\n" | save --append $temp_output
+    }
+
+    let prompt = (open $temp_output)
+
+    print (echo-g $"asking chatgpt to combine the results in ($temp_output)...")
+    if $gpt4 {
+      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d -m "gpt-4" | save -f $output
+    } else {
+      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d | save -f $output
+    }
+
+    return
+  }
+  
+  ai yt-transcription-summary (open $the_subtitle) $output -g $gpt4
 }

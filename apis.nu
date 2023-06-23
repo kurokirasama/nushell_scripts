@@ -195,6 +195,7 @@ export def get_maps_eta [
 export def exchange_rates [
   new_currency?:string  #include unique new currency
   --symbols(-s)         #only show available symbols
+  --update_dataset(-u)  #update local dataset
   #
   #Show CLP/CLF,USD,BTC,new_currency exchange
 ] {
@@ -237,7 +238,19 @@ export def exchange_rates [
         }
       }
     )
-    
+
+    if $update_dataset {
+      let to_save = (
+        $output 
+        | rename -c [UF date]
+        | upsert date (date now | date format "%Y.%m.%d %H:%M:%S")
+      )
+      
+      open ([$env.MY_ENV_VARS.datasets exchange_rates.csv] | path join) 
+      | append $to_save 
+      | save -f ([$env.MY_ENV_VARS.datasets exchange_rates.csv] | path join)
+    }
+
     return $output
 
   } else {

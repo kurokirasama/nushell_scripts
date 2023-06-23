@@ -28,62 +28,59 @@ export def "yt-api help" [] {
 #play youtube music with playlist items pulled from local database
 export def ytm [
   playlist? = "all_likes" #playlist name (default: all_likes)
-  --list(-l)              #list available music playlists
-  --artist(-a):string     #search by artist from all:likes
+  --list(-l)              #list available music playlists for selection
+  --artist(-a):string     #search by artist from all_likes
   #
   #First run `yt-api download-music-playlists`
 ] {
   let mpv_input = ([$env.MY_ENV_VARS.linux_backup "scripts/mpv_input.conf"] | path join)
   let playlists = (ls $env.MY_ENV_VARS.youtube_database | get name)
 
-  #--list|
-  if not ($list | is-empty) or (not $list) {
-    $playlists | path parse | get stem
-  } else {
-    let to_play = ($playlists | find $playlist | ansi strip | get 0)
-
-    if ($to_play | length) > 0 {
-      let songs = (open $to_play)
-      # let songs = (
-      #   open-df $to_play 
-      #   | drop-duplicates [id] 
-      #   | into nu
-      # )
-
-      let songs = (
-        if not ($artist | is-empty) {
-          $songs 
-          | str downcase "artist"
-          | where "artist" =~ ($artist | str downcase)
-        } else {
-          $songs 
-        }
-      )
-      
-      let len = ($songs | length)
-
-      if ($len > 0) {
-        $songs 
-        | shuffle 
-        | enumerate
-        | each {|song|
-            http get $"($song.item.thumbnail)" | save -f /tmp/thumbnail.jpg
-            convert -density 384 -scale 256 -background transparent /tmp/thumbnail.jpg /tmp/thumbnail.ico
-
-            notify-send $"($song.item.title)" $"($song.item.artist)" -t 5000 --icon=/tmp/thumbnail.ico
-            tiv /tmp/thumbnail.ico 
-            print (echo-g $"now playing ($song.item.title) by ($song.item.artist) [($song.index)/($len)]...")
-
-            bash -c $"mpv --msg-level=all=status --no-resume-playback --no-video --input-conf=($mpv_input) ($song.item.url)"
-
-          }
-      } else {
-        return-error "artist not found!"
-      }    
+  let to_play = (
+    if $list {
+      $playlists | path parse | get stem | input list (echo-g "Select playlist:")
     } else {
-      return-error "playlist not found!"
+      $playlists | find $playlist | ansi strip | get 0 | path parse | get stem
     }
+  )
+
+  if ($to_play | is-empty) {
+    return-error "playlist not found!"
+  } 
+
+  let songs = (open ([$env.MY_ENV_VARS.youtube_database $"($to_play).json"] | path join))
+  # let songs = (
+  #   open-df $to_play 
+  #   | drop-duplicates [id] 
+  #   | into nu
+  # )
+  let songs = (
+    if not ($artist | is-empty) {
+      $songs 
+      | str downcase "artist"
+      | where "artist" =~ ($artist | str downcase)
+    } else {
+      $songs 
+    }
+  )
+    
+  if ($songs | is-empty) {
+    return-error "artist not found!"
   }
+
+  let len = ($songs | length)
+
+  $songs 
+  | shuffle 
+  | enumerate
+  | each {|song|
+      http get $"($song.item.thumbnail)" | save -f /tmp/thumbnail.jpg
+      convert -density 384 -scale 256 -background transparent /tmp/thumbnail.jpg /tmp/thumbnail.ico
+      notify-send $"($song.item.title)" $"($song.item.artist)" -t 5000 --icon=/tmp/thumbnail.ico 
+      tiv /tmp/thumbnail.ico        
+      print (echo-g $"now playing ($song.item.title) by ($song.item.artist) [($song.index)/($len)]...")
+      bash -c $"mpv --msg-level=all=status --no-resume-playback --no-video --input-conf=($mpv_input) ($song.item.url)"
+    }
 }
 
 #play youtube music with playlist items pulled from youtube
@@ -107,7 +104,7 @@ export def "ytm online" [
   )
 
   #--list|
-  if not ($list | is-empty) or (not $list) {
+  if not $list {
     $playlists | find music & likes | ansi strip-table
   } else {
     let to_play = ($playlists | where title =~ $playlist | first | get id)
