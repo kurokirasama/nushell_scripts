@@ -605,7 +605,7 @@ export def "ai yt-transcription-summary" [
 
 #get a summary of a video or audio via chatgpt
 export def "ai media-summary" [
-  file:string            # video or audio file name with extension
+  file:string            # video, audio or subtitle file (vtt, srt) file name with extension
   --lang(-l) = "Spanish" # language of the summary
   --gpt4(-g)             # to use gpt4 instead of gpt-3.5
   #
@@ -616,12 +616,21 @@ export def "ai media-summary" [
   let file = if ($file | is-empty) {$in | get name} else {$file}
   let title = ($file | path parse | get stem) 
   let extension = ($file | path parse | get extension) 
-  let media_type = (askgpt $"does the extension file format ($extension) correspond to and audio or a video file? Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio or none." | from json | get answer)
+  let media_type = (askgpt $"does the extension file format ($extension) correspond to and audio, video or subtitle file? Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle or none." | from json | get answer)
 
   if $media_type =~ video {
     ai video2text $file -l $lang
   } else if $media_type =~ audio {
     ai audio2text $file -l $lang
+  } else if $media_type =~ subtitle {
+    if $extension !~ "vtt|srt" {
+      return-error "subtitle file extension not supported!"
+    }
+    if $extension =~ vtt {
+      ffmpeg -i $file -f srt $"($title)-clean.txt"
+    } else {
+      mv -f $file $"($title)-clean.txt"
+    }
   } else {
     return-error $"wrong media type: ($extension)"
   }
