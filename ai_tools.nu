@@ -291,7 +291,7 @@ export def "ai audio2text" [
   }
 
   print (echo-g "transcribing to text...")
-  whisper $"($file)-clean.mp3" --language $language --output_format $output_format --verbose False
+  whisper $"($file)-clean.mp3" --language $language --output_format $output_format --verbose False --fp16 False
 }
 
 #screen record to text transcription 
@@ -518,7 +518,7 @@ export def "ai yt-summary" [
       yt-dlp --extract-audio --audio-format mp3 --audio-quality 0 $url -o $"($title).mp3"
 
       print (echo-g "transcribing audio...")
-      whisper $"($title).mp3" --output_format srt --verbose False
+      whisper $"($title).mp3" --output_format srt --verbose False --fp16 False
     }
   } else {
     let sub_url = (
