@@ -152,7 +152,6 @@ export def askgpt [
   #
   #Only one system message flag allowwed.
   #For more personalization use `chat_gpt`
-  #For chained questions, use `chatgpt`
 ] {
   let prompt = (
     if not $fast {
@@ -216,7 +215,7 @@ export def askgpt [
 
 #generate a git commit message via chatgpt and push the changes
 export def "ai git-push" [
-  --gpt4(-g)
+  --gpt4(-g) # use gpt-4 instead of gpt-3.5-turbo
   #
   #Inspired by https://github.com/zurawiki/gptcommit
 ] {
@@ -345,7 +344,7 @@ export def "ai video2text" [
 #resume transcription text via gpt 
 export def "ai transcription-summary" [
   file                #text file name with transcription text
-  --gpt4(-g) = false  #whether to use gpt-4 (default false)
+  --gpt4(-g)          #whether to use gpt-4 (default false)
   --upload(-u) = true #whether to upload to gdrive (default true) 
 ] {
   #removing existing temp files
@@ -415,7 +414,7 @@ export def "ai transcription-summary" [
 #resume transcription via gpt in one go
 export def "ai transcription-summary-single" [
   file                #text file name with transcription text
-  --gpt4(-g) = false  #whether to use gpt-4 (default false)
+  --gpt4(-g)          #whether to use gpt-4 (default false)
   --upload(-u) = true #whether to upload to gdrive (default true) 
 ] {
   let up_folder = $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory
@@ -445,7 +444,7 @@ export def "ai transcription-summary-single" [
 #audio 2 transcription summary via chatgpt
 export def "ai audio2summary" [
   file
-  --gpt4(-g) = false  #whether to use gpt-4 (default false)
+  --gpt4(-g)          #whether to use gpt-4 (default false)
   --upload(-u) = true #whether to upload the summary and audio to gdrive (dafault true)
 ] {
   ai audio2text $file
@@ -460,7 +459,7 @@ export def "ai audio2summary" [
 export def "ai generate-subtitles" [
   file                               #input video file
   --language(-l) = "en-US/English"   #language of input video file, mymmemory/whisper (default en-US/English)
-  --translate(-t) = false            #to translate to spanish (default false)
+  --translate(-t)                    #to translate to spanish (default false)
   #
   #`? trans` and `whisper --help` for more info on languages
 ] {
@@ -477,7 +476,7 @@ export def "ai generate-subtitles" [
 #generate subtitles of video file via whisper and mymemmory api for piping
 export def "ai generate-subtitles-pipe" [
   --language(-l) = "en-US/English"   #language of input video file, mymmemory/whisper (default en-US/English)
-  --translate(-t) = false            #to translate to spanish
+  --translate(-t)                    #to translate to spanish
   #
   #`? trans` and `whisper --help` for more info on languages
 ] {
@@ -597,7 +596,7 @@ export def "ai yt-summary" [
 export def "ai yt-transcription-summary" [
   prompt              #transcription text
   output              #output name without extension
-  --gpt4(-g) = false  #whether to use gpt-4 (default false)
+  --gpt4(-g)          #whether to use gpt-4 (default false)
 ] {
   let output_file = $"($output)_summary.md"
 
