@@ -144,6 +144,7 @@ export def askgpt [
   --teacher(-s)           # use teacher (sensei) system message with temp 0.95, else use assistant with temp 0.9
   --rubb(-r)              # use rubb system message with temperature 0.5, else use assistant with temp 0.9
   --list_system(-l)       # select system message from list (takes precedence over flags)
+  --list_preprompt(-b)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
   --temperature(-t):float # takes precedence over the 0.7 and 0.9
   --gpt4(-g)              # use gpt-4 instead of gpt-3.5-turbo
   --fast(-f)              # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
@@ -193,11 +194,15 @@ export def askgpt [
   )
 
   let answer = (
-    match [$gpt4,$list_system] {
-      [true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4},
-      [true,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4},
-      [false,true] => {chat_gpt $prompt -t $temp -l},
-      [false,false] => {chat_gpt $prompt -t $temp --select_system $system}
+    match [$gpt4,$list_system,$list_preprompt] {
+      [true,true,false] => {chat_gpt $prompt -t $temp -l -m gpt-4},
+      [true,false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4},
+      [false,true,false] => {chat_gpt $prompt -t $temp -l},
+      [false,false,false] => {chat_gpt $prompt -t $temp --select_system $system},
+      [true,true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4 -p -d},
+      [true,false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4 -p -d},
+      [false,true,true] => {chat_gpt $prompt -t $temp -l -p -d},
+      [false,false,true] => {chat_gpt $prompt -t $temp --select_system $system -p -d}
     }
   )
 
