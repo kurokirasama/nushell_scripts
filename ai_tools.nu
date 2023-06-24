@@ -5,21 +5,20 @@ export def "ai help" [] {
       ffmpeg\n
       whisper:\n
         pip install git+https://github.com/openai/whisper.git\n
-      chatgpt-wrapper:\n
-        pip install git+https://github.com/mmabrouk/chatgpt-wrapper\n
       yt-dlp:\n 
         python3 -m pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz\n
       METHODS\n
+      - chat_gpt
+      - askgpt
       - ai audio2text
-      - ai audio2summary
-      - ai screen2text
       - ai video2text
+      - ai screen2text
+      - ai audio2summary
       - ai transcription-summary
       - ai yt-summary
+      - ai media-summary
       - ai generate-subtitles
-      - ai git-push
-      - chat_gpt
-      - askgpt\n"
+      - ai git-push\n"
     | nu-highlight
   ) 
 }
@@ -57,6 +56,7 @@ export def chat_gpt [
     #
     #Available pre_prompts are:
     # - empty
+    # - recreate_text
     # - summarize_transcription
     # - consolidate_transcription
     # - trans_to_spanish
@@ -65,6 +65,7 @@ export def chat_gpt [
     # - summarize_ytvideo
     # - consolidate_ytvideo
     # - parse_html
+    # - elaborate_idea
     #
     #Note that:
     # - --select_system > --list_system > --system
