@@ -606,6 +606,9 @@ export def supgrade [--old(-o),--apps(-a)] {
   print (echo-g "updating rust...")
   rustup update
 
+  print (echo-g "updating cargo apps...")
+  cargo install-update -a
+
   if $apps {
     print (echo-g "updating off apt apps...")
     apps-update
@@ -670,36 +673,18 @@ export def "apps-update whisper" [] {
 }
 
 #update gptcomit
-export def "apps-update gptcommit" [] {
-  cargo install --locked gptcommit --force
-}
+# export def "apps-update gptcommit" [] {
+#   cargo install --locked gptcommit --force
+# }
 
 #update chatgpt
-export def "apps-update chatgpt" [] {
-  pip3 install git+https://github.com/mmabrouk/chatgpt-wrapper --upgrade
-}
+# export def "apps-update chatgpt" [] {
+#   pip3 install git+https://github.com/mmabrouk/chatgpt-wrapper --upgrade
+# }
 
 #update manim
 export def "apps-update manim" [] {
   pip3 install manim --upgrade
-}
-
-#update cargo apps
-export def cargo-update [] {
-  let cargo_output = (
-    cargo install --list 
-    | lines 
-    | str trim 
-    | split column " "
-  )
-
-  let installed_apps = (
-    $cargo_output 
-    | get column1 
-    | uniq 
-    | find -v nu_plugin
-  )
-
 }
 
 #update yewtube
@@ -711,22 +696,3 @@ export def "apps-update yewtube" [] {
 export def "apps-update yt-dlp" [] {
   python3 -m pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz
 }
-
-#update gmail token
-# export def "gmail-update-token" [] {
-#   let credentials = (open-credential ([$env.MY_ENV_VARS.credentials cmdg-credentials.json.asc] | path join ))
-#   let client_id = ($credentials | get client_id)
-#   let client_secret = ($credentials | get client_secret)
-
-
-#   sh $"expect -c 'cmdg --configure; expect \"ClientID:\"; send \"($client_id)\r\"; interact'"
-
-#   cmdg --configure
-#   expect "ClientID:" 
-#   send $client_id
-#   interact
-
-#   expect "ClientSecret:"
-#   send $client_secret
-#   interact
-# }

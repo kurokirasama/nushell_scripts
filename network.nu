@@ -138,7 +138,7 @@ export def get-ips [
 
   let external = (dig +short myip.opendns.com @resolver1.opendns.com)
   
-  {internal: $internal, external: $external}
+  return {internal: $internal, external: $external}
 }
 
 #get devices connected to network
