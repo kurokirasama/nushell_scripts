@@ -1,3 +1,96 @@
+#open code
+export def open2 [file?,--raw] {
+  let file = if ($file | is-empty) {$in | get name | get 0} else {$file}
+  let extension = ($file | path parse | get extension)
+
+  if ($extension =~ "md|R|c|Rmd|m") or ($extension | is-empty) {
+    bat $file
+  } else if $extension =~ "nu" {
+    open $file | nu-highlight
+  } else {
+    if $raw {
+      open --raw $file
+    } else {
+      open $file
+    }
+  }
+}
+
+#open file 
+export def openf [file?] {
+  let file = if ($file | is-empty) {$in} else {$file}
+
+  let file = (
+    switch ($file | typeof) {
+      "record": {|| 
+        $file
+        | get name
+        | ansi strip
+      },
+      "table": {||
+        $file
+        | get name
+        | get 0
+        | ansi strip
+      },
+    } { 
+        "otherwise": {||
+          $file
+        }
+      }
+  )
+   
+  bash -c $'xdg-open "($file)" 2>/dev/null &'
+}
+
+#open last file
+export def openl [] {
+  lt | last | openf
+}
+
+#open google drive file 
+export def openg [file?] {
+  let file = if ($file | is-empty) {$in | get name} else {$file}
+   
+  let url = (open $file 
+    | lines 
+    | drop nth 0 
+    | parse "{field}={value}" 
+    | table2record 
+    | get url
+  )
+
+  $url | xclip -sel clip
+  print (echo-g $"($url) copied to clipboard!")
+}
+
+#accumulate a list of files into the same table
+export def openm [
+  list? #list of files
+  #Example
+  #ls *.json | openm
+  #let list = ls *.json; openm $list
+] {
+  let list = if ($list | is-empty) {$in} else {$list}
+  
+  $list 
+  | get name
+  | reduce -f [] {|it, acc| 
+      $acc | append (open ($it | path expand))
+    }
+}
+
+#send to printer
+export def print-file [file?,--n_copies(-n):int] {
+  let file = if ($file | is-empty) {$in | get name | ansi strip} else {$file}
+  
+  if ($n_copies | is-empty) {
+    lp $file
+  } else {
+    lp -n $n_copies $file
+  }
+}
+
 #compress all folders into a separate file and delete them
 export def "7z folders" [--not_delete(-n)] {
   if not $not_delete {
