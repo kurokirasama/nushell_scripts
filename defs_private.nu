@@ -6,6 +6,8 @@ export def ssh-termux [ip?] {
 
 #ssh to known devices
 export def ssh-to [
+  --user(-u) = "kira"
+  --port(-p) = 5699
   --ubb(-u)
   --ubb_max(-m)
 ] {
@@ -21,7 +23,7 @@ export def ssh-to [
   )
 
   print (echo-g $"connecting to ($ip)...")
-  nu -c $"ssh -X -p 5699 kira@($ip)"
+  ssh -X -p $port $"($user)@($ip)"
 }
 
 #backup webies 2 drive
