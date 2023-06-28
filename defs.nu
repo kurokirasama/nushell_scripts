@@ -157,16 +157,6 @@ export def h [howmany = 100] {
     }
 }
 
-#wrapper for describe
-export def typeof [--full(-f)] {
-  describe 
-  | if not $full { 
-      split row '<' | get 0 
-    } else { 
-      $in 
-    }
-}
-
 #grep for nu
 export def grep-nu [
   search   #search term
@@ -483,22 +473,6 @@ export def code [command,--raw] {
   } else {
     view source $command
   }
-}
-
-#register nu plugins
-export def reg-plugins [] {
-  ls ~/.cargo/bin
-  | where type == file 
-  | sort-by -i name
-  | get name 
-  | find nu_plugin 
-  | find -v example
-  | each {|file|
-      if (grep-nu $file $nu.plugin-path | length) == 0 {
-        print (echo-g $"registering ($file)...")
-        nu -c $'register ($file)'    
-      } 
-    }
 }
 
 #stop network applications

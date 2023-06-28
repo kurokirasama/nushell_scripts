@@ -1,3 +1,13 @@
+#wrapper for describe
+export def typeof [--full(-f)] {
+  describe 
+  | if not $full { 
+      split row '<' | get 0 
+    } else { 
+      $in 
+    }
+}
+
 #open code
 export def open2 [file?,--raw] {
   let file = if ($file | is-empty) {$in | get name | get 0} else {$file}

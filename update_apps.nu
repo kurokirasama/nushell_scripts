@@ -575,7 +575,32 @@ export def "apps-update nushell" [] {
   cd ~/software/nushell
   git pull
   bash scripts/install-all.sh
+  reg-plugins
+
+  cd ~/software/nu_plugin_plot
+  cargo build --release
+  register ./target/release/nu_plugin_plot
+
   update-nu-config
+}
+
+#register nu plugins
+export def reg-plugins [] {
+  rm $nu.plugin-path -f
+  touch $nu.plugin-path
+
+  ls ~/.cargo/bin
+  | where type == file 
+  | sort-by -i name
+  | get name 
+  | find nu_plugin 
+  | find -v example
+  | each {|file|
+      if (grep-nu $file $nu.plugin-path | length) == 0 {
+        print (echo-g $"registering ($file)...")
+        nu -c $'register ($file)'    
+      } 
+    }
 }
 
 #update maestral
