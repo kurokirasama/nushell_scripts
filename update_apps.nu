@@ -579,7 +579,7 @@ export def "apps-update nushell" [] {
 
   cd ~/software/nu_plugin_plot
   cargo build --release
-  register ./target/release/nu_plugin_plot
+  register ~/software/nu_plugin_plot/target/release/nu_plugin_plot
 
   update-nu-config
 }
