@@ -10,7 +10,6 @@ if not ("~/.autolister.json" | path expand | path exists) {
 let interval = 24hr 
 let now = (date now)
 let update = ((open ~/.autolister.json | get updated | into datetime) + $interval < $now)
-let host = (sys | get host | get hostname)
 
 if $update {
     nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/autolister.nu 
@@ -21,5 +20,11 @@ if $update {
 
 ## update ip
 if $update {
-    nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/get-ips.nu | save -f $"/home/kira/Yandex.Disk/Android Devices/Apps/Termux/ips_($host).json"
+    let host = (sys | get host | get hostname)
+    let ips_file = "/home/kira/Yandex.Disk/Android Devices/Apps/Termux/ips.json"
+    let ips = (nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/get-ips.nu)
+
+    open $ips_file
+    | upsert $host $ips
+    | save -f $ips_file
 }
