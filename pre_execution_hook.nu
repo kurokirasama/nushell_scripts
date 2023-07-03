@@ -25,6 +25,6 @@ if $update {
     let ips = (nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/get-ips.nu)
 
     open $ips_file
-    | upsert $host $ips
+    | upsert $host ($ips | from json)
     | save -f $ips_file
 }

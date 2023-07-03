@@ -137,12 +137,13 @@ export def chat_gpt [
   return $answer.choices.0.message.content
 }
 
-#fast call to my chat_gpt wrapper
+#fast call to the chat_gpt wrapper
 export def askgpt [
   prompt?:string          # string with the prompt, can be piped
   system?:string          # string with the system message. It has precedence over the system message flags
   --programmer(-p)        # use programmer system message with temp 0.7, else use assistant with temp 0.9
   --teacher(-s)           # use teacher (sensei) system message with temp 0.95, else use assistant with temp 0.9
+  --engineer(-e)          # use prompt_engineer system message with temp 0.8, else use assistant with temp 0.9
   --rubb(-r)              # use rubb system message with temperature 0.5, else use assistant with temp 0.9
   --list_system(-l)       # select system message from list (takes precedence over flags)
   --list_preprompt(-b)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
@@ -163,11 +164,12 @@ export def askgpt [
     
   let temp = (
     if ($temperature | is-empty) {
-      match [$programmer, $teacher, $rubb] {
-        [true,false,false] => 0.7,
-        [false,true,false] => 0.95,
-        [false,false,true] => 0.5,
-        [false,false,false] => 0.9
+      match [$programmer, $teacher, $engineer, $rubb] {
+        [true,false,false,false] => 0.7,
+        [false,true,false,false] => 0.95,
+        [false,false,false,true] => 0.5,
+        [false,false,true,false] => 0.8,
+        [false,false,false,false] => 0.9
         _ => {return-error "only one system message flag allowed"},
       }
    } else {
@@ -183,6 +185,8 @@ export def askgpt [
         "programmer"
       } else if $teacher {
         "teacher"
+      } else if $engineer {
+        "prompt_engineer"
       } else if $rubb {
         "rubb"
       } else {
@@ -344,7 +348,7 @@ export def "ai video2text" [
 #resume transcription text via gpt 
 export def "ai transcription-summary" [
   file                #text file name with transcription text
-  --gpt4(-g)          #whether to use gpt-4 (default false)
+  --gpt4(-g) = false  #whether to use gpt-4 (default false)
   --upload(-u) = true #whether to upload to gdrive (default true) 
 ] {
   #removing existing temp files
@@ -414,7 +418,7 @@ export def "ai transcription-summary" [
 #resume transcription via gpt in one go
 export def "ai transcription-summary-single" [
   file                #text file name with transcription text
-  --gpt4(-g)          #whether to use gpt-4 (default false)
+  --gpt4(-g) = false  #whether to use gpt-4 (default false)
   --upload(-u) = true #whether to upload to gdrive (default true) 
 ] {
   let up_folder = $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory
@@ -459,7 +463,7 @@ export def "ai audio2summary" [
 export def "ai generate-subtitles" [
   file                               #input video file
   --language(-l) = "en-US/English"   #language of input video file, mymmemory/whisper (default en-US/English)
-  --translate(-t)                    #to translate to spanish (default false)
+  --translate(-t) = false            #to translate to spanish
   #
   #`? trans` and `whisper --help` for more info on languages
 ] {
@@ -596,7 +600,7 @@ export def "ai yt-summary" [
 export def "ai yt-transcription-summary" [
   prompt              #transcription text
   output              #output name without extension
-  --gpt4(-g)          #whether to use gpt-4 (default false)
+  --gpt4(-g) = false  #whether to use gpt-4 (default false)
 ] {
   let output_file = $"($output)_summary.md"
 
