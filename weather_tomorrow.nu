@@ -100,10 +100,7 @@ def get_location [--home(-h),--ubb(-b)] {
 
 # tomorrow.io
 def fetch_api [loc] {
-    let apiKey = (
-        open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.tomorrow-app.json.asc"] | path join) 
-        | get api_key
-    )
+    let apiKey = $env.MY_ENV_VARS.api_keys.tomorrow_io
 
     let units = "metric"
     mut response = {}

@@ -116,7 +116,7 @@ export def chat_gpt [
   )
 
   # call to api
-  let header = [Authorization $"Bearer ($env.OPENAI_API_KEY)"]
+  let header = [Authorization $"Bearer ($env.MY_ENV_VARS.api_keys.open_ai)"]
   let site = "https://api.openai.com/v1/chat/completions"
   let request = {
       model: $model,
@@ -699,4 +699,11 @@ export def "ai media-summary" [
   }
   
   ai yt-transcription-summary (open $the_subtitle) $output -g $gpt4
+}
+
+#chatpdf api wrapper
+export def chat_pdf [
+
+] {
+
 }

@@ -11,6 +11,7 @@ let-env PATH = (
   | append '/home/kira/Yandex.Disk/Comandos_bash_for_nushell'
   | append $"/home/kira/R/x86_64-pc-linux-gnu-library/(ls /home/kira/R/x86_64-pc-linux-gnu-library | sort-by name | last | get name | split row "/" | last)/rush/exec"
   | append "/usr/local/texlive/2022/bin/x86_64-linux"
+  | append "/home/kira/.cargo/bin"
   | uniq
 )
 
@@ -121,13 +122,26 @@ let-env MY_ENV_VARS = (
   | upsert gdriveTranscriptionSummaryDirectory "/home/kira/gdrive/Depto/DireccionEscuelaIngenieria/NotasReunionesAi"
   | upsert chatgpt_config "/home/kira/Yandex.Disk/Backups/linux/chatgptConfigs"
   | upsert datasets "/home/kira/Yandex.Disk/Downloads/datasets"
+  | upsert api_keys {}
 )
 
 #for cmdg
 let-env PAGER = "less"
 let-env VISUAL = "nano"
 
-#for chatgpt
-let-env OPENAI_API_KEY = (
-  open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.open-ai.json.asc"] | path join) | get api_key
+#api_keys
+let-env MY_ENV_VARS = (
+  $env.MY_ENV_VARS 
+  | upsert api_keys.open_ai (
+      open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.open_ai.json.asc"] | path join) 
+      | get api_key
+    )
+  | upsert api_keys.chatpdf (
+      open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.chatpdf.json.asc"] | path join) 
+      | get api_key
+    )
+  | upsert api_keys.tomorrow_io (
+      open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.tomorrow_io.json.asc"] | path join) 
+      | get api_key
+    )
 )
