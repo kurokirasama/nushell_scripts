@@ -144,4 +144,5 @@ let-env MY_ENV_VARS = (
       open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.tomorrow_io.json.asc"] | path join) 
       | get api_key
     )
+  | upsert api_keys.mymemmory (open-credential ([$env.MY_ENV_VARS.credentials "credentials.mymemmory.json.asc"] | path join))
 )

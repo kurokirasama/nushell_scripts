@@ -27,7 +27,7 @@ export def trans [
   ...text:string    #search query
   --from:string     #from which language you are translating (default english)
   --to:string       #to which language you are translating (default spanish)
-  --openai          #to use openai api instead of mymemmory, only translate to spanish (default false)
+  --openai = false  #to use openai api instead of mymemmory, only translate to spanish (default false)
   --gpt4            #use gpt4 for translating (default false)
   #
   #Use ISO standar names for the languages, for example:
@@ -45,7 +45,7 @@ export def trans [
   
   match $openai {
     false => {
-      let trans_credential = (open-credential ([$env.MY_ENV_VARS.credentials "mymemory_token.json.asc"] | path join))
+      let trans_credential = $env.MY_ENV_VARS.api_keys.mymemmory
       let key = ($trans_credential | get token)
       let user = ($trans_credential | get username)
 
