@@ -138,10 +138,7 @@ def fetch_api [loc] {
 
 # street address
 def get_address [loc] {
-    let mapsAPIkey = (
-        open-credential -u ([$env.MY_ENV_VARS.credentials "googleAPIkeys.json.asc"] 
-            | path join) 
-        | get general
+    let mapsAPIkey = $env.MY_ENV_VARS.api_keys.google.general
     )
     let url = $"https://maps.googleapis.com/maps/api/geocode/json?latlng=($loc)&sensor=true&key=($mapsAPIkey)"
 
@@ -182,11 +179,7 @@ def uv_class [uvIndex] {
 
 # air pollution
 def get_airCond [loc] {
-    let apiKey = (
-        open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.air_visual.json.asc"] 
-            | path join) 
-        | get api_key
-    )
+    let apiKey = $env.MY_ENV_VARS.api_keys.air_visual
     let lat = (echo $loc | split row "," | get 0)
     let lon = (echo $loc | split row "," | get 1)
     let url = $"https://api.airvisual.com/v2/nearest_city?lat=($lat)&lon=($lon)&key=($apiKey)"

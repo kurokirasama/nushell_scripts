@@ -145,4 +145,9 @@ let-env MY_ENV_VARS = (
       | get api_key
     )
   | upsert api_keys.mymemmory (open-credential ([$env.MY_ENV_VARS.credentials "credentials.mymemmory.json.asc"] | path join))
+  | upsert api_keys.google (open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.google.json.asc"] | path join))
+  | upsert api_keys.air_visual (
+      open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.air_visual.json.asc"] | path join) 
+      | get api_key
+    )
 )
