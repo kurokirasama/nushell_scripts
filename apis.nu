@@ -3,7 +3,7 @@ export def bitly [longurl] {
   if ($longurl | is-empty) {
     return-error "no url provided!"
   } else {
-    let bitly_credential = (open-credential ([$env.MY_ENV_VARS.credentials "bitly_token.json.asc"] | path join))
+    let bitly_credential = $env.MY_ENV_VARS.api_keys.bitly
     let Accesstoken = ($bitly_credential | get token)
     let guid = ($bitly_credential | get guid)
     
@@ -93,7 +93,7 @@ export def "rebrandly get" [longurl] {
  if ($longurl | is-empty) {
     return-error "no url provided"
   } else {
-    let credential = (open-credential ([$env.MY_ENV_VARS.credentials "credential_rebrandly.json.asc"] | path join))
+    let credential = $env.MY_ENV_VARS.api_keys.rebrandly
     let api_key = ($credential | get api_key)
     
     let url = "https://api.rebrandly.com/v1/links"
@@ -112,7 +112,7 @@ export def "rebrandly list" [longurl="www.google.com"] {
  if ($longurl | is-empty) {
     return-error "no url provided"
   } else {
-    let credential = (open-credential ([$env.MY_ENV_VARS.credentials "credential_rebrandly.json.asc"] | path join))
+    let credential = $env.MY_ENV_VARS.api_keys.rebrandly
     let api_key = ($credential | get api_key)
     
     let base_url = "https://api.rebrandly.com/v1/links"
@@ -130,7 +130,7 @@ export def get_maps_eta [
   --mode = "driving"  #driving mode (driving, transit, walking)
   --avoid             #whether to avoid highways (default:false)
 ] {
-  let api_key = (open-credential ([$env.MY_ENV_VARS.credentials "googleAPIkeys.json.asc"] | path join) | get general)
+  let api_key = $env.MY_ENV_VARS.api_keys.google.general
 
   let origin_address = (
     if $origin =~ '^(-?\d+\.\d+),(-?\d+\.\d+)$' {
@@ -199,7 +199,7 @@ export def exchange_rates [
   #
   #Show CLP/CLF,USD,BTC,new_currency exchange
 ] {
-  let api_key = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.fixer.io.json.asc"] | path join) | get api_key)
+  let api_key = $env.MY_ENV_VARS.api_keys.fixer_io
 
   if (not $symbols) {
     let url = (
