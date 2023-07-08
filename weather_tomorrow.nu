@@ -100,7 +100,7 @@ def get_location [--home(-h),--ubb(-b)] {
 
 # tomorrow.io
 def fetch_api [loc] {
-    let apiKey = $env.MY_ENV_VARS.api_keys.tomorrow_io
+    let apiKey = $env.MY_ENV_VARS.api_keys.tomorrow_io.api_key
 
     let units = "metric"
     mut response = {}
@@ -139,7 +139,7 @@ def fetch_api [loc] {
 # street address
 def get_address [loc] {
     let mapsAPIkey = $env.MY_ENV_VARS.api_keys.google.general
-    )
+    
     let url = $"https://maps.googleapis.com/maps/api/geocode/json?latlng=($loc)&sensor=true&key=($mapsAPIkey)"
 
     http get $url
@@ -179,7 +179,7 @@ def uv_class [uvIndex] {
 
 # air pollution
 def get_airCond [loc] {
-    let apiKey = $env.MY_ENV_VARS.api_keys.air_visual
+    let apiKey = $env.MY_ENV_VARS.api_keys.air_visual.api_key
     let lat = (echo $loc | split row "," | get 0)
     let lon = (echo $loc | split row "," | get 1)
     let url = $"https://api.airvisual.com/v2/nearest_city?lat=($lat)&lon=($lon)&key=($apiKey)"

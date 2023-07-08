@@ -132,33 +132,5 @@ let-env VISUAL = "nano"
 #api_keys
 let-env MY_ENV_VARS = (
   $env.MY_ENV_VARS 
-  | upsert api_keys.open_ai (
-      open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.open_ai.json.asc"] | path join) 
-      | get api_key
-    )
-  | upsert api_keys.chatpdf (
-      open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.chatpdf.json.asc"] | path join) 
-      | get api_key
-    )
-  | upsert api_keys.tomorrow_io (
-      open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.tomorrow_io.json.asc"] | path join) 
-      | get api_key
-    )
-  | upsert api_keys.mymemmory (open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.mymemmory.json.asc"] | path join))
-  | upsert api_keys.google (open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.google.json.asc"] | path join))
-  | upsert api_keys.air_visual (
-      open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.air_visual.json.asc"] | path join) 
-      | get api_key
-    )
-  | upsert api_keys.bitly (open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.bitly.json.asc"] | path join))
-  | upsert api_keys.discord_webhooks (open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.discord_webhooks.json.asc"] | path join))
-  | upsert api_keys.rebrandly (open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.rebrandly.json.asc"] | path join))
-  | upsert api_keys.fixer_io (
-      open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.fixer.io.json.asc"] | path join) 
-      | get api_key
-    )
-  | upsert api_keys.github (
-      open-credential -u ([$env.MY_ENV_VARS.credentials "credentials.github.json.asc"] | path join) 
-      | get api_key
-    )
+  | upsert api_keys (open-credential -u ([$env.MY_ENV_VARS.credentials credentials.json.asc] | path join))
 )

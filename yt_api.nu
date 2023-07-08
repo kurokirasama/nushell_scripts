@@ -152,7 +152,7 @@ export def yt-api [
   #verify and update token
   yt-api verify-token
 
-  let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
+  let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
 
@@ -284,7 +284,7 @@ export def "yt-api update-all" [
   --playlist1 = "all_music"
   --playlist2 = "new_likes"
 ] {
-  let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
+  let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
   let response = (yt-api)
@@ -344,7 +344,7 @@ export def "yt-api empty-playlist" [playlist?:string] {
   let response = (yt-api)
 
   print (echo-g "listing playlists...")
-  let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
+  let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
 
@@ -394,7 +394,7 @@ export def "yt-api remove-duplicated-songs" [
   let response = (yt-api)
 
   print (echo-g "listing playlists...")
-  let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
+  let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
 
@@ -468,7 +468,7 @@ export def "yt-api remove-duplicated-songs" [
 
 #verify if youtube api token has expired
 export def "yt-api verify-token" [] {
-  let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
+  let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
 
@@ -487,8 +487,8 @@ export def "yt-api verify-token" [] {
 }
 
 #update youtube api token
-export def "yt-api get-token" [] {
-  let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
+export def-env "yt-api get-token" [] {
+  let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
   let client = ($youtube_credential | get client_id)
 
   let uri = (
@@ -504,27 +504,32 @@ export def "yt-api get-token" [] {
 
   let url = (input (echo-g "Copy response url here: "))
 
-  let content = (
-    $youtube_credential  
-    | upsert token {||
-        $url 
-        | split row "#" 
-        | get 1 
-        | split row "=" 
-        | get 1 
-        | split row "&" 
-        | get 0
-      }
-  ) 
+  let token = (
+    $url 
+    | split row "#" 
+    | get 1 
+    | split row "=" 
+    | get 1 
+    | split row "&" 
+    | get 0
+ )
+
+  let content = ($youtube_credential  | upsert token $token) 
+  
   save-credential $content ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join) 
+  
+  let-env MY_ENV_VARS = (
+    $env.MY_ENV_VARS
+    | upsert api_keys.youtube.token $token
+  )
 }
 
 
 ##In progress
 
 #get youtube api refresh token
-export def "yt-api get-refresh-token" [] {
-  let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
+export def-env "yt-api get-refresh-token" [] {
+  let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
   let client = ($youtube_credential | get client_id)
 
   let uri = (
@@ -544,22 +549,27 @@ export def "yt-api get-refresh-token" [] {
 
   let url = (input (echo-g "Copy response url here: "))
 
-  let content = (
-    $youtube_credential  
-    | upsert refresh_token {||
-        $url 
-        | split row "=" 
-        | get 1 
-        | split row "&" 
-        | get 0
-      }
-  ) 
+  let refresh_token = (
+    $url 
+    | split row "=" 
+    | get 1 
+    | split row "&" 
+    | get 0
+ )
+
+  let content = ($youtube_credential | upsert refresh_token $refresh_token)
+
   save-credential $content ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join) 
+
+  let-env MY_ENV_VARS = (
+    $env.MY_ENV_VARS
+    | upsert api_keys.youtube.refresh_token $refresh_token
+  )
 }
 
 #refresh youtube api token via refresh token (in progress)
 export def "yt-api refresh-token" [] {
-  let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
+  let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
   let client_id = ($youtube_credential | get client_id)
   let client_secret = ($youtube_credential | get client_secret)
   let refresh_token = ($youtube_credential | get refresh_token)
@@ -605,7 +615,7 @@ export def "yt-api refresh-token" [] {
 
 
 export def test-api [] {
-  let youtube_credential = (open-credential ([$env.MY_ENV_VARS.credentials "credentials.youtube.json.asc"] | path join))
+  let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
   let api_key = ($youtube_credential | get api_key)
   let token = ($youtube_credential | get token)
   let client = ($youtube_credential | get client_id)

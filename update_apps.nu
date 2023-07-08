@@ -73,7 +73,7 @@ export def get-github-latest [
   repo:string
   --file_type(-f) = "deb"
 ] {
-  let git_token = $env.MY_ENV_VARS.api_keys.github
+  let git_token = $env.MY_ENV_VARS.api_keys.github.api_key
 
   let assets_url = (
     http get $"https://api.github.com/repos/($owner)/($repo)/releases/latest" -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']

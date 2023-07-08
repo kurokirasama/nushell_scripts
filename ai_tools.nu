@@ -116,7 +116,7 @@ export def chat_gpt [
   )
 
   # call to api
-  let header = [Authorization $"Bearer ($env.MY_ENV_VARS.api_keys.open_ai)"]
+  let header = [Authorization $"Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"]
   let site = "https://api.openai.com/v1/chat/completions"
   let request = {
       model: $model,

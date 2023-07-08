@@ -199,7 +199,7 @@ export def exchange_rates [
   #
   #Show CLP/CLF,USD,BTC,new_currency exchange
 ] {
-  let api_key = $env.MY_ENV_VARS.api_keys.fixer_io
+  let api_key = $env.MY_ENV_VARS.api_keys.fixer_io.api_key
 
   if (not $symbols) {
     let url = (
