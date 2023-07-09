@@ -34,6 +34,7 @@ export def chat_gpt [
     --select_system: string                       # directly select system message    
     --select_preprompt: string                    # directly select pre_prompt
     --delim_with_backquotes(-d)                   # to delimit prompt (not pre-prompt) with triple backquotes (')
+    --large_model(-k) = false                     # use gpt-3.5-turbo-16k (gpt-4-32k) if model is gpt-3.5-turbo (gpt-4)
     #
     #Available models at https://platform.openai.com/docs/models, but some of them are:
     # - gpt-4 (8192 tokens)
@@ -76,6 +77,21 @@ export def chat_gpt [
     return-error "Empty prompt!!!"
   }
 
+  #define model
+  let model = (
+    if $large_model {
+      if $model == "gpt-3.5-turbo" {
+        "gpt-3.5-turbo-16k"
+      } else if $model == "gpt-4" {
+        "gpt-4-32k"
+      } else {
+        $model
+      }
+    } else {
+      $model
+    }
+  )
+  
   #select system message
   let system_messages = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_systemmessages.json] | path join))
 
@@ -149,6 +165,7 @@ export def askgpt [
   --list_preprompt(-b)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
   --temperature(-t):float # takes precedence over the 0.7 and 0.9
   --gpt4(-g)              # use gpt-4 instead of gpt-3.5-turbo
+  --large_model(-k)       # use gpt-3.5-turbo-16k (gpt-4-32k) if model is gpt-3.5-turbo (gpt-4)
   --fast(-f)              # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
   #
   #Only one system message flag allowwed.
@@ -199,14 +216,14 @@ export def askgpt [
 
   let answer = (
     match [$gpt4,$list_system,$list_preprompt] {
-      [true,true,false] => {chat_gpt $prompt -t $temp -l -m gpt-4},
-      [true,false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4},
-      [false,true,false] => {chat_gpt $prompt -t $temp -l},
-      [false,false,false] => {chat_gpt $prompt -t $temp --select_system $system},
-      [true,true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4 -p -d},
-      [true,false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4 -p -d},
-      [false,true,true] => {chat_gpt $prompt -t $temp -l -p -d},
-      [false,false,true] => {chat_gpt $prompt -t $temp --select_system $system -p -d}
+      [true,true,false] => {chat_gpt $prompt -t $temp -l -m gpt-4 -k $large_model},
+      [true,false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4 -k $large_model},
+      [false,true,false] => {chat_gpt $prompt -t $temp -l -k $large_model},
+      [false,false,false] => {chat_gpt $prompt -t $temp --select_system $system -k $large_model},
+      [true,true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4 -p -d -k $large_model},
+      [true,false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4 -p -d -k $large_model},
+      [false,true,true] => {chat_gpt $prompt -t $temp -l -p -d -k $large_model},
+      [false,false,true] => {chat_gpt $prompt -t $temp --select_system $system -p -d -k $large_model}
     }
   )
 
@@ -219,12 +236,26 @@ export def askgpt [
 
 #generate a git commit message via chatgpt and push the changes
 export def "ai git-push" [
-  --gpt4(-g) # use gpt-4 instead of gpt-3.5-turbo
+  --gpt4(-g)        # use gpt-4 instead of gpt-3.5-turbo
+  --large_model(-k) # use gpt-3.5-turbo-16k (gpt-4-32k) if model is gpt-3.5-turbo (gpt-4)
   #
   #Inspired by https://github.com/zurawiki/gptcommit
 ] {
-  let max_words = if $gpt4 {2400} else {1400}
-  let max_words_short = if $gpt4 {3400} else {1930}
+  let max_words = (
+    if $large_model {
+      if $gpt4 {15400} else {7400}
+    } else {
+      if $gpt4 {3400} else {1400}
+    }
+  )
+
+  let max_words_short = (
+    if $large_model {
+      if $gpt4 {15930} else {7930}
+    } else {
+      if $gpt4 {3930} else {1930}
+    }
+  )
 
   print (echo-g "asking chatgpt to summarize the differences in the repository...")
   let question = (git diff | str replace "\"" "'" -a)
@@ -236,23 +267,23 @@ export def "ai git-push" [
       match $gpt4 {
         true => {
           try {
-            chat_gpt $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m "gpt-4"
+            chat_gpt $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m "gpt-4" -k $large_model
           } catch {
             try {
-              chat_gpt $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m "gpt-4"
+              chat_gpt $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m "gpt-4" -k $large_model
             } catch {
-            chat_gpt $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d -m "gpt-4"
+            chat_gpt $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d -m "gpt-4" -k $large_model
             }
           }
         },
         false => {
           try {
-            chat_gpt $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d
+            chat_gpt $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -k $large_model
           } catch {
             try {
-              chat_gpt $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d
+              chat_gpt $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -k $large_model
             } catch {
-            chat_gpt $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d
+            chat_gpt $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d -k $large_model
             }
           }
         }
@@ -268,7 +299,6 @@ export def "ai git-push" [
 
   print (echo-g "resulting commit message:")
   print (echo $commit)
-  print (echo "\n")
   print (echo-g "pushing the changes with that commit message...\n")
   git add -A
   git status
