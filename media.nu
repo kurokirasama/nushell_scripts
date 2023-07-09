@@ -44,7 +44,7 @@ export def "media mpv-info" [file?] {
 export def "media trans-sub" [
   file?
   --from = "en-US" #from which language you are translating (default english: en-US)
-  --openai         #use openai api to make the translations
+  --open_ai        #use openai api to make the translations
   #
   #`? trans` for more info on languages
 ] {
@@ -64,16 +64,16 @@ export def "media trans-sub" [
     $file_content
     | enumerate
     | each {|line|
-        print (echo $line.item)
+        # print (echo $line.item)
         if (not $line.item =~ "-->") and (not $line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
           let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
-          let translated = ($fixed_line | trans --from $from --openai $openai)
+          let translated = ($fixed_line | trans --from $from --openai $open_ai)
 
-          if $translated =~ "error:" {
+          if ($translated | is-empty) or ($translated =~ "error:") {
             return-error $"error while translating: ($translated)"
             return
           } else {
-            print (echo ($line.item + "\ntranslated to\n" + $translated))
+            # print (echo ($line.item + "\ntranslated to\n" + $translated))
 
             $translated | ansi strip | save --append $new_file
             "\n" | save --append $new_file
@@ -82,7 +82,7 @@ export def "media trans-sub" [
           $line.item | save --append $new_file
           "\n" | save --append $new_file
         }
-        # print -n (echo-g $"\r($line.index / $lines * 100 | math round -p 3)%")
+        print -n (echo-g $"\r($line.index / $lines * 100 | math round -p 3)%")
       } 
   } else {
     let start = (cat $new_file | decode utf-8 | lines | length)
@@ -93,7 +93,7 @@ export def "media trans-sub" [
     | each {|line|
         if (not $line.item =~ "-->") and (not $line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
           let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
-          let translated = ($fixed_line | trans --from $from --openai $openai)
+          let translated = ($fixed_line | trans --from $from --openai $open_ai)
 
           if $translated =~ "error:" {
             return-error $"error while translating: ($translated)"
