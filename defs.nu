@@ -616,9 +616,28 @@ export def qrenc [url] {
 export def get-monitors [] {
   xrandr | lines | range 1..5 | parse -r '(\S+)\s+(\S+).*'
 }
+
+#backup nchat settings
+export def "nchat backup" [] {
+  cd $env.MY_ENV_VARS.linux_backup
+
+  let source_dir = ("~/.nchat" | path expand)
+  
+  7z max nchat_config.7z ($source_dir + "/*.conf")
+}
+
+#restore nchat settings
+export def "nchat restore" [] {
+  cd $env.MY_ENV_VARS.linux_backup
+
+  7z x nchat_config.7z -o/home/kira/.nchat
+}
+
+
 ## appimages
 
 #open balena-etche
 export def balena [] {
   bash -c $"([$env.MY_ENV_VARS.appImages 'balenaEtcher.AppImage'] | path join) 2>/dev/null &"
 }
+

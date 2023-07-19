@@ -7,7 +7,6 @@ let-env PATH = (
   | flatten
   | append '/usr/local/Polyspace/R2019b/bin' 
   | append '/usr/local/go/bin' 
-  | append '/home/kira/go/bin' 
   | append '/home/kira/Yandex.Disk/Comandos_bash_for_nushell'
   | append $"/home/kira/R/x86_64-pc-linux-gnu-library/(ls /home/kira/R/x86_64-pc-linux-gnu-library | sort-by name | last | get name | split row "/" | last)/rush/exec"
   | append "/usr/local/texlive/2022/bin/x86_64-linux"

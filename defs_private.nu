@@ -8,18 +8,19 @@ export def ssh-termux [ip?] {
 export def ssh-to [
   --user(-u) = "kira"
   --port(-p) = 5699
-  --ubb(-u)
-  --ubb_max(-m)
+  --ubb_laptop(-l)
+  --ubb_desktop(-d)
 ] {
+  let ips = (open '~/Yandex.Disk/Android Devices/Apps/Termux/ips.json')
+  
   let ip = (
-    if $ubb {
-      open "~/Yandex.Disk/Android Devices/Apps/Termux/ips_ubb.json"
-    } else if $ubb_max {
-      open "~/Yandex.Disk/Android Devices/Apps/Termux/ips_ubb_max.json"
+    if $ubb_laptop {
+      $ips | get ubb_laptop | get external
+    } else if $ubb_desktop {
+      $ips | get ubb_desktop | get external
     } else {
-      open "~/Yandex.Disk/Android Devices/Apps/Termux/ips_deathnote.json"
+      $ips | get deathnote | get internal
     } 
-    | get internal
   )
 
   print (echo-g $"connecting to ($ip)...")
@@ -60,7 +61,7 @@ export def copy-research-2-ubbdrive [
 export def ubb_announce [message] {
   let content = $"{\"content\": \"($message)\"}"
 
-  let weburl = (open-credential ([$env.MY_ENV_VARS.credentials "discord_webhooks.json.asc"] | path join) | get cursos_ubb_announce)
+  let weburl = $env.MY_ENV_VARS.api_keys.discord_webhooks.cursos_ubb_announce
 
   http post $weburl $content --content-type "application/json"
 }  
@@ -118,7 +119,7 @@ export def up2ubb [year = 2022, sem = 02] {
 export def med_discord [message] {
   let content = $"{\"content\": \"($message).\"}"
 
-  let weburl = (open-credential ([$env.MY_ENV_VARS.credentials "discord_webhooks.json.asc"] | path join) | get medicos)
+  let weburl = $env.MY_ENV_VARS.api_keys.discord_webhooks.medicos
 
   http post $weburl $content --content-type "application/json"
 }  
@@ -207,3 +208,27 @@ export def "ubb calendar" [
   | split column '|:|' 
   | rename Evento Fecha
 }
+
+#filter regular students from all students file
+export def "ubb get-regular" [
+  file?:string #xlsx downloaded from intranet
+] {
+  let file = if ($file | is-empty) {$in | get name} else {$file}
+  let filename = ($file | path parse | get stem)
+
+  open $file 
+  | get Sheet1 
+  | headers 
+  | where "Situación Académica" =~ REGULAR
+  | sort-by "Año Ingreso Carrera" -r
+  | save -f $"($filename).csv"
+
+  let mounted = ("~/gdrive/VClasses/" | path expand | path exists)
+  if not $mounted {
+    print (echo-g "mounting gdrive...")
+    mount-ubb
+  }
+
+  cp $"($filename).csv" ~/gdrive/Depto/DireccionEscuelaIngenieria/Monitoreo/
+
+} 
