@@ -187,6 +187,8 @@ export def github-app-update [
         if $install == "y" {
           sudo gdebi -n ($info.name | ansi strip)
         }
+      } else {
+        print (echo-g "file downloaded...")
       }
     } else {
       print (echo-g $"($repo) is already in its latest version!")
@@ -207,7 +209,7 @@ export def github-app-update [
 
 #update nyxt deb
 export def "apps-update nyxt" [] {
-  github-app-update atlas-engineer nyxt
+  github-app-update atlas-engineer nyxt -f flatpak
 }
 
 #update pandoc deb
