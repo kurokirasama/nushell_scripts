@@ -381,7 +381,7 @@ export def "media to" [
   --mkv(-m)  #include mkv files (for mp4 only)
   #
   #Examples (make sure there are only compatible files in all subdirectories)
-  #media-to mp4 (avi to mp4)
+  #media-to mp4 (avi/mkv to mp4)
   #media-to mp4 -c (avi to mp4)
   #media-to aac (audio files to aac)
   #media-to mp3 (audio files to mp3)
@@ -451,7 +451,7 @@ export def "media to" [
         | insert "ext" {|| 
             $in.name | path parse | get extension
           }  
-        | where ext =~ "avi"
+        | where ext =~ "mkv"
         | length
       )
 
