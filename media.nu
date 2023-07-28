@@ -459,9 +459,9 @@ export def "media to" [
 
       if $n_files > 0 {
         if $copy {
-          bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v copy -c:a mp3 -c:s mov_text {.}.mp4'
+          bash -c 'find . -type f -name "*.mkv" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v copy -c:a mp3 -c:s mov_text {.}.mp4'
         } else {
-          bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v libx264 -c:a aac -c:s mov_text {.}.mp4'
+          bash -c 'find . -type f -name "*.mkv" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v libx264 -c:a aac -c:s mov_text {.}.mp4'
         }
 
         let aacs = (ls **/* 
