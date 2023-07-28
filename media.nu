@@ -376,10 +376,11 @@ export def "media split-video" [
 
 #convert media files recursively to specified format
 export def "media to" [
-  to:string         #destination format (aac, mp3 or mp4)
-  --copy(-c)        #copy video codec and audio to mp3 (for mp4 only)
-  --mkv(-m)         #include mkv files (for mp4 only)
-  --file(-f):string #specify unique file to convert
+  to:string                 #destination format (aac, mp3 or mp4)
+  --copy(-c)                #copy video codec and audio to mp3 (for mp4 only)
+  --mkv(-m)                 #include mkv files (for mp4 only)
+  --file(-f):string         #specify unique file to convert
+  --vcodec(-v) = "libx264"  #video codec (for single file only)
   #
   #Examples (make sure there are only compatible files in all subdirectories)
   #media-to mp4 (avi/mkv to mp4)
@@ -497,9 +498,9 @@ export def "media to" [
         }
       } else {
         if $ext =~ "mkv" {
-          ffmpeg -n -loglevel 48 -i $file -c:v libx264 -c:a aac -c:s mov_text $"($filename).($to)"
+          ffmpeg -n -loglevel 48 -i $file -c:v $vcodec -c:a aac -c:s mov_text $"($filename).($to)"
         } else {
-          ffmpeg -n -loglevel 48 -i $file -c:v libx264 -c:a aac $"($filename).($to)"
+          ffmpeg -n -loglevel 48 -i $file -c:v $vcodec -c:a aac $"($filename).($to)"
         }
       }
     } 
