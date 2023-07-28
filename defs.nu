@@ -633,6 +633,16 @@ export def "nchat restore" [] {
   7z x nchat_config.7z -o/home/kira/.nchat
 }
 
+#backup gnome extensions settings
+export def "gnome-settings backup" [] {
+  dconf dump /org/gnome/shell/extensions/ 
+  | save -f ([$env.MY_ENV_VARS.linux_backup extensions/gnome_shell_extensions_backup.txt] | path join)
+}
+
+#restore gnome extensions settings
+export def "gnome-settings restore" [] {
+  bash -c $"dconf load /org/gnome/shell/extensions/ < ([$env.MY_ENV_VARS.linux_backup extensions/gnome_shell_extensions_backup.txt] | path join)"
+}
 
 ## appimages
 
