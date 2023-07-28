@@ -376,9 +376,10 @@ export def "media split-video" [
 
 #convert media files recursively to specified format
 export def "media to" [
-  to:string  #destination format (aac, mp3 or mp4)
-  --copy(-c) #copy video codec and audio to mp3 (for mp4 only)
-  --mkv(-m)  #include mkv files (for mp4 only)
+  to:string         #destination format (aac, mp3 or mp4)
+  --copy(-c)        #copy video codec and audio to mp3 (for mp4 only)
+  --mkv(-m)         #include mkv files (for mp4 only)
+  --file(-f):string #specify unique file to convert
   #
   #Examples (make sure there are only compatible files in all subdirectories)
   #media-to mp4 (avi/mkv to mp4)
@@ -386,83 +387,51 @@ export def "media to" [
   #media-to aac (audio files to aac)
   #media-to mp3 (audio files to mp3)
 ] {
-  #to aac or mp3
-  if $to =~ "aac" or $to =~ "mp3" {
-    let n_files = (bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.3gp" -not -name  "*.($to)"'
-        | lines 
-        | length
-    )
-
-    print (echo-g $"($n_files) audio files found...")
-
-    if $n_files > 0 {
-      bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.3gp" -not -name "*.($to)" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:a ($to) -b:a 64k {.}.($to)'
-
-      let aacs = (ls **/* 
-        | insert "ext" {|| 
-            $in.name | path parse | get extension
-          }  
-        | where ext =~ $to 
-        | length
+  if ($file | is-empty) {
+    #to aac or mp3
+    if $to =~ "aac" or $to =~ "mp3" {
+      let n_files = (bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.3gp" -not -name  "*.($to)"'
+          | lines 
+          | length
       )
 
-      if $n_files == $aacs {
-        print (echo-g $"audio conversion to ($to) done")
-      } else {
-        return-error $"audio conversion to ($to) done, but something might be wrong"
-      }
-    }
-  #to mp4
-  } else if $to =~ "mp4" {
-    let n_files = (ls **/*
-        | insert "ext" {|| 
-            $in.name | path parse | get extension
-          }  
-        | where ext =~ "avi"
-        | length
-    )
-
-    print (echo-g $"($n_files) avi files found...")
-
-    if $n_files > 0 {
-      if $copy {
-        bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v copy -c:a mp3 {.}.mp4'
-      } else {
-        bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v libx264 -c:a aac {.}.mp4'
-      }
-
-      let aacs = (ls **/* 
-        | insert "ext" {|| 
-            $in.name | path parse | get extension
-          }  
-        | where ext =~ "mp4"
-        | length
-      )
-
-      if $n_files == $aacs {
-        print (echo-g $"avi video conversion to mp4 done")
-      } else {
-        return-error "video conversion to mp4 done, but something might be wrong"
-      }
-    }
-
-    if $mkv {
-      let n_files = (ls **/*
-        | insert "ext" {|| 
-            $in.name | path parse | get extension
-          }  
-        | where ext =~ "mkv"
-        | length
-      )
-
-      print (echo-g $"($n_files) mkv files found...")
+     print (echo-g $"($n_files) audio files found...")
 
       if $n_files > 0 {
-        if $copy {
-          bash -c 'find . -type f -name "*.mkv" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v copy -c:a mp3 -c:s mov_text {.}.mp4'
+        bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.3gp" -not -name "*.($to)" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:a ($to) -b:a 64k {.}.($to)'
+
+       let aacs = (ls **/* 
+         | insert "ext" {|| 
+             $in.name | path parse | get extension
+           }  
+         | where ext =~ $to 
+         | length
+       )
+
+        if $n_files == $aacs {
+          print (echo-g $"audio conversion to ($to) done")
         } else {
-          bash -c 'find . -type f -name "*.mkv" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v libx264 -c:a aac -c:s mov_text {.}.mp4'
+          return-error $"audio conversion to ($to) done, but something might be wrong"
         }
+      }
+    #to mp4
+    } else if $to =~ "mp4" {
+      let n_files = (ls **/*
+          | insert "ext" {|| 
+              $in.name | path parse | get extension
+            }  
+          | where ext =~ "avi"
+          | length
+      )
+
+      print (echo-g $"($n_files) avi files found...")
+
+     if $n_files > 0 {
+       if $copy {
+         bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v copy -c:a mp3 {.}.mp4'
+       } else {
+          bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v libx264 -c:a aac {.}.mp4'
+       }
 
         let aacs = (ls **/* 
           | insert "ext" {|| 
@@ -472,13 +441,68 @@ export def "media to" [
           | length
         )
 
-        if $n_files == $aacs {
-          print (echo-g $"mkv video conversion to mp4 done")
-        } else {
-          return-error "video conversion to mp4 done, but something might be wrong"
+       if $n_files == $aacs {
+         print (echo-g $"avi video conversion to mp4 done")
+       } else {
+         return-error "video conversion to mp4 done, but something might be wrong"
+       }
+      }
+
+      if $mkv {
+        let n_files = (ls **/*
+          | insert "ext" {|| 
+              $in.name | path parse | get extension
+            }  
+          | where ext =~ "mkv"
+          | length
+        )
+
+        print (echo-g $"($n_files) mkv files found...")
+
+        if $n_files > 0 {
+          if $copy {
+            bash -c 'find . -type f -name "*.mkv" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v copy -c:a mp3 -c:s mov_text {.}.mp4'
+         } else {
+           bash -c 'find . -type f -name "*.mkv" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v libx264 -c:a aac -c:s mov_text {.}.mp4'
+         }
+
+          let aacs = (ls **/* 
+            | insert "ext" {|| 
+                $in.name | path parse | get extension
+              }  
+            | where ext =~ "mp4"
+            | length
+          )
+
+         if $n_files == $aacs {
+           print (echo-g $"mkv video conversion to mp4 done")
+         } else {
+           return-error "video conversion to mp4 done, but something might be wrong"
+         }
         }
       }
     }
+  } else {
+    let filename = ($file | path parse | get stem)
+    let ext = ($file | path parse | get extension) 
+
+    if $to =~ "aac" or $to =~ "mp3" {
+      ffmpeg -n -loglevel 48 -i $file -c:a $to -b:a 64k $"($filename).($to)"
+    } else if $to =~ "mp4" {
+      if $copy {
+        if $ext =~ "mkv" {
+          ffmpeg -n -loglevel 48 -i $file -c:v copy -c:a mp3 -c:s mov_text $"($filename).($to)"
+        } else {
+          ffmpeg -n -loglevel 48 -i $file -c:v copy -c:a mp3 $"($filename).($to)"
+        }
+      } else {
+        if $ext =~ "mkv" {
+          ffmpeg -n -loglevel 48 -i $file -c:v libx264 -c:a aac -c:s mov_text $"($filename).($to)"
+        } else {
+          ffmpeg -n -loglevel 48 -i $file -c:v libx264 -c:a aac $"($filename).($to)"
+        }
+      }
+    } 
   }
 }
 
