@@ -4,6 +4,7 @@ use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/table_manipulation.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/files.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/crypt.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/defs.nu *
+use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/system.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/aliases.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/apis.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/media.nu *
