@@ -23,6 +23,7 @@ export def "gcal add" [
     if ($calendar | is-empty) {
       $env.MY_ENV_VARS.google_calendars_full 
       | split row "|"
+      | sort
       | input list (echo-g "Select calendar: ")
     } else {
       $calendar
