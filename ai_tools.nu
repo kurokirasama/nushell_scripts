@@ -731,7 +731,7 @@ export def "ai media-summary" [
   ai yt-transcription-summary (open $the_subtitle) $output -g $gpt4
 }
 
-#Upload a file to chatpdf server
+#upload a file to chatpdf server
 export def "chatpdf add" [
   file:string   #filename with extension
 ] {
@@ -742,7 +742,7 @@ export def "chatpdf add" [
   }
 
   let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
-  let database_file = ([$env.MY_ENV_VARS.credentials chatpdf_ids.json] | path join)
+  let database_file = ([$env.MY_ENV_VARS.chatgpt_config chatpdf_ids.json] | path join)
   let database = (open $database_file)
 
   let url = "https://api.chatpdf.com/v1/sources/add-file"
@@ -754,8 +754,9 @@ export def "chatpdf add" [
     return-error "there is already a file with the same name already uploaded!"
   }
         
+  let header = $"x-api-key: ($api_key)"
   # let response = (http post $url -t application/octet-stream $data -H ["x-api-key", $api])
-  let response = (curl -s -X POST $url -H $"x-api-key: ($api_key)" -F $"file=@($filepath)" | from json)
+  let response = (curl -s -X POST $url -H $header -F $"file=@($filepath)" | from json)
 
   if ($response | is-empty) {
     return-error "empty response!"
@@ -772,16 +773,93 @@ export def "chatpdf add" [
 export def "chatpdf del" [
 ] {
   let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
-  let database_file = ([$env.MY_ENV_VARS.credentials chatpdf_ids.json] | path join)
+  let database_file = ([$env.MY_ENV_VARS.chatgpt_config chatpdf_ids.json] | path join)
   let database = (open $database_file)
 
-  let selection = ($database | columns | input list "Select file to delete:")
+  let selection = ($database | columns | sort | input list (echo-g "Select file to delete:"))
 
   let url = "https://api.chatpdf.com/v1/sources/delete"
   let data = {"sources": [($database | get $selection)]}
-        
-  let response = (http post $url -t application/json $data -H ["x-api-key", $api_key])
+  
+  let header = ["x-api-key", ($api_key)] 
+  let response = (http post $url -t application/json $data -H $header)
   # let response = (curl -s -X POST $url -H 'Content-Type: application/json' -H $"x-api-key: ($api_key)" -d $data | from json)
 
   $database | reject $selection | save -f $database_file
+}
+
+#chat with a pdf via chatpdf
+export def "chatpdf ask" [
+  prompt?:string            #question to the pdf
+  --select_pdf(-s):string   #specify which book to ask via filename (without extension), otherwise select from list
+] {
+  let prompt = if ($prompt | is-empty) {$in} else {$prompt}
+
+  let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
+  let database_file = ([$env.MY_ENV_VARS.chatgpt_config chatpdf_ids.json] | path join)
+  let database = (open $database_file)
+
+  let selection = (
+    if ($select_pdf | is-empty) {
+      $database 
+      | columns 
+      | sort 
+      | input list (echo-g "Select pdf to ask a question:")
+    } else {
+      $select_pdf
+      | str downcase 
+      | str replace -a -s " " "_"
+    }
+  )
+
+  if ($selection not-in ($database | columns)) {
+    return-error "pdf not found in server!"
+  }
+
+  let url = "https://api.chatpdf.com/v1/chats/message"
+
+  let header = ["x-api-key", ($api_key)]  
+  let request = {
+    "referenceSources": true,
+    "sourceId": ($database | get $selection),
+    "messages": [
+      {
+        "role": "user",
+        "content": $prompt
+      }
+    ]
+  }
+
+  let answer = (http post -t application/json -H $header $url $request) 
+
+  return $answer.content
+}
+
+#fast call to chatpdf ask
+export def askpdf [
+  prompt?     #question to ask to the pdf
+  --rubb(-r)  #use rubb file, otherwhise select from list
+  --fast(-f)  #get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
+] {
+  let prompt = (
+    if not $fast {
+      if ($prompt | is-empty) {$in} else {$prompt}
+    } else {
+      open ~/Yandex.Disk/ChatGpt/prompt.md
+    }
+  )
+
+  let answer = (
+    if $rubb {
+      chatpdf ask $prompt -s rubb
+    } else {
+      chatpdf ask $prompt
+    } 
+  )
+
+  if $fast {
+    $answer | save -f ~/Yandex.Disk/ChatGpt/answer.md
+  } else {
+    return $answer  
+  } 
 }
