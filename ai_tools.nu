@@ -731,9 +731,57 @@ export def "ai media-summary" [
   ai yt-transcription-summary (open $the_subtitle) $output -g $gpt4
 }
 
-#chatpdf api wrapper
-export def chat_pdf [
-
+#Upload a file to chatpdf server
+export def "chatpdf add" [
+  file:string   #filename with extension
 ] {
+  let file = if ($file | is-empty) {$in | get name} else {$file}
 
+  if ($file | path parse | get extension | str downcase) != pdf {
+    return-error "wrong file type, it must be a pdf!"
+  }
+
+  let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
+  let database_file = ([$env.MY_ENV_VARS.credentials chatpdf_ids.json] | path join)
+  let database = (open $database_file)
+
+  let url = "https://api.chatpdf.com/v1/sources/add-file"
+
+  let filename = ($file | path parse | get stem | str downcase | str replace -a -s " " "_")
+  let filepath = ($file | path expand)
+
+  if ($filename in ($database | columns)) {
+    return-error "there is already a file with the same name already uploaded!"
+  }
+        
+  # let response = (http post $url -t application/octet-stream $data -H ["x-api-key", $api])
+  let response = (curl -s -X POST $url -H $"x-api-key: ($api_key)" -F $"file=@($filepath)" | from json)
+
+  if ($response | is-empty) {
+    return-error "empty response!"
+  } else if ("sourceId" not-in ($response | columns) ) {
+    return-error $response.message
+  }
+
+  let id = ($response | get sourceId)
+
+  $database | upsert $filename $id | save -f $database_file
+}
+
+#delete a file from chatpdf server
+export def "chatpdf del" [
+] {
+  let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
+  let database_file = ([$env.MY_ENV_VARS.credentials chatpdf_ids.json] | path join)
+  let database = (open $database_file)
+
+  let selection = ($database | columns | input list "Select file to delete:")
+
+  let url = "https://api.chatpdf.com/v1/sources/delete"
+  let data = {"sources": [($database | get $selection)]}
+        
+  let response = (http post $url -t application/json $data -H ["x-api-key", $api_key])
+  # let response = (curl -s -X POST $url -H 'Content-Type: application/json' -H $"x-api-key: ($api_key)" -d $data | from json)
+
+  $database | reject $selection | save -f $database_file
 }
