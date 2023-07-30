@@ -256,7 +256,12 @@ export def le [] {
 }
 
 #get list of files recursively
-export def get-files [--full(-f),--dir(-d):string,--full_path(-F)] {
+export def get-files [
+  --full(-f)
+  --dir(-d):string
+  --full_path(-F)
+  --sort_by_date(-t)
+] {
   if $full {
     if not ($dir | is-empty) {
       if $full_path {
@@ -287,7 +292,11 @@ export def get-files [--full(-f),--dir(-d):string,--full_path(-F)] {
     }
   } 
   | where type == file 
-  | sort-by -i name
+  | if $sort_by_date {
+    sort-by -i modified
+    } else {
+      sort-by -i name
+    }
 }
 
 
