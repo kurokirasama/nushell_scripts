@@ -823,34 +823,38 @@ export def "media delete-mps" [] {
 }
 
 #mpv
-export def mpv [video?, --puya(-p)] {
+export def mpv [video?, --puya(-p),--list(-l)] {
   let file = if ($video | is-empty) {$in} else {$video}
 
-  let file = (
-    switch ($file | typeof) {
-      "record": {|| 
-        $file
-        | get name
-        | ansi strip
-      },
-      "table": {||
-        $file
-        | get name
-        | get 0
-        | ansi strip
-      },
-    } { 
-        "otherwise": {|| 
+  if not $list {
+    let file = (
+      switch ($file | typeof) {
+        "record": {|| 
           $file
+          | get name
+          | ansi strip
+        },
+        "table": {||
+          $file
+          | get name
+          | get 0
+          | ansi strip
+        },
+      } { 
+          "otherwise": {|| 
+            $file
+          }
         }
-      }
-  )
+    )
 
-  if not $puya {
-    ^mpv --save-position-on-quit --no-border $file
+    if not $puya {
+      ^mpv --save-position-on-quit --no-border $file
+    } else {
+      ^mpv --save-position-on-quit --no-border --sid=2 $file
+    } 
   } else {
-    ^mpv --save-position-on-quit --no-border --sid=2 $file
-  } 
+    $file | each {|f| $f | mpv}
+  }
 }
 
 #extract audio from video file
