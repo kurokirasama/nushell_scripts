@@ -40,13 +40,18 @@ export def open-credential [file?,--ui(-u)] {
 }
 
 #save credentials
-export def save-credential [content:string,file:string] {
-	if ($file | is-empty) or ($content | is-empty) {
+export def save-credential [content,field:string] {
+	if ($field | is-empty) or ($content | is-empty) {
 		return-error "missing arguments!"
-		return
 	}
 
-	$content | save -f $file 
-	nu-crypt -e $file
-	rm -f $file | ignore
+	let credentials_e = ([$env.MY_ENV_VARS.credentials credentials.json.asc] | path join)
+	let credentials = ([$env.MY_ENV_VARS.credentials credentials.json] | path join)
+
+	open-credential $credentials_e
+	| upsert $field $content
+	| save -f $credentials
+
+	nu-crypt -e $credentials
+	rm -f $credentials | ignore
 }

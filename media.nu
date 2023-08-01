@@ -823,10 +823,10 @@ export def "media delete-mps" [] {
 }
 
 #mpv
-export def mpv [video?, --puya(-p),--list(-l)] {
+export def mpv [video?, --puya(-p)] {
   let file = if ($video | is-empty) {$in} else {$video}
 
-  if not $list {
+  if ($file | length) == 1 {
     let file = (
       switch ($file | typeof) {
         "record": {|| 

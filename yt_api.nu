@@ -173,7 +173,7 @@ export def yt-api [
 
   let response = (http get $"($url)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json'])
  
-  $response
+  return $response
 }
 
 #get youtube songs of playlist by id
@@ -240,7 +240,7 @@ export def "yt-api get-songs" [
     }
   )
 
-  $songs
+  return $songs
 }
 
 #download youtube music playlist to local database
@@ -516,7 +516,7 @@ export def-env "yt-api get-token" [] {
 
   let content = ($youtube_credential  | upsert token $token) 
   
-  save-credential $content ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join) 
+  save-credential $content youtube  
   
   let-env MY_ENV_VARS = (
     $env.MY_ENV_VARS
@@ -559,7 +559,7 @@ export def-env "yt-api get-refresh-token" [] {
 
   let content = ($youtube_credential | upsert refresh_token $refresh_token)
 
-  save-credential $content ([$env.MY_ENV_VARS.credentials "credentials.youtube.json"] | path join) 
+  save-credential $content youtube 
 
   let-env MY_ENV_VARS = (
     $env.MY_ENV_VARS
