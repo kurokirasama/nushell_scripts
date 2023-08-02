@@ -734,6 +734,7 @@ export def "ai media-summary" [
 #upload a file to chatpdf server
 export def "chatpdf add" [
   file:string   #filename with extension
+  label?:string #label for the pdf (default is downcase filename with underscores as spaces)
 ] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
 
@@ -753,6 +754,14 @@ export def "chatpdf add" [
   if ($filename in ($database | columns)) {
     return-error "there is already a file with the same name already uploaded!"
   }
+
+  if not ($label | is-empty) {
+     if ($label in ($database | columns)) {
+      return-error "there is already a file with the same label already uploaded!"
+   }
+  }
+
+  let filename = if ($label | is-empty) {$filename} else {label}
         
   let header = $"x-api-key: ($api_key)"
   # let response = (http post $url -t application/octet-stream $data -H ["x-api-key", $api])
