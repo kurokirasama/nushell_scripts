@@ -124,7 +124,7 @@ export def "rebrandly list" [longurl="www.google.com"] {
 }
 
 #get eta via maps api
-export def get_maps_eta [
+export def "maps eta" [
   origin:string       #origin gps coordinates or address
   destination:string  #destination gps coordinates or address
   --mode = "driving"  #driving mode (driving, transit, walking)
@@ -189,6 +189,29 @@ export def get_maps_eta [
   }
 
   return $output
+}
+
+#get geo-coordinates from address
+export def "maps loc-from-address" [address] {
+  let mapsAPIkey = $env.MY_ENV_VARS.api_keys.google.general
+  
+  let url = $"https://maps.google.com/maps/api/geocode/json?address=($address)&key=($mapsAPIkey)"
+
+  return (http get $url | get results | get geometry | get location | flatten)
+}
+
+#get address from geo-coordinates
+export def "maps address-from-loc" [latitude:number,longitude:number] {
+  let mapsAPIkey = $env.MY_ENV_VARS.api_keys.google.general
+  let url = $"https://maps.googleapis.com/maps/api/geocode/json?latlng=($latitude),($longitude)&key=($mapsAPIkey)"
+
+  let response = (http get $url)
+
+  if $response.status == OK {
+    return $response.results.0.formatted_address
+  } else {
+    return-error "address not found!"
+  }
 }
 
 #clp exchange rates via fixer.io API
