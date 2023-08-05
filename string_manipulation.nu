@@ -23,6 +23,12 @@ export def "str repeat" [count: int] {
   } 
 }
 
+#remove accent
+export def "str remove-accent" [text?:string] {
+  let text = if ($text | is-empty) {$in} else {$text} 
+  return ($text | sed 'y/áéíóúÁÉÍÓÚ/aeiouAEIOU/')
+}
+
 #convert hh:mm:ss to duration
 export def "into duration-from-hhmmss" [hhmmss?] {
   if ($hhmmss | is-empty) {
