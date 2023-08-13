@@ -94,10 +94,17 @@ export def openm [
 export def print-file [file?,--n_copies(-n):int] {
   let file = if ($file | is-empty) {$in | get name | ansi strip} else {$file}
   
-  if ($n_copies | is-empty) {
-    lp $file
+  if ($file | length) == 1 {
+    if ($n_copies | is-empty) {
+      lp $file
+    } else {
+      lp -n $n_copies $file
+    }
   } else {
-    lp -n $n_copies $file
+    $file
+    | each {|name| 
+        print-file $name
+      }
   }
 }
 
