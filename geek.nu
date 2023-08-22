@@ -6,7 +6,8 @@ export def "geek help" [] {
       - geek find
       - geek show
       - geek edit
-      - geek create\n"
+      - geek create
+      - geek export\n"
     | nu-highlight
   ) 
 }
@@ -91,4 +92,22 @@ export def "geek create" [
   #geek create "--title 'a note' --tag linux --content 'the content'"
 ] {
   nu -c (build-string "geeknote create" " " $commands)
+}
+
+#export evernote notes to enex files
+export def "geek export" [
+  folder = "evernote" # export folder name
+  #
+  #Needs evernote-backup pip package. 
+  #It is automatically installed if not.
+] {
+  pip show evernote-backup
+  if $env.LAST_EXIT_CODE != 0 {pip install --user evernote-backup}
+  
+  mkdir $folder
+  cd $folder
+
+  evernote-backup init-db --oauth
+  evernote-backup sync
+  evernote-backup export $folder
 }
