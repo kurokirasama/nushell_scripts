@@ -59,7 +59,7 @@ export def openl [] {
 }
 
 #open google drive file 
-export def openg [file?] {
+export def openg [file?,--copy(-c)] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
    
   let url = (open $file 
@@ -70,7 +70,7 @@ export def openg [file?] {
     | get url
   )
 
-  $url | xclip -sel clip
+  if $copy {$url | xclip -sel clip}
   print (echo-g $"($url) copied to clipboard!")
 }
 
