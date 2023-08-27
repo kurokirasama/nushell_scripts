@@ -34,13 +34,17 @@ adb shell pm disable-user --user 0 com.xiaomi.payment
 adb shell pm disable-user --user 0 com.google.android.marvin.talkback
 adb shell pm disable-user --user 0 com.xiaomi.xmsfkeeper
 adb shell pm disable-user --user 0 com.xiaomi.discover
-adb shell pm disable-user --user 0 com.miui.bugreport
+adb shell pm disable-user --user 0 com.mi.globalbrowser
+adb shell pm disable-user --user 0 com.mi.globalminusscreen
+adb shell pm disable-user --user 0 com.xiaomi.calendar
+adb shell pm disable-user --user 0 com.xiaomi.mipicks
+adb shell pm disable-user --user 0 com.miui.miservice
+
 
 ###not sure
 # adb shell pm disable-user --user 0 com.android.bookmarkprovider
 # adb shell pm disable-user --user 0 android.autoinstalls.config.Xiaomi.qssi
 # adb shell pm disable-user --user 0 com.miui.audiomonitor
-# adb shell pm disable-user --user 0 com.miui.miservice
 # adb shell pm disable-user --user 0 com.xiaomi.xmsf
 # adb shell pm disable-user --user 0 com.android.providers.partnerbookmarks
 

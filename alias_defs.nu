@@ -45,6 +45,6 @@ export def ytcli [] {
 
 #adbtasker
 export def adbtasker [] {
-  adb -s 9cdd570d tcpip 5555
-  adb shell pm grant com.fb.fluid android.permission.WRITE_SECURE_SETTINGS
+  adb -s ojprnfson7izpjkv tcpip 5555
+  # adb shell pm grant com.fb.fluid android.permission.WRITE_SECURE_SETTINGS
 }
