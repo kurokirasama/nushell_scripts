@@ -14,6 +14,6 @@ export def-env __zoxide_zi  [...rest:string@"nu-complete zoxide path"] {
   cd $'(zoxide query -i -- $rest | str trim -r -c "\n")'
 }
 
-# Commands for zoxide. Disable these using --no-cmd.
+# Commands for zoxide. Disable these using --no-cmd. 
 export alias z = __zoxide_z
 export alias zi = __zoxide_zi
