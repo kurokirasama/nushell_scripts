@@ -354,3 +354,13 @@ export def "gnome-settings backup" [] {
 export def "gnome-settings restore" [] {
   bash -c $"dconf load /org/gnome/shell/extensions/ < ([$env.MY_ENV_VARS.linux_backup extensions/gnome_shell_extensions_backup.txt] | path join)"
 }
+
+#backup libre office settings
+export def "libreoffice backup" [] {
+  cp -r ~/.config/libreoffice/* ([$env.MY_ENV_VARS.linux_backup libreoffice] | path join)
+}
+
+#restore libre office settings
+export def "libreoffice restore" [] {
+  cp -r ($env.MY_ENV_VARS.linux_backup + "/libreoffice/*") ~/.config/libreoffice/
+}
