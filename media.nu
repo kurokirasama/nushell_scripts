@@ -45,6 +45,7 @@ export def "media trans-sub" [
   file?
   --from = "en-US" #from which language you are translating
   --open_ai        #use openai api to make the translations
+  --notify(-n)     #notify to android via ntfy
   #
   #`? trans` for more info on languages
 ] {
@@ -111,6 +112,7 @@ export def "media trans-sub" [
         # print -n (echo-g $"\r(($line.index + $start) / $lines * 100 | math round -p 3)%")
       } 
   } 
+  if $notify {"translation finished!" | ntfy-send}
 }
 
 #sync subtitles
@@ -156,6 +158,7 @@ export def "media remove-noise" [
   output?              #output file name without extension, wav or mp3 produced
   --delete(-d) = true  #whether to delete existing tmp files or not
   --outExt(-E) = "wav" #output format, mp3 or wav
+  --notify(-n)         #notify to android via ntfy
 ] {
   if $delete {
     try {
@@ -200,6 +203,7 @@ export def "media remove-noise" [
   }
 
   notify-send "noise removal done!"
+  if $notify {"noise removal finished!" | ntfy-send}
 }
 
 #remove audio noise from video
@@ -210,6 +214,7 @@ export def "media remove-audio-noise" [
   noiseLevel      #level reduction adjustment (0.2-0.3)
   output?         #output file name with extension (same extension as $file)
   --merge = true  #whether to merge clean audio with video
+  --notify(-n)    #notifua to android via ntfy
 ] {
   try {
     ls ([$env.PWD tmp*] | path join) | rm-pipe
@@ -243,6 +248,7 @@ export def "media remove-audio-noise" [
 
   print (echo-g "done!")
   notify-send "noise removal done!"
+  if $notify {"noise removal finished!" | ntfy-send}
 }
 
 #screen record
@@ -298,8 +304,9 @@ export def "media screen-record" [
 
 #remove audio from video file
 export def "media remove-audio" [
-  input_file: string  #the input file
+  input_file: string #the input file
   output_file?       #the output file
+  --notify(-n)       #notify to android via ntfy
 ] {
   let output_file = (
     if ($output_file | is-empty) {
@@ -308,7 +315,12 @@ export def "media remove-audio" [
       $output_file
     }
   )
-  myffmpeg -n -loglevel 0 -i $input_file -c copy -an $output_file
+  try {
+    myffmpeg -n -loglevel 0 -i $input_file -c copy -an $output_file
+  } catch {
+    ffmpeg -n -loglevel 0 -i $input_file -c copy -an $output_file
+  }
+  if $notify {"summary finished!" | ntfy-send}
 }
 
 #cut segment of video file
@@ -318,6 +330,7 @@ export def "media cut-video" [
   SEGEND                   #timestamp of the end of the segment (hh:mm:ss)
   --output_file(-o):string #output file
   --append(-a) = "cutted"  #append to file name
+  --notify(-n)             #notify to android via ntfy
 ] {
   let ext = ($file | path parse | get extension)
   let name = ($file | path parse | get stem)
@@ -330,7 +343,12 @@ export def "media cut-video" [
     }
   )
 
-  myffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
+  try {
+    myffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
+  } catch {
+    ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
+  }
+  if $notify {"summary finished!" | ntfy-send}
 }
 
 #split video file
@@ -339,6 +357,7 @@ export def "media split-video" [
   --number_segments(-n):int #number of pieces to generate (takes precedence over -d)
   --duration(-d):duration   #duration of each segment (in duration format) except probably the last one
   --delta = 10sec           #duration of overlaping beetween segments.
+  --notify(-n)              #notify to android via ntfy
 ] {
   let full_length = (
     media video-info $file
@@ -372,6 +391,7 @@ export def "media split-video" [
 
   print (echo-g $"generating part ($n_segments): ($segment_start) - ($full_hhmmss)...")
   media cut-video $file $segment_start $full_hhmmss -a $n_segments
+  if $notify {"video split finished!" | ntfy-send}
 }
 
 #convert media files recursively to specified format
@@ -381,6 +401,7 @@ export def "media to" [
   --mkv(-m)                 #include mkv files (for mp4 only)
   --file(-f):string         #specify unique file to convert
   --vcodec(-v) = "libx264"  #video codec (for single file only)
+  --notify(-n)              #notify to android via ntfy
   #
   #Examples (make sure there are only compatible files in all subdirectories)
   #media-to mp4 (avi/mkv to mp4)
@@ -505,6 +526,7 @@ export def "media to" [
       }
     } 
   }
+  if $notify {"conversion finished!" | ntfy-send}
 }
 
 #cut segment from audio file
@@ -513,26 +535,35 @@ export def "media cut-audio" [
   outfile:string  #output audio file
   start:int       #start of the piece to extract (s) 
   duration:int    #duration of the piece to extract (s)
+  --notify(-n)    #notify to android via ntfy
   #
   #Example: cut 10s starting at second 60 
   #cut_audio input.ext output.ext 60 10
 ] {  
-  myffmpeg -ss $start -i $"($infile)" -t $duration -c copy $"($outfile)"
+  try {
+    myffmpeg -ss $start -i $"($infile)" -t $duration -c copy $"($outfile)"
+  } catch {
+    ffmpeg -ss $start -i $"($infile)" -t $duration -c copy $"($outfile)"
+  }
+  if $notify {"cut finished!" | ntfy-send}
 }
 
 #merge subs to mkv video
 export def "media merge-subs" [
-  filename  #name (without extencion) of both subtitle and mkv file
-] {
+  filename     #name (without extencion) of both subtitle and mkv file
+  --notify(-n) #notify to android via ntfy
+] { 
   mkvmerge -o myoutput.mkv  $"($filename).mkv" --language "0:spa" --track-name $"0:($filename)" $"($filename).srt"
   mv myoutput.mkv $"($filename).mkv"
   rm $"($filename).srt" | ignore
+  if $notify {"subs merge finished!" | ntfy-send}
 }
 
 #merge videos
 export def "media merge-videos" [
-  list   #text file with list of videos to merge
-  output #output file
+  list         #text file with list of videos to merge
+  output       #output file
+  --notify(-n) #notify to android via ntfy
   #
   #To get a functional output, all audio sample rate must be the same
   #check with video-info video_file
@@ -551,13 +582,15 @@ export def "media merge-videos" [
   myffmpeg -f concat -safe 0 -i $"($list)" -c copy $"($output)"
   
   print (echo-g "done!")
-  notify-send "video merging done!"
+  notify-send "video merge done!"
+  if $notify {"video merge finished!" | ntfy-send}
 }
 
 #auto merge all videos in dir
 export def "media merge-videos-auto" [
   ext    #unique extension of all videos to merge
   output #output file
+  --notify(-n) #notify to android via ntfy
   #
   #To get a functional output, all audio sample rate must be the same
   #check with video-info video_file
@@ -581,7 +614,8 @@ export def "media merge-videos-auto" [
   myffmpeg -f concat -safe 0 -i list.txt -c copy $"($output)"
       
   print (echo-g "done!")
-  notify-send "video merging done!"
+  notify-send "video merge done!"
+  if $notify {"video merge finished!" | ntfy-send}
 }
 
 #reduce size of video files recursively, to mp4 x265
@@ -591,7 +625,8 @@ export def "media compress-video" [
   --crf(-c) = 28            #compression rate, range 0-51, sane range 18-28.
   --vcodec(-v) = "libx265"  #video codec: libx264 | libx265.
   --mkv(-m)                 #include mkv files
-  --append(-a) = "compressed_by_me" # what to append to compressed file names
+  --append(-a) = "com"      # what to append to compressed file names
+  --notify(-n)              #notify to android via ntfy
   #
   #Considers only mp4 and webm files
   #
@@ -698,6 +733,16 @@ export def "media compress-video" [
           ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
         }
       },
+      "webm" : {||
+        try {
+          print (echo-g "trying myffmpeg...")
+          myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+        } catch {
+          print (echo-r "failed myffmpeg...")
+          print (echo-g "trying ffmpeg...")
+          ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+        }
+      },
       "mkv" : {||
         try {
           print (echo-g "trying myffmpeg...")
@@ -710,6 +755,7 @@ export def "media compress-video" [
       }
     }
   }
+  if $notify {"compression finished!" | ntfy-send}
 }
 
 #delete original videos after compression recursively
@@ -862,6 +908,7 @@ export def mpv [video?, --puya(-p)] {
 export def "media extract-audio" [
   filename
   --audio_format(-a) = "mp3" #audio output format, wav or mp3
+  --notify(-n)               #notify to android via mpv
 ] {
   let file = ($filename | path parse | get stem)
 
@@ -870,4 +917,5 @@ export def "media extract-audio" [
     "mp3" : {|| ffmpeg -loglevel 1 -i $"($filename)" -ar 44100 -ac 2 -ab 192k -f mp3 -vn $"($file).mp3"},
     "wav" : {|| ffmpeg -loglevel 1 -i $"($filename)" -acodec pcm_s16le -ar 128k -vn $"($file).wav"}
   }
+  if $notify {"extraction finished!" | ntfy-send}
 }

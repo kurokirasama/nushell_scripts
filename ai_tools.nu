@@ -311,6 +311,7 @@ export def "ai audio2text" [
   filename                    #audio file input
   --language(-l) = "Spanish"  #language of audio file
   --output_format(-o) = "txt" #output format: txt (default), vtt, srt, tsv, json, all
+  --notify(-n)                #notify to android via ntfy
 ] {
   let file = ($filename | path parse | get stem)
 
@@ -331,11 +332,14 @@ export def "ai audio2text" [
 
   print (echo-g "transcribing to text...")
   whisper $"($file)-clean.mp3" --language $language --output_format $output_format --verbose False --fp16 False
+
+  if $notify {"transcription finished!" | ntfy-send}
 }
 
 #screen record to text transcription 
 export def "ai screen2text" [
---transcribe = true #whether to transcribe or not. Default true, false means it just extracts audio
+  --summary(-s) = true #whether to summarize the transcription. false means it just extracts audio
+  --notify(-n)         #notify to android via ntfy
 ] {
   let file = (date now | date format "%Y%m%d_%H%M%S")
 
@@ -353,8 +357,11 @@ export def "ai screen2text" [
 
   ai audio2text $"($file).mp3"
 
-  if $transcribe {
+  if $notify {"audio extracted!" | ntfy-send}
+
+  if $summary {
     ai transcription-summary $"($file | path parse | get stem)-clean.txt"
+    if $notify {"summary finished!" | ntfy-send}
   }
 }
 
@@ -362,7 +369,8 @@ export def "ai screen2text" [
 export def "ai video2text" [
   file?:string                #video file name with extension
   --language(-l) = "Spanish"  #language of audio file
-  --transcribe = true #whether to transcribe or not. Default true, false means it just extracts audio
+  --summary(-s) = true        #whether to transcribe or not. Default true, false means it just extracts audio
+  --notify(-n)                #notify to android via ntfy
 ] {
   let file = if ($file | is-empty) {$in} else {$file}
   
@@ -370,8 +378,11 @@ export def "ai video2text" [
 
   ai audio2text $"($file | path parse | get stem).mp3" -l $language
 
-  if $transcribe {
+  if $notify {"audio extracted!" | ntfy-send}
+
+  if $summary {
     ai transcription-summary $"($file | path parse | get stem)-clean.txt"
+    if $notify {"summary finished!" | ntfy-send}
   }
 }
 
@@ -380,6 +391,7 @@ export def "ai transcription-summary" [
   file                #text file name with transcription text
   --gpt4(-g) = false  #whether to use gpt-4 (default false)
   --upload(-u) = true #whether to upload to gdrive (default true) 
+  --notify(-n)        #notify to android via ntfy
 ] {
   #removing existing temp files
   ls | where name =~ "split|summaries" | rm-pipe
@@ -439,10 +451,12 @@ export def "ai transcription-summary" [
       cp $output $up_folder
     }
 
+    if $notify {"summary finished!" | ntfy-send}
     return
   }
   
   ai transcription-summary-single $file -u $upload -g $gpt4 
+  if $notify {"summary finished!" | ntfy-send}
 }
 
 #resume transcription via gpt in one go
@@ -480,6 +494,7 @@ export def "ai audio2summary" [
   file
   --gpt4(-g)          #whether to use gpt-4 (default false)
   --upload(-u) = true #whether to upload the summary and audio to gdrive (dafault true)
+  --notify(-n)        #notify to android via ntfy
 ] {
   ai audio2text $file
   ai transcription-summary $"($file | path parse | get stem)-clean.txt" -u $upload -g $gpt4
@@ -487,6 +502,7 @@ export def "ai audio2summary" [
     print (echo-g $"uploading ($file)...")
     cp $"($file | path parse | get stem)-clean.mp3" ($env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory)
   }
+  if $notify {"summary finished!" | ntfy-send}
 }
 
 #generate subtitles of video file via whisper and mymemmory/openai api
@@ -494,6 +510,7 @@ export def "ai generate-subtitles" [
   file                               #input video file
   --language(-l) = "en-US/English"   #language of input video file, mymmemory/whisper (default en-US/English)
   --translate(-t) = false            #to translate to spanish
+  --notify(-n)                       #notify to android via ntfy
   #
   #`? trans` and `whisper --help` for more info on languages
 ] {
@@ -502,8 +519,11 @@ export def "ai generate-subtitles" [
   media extract-audio $file 
   ai audio2text $"($filename).mp3" -o srt -l ($language | split row "/" | get 1)
 
+  if $notify {"subtitle generated!" | ntfy-send}
+
   if $translate {
     media trans-sub $"($filename).srt" --from ($language | split row "/" | get 0)
+    if $notify {"subtitle translated!" | ntfy-send}
   }
 }
 
@@ -526,6 +546,7 @@ export def "ai yt-summary" [
   url?:string       # video url
   --lang = "en"     # language of the summary (default english: en)
   --gpt4(-g)        # to use gpt4 instead of gpt-3.5
+  --notify(-n)      # notify to android via ntfy
   #
   #Two characters words for languages
   #es: spanish
@@ -620,10 +641,12 @@ export def "ai yt-summary" [
       chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d | save -f $output
     }
 
+    if $notify {"summary finished!" | ntfy-send}
     return
   }
   
   ai yt-transcription-summary (open $the_subtitle) $output -g $gpt4
+  if $notify {"summary finished!" | ntfy-send}
 }
 
 #resume youtube video transcription text via gpt
@@ -631,6 +654,7 @@ export def "ai yt-transcription-summary" [
   prompt              #transcription text
   output              #output name without extension
   --gpt4(-g) = false  #whether to use gpt-4 (default false)
+  --notify(-n)        #notify to android via ntfy
 ] {
   let output_file = $"($output)_summary.md"
 
@@ -640,6 +664,7 @@ export def "ai yt-transcription-summary" [
   } else {
     chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt summarize_ytvideo -d | save -f $output_file
   }
+  if $notify {"summary finished!" | ntfy-send}
 }
 
 #get a summary of a video or audio via chatgpt
@@ -647,6 +672,7 @@ export def "ai media-summary" [
   file:string            # video, audio or subtitle file (vtt, srt) file name with extension
   --lang(-l) = "Spanish" # language of the summary
   --gpt4(-g)             # to use gpt4 instead of gpt-3.5
+  --notify(-n)           # notify to android via ntfy
   #
   #Two characters words for languages
   #es: spanish
@@ -725,16 +751,19 @@ export def "ai media-summary" [
       chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d | save -f $output
     }
 
+    if $notify {"summary finished!" | ntfy-send}
     return
   }
   
   ai yt-transcription-summary (open $the_subtitle) $output -g $gpt4
+  if $notify {"summary finished!" | ntfy-send}
 }
 
 #upload a file to chatpdf server
 export def "chatpdf add" [
   file:string   #filename with extension
   label?:string #label for the pdf (default is downcase filename with underscores as spaces)
+  --notify(-n)  #notify to android via ntfy
 ] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
 
@@ -776,6 +805,7 @@ export def "chatpdf add" [
   let id = ($response | get sourceId)
 
   $database | upsert $filename $id | save -f $database_file
+  if $notify {"upload finished!" | ntfy-send}
 }
 
 #delete a file from chatpdf server
@@ -848,8 +878,12 @@ export def "chatpdf ask" [
 export def askpdf [
   prompt?     #question to ask to the pdf
   --rubb(-r)  #use rubb file, otherwhise select from list
+  --btx(-b)   #use btx file, otherwhise select from list
   --fast(-f)  #get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
 ] {
+  if $rubb and $btx {
+    return-error "only one of these flags allowed!"
+  }
   let prompt = (
     if not $fast {
       if ($prompt | is-empty) {$in} else {$prompt}
@@ -861,9 +895,11 @@ export def askpdf [
   let answer = (
     if $rubb {
       chatpdf ask $prompt -s rubb
+    } else if $btx {
+      chatpdf ask ($prompt + (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join) | get chatpdf_btx)) -s btx
     } else {
       chatpdf ask $prompt
-    } 
+    }
   )
 
   if $fast {
