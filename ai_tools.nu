@@ -908,3 +908,8 @@ export def askpdf [
     return $answer  
   } 
 }
+
+#list uploaded documents
+export def "chatpdf list" [] {
+  open ([$env.MY_ENV_VARS.chatgpt_config chatpdf_ids.json] | path join) | columns
+}
