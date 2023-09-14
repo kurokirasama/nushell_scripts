@@ -61,10 +61,15 @@ export def apps-update [] {
     print (echo-r "Something went wrong with earth instalation!")
   }
   try {
-    apps-update chrome
+    apps-update vivaldi
   } catch {
-    print (echo-r "Something went wrong with chrome instalation!")
+    print (echo-r "Something went wrong with vivaldi instalation!")
   }
+  # try {
+  #   apps-update chrome
+  # } catch {
+  #   print (echo-r "Something went wrong with chrome instalation!")
+  # }
 }
 
 #get latest release info in github repo
@@ -561,6 +566,50 @@ export def "apps-update ttyplot" [] {
   }
 }
 
+#update vivaldi
+export def "apps-update vivaldi" [] {
+  cd $env.MY_ENV_VARS.debs
+  
+  let release_url = (
+    http get "https://vivaldi.com/download/"
+    | query web -q .download-link -a href 
+    | find deb 
+    | find amd64 
+    | get 0
+  )
+
+  if ($release_url | length) == 0 {
+    return-error "no releases found!"
+    return
+  }
+
+  let last_version = (
+    $release_url 
+    | split row _ 
+    | get 1
+  )
+
+  let current_version = (
+    ls 
+    | where name =~ vivaldi 
+    | get 0 
+    | get name 
+    | split row _ 
+    | get 1
+  )
+
+  if $current_version != $last_version {
+    ls | find vivaldi | find deb | rm-pipe | ignore
+
+    print (echo-g "\ndownloading vivaldi...")
+    aria2c --download-result=hide $release_url
+    sudo gdebi -n (ls *.deb | find vivaldi | get 0 | get name | ansi strip)
+
+  } else {
+    print (echo-g "vivaldi is already in its latest version!")
+  }
+}
+
 #update cmdg
 export def "apps-update gmail" [] {
   cd ~/software/cmdg
@@ -720,3 +769,4 @@ export def "apps-update yewtube" [] {
 export def "apps-update yt-dlp" [] {
   python3 -m pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz
 }
+
