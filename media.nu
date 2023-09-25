@@ -442,17 +442,17 @@ export def "media to" [
           | insert "ext" {|| 
               $in.name | path parse | get extension
             }  
-          | where ext =~ "avi"
+          | where ext =~ "avi|webm"
           | length
       )
 
-      print (echo-g $"($n_files) avi files found...")
+      print (echo-g $"($n_files) avi/webm files found...")
 
      if $n_files > 0 {
        if $copy {
-         bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v copy -c:a mp3 {.}.mp4'
+         bash -c 'find . -type f \( -name "*.avi" -o -name "*.webm" \) -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v copy -c:a mp3 {.}.mp4'
        } else {
-          bash -c 'find . -type f -name "*.avi" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v libx264 -c:a aac {.}.mp4'
+          bash -c 'find . -type f \( -name "*.avi" -o -name "*.webm" \) -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v libx264 -c:a aac {.}.mp4'
        }
 
         let aacs = (ls **/* 
