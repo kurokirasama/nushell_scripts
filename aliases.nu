@@ -9,7 +9,7 @@ export alias install-nu-plugin = cargo install --path .
 export alias nu-clean = cargo clean
 export alias open-config = subl $nu.config-path
 export alias gmail = cmdg -shell "/home/kira/.cargo/bin/nu"
-export alias wsp = whatscli
+export alias wsp = nchat
 export alias ssh-amara = ssh -X amara@192.168.0.31 -p 5699
 export alias ssh-ies = ssh -X ing_estadistica@146.83.193.197 -p 22
 export alias mount-ubb = google-drive-ocamlfuse ~/gdrive/
@@ -45,8 +45,5 @@ export alias "math std" = math stddev
 # export alias lx = (ln | sort-by type)
 # export alias getlist = (ls **/*| where type == file)
 # export alias getdirs = (ls | where type == dir)
-# export alias grp-a = grep-anime
-# export alias grp-s = grep-series
-# export alias grp-m = grep-manga
 
 #get max value with amixer -D pulse sget Master

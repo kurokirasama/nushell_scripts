@@ -118,7 +118,7 @@ export def left_prompt [] {
   } else if ($env.MY_ENV_VARS.l_prompt | is-empty) or ($env.MY_ENV_VARS.l_prompt == 'short') {
       $env.PWD | path parse | get stem
   } else {
-      $env.PWD | str replace $nu.home-path '~' -s
+      $env.PWD | str replace $nu.home-path '~'
   }
 }
 
@@ -181,14 +181,14 @@ export def killn [name?] {
 
 #short pwd
 export def pwd-short [] {
-  $env.PWD | str replace $nu.home-path '~' -s
+  $env.PWD | str replace $nu.home-path '~'
 }
 
 #go to dir (via pipe)
 export def-env cd-pipe [] {
   let input = $in
   cd (
-      if ($input | path type -c [name] | get type) == file {
+      if ($input |  get name | path type) == file {
           ($input | path expand | path dirname)
       } else {
           $input | get name

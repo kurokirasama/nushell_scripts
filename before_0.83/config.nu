@@ -35,7 +35,7 @@ let my_config = (
 let hooks = {
     pre_prompt: [
         {||
-        	$env.GIT_STATUS = (
+        	let-env GIT_STATUS = (
     			try {
         			if (ls .git | length) > 0 and (git status -s | str length) > 0 {
             			git status -s | lines | length
@@ -48,12 +48,12 @@ let hooks = {
 			)
         },
         {||
-            $env.NETWORK = (
+            let-env NETWORK = (
                 $env.NETWORK 
                 | upsert status (check-link https://www.google.com)
             )
             
-            $env.NETWORK = (
+            let-env NETWORK = (
                 $env.NETWORK
                 | upsert color (if $env.NETWORK.status {'#00ff00'} else {'#ffffff'})
             )
@@ -219,7 +219,7 @@ let tableTrim = {
 let my_config = ($my_config | upsert table.trim $tableTrim)
 
 #updating $env.config
-$env.config = $my_config  
+let-env config = $my_config  
 
 try {
     # (http get https://api.chucknorris.io/jokes/random).value

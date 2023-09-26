@@ -51,7 +51,8 @@ export def "into duration-from-hhmmss" [hhmmss?] {
 export def "into hhmmss" [dur:duration] {
   let seconds = (
     $dur
-    | into duration --convert sec
+    | into duration --unit sec
+    | into string 
     | split row " "
     | get 0
     | into int

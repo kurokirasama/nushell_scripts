@@ -127,7 +127,7 @@ export def hab-dailies-done [] {
     | select column0 
     | each {|row| 
         $row.column0 
-        | str replace -s '.' ''
+        | str replace '.' ''
       }  
     | into int  
   )

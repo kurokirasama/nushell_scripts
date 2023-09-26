@@ -518,11 +518,12 @@ export def-env "yt-api get-token" [] {
   
   save-credential $content youtube  
   
-  $env.MY_ENV_VARS = (
+  let-env MY_ENV_VARS = (
     $env.MY_ENV_VARS
     | upsert api_keys.youtube.token $token
   )
 }
+
 
 ##In progress
 
@@ -560,7 +561,7 @@ export def-env "yt-api get-refresh-token" [] {
 
   save-credential $content youtube 
 
-  $env.MY_ENV_VARS = (
+  let-env MY_ENV_VARS = (
     $env.MY_ENV_VARS
     | upsert api_keys.youtube.refresh_token $refresh_token
   )

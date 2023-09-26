@@ -623,11 +623,11 @@ export def "apps-update nushell" [] {
   cd ~/software/nushell
   git pull
   bash scripts/install-all.sh
-  reg-plugins
+  # reg-plugins
 
-  cd ~/software/nu_plugin_plot
-  cargo build --release
-  register ~/software/nu_plugin_plot/target/release/nu_plugin_plot
+  # cd ~/software/nu_plugin_plot
+  # cargo build --release
+  # register ~/software/nu_plugin_plot/target/release/nu_plugin_plot
 
   update-nu-config
 }
@@ -770,3 +770,12 @@ export def "apps-update yt-dlp" [] {
   python3 -m pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz
 }
 
+#update nchat (wsp)
+export def "apps-update nchat" [] {
+  sudo rm (which nchat | get path | get 0)
+  cd ~/software/nchat
+  git pull
+  
+  ^mkdir -p build; cd build; cmake -DHAS_WHATSAPP=ON -DHAS_TELEGRAM=OFF ..; make -s
+  sudo make install
+}
