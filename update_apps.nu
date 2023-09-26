@@ -76,7 +76,7 @@ export def apps-update [] {
 export def get-github-latest [
   owner:string
   repo:string
-  --file_type(-f) = "deb"
+  --file_type(-f):string = "deb"
 ] {
   let git_token = $env.MY_ENV_VARS.api_keys.github.api_key
 
@@ -103,7 +103,7 @@ export def get-github-latest [
 export def github-app-update [
   owner:string
   repo:string
-  --file_type(-f) = "deb"
+  --file_type(-f):string = "deb"
   --down_dir(-d):string
   --alternative_name(-a):string
   --version_from_json(-j)
@@ -240,7 +240,7 @@ export def "apps-update mpris" [] {
 #update monocraft font
 export def "apps-update monocraft" [
   --to_patch(-p)      #to patch Monocraft.otf, else to use patched ttf
-  --type(-t) = "otf"  #"otf" if -p, else "ttf"
+  --type(-t):string = "otf"  #"otf" if -p, else "ttf"
 ] {
   let current_version = (
     open --raw ([$env.MY_ENV_VARS.linux_backup Monocraft.json] | path join) 
@@ -278,7 +278,7 @@ export def "apps-update zoom" [] {
     | lines 
     | find articles 
     | find release 
-    | find ($now | date format "%Y")
+    | find ($now | format date "%Y")
     | uniq 
     | first
     | hakrawler 
@@ -407,7 +407,7 @@ export def "apps-update yandex" [] {
     sudo gdebi -n yandex-disk_latest_amd64.deb 
 
     open $file 
-    | upsert date (date now | date format) 
+    | upsert date (date now | format date) 
     | save -f $file
 
   } else {
@@ -623,13 +623,19 @@ export def "apps-update nushell" [] {
   cd ~/software/nushell
   git pull
   bash scripts/install-all.sh
-  # reg-plugins
-
-  # cd ~/software/nu_plugin_plot
-  # cargo build --release
-  # register ~/software/nu_plugin_plot/target/release/nu_plugin_plot
-
   update-nu-config
+
+  cd ~/software/nu_plugin_plot
+  git pull
+  cargo build --release
+  cargo install --path .
+
+  cd ~/software/nu_plugin_net
+  git pull
+  cargo build --release
+  cargo install --path .
+
+  reg-plugins
 }
 
 #register nu plugins
@@ -644,10 +650,12 @@ export def reg-plugins [] {
   | find nu_plugin 
   | find -v example
   | each {|file|
-      if (grep-nu $file $nu.plugin-path | length) == 0 {
-        print (echo-g $"registering ($file)...")
-        nu -c $'register ($file)'    
-      } 
+      print (echo-g $"registering ($file)...")
+      try {
+        nu -c $'register ($file)'
+      } catch {
+        echo-r "failed!"
+      }
     }
 }
 

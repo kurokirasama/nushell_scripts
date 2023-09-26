@@ -58,7 +58,7 @@ $env.NETWORK = {status:false, color: '#00ff00'}
 #     (ansi reset)
 #     (ansi -e { fg: '#000000' bg: '#00ff00'})
 #     (char -u e0b3)
-#     $"(($env.CMD_DURATION_MS | into decimal) / 1000 | math round -p 3)s"
+#     $"(($env.CMD_DURATION_MS | into float) / 1000 | math round -p 3)s"
 #     (ansi reset)]
 #     | str join
 #   } 
@@ -72,7 +72,7 @@ $env.PROMPT_COMMAND_RIGHT = {||
     (ansi reset)
     (ansi -e { fg: '#00ff00'})
     (char -u e0b3)
-    $"(($env.CMD_DURATION_MS | into decimal) / 1000 | math round -p 3)s"
+    $"(($env.CMD_DURATION_MS | into float) / 1000 | math round -p 3)s"
     (ansi reset)]
     | str join
   } 
@@ -98,30 +98,29 @@ $env.MY_ENV_VARS = {}
 
 $env.MY_ENV_VARS = (
   $env.MY_ENV_VARS 
-  | upsert linux_backup "/home/kira/Yandex.Disk/Backups/linux"
-  | upsert nu_scripts "/home/kira/Yandex.Disk/Backups/linux/nu_scripts"
-  | upsert credentials "/home/kira/Yandex.Disk/Backups/linux/credentials"
-  | upsert debs "/home/kira/Yandex.Disk/Backups/linux/debs"
-  | upsert youtube_database "/home/kira/Yandex.Disk/Backups/linux/youtube_music_playlists"
-  | upsert appImages "/home/kira/Yandex.Disk/Backups/linux/software/appimages"
-  | upsert local_manga "/home/kira/Downloads/Manga"
-  | upsert external_manga "/home/kira/media/Seagate Expansion Drive/Manga/mangaPORver"
-  | upsert zoom "/home/kira/Documents/Zoom"
-  | upsert mps "/home/kira/Yandex.Disk/mps"
-  | upsert nushell_dir "/home/kira/software/nushell"
-  | upsert media_database "/home/kira/Dropbox/Directorios"
-  | upsert home_wifi "Kira"
-  | upsert google_calendars "Clases|Congresos|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Certamenes y Tests|Familia"
-  | upsert google_calendars_full "TV Shows|Contacts|Festivos en Chile|Cuentas|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Clases|Certamenes y Tests|Familia|Congresos"
-  | upsert termux_ip "192.168.4.142"
-  | upsert mail "kurokirasama@gmail.com"
-  | upsert mail_ubb "lgomez@ubiobio.cl"
-  | upsert mail_lmgg "luismiguelgomezguzman@gmail.com"
+  | upsert linux_backup "/some/folder"
+  | upsert nu_scripts "/some/folder"
+  | upsert nu_scripts_public "/some/folder"
+  | upsert credentials "/some/folder"
+  | upsert debs "/some/folder"
+  | upsert youtube_database "/some/folder"
+  | upsert appImages "/some/folder"
+  | upsert zoom "/some/folder"
+  | upsert mps "/some/folder"
+  | upsert nushell_dir "/some/folder"
+  | upsert media_database "/some/folder"
+  | upsert home_wifi "some_wifi"
+  | upsert google_calendars "calendar1|calendar2"
+  | upsert google_calendars_full "calendar1|calendar2|calendar3"
+  | upsert termux_ip "ip"
+  | upsert mail "mail1@gmail.com"
+  | upsert mail_ubb "mail2@gmail.com"
+  | upsert mail_lmgg "mail4@gmail.com"
   | upsert l_prompt "short"
-  | upsert data "/home/kira/Yandex.Disk/cards"
-  | upsert gdriveTranscriptionSummaryDirectory "/home/kira/gdrive/Depto/DireccionEscuelaIngenieria/NotasReunionesAi"
-  | upsert chatgpt_config "/home/kira/Yandex.Disk/Backups/linux/chatgptConfigs"
-  | upsert datasets "/home/kira/Yandex.Disk/Downloads/datasets"
+  | upsert data "/some/folder"
+  | upsert gdriveTranscriptionSummaryDirectory "/some/folder"
+  | upsert chatgpt_config "/some/folder"
+  | upsert datasets "/some/folder"
   | upsert api_keys {}
 )
 

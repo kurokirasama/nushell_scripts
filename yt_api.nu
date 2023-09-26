@@ -38,7 +38,7 @@ export def ytm [
 
   let to_play = (
     if $list {
-      $playlists | path parse | get stem | input list (echo-g "Select playlist:")
+      $playlists | path parse | get stem | input list -f (echo-g "Select playlist:")
     } else {
       $playlists | find $playlist | ansi strip | get 0 | path parse | get stem
     }

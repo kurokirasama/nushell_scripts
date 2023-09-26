@@ -329,7 +329,7 @@ export def "media cut-video" [
   SEGSTART                 #timestamp of the start of the segment (hh:mm:ss)
   SEGEND                   #timestamp of the end of the segment (hh:mm:ss)
   --output_file(-o):string #output file
-  --append(-a) = "cutted"  #append to file name
+  --append(-a):string = "cutted"  #append to file name
   --notify(-n)             #notify to android via ntfy
 ] {
   let ext = ($file | path parse | get extension)

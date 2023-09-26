@@ -1,15 +1,3 @@
-#zoxide completion
-export def "nu-complete zoxide path" [line : string, pos: int] {
-  let prefix = ( $line | str trim | split row ' ' | append ' ' | skip 1 | get 0)
-  let data = (^zoxide query $prefix --list | lines)
-  {
-      completions : $data,
-                  options: {
-                   completion_algorithm: "fuzzy"
-                  }
-  }
-}
-
 #nushell banner
 export def show_banner [] {
     let ellie = [
@@ -127,22 +115,16 @@ export def ? [...search] {
   if ($search | is-empty) {
     help commands
   } else {
-    if ($search | first) =~ "commands" {
+    if ($search | str join " ") =~ "commands" {
       if ($search | first) =~ "my" {
-        help commands | where command_type == custom
+        help commands | where command_type == custom | reject command_type
       } else {
         help commands 
       }
-    } else if ($search | first | str contains "^") {
-      tldr ($search | str join "-" | split row "^" | get 0) | nu-highlight
-    } else if (which ($search | str join " ") | get path | get 0) =~ "Nushell" {
-      if (which ($search | str join " ") | get path | get 0) =~ "alias" {
-        get-aliases | find ($search | first) 
-      } else {
-        help ($search | str join " ") | nu-highlight
-      }
+    } else if (which ($search | str join " ") | get type | get 0) =~ "external" {
+      tldr (which ($search | str join " ") | get command | get 0)
     } else {
-      tldr ($search | str join "-") | nu-highlight
+      help (which ($search | str join " ") | get command | get 0)
     }
   }
 }
@@ -209,9 +191,7 @@ export def-env which-cd [program] {
 
 #get aliases
 export def get-aliases [] {
-  $nu
-  | get scope 
-  | get aliases
+  scope aliases
   | update expansion {|c|
       $c.expansion | nu-highlight
     }
@@ -219,7 +199,7 @@ export def get-aliases [] {
 
 #get code of custom command
 export def code [command,--raw] {
-  if ($raw | is-empty) {
+  if not $raw {
     view source $command | nu-highlight
   } else {
     view source $command

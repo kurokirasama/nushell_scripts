@@ -24,7 +24,7 @@ export def "gcal add" [
       $env.MY_ENV_VARS.google_calendars_full 
       | split row "|"
       | sort
-      | input list (echo-g "Select calendar: ")
+      | input list -f (echo-g "Select calendar: ")
     } else {
       $calendar
     }

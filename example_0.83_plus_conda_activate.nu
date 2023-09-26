@@ -19,3 +19,17 @@ $env.config = ($env.config | upsert hooks {
         ]
     }
 })
+
+
+
+## conditional source config
+# const WINDOWS_CONFIG = "my_windows_config.nu"
+# const UNIX_CONFIG = "my_unix_config.nu"
+
+# const ACTUAL_CONFIG = if $nu.os-info.name == "windows" {
+#     $WINDOWS_CONFIG
+# } else {
+#     $UNIX_CONFIG
+# }
+
+# source $ACTUAL_CONFIG

@@ -266,7 +266,7 @@ export def exchange_rates [
       let to_save = (
         $output 
         | rename -c [UF date]
-        | upsert date (date now | date format "%Y.%m.%d %H:%M:%S")
+        | upsert date (date now | format date "%Y.%m.%d %H:%M:%S")
       )
       
       open ([$env.MY_ENV_VARS.datasets exchange_rates.csv] | path join) 

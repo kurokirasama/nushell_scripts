@@ -1,3 +1,8 @@
+#range to list
+export def range2list [] {
+  collect {$in}
+}
+
 #ansi strip table
 export def "ansi strip-table" [] {
   update cells {|cell|

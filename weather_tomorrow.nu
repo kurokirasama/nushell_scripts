@@ -31,7 +31,7 @@ export def-env get_weather_by_interval [INTERVAL_WEATHER:duration] {
                 let WEATHER = (get_weather_for_prompt (get_location))
 
                 if $WEATHER.mystatus {
-                    let NEW_WEATHER_TIME = (date now | date format '%Y-%m-%d %H:%M:%S %z')
+                    let NEW_WEATHER_TIME = (date now | format date '%Y-%m-%d %H:%M:%S %z')
             
                     $last_runtime_data 
                     | upsert weather $"($WEATHER.Icon) ($WEATHER.Temperature)" 
@@ -49,7 +49,7 @@ export def-env get_weather_by_interval [INTERVAL_WEATHER:duration] {
         }
     } else {
         let WEATHER = (get_weather_for_prompt (get_location))
-        let LAST_WEATHER_TIME = (date now | date format '%Y-%m-%d %H:%M:%S %z') 
+        let LAST_WEATHER_TIME = (date now | format date '%Y-%m-%d %H:%M:%S %z') 
     
         let WEATHER_DATA = {
             "weather": ($WEATHER)
@@ -221,7 +221,7 @@ def get_weather [loc, --plot = true] {
         | get sunriseTime 
         | into datetime
         | date to-timezone local
-        | date format "%H:%M:%S"
+        | format date "%H:%M:%S"
     )
 
     let sunset = (
@@ -231,7 +231,7 @@ def get_weather [loc, --plot = true] {
         | get sunsetTime 
         | into datetime 
         | date to-timezone local
-        | date format "%H:%M:%S"
+        | format date "%H:%M:%S"
     )
 
     let vientos = (desc_wind $wind)
@@ -259,7 +259,7 @@ def get_weather [loc, --plot = true] {
         | each {|row|
             $row.time 
             | into datetime -o -4 
-            | date format "%Y-%m-%d"
+            | format date "%Y-%m-%d"
           }
         | wrap "date"
     )
@@ -365,7 +365,7 @@ def get_weather_for_prompt [loc] {
         | get sunriseTime 
         | into datetime
         | date to-timezone local
-        | date format "%H:%M:%S"
+        | format date "%H:%M:%S"
     )
 
     let sunset = (
@@ -375,7 +375,7 @@ def get_weather_for_prompt [loc] {
         | get sunsetTime 
         | into datetime
         | date to-timezone local
-        | date format "%H:%M:%S"
+        | format date "%H:%M:%S"
     )
 
     let icon_description = (get_icon_description_from_code $response.realtime.data.values.weatherCode $sunrise $sunset)
@@ -433,7 +433,7 @@ def get_icon_description_from_code [
     sunset
 ] {
     let day = (
-        if (date now | date format '%H:%M:%S') < $sunset and (date now | date format '%H:%M:%S') > $sunrise {
+        if (date now | format date '%H:%M:%S') < $sunset and (date now | format date '%H:%M:%S') > $sunrise {
             true
         } else {
             false

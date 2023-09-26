@@ -1,6 +1,6 @@
 #!/usr/bin/env nu
 
-def main [user = "kira"] {
+def main [user:string = "kira"] {
 	let host = (sys | get host | get hostname)
 
 	print (echo-g "listing Downloads...")

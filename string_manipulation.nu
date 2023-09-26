@@ -74,7 +74,7 @@ export def open-link [] {
   | openf
 }
 
-#date formatting
+#format dateting
 export def "date my-format" [
   date?: string #date in form 
   --extra = ""  #some text to append to the date (default empty)
@@ -85,12 +85,12 @@ export def "date my-format" [
   let date = if ($date | is-empty) {$in} else {$date}
 
   date now 
-  | date format "%Y"
+  | format date "%Y"
   | str append " " 
   | str append $date
   | str append "+00:00" 
   | into datetime 
-  | date format "%Y.%m.%d_%H.%M"
+  | format date "%Y.%m.%d_%H.%M"
   | str append $extra
 }
 

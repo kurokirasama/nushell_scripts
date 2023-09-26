@@ -26,15 +26,15 @@ export def "ai help" [] {
 #single call chatgpt wrapper
 export def chat_gpt [
     prompt?: string                               # the query to Chat GPT
-    --model(-m) = "gpt-3.5-turbo"                 # the model gpt-3.5-turbo, gpt-4, etc
-    --system(-s) = "You are a helpful assistant." # system message
+    --model(-m):string = "gpt-3.5-turbo"                 # the model gpt-3.5-turbo, gpt-4, etc
+    --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9                       # the temperature of the model
     --list_system(-l)                             # select system message from list
     --pre_prompt(-p)                              # select pre-prompt from list
     --select_system: string                       # directly select system message    
     --select_preprompt: string                    # directly select pre_prompt
     --delim_with_backquotes(-d)                   # to delimit prompt (not pre-prompt) with triple backquotes (')
-    --large_model(-k) = false                     # use gpt-3.5-turbo-16k (gpt-4-32k) if model is gpt-3.5-turbo (gpt-4)
+    --large_model(-k):bool = false                # use gpt-3.5-turbo-16k (gpt-4-32k) if model is gpt-3.5-turbo (gpt-4)
     #
     #Available models at https://platform.openai.com/docs/models, but some of them are:
     # - gpt-4 (8192 tokens)
@@ -97,7 +97,7 @@ export def chat_gpt [
 
   mut ssystem = ""
   if ($list_system and ($select_system | is-empty)) {
-    let selection = ($system_messages | columns | input list (echo-g "Select system message: "))
+    let selection = ($system_messages | columns | input list -f (echo-g "Select system message: "))
     $ssystem = ($system_messages | get $selection)
   } else if (not ($select_system | is-empty)) {
     try {
@@ -111,7 +111,7 @@ export def chat_gpt [
 
   mut preprompt = ""
   if ($pre_prompt and ($select_preprompt | is-empty)) {
-    let selection = ($pre_prompts | columns | input list (echo-g "Select pre-prompt: "))
+    let selection = ($pre_prompts | columns | input list -f (echo-g "Select pre-prompt: "))
     $preprompt = ($pre_prompts | get $selection)
   } else if (not ($select_preprompt | is-empty)) {
     try {
@@ -341,7 +341,7 @@ export def "ai screen2text" [
   --summary(-s) = true #whether to summarize the transcription. false means it just extracts audio
   --notify(-n)         #notify to android via ntfy
 ] {
-  let file = (date now | date format "%Y%m%d_%H%M%S")
+  let file = (date now | format date "%Y%m%d_%H%M%S")
 
   if not ("~/Documents/Transcriptions" | path exists) {
     ^mkdir -p ~/Documents/Transcriptions 
@@ -368,8 +368,8 @@ export def "ai screen2text" [
 #video to text transcription 
 export def "ai video2text" [
   file?:string                #video file name with extension
-  --language(-l) = "Spanish"  #language of audio file
-  --summary(-s) = true        #whether to transcribe or not. Default true, false means it just extracts audio
+  --language(-l):string = "Spanish"  #language of audio file
+  --summary(-s):bool = true        #whether to transcribe or not. Default true, false means it just extracts audio
   --notify(-n)                #notify to android via ntfy
 ] {
   let file = if ($file | is-empty) {$in} else {$file}
@@ -777,7 +777,7 @@ export def "chatpdf add" [
 
   let url = "https://api.chatpdf.com/v1/sources/add-file"
 
-  let filename = ($file | path parse | get stem | str downcase | str replace -a -s " " "_")
+  let filename = ($file | path parse | get stem | str downcase | str replace -a " " "_")
   let filepath = ($file | path expand)
 
   if ($filename in ($database | columns)) {
@@ -815,7 +815,7 @@ export def "chatpdf del" [
   let database_file = ([$env.MY_ENV_VARS.chatgpt_config chatpdf_ids.json] | path join)
   let database = (open $database_file)
 
-  let selection = ($database | columns | sort | input list (echo-g "Select file to delete:"))
+  let selection = ($database | columns | sort | input list -f (echo-g "Select file to delete:"))
 
   let url = "https://api.chatpdf.com/v1/sources/delete"
   let data = {"sources": [($database | get $selection)]}
@@ -843,11 +843,11 @@ export def "chatpdf ask" [
       $database 
       | columns 
       | sort 
-      | input list (echo-g "Select pdf to ask a question:")
+      | input list -f (echo-g "Select pdf to ask a question:")
     } else {
       $select_pdf
       | str downcase 
-      | str replace -a -s " " "_"
+      | str replace -a " " "_"
     }
   )
 

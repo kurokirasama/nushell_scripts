@@ -63,10 +63,10 @@ export def network-switcher [] {
 export def wifi-info [] {
   nmcli -t dev wifi 
   | lines 
-  | str replace -a -s '\:' '|' 
-  | str replace -a -s ':' '#' 
-  | str replace -a -s '|' ':' 
-  | str replace -s "*" "❱" 
+  | str replace -a '\:' '|' 
+  | str replace -a ':' '#' 
+  | str replace -a '|' ':' 
+  | str replace "*" "❱" 
   | split column '#' 
   | rename in-use mac ssid mode channel rate signal bars security
   | each {|row|
