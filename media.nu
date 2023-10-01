@@ -43,7 +43,7 @@ export def "media mpv-info" [file?] {
 #translate subtitle to spanish via mymemmory api
 export def "media trans-sub" [
   file?
-  --from = "en-US" #from which language you are translating
+  --from:string = "en-US" #from which language you are translating
   --open_ai        #use openai api to make the translations
   --notify(-n)     #notify to android via ntfy
   #
@@ -156,8 +156,8 @@ export def "media remove-noise" [
   end                  #end (hh:mm:ss) of audio noise (no speaker)
   noiseLevel           #level reduction adjustment (0.2-0.3)
   output?              #output file name without extension, wav or mp3 produced
-  --delete(-d) = true  #whether to delete existing tmp files or not
-  --outExt(-E) = "wav" #output format, mp3 or wav
+  --delete(-d):bool = true  #whether to delete existing tmp files or not
+  --outExt(-E):string = "wav" #output format, mp3 or wav
   --notify(-n)         #notify to android via ntfy
 ] {
   if $delete {
@@ -213,7 +213,7 @@ export def "media remove-audio-noise" [
   end             #end (hh:mm:ss) of audio noise (no speaker)
   noiseLevel      #level reduction adjustment (0.2-0.3)
   output?         #output file name with extension (same extension as $file)
-  --merge = true  #whether to merge clean audio with video
+  --merge:bool = true  #whether to merge clean audio with video
   --notify(-n)    #notifua to android via ntfy
 ] {
   try {
@@ -253,8 +253,8 @@ export def "media remove-audio-noise" [
 
 #screen record
 export def "media screen-record" [
-  file = "video"  #output filename without extension
-  --audio = true  #whether to record with audio or not
+  file:string = "video"  #output filename without extension
+  --audio:bool = true  #whether to record with audio or not
   #
   #Pending: making sure it works in a video call
 ] {
@@ -356,7 +356,7 @@ export def "media split-video" [
   file                      #video file name
   --number_segments(-n):int #number of pieces to generate (takes precedence over -d)
   --duration(-d):duration   #duration of each segment (in duration format) except probably the last one
-  --delta = 10sec           #duration of overlaping beetween segments.
+  --delta:duration = 10sec           #duration of overlaping beetween segments.
   --notify(-n)              #notify to android via ntfy
 ] {
   let full_length = (
@@ -400,7 +400,7 @@ export def "media to" [
   --copy(-c)                #copy video codec and audio to mp3 (for mp4 only)
   --mkv(-m)                 #include mkv files (for mp4 only)
   --file(-f):string         #specify unique file to convert
-  --vcodec(-v) = "libx264"  #video codec (for single file only)
+  --vcodec(-v):string = "libx264"  #video codec (for single file only)
   --notify(-n)              #notify to android via ntfy
   #
   #Examples (make sure there are only compatible files in all subdirectories)
@@ -622,10 +622,10 @@ export def "media merge-videos-auto" [
 export def "media compress-video" [
   --file(-f):string         #single file
   --level(-l):int           #level of recursion (-maxdepth in ^find, minimun = 1).
-  --crf(-c) = 28            #compression rate, range 0-51, sane range 18-28.
-  --vcodec(-v) = "libx265"  #video codec: libx264 | libx265.
+  --crf(-c):int = 28            #compression rate, range 0-51, sane range 18-28.
+  --vcodec(-v):string = "libx265"  #video codec: libx264 | libx265.
   --mkv(-m)                 #include mkv files
-  --append(-a) = "com"      # what to append to compressed file names
+  --append(-a):string = "com"      # what to append to compressed file names
   --notify(-n)              #notify to android via ntfy
   #
   #Considers only mp4 and webm files
@@ -759,7 +759,10 @@ export def "media compress-video" [
 }
 
 #delete original videos after compression recursively
-export def "media delete-non-compressed" [file?,--append(-a) = 'compressed_by_me'] {
+export def "media delete-non-compressed" [
+  file?
+  --append(-a):string = 'compressed_by_me'
+] {
   ls **/* 
   | where type == file 
   | where name =~ $append 
@@ -907,7 +910,7 @@ export def mpv [video?, --puya(-p)] {
 #extract audio from video file
 export def "media extract-audio" [
   filename
-  --audio_format(-a) = "mp3" #audio output format, wav or mp3
+  --audio_format(-a):string = "mp3" #audio output format, wav or mp3
   --notify(-n)               #notify to android via mpv
 ] {
   let file = ($filename | path parse | get stem)

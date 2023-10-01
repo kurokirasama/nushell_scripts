@@ -4,8 +4,8 @@ let my_config = $env.config
 #restoring custom color config
 mut my_color_config = ($my_config 
 	| get color_config 
-	| upsert shape_internalcall { fg: "##00b7ff" attr: b} 
-	| upsert shape_external "#00b7ff"
+	| upsert shape_internalcall (if TERMINUS_SUBLIME in $env {"light_cyan_bold"} else { fg: "#00b7ff" attr: b} )
+	| upsert shape_external (if TERMINUS_SUBLIME in $env {"xterm_skyblue2"} else "#00b7ff" )
 )
 
 $my_color_config.filesize = {|e| 
@@ -26,7 +26,7 @@ let my_config = (
 	| upsert color_config $my_color_config 
 	| upsert show_banner false
 	| upsert ls.clickable_links false
-	| upsert table.mode rounded
+	| upsert table.mode (if TERMINUS_SUBLIME in $env {"ascii_rounded"} else {"rounded"})
     | upsert table.show_empty false
 	| upsert history.file_format sqlite
 )

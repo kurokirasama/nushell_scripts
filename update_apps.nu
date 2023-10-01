@@ -632,7 +632,6 @@ export def "apps-update nushell" [] {
 
   cd ~/software/nu_plugin_net
   git pull
-  cargo build --release
   cargo install --path .
 
   reg-plugins
