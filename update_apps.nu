@@ -786,3 +786,22 @@ export def "apps-update nchat" [] {
   ^mkdir -p build; cd build; cmake -DHAS_WHATSAPP=ON -DHAS_TELEGRAM=OFF ..; make -s
   sudo make install
 }
+
+#update ffmpeg with cuda
+export def "apps-update myffmpeg" [] {
+  cd ~/software/nvidia/nv-codec-headers
+  if (git status -s | str length) > 0 {
+    echo-g "updating nv-codec-headers..."
+    git pull
+    sudo make install
+  }
+
+  cd ~/software/nvidia/ffmpeg
+  if (git status -s | str length) > 0 {
+    echo-g "updating ffmpeg..."
+    git pull
+    ./configure --enable-nonfree --enable-cuda-nvcc --enable-libnpp --extra-cflags=-I/usr/local/cuda/include --extra-ldflags=-L/usr/local/cuda/lib64
+    ,
+    ./ffmpeg -h
+  }
+}

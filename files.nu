@@ -534,7 +534,7 @@ export def mk-anime [--wzf] {
 }
 
 #open google analytics csv file
-export def open-analytics [$file?] {
+export def open-analytics [file?] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
 
   open $file --raw 
@@ -546,7 +546,7 @@ export def open-analytics [$file?] {
 }
 
 #delete empty google analytics csv files
-export def clean-analytics [$file?] {
+export def clean-analytics [file?] {
   ls | find Analytics | where size <= 151B | rm-pipe 
 }
 

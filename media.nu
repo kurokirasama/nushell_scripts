@@ -316,8 +316,10 @@ export def "media remove-audio" [
     }
   )
   try {
+    echo-g "trying myffmpeg..."
     myffmpeg -n -loglevel 0 -i $input_file -c copy -an $output_file
   } catch {
+    echo-r "trying ffmpeg..."
     ffmpeg -n -loglevel 0 -i $input_file -c copy -an $output_file
   }
   if $notify {"summary finished!" | ntfy-send}
@@ -344,8 +346,10 @@ export def "media cut-video" [
   )
 
   try {
+    echo-g "trying myffmpeg..."
     myffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
   } catch {
+    echo-r "trying ffmpeg..."
     ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
   }
   if $notify {"summary finished!" | ntfy-send}
