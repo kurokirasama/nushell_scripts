@@ -65,11 +65,11 @@ export def apps-update [] {
   } catch {
     print (echo-r "Something went wrong with vivaldi instalation!")
   }
-  # try {
-  #   apps-update chrome
-  # } catch {
-  #   print (echo-r "Something went wrong with chrome instalation!")
-  # }
+  try {
+   apps-update chrome
+  } catch {
+   print (echo-r "Something went wrong with chrome instalation!")
+  }
 }
 
 #get latest release info in github repo
@@ -175,30 +175,31 @@ export def github-app-update [
       }
     )
 
-    if $current_version != $new_version {
-      print (echo-g $"\nupdating ($repo)...")
-      rm $"*($app)*.($file_type)" | ignore
-      aria2c --download-result=hide $url
-
-      if $version_from_json {
-        open --raw $app_file
-        | from json 
-        | upsert version $new_version 
-        | save -f $app_file
-      }
-
-      if $file_type == "deb" {
-        let install = (input (echo-g "Would you like to install it now? (y/n): "))
-        if $install == "y" {
-          sudo gdebi -n ($info.name | ansi strip)
-        }
-      } else {
-        print (echo-g "file downloaded...")
-      }
-    } else {
+    if $current_version == $new_version {
       print (echo-g $"($repo) is already in its latest version!")
+      return
     }
 
+    print (echo-g $"\nupdating ($repo)...")
+    rm $"*($app)*.($file_type)" | ignore
+    aria2c --download-result=hide $url
+    
+    if $version_from_json {
+      open --raw $app_file
+      | from json 
+      | upsert version $new_version 
+      | save -f $app_file
+    }
+
+    if $file_type != "deb" {
+      print (echo-g "file downloaded...")
+      return
+    }
+
+    let install = (input (echo-g "Would you like to install it now? (y/n): "))
+    if $install == "y" {
+      sudo gdebi -n ($info.name | ansi strip)
+    }
   } else {
     print (echo-g $"\ndownloading ($repo)...")
     aria2c --download-result=hide $url
@@ -255,15 +256,18 @@ export def "apps-update monocraft" [
     | get version
   )
 
-  if $current_version != $new_version {
-    if $to_patch {
-      print (echo-g "New version of Monocraft downloaded, now patching nerd fonts...")
-      nu ([$env.MY_ENV_VARS.linux_backup "software/appimages/patch-font.nu"] | path join)
-    } else {
-      let font = ([$env.MY_ENV_VARS.linux_backup (ls $"($env.MY_ENV_VARS.linux_backup)/*.($type)" | sort-by modified | last | get name | ansi strip)] | path join)
-      print (echo-g $"New version of Monocraft downloaded, now installing ($font | path parse | get stem)...")
-      install-font $font
-    }
+  if $current_version == $new_version {
+    print (echo-g "Monocraft is already in its latest version...")
+    return
+  }
+
+  if $to_patch {
+    print (echo-g "New version of Monocraft downloaded, now patching nerd fonts...")
+    nu ([$env.MY_ENV_VARS.linux_backup "software/appimages/patch-font.nu"] | path join)
+  } else {
+    let font = ([$env.MY_ENV_VARS.linux_backup (ls $"($env.MY_ENV_VARS.linux_backup)/*.($type)" | sort-by modified | last | get name | ansi strip)] | path join)
+    print (echo-g $"New version of Monocraft downloaded, now installing ($font | path parse | get stem)...")
+    install-font $font
   }
 }
 
@@ -289,7 +293,6 @@ export def "apps-update zoom" [] {
 
   if ($release_url | length) == 0 {
     return-error "no releases found this year"
-    return
   }
 
   let last_version = (
@@ -310,19 +313,20 @@ export def "apps-update zoom" [] {
 
   let current_version = (open ([$env.MY_ENV_VARS.debs zoom.json] | path join) | get version)
 
-  if $current_version != $last_version {
-    ls | find zoom | find deb | rm-pipe | ignore
-
-    print (echo-g "\ndownloading zoom...")
-    aria2c --download-result=hide https://zoom.us/client/latest/zoom_amd64.deb
-    sudo gdebi -n (ls *.deb | find zoom | get 0 | get name | ansi strip)
-
-    open ([$env.MY_ENV_VARS.debs zoom.json] | path join) 
-    | upsert version $last_version 
-    | save -f ([$env.MY_ENV_VARS.debs zoom.json] | path join)
-  } else {
+  if $current_version == $last_version {
     print (echo-g "zoom is already in its latest version!")
+    return
   }
+
+  ls | find zoom | find deb | rm-pipe | ignore
+
+  print (echo-g "\ndownloading zoom...")
+  aria2c --download-result=hide https://zoom.us/client/latest/zoom_amd64.deb
+  sudo gdebi -n (ls *.deb | find zoom | get 0 | get name | ansi strip)
+
+  open ([$env.MY_ENV_VARS.debs zoom.json] | path join) 
+  | upsert version $last_version 
+  | save -f ([$env.MY_ENV_VARS.debs zoom.json] | path join)  
 }
 
 #update chrome deb
@@ -337,16 +341,17 @@ export def "apps-update chrome" [] {
 
   let current_version = (google-chrome-stable --version | split row "Google Chrome "  | str trim | last)
 
-  if $current_version != $new_version {
-    if (ls *.deb | find chrome | length) > 0 {
-      ls *.deb | find chrome | rm-pipe | ignore
-    }
-  
-    print (echo-g "\ndownloading chrome...")
-    aria2c --download-result=hide https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-  } else {
+  if $current_version == $new_version {
     print (echo-g "chrome is already in its latest version!")
+    return
   }
+  
+  if (ls *.deb | find chrome | length) > 0 {
+    ls *.deb | find chrome | rm-pipe | ignore
+  }
+  
+  print (echo-g "\ndownloading chrome...")
+  aria2c --download-result=hide https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 }
 
 #update google earth deb
@@ -362,17 +367,19 @@ export def "apps-update earth" [] {
 
   let current_version = (open ([$env.MY_ENV_VARS.debs earth.json] | path join) | get version)
 
-  if $current_version != $new_version {
-    if (ls *.deb | find earth | length) > 0 {
-      ls *.deb | find earth | rm-pipe | ignore
-    }
-    
-    print (echo-g "\ndownloading google earth...")
-    aria2c --download-result=hide https://dl.google.com/dl/earth/client/current/google-earth-pro-stable_current_amd64.deb
-    sudo gdebi -n google-earth-pro-stable_current_amd64.deb
-  } else {
+  if $current_version == $new_version {
     print (echo-g "earth is already in its latest version!")
+    return
   }
+  
+  if (ls *.deb | find earth | length) > 0 {
+    ls *.deb | find earth | rm-pipe | ignore
+  }
+  
+  print (echo-g "\ndownloading google earth...")
+  aria2c --download-result=hide https://dl.google.com/dl/earth/client/current/google-earth-pro-stable_current_amd64.deb
+
+  sudo gdebi -n google-earth-pro-stable_current_amd64.deb
 }
 
 #update yandex deb
@@ -397,22 +404,23 @@ export def "apps-update yandex" [] {
 
   let old_date = (open $file | get date | into datetime)
 
-  if $old_date < $new_date {
-    if (ls *.deb | find yandex | length) > 0 {
-      ls *.deb | find yandex | rm-pipe | ignore
-    }
-    
-    print (echo-g "\ndownloading yandex...")
-    aria2c --download-result=hide http://repo.yandex.ru/yandex-disk/yandex-disk_latest_amd64.deb 
-    sudo gdebi -n yandex-disk_latest_amd64.deb 
-
-    open $file 
-    | upsert date (date now | format date) 
-    | save -f $file
-
-  } else {
+  if $old_date >= $new_date {
     print (echo-g "yandex is already in its latest version!")
+    return
   }
+
+  if (ls *.deb | find yandex | length) > 0 {
+    ls *.deb | find yandex | rm-pipe | ignore
+  }
+  
+  print (echo-g "\ndownloading yandex...")
+  aria2c --download-result=hide http://repo.yandex.ru/yandex-disk/yandex-disk_latest_amd64.deb
+
+  sudo gdebi -n yandex-disk_latest_amd64.deb 
+
+  open $file 
+  | upsert date (date now | format date) 
+  | save -f $file
 }
 
 #update sejda deb
@@ -446,15 +454,15 @@ export def "apps-update sejda" [] {
       | get 1
     )
 
-    if $current_version != $new_version {
-      print (echo-g "\nupdating sedja...")
-      rm sejda*.deb | ignore
-      aria2c --download-result=hide $url
-      sudo gdebi -n $new_file
-    } else {
+    if $current_version == $new_version {
       print (echo-g "sedja is already in its latest version!")
+      return
     }
-
+    
+    print (echo-g "\nupdating sedja...")
+    rm sejda*.deb | ignore
+    aria2c --download-result=hide $url
+    sudo gdebi -n $new_file
   } else {
     print (echo-g "\ndownloading sedja...")
     aria2c --download-result=hide $url
@@ -496,21 +504,21 @@ export def "apps-update nmap" [] {
       | get 1
     )
 
-    if $current_version != $new_version {
-      print (echo-g "\nupdating nmap...")
-      rm nmap*.deb | ignore
-
-      aria2c --download-result=hide $url
-      sudo alien -v -k $new_file
-
-      let new_deb = (ls *.deb | find nmap | get 0 | get name | ansi strip)
-
-      sudo gdebi -n $new_deb
-      ls $new_file | rm-pipe | ignore
-    } else {
+    if $current_version == $new_version {
       print (echo-g "nmap is already in its latest version!")
+      return
     }
+    
+    print (echo-g "\nupdating nmap...")
+    rm nmap*.deb | ignore
 
+    aria2c --download-result=hide $url
+    sudo alien -v -k $new_file
+
+    let new_deb = (ls *.deb | find nmap | get 0 | get name | ansi strip)
+
+    sudo gdebi -n $new_deb
+    ls $new_file | rm-pipe | ignore
   } else {
     print (echo-g "\ndownloading nmap...")
     aria2c --download-result=hide $url
@@ -554,16 +562,17 @@ export def "apps-update ttyplot" [] {
 
   let new_version = ($filename | split row _ | get 1)
 
-  if $current_version != $new_version {
-    print (echo-g $"\nupdating ttyplot...")
-
-    ls *.deb | find ttyplot | rm-pipe
-    aria2c --download-result=hide $url
-
-    sudo gdebi -n $filename
-  } else {
+  if $current_version == $new_version {
     print (echo-g "ttyplot is already in the latest version!")
+    return
   }
+    
+  print (echo-g $"\nupdating ttyplot...")
+
+  ls *.deb | find ttyplot | rm-pipe
+  aria2c --download-result=hide $url
+
+  sudo gdebi -n $filename
 }
 
 #update vivaldi
@@ -598,16 +607,16 @@ export def "apps-update vivaldi" [] {
     | get 1
   )
 
-  if $current_version != $last_version {
-    ls | find vivaldi | find deb | rm-pipe | ignore
-
-    print (echo-g "\ndownloading vivaldi...")
-    aria2c --download-result=hide $release_url
-    sudo gdebi -n (ls *.deb | find vivaldi | get 0 | get name | ansi strip)
-
-  } else {
+  if $current_version == $last_version {
     print (echo-g "vivaldi is already in its latest version!")
+    return
   }
+  
+  ls | find vivaldi | find deb | rm-pipe | ignore
+
+  print (echo-g "\ndownloading vivaldi...")
+  aria2c --download-result=hide $release_url
+  sudo gdebi -n (ls *.deb | find vivaldi | get 0 | get name | ansi strip)
 }
 
 #update cmdg
@@ -790,17 +799,23 @@ export def "apps-update nchat" [] {
 #update ffmpeg with cuda
 export def "apps-update myffmpeg" [--force(-f)] {
   cd ~/software/nvidia/nv-codec-headers
-  if (git status -s | str length) > 0 or $force {
+  let pull = git pull
+  if $pull != "Already up to date." or $force {
     echo-g "updating nv-codec-headers..."
     git pull
     sudo make install
+  } else {
+    echo-g "nv-codec-headers already up to date!"
   }
 
   cd ~/software/nvidia/ffmpeg
-  if (git status -s | str length) > 0 or $force {
+  let pull = git pull
+  if $pull != "Already up to date." or $force {
     echo-g "updating ffmpeg..."
     git pull
     ./configure --enable-nonfree --enable-cuda-nvcc --enable-libnpp --extra-cflags=-I/usr/local/cuda/include --extra-ldflags=-L/usr/local/cuda/lib64
     ./ffmpeg -h
+  } else {
+    echo-g "ffmpeg already up to date!"
   }
 }
