@@ -788,20 +788,19 @@ export def "apps-update nchat" [] {
 }
 
 #update ffmpeg with cuda
-export def "apps-update myffmpeg" [] {
+export def "apps-update myffmpeg" [--force(-f)] {
   cd ~/software/nvidia/nv-codec-headers
-  if (git status -s | str length) > 0 {
+  if (git status -s | str length) > 0 or $force {
     echo-g "updating nv-codec-headers..."
     git pull
     sudo make install
   }
 
   cd ~/software/nvidia/ffmpeg
-  if (git status -s | str length) > 0 {
+  if (git status -s | str length) > 0 or $force {
     echo-g "updating ffmpeg..."
     git pull
     ./configure --enable-nonfree --enable-cuda-nvcc --enable-libnpp --extra-cflags=-I/usr/local/cuda/include --extra-ldflags=-L/usr/local/cuda/lib64
-    ,
     ./ffmpeg -h
   }
 }
