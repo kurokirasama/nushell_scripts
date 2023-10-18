@@ -824,3 +824,8 @@ export def "apps-update myffmpeg" [--force(-f)] {
     echo-g "ffmpeg already up to date!"
   }
 }
+
+#update evernote-backuo tool
+export def "apps-update evernote-backup" [] {
+  pip install --user --upgrade evernote-backup
+}
