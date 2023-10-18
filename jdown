@@ -11,19 +11,19 @@ def main():
    import argparse
    parser = argparse.ArgumentParser()
 
-   parser.add_argument("-b", "--ubb", dest = "ubb", default = "0", help="ubb jdown")
+   parser.add_argument("-b", "--dev2", dest = "dev2", default = "0", help="dev2 jdown")
 
    args = parser.parse_args()
 
    if args.ubb == "0":
-      dev = "kira"
+      dev = "dev1"
    else :
-      dev = "ubb"
+      dev = "dev2"
    
    #jdownloader instance
    jd=myjdapi.Myjdapi()
    
-   jd.connect("kurokirasama@gmail.com","HKxzJdownloader")
+   jd.connect("user@gmail.com","password")
    
    jd.update_devices()
    
