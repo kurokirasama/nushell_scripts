@@ -629,11 +629,15 @@ export def "apps-update gmail" [] {
 
 #update nushell
 export def "apps-update nushell" [] {
+  print (echo-g "updating nushell...")
   cd ~/software/nushell
   git pull
   bash scripts/install-all.sh
+
+  print (echo-g "updating config file...")
   update-nu-config
 
+  print (echo-g "installing plugins...")
   cd ~/software/nu_plugin_plot
   git pull
   cargo build --release
@@ -643,6 +647,7 @@ export def "apps-update nushell" [] {
   git pull
   cargo install --path .
 
+  print (echo-g "registering plugins...")
   reg-plugins
 }
 

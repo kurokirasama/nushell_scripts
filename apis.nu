@@ -265,7 +265,7 @@ export def exchange_rates [
     if $update_dataset {
       let to_save = (
         $output 
-        | rename -c [UF date]
+        | rename -c {UF: date}
         | upsert date (date now | format date "%Y.%m.%d %H:%M:%S")
       )
       
@@ -281,4 +281,45 @@ export def exchange_rates [
     let symbols = (http get $url_symbols)
     return $symbols.symbols
   }
+}
+
+# Translate text using Google Translate
+export def gg-trans [
+  text: string, # The text to translate
+  --source(-s): string = "auto", # The source language
+  --destination(-d): string = "es", # The destination language
+  --list(-l)  # Select destination language from list
+] {
+
+  mut dest = ""
+
+  if $list {
+    let languages = open ([$env.MY_ENV_VARS.credentials google_translate_languages.json] | path join)
+    let selection = (
+      $languages
+      | columns
+      | input list -f (echo-g "Select destination language:")
+    )
+
+    $dest = ($languages | get $selection)
+
+  } else {
+      $dest = $destination
+  }
+
+  {
+    scheme: "https",
+    host: "translate.googleapis.com",
+    path: "/translate_a/single",
+    params: {
+        client: gtx,
+        sl: $source,
+        tl: $dest,
+        dt: t,
+        q: ($text | url encode),
+    }
+  }
+  | url join
+  | http get $in
+  | get 0.0.0
 }

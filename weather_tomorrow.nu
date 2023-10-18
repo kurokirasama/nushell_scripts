@@ -3,7 +3,7 @@
 # - Air polution condition using airvisual api
 # - Street address using google maps api
 # - Version 2.0
-export def-env weather [--home(-h),--ubb(-b),--no_plot] {
+export def --env weather [--home(-h),--ubb(-b),--no_plot] {
     if not $home {
         if not $ubb {
             get_weather (get_location) --plot (not $no_plot)
@@ -16,7 +16,7 @@ export def-env weather [--home(-h),--ubb(-b),--no_plot] {
 } 
 
 # Get weather for right command prompt
-export def-env get_weather_by_interval [INTERVAL_WEATHER:duration] {
+export def --env get_weather_by_interval [INTERVAL_WEATHER:duration] {
     let weather_runtime_file = (($env.HOME) | path join .weather_runtime_file.json)
     
     if ($weather_runtime_file | path exists) {

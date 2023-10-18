@@ -216,12 +216,20 @@ let tableTrim = {
     truncating_suffix: "❱" #...
   }
 
-let my_config = ($my_config | upsert table.trim $tableTrim)
+let my_config = (
+    $my_config 
+    | upsert table.trim $tableTrim
+    | upsert use_kitty_protocol true
+    | upsert completions.algorithm fuzzy
+)
 
 #updating $env.config
 $env.config = $my_config  
 
 try {
-    # (http get https://api.chucknorris.io/jokes/random).value
-    print (http get -H ["Accept" "text/plain"] https://icanhazdadjoke.com)
+    if (random bool) {
+        print (http get -H ["Accept" "text/plain"] https://icanhazdadjoke.com)
+    } else {
+        print (http get https://api.chucknorris.io/jokes/random).value
+    }   
 }

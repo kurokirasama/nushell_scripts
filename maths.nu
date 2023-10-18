@@ -257,13 +257,13 @@ export def "math perm-coeff" [n:int, r:int] {
 
 #fibonacci sequence
 export def "math fibonacci" [n:int] {
-	mut fib = [0 1]
-
-	for i in 2..$n {
-		$fib = ($fib | append (($fib | get ($i - 1)) + (($fib | get ($i - 2)))))
-	}
-
-	return $fib
+	unfold [0, 1] {|fib| 
+		{
+			out: $fib.0, 
+			next: [$fib.1, ($fib.0 + $fib.1)]
+		} 
+	} 
+	| first $n
 }
 
 #skewness of a list of numbers

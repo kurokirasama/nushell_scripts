@@ -115,7 +115,7 @@ export def ls-ports [] {
       $r.pid 
       | into int 
     }
-  | rename -c ['name' 'connection']
+  | rename -c {name: connection}
   | reject 'command'
   | dfr into-df
   | dfr join (ps -l | dfr into-df) 'pid' 'pid'

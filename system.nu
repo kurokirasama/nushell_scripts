@@ -167,7 +167,7 @@ export def pwd-short [] {
 }
 
 #go to dir (via pipe)
-export def-env cd-pipe [] {
+export def --env cd-pipe [] {
   let input = $in
   cd (
       if ($input |  get name | path type) == file {
@@ -179,12 +179,12 @@ export def-env cd-pipe [] {
 }
 
 #go to bash path (must be the last one in PATH)
-export def-env cdto-bash [] {
+export def --env cdto-bash [] {
   cd ($env.PATH | last)
 }
 
 #cd to the folder where a binary is located
-export def-env which-cd [program] { 
+export def --env which-cd [program] { 
   let dir = (which $program | get path | path dirname | str trim)
   cd $dir.0
 }
@@ -215,7 +215,7 @@ export def stop-net-apps [] {
 }
 
 #create dir and cd into it
-export def-env mkcd [name: path] {
+export def --env mkcd [name: path] {
   mkdir $name
   cd $name
 }

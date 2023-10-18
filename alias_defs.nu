@@ -9,7 +9,7 @@ export def get-keybindings [] {
 }
 
 #go to nu config dir
-export def-env goto-nuconfigdir [] {
+export def --env goto-nuconfigdir [] {
   $nu.config-path | goto
 } 
 

@@ -99,7 +99,7 @@ export def "ytm online" [
     | upsert snippet {|sn| 
         $sn.snippet.title
       }
-    | rename -c [snippet title]
+    | rename -c {snippet: title}
     | append {"id": "LM", "title": "all_likes"}
   )
 
@@ -209,7 +209,7 @@ export def "yt-api get-songs" [
     $response
     | get items 
     | select id snippet 
-    | rename -c [id inPlaylistID]
+    | rename -c {id: inPlaylistID}
     | upsert id {|item| 
         $item.snippet.resourceId.videoId
       }
@@ -257,7 +257,7 @@ export def "yt-api download-music-playlists" [
     | upsert snippet {|sn| 
         $sn.snippet.title
       }
-    | rename -c [snippet title]
+    | rename -c {snippet: title}
     | find music
     | update title {|item|
         $item.title 
@@ -296,7 +296,7 @@ export def "yt-api update-all" [
     | upsert snippet {|sn| 
         $sn.snippet.title
       }
-    | rename -c [snippet title]
+    | rename -c {snippet: title}
   )
 
   let from = ($playlists | find $playlist2 | get id | get 0)
@@ -355,7 +355,7 @@ export def "yt-api empty-playlist" [playlist?:string] {
     | upsert snippet {|sn| 
         $sn.snippet.title
       }
-    | rename -c [snippet title]
+    | rename -c {snippet: title}
   )
 
   print (echo-g "selecting playlist to process...")
@@ -405,7 +405,7 @@ export def "yt-api remove-duplicated-songs" [
     | upsert snippet {|sn| 
         $sn.snippet.title
       }
-    | rename -c [snippet title]
+    | rename -c {snippet: title}
   )
 
   print (echo-g "selecting playlist to process...")
@@ -487,7 +487,7 @@ export def "yt-api verify-token" [] {
 }
 
 #update youtube api token
-export def-env "yt-api get-token" [] {
+export def --env "yt-api get-token" [] {
   let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
   let client = ($youtube_credential | get client_id)
 
@@ -527,7 +527,7 @@ export def-env "yt-api get-token" [] {
 ##In progress
 
 #get youtube api refresh token
-export def-env "yt-api get-refresh-token" [] {
+export def --env "yt-api get-refresh-token" [] {
   let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
   let client = ($youtube_credential | get client_id)
 
