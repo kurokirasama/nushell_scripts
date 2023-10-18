@@ -220,7 +220,7 @@ let my_config = (
     $my_config 
     | upsert table.trim $tableTrim
     | upsert use_kitty_protocol true
-    | upsert completions.algorithm fuzzy
+    | upsert completions.algorithm prefix #fuzzy
 )
 
 #updating $env.config
