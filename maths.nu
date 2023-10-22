@@ -215,11 +215,11 @@ export def "math exp" [ ] {
     each {|x| "e(" + $"($x)" + ")\n" | bc -l | into float }
 }
 
-#random integer
+#random int
 export def randi [
-	n:int #select random integer in 0..n
+	n:int #select random int in 0..n
 ] { 
-	random integer 0..$n
+	random int 0..$n
 }
 
 #random selection from a list
@@ -229,7 +229,7 @@ export def rand-select [
 ] { 
 	let xs = if ($x | is-empty) {$in} else {$x}
 	let len = ($xs | length) 
-	$xs | select (random integer 0..($len - 1))
+	$xs | select (random int 0..($len - 1))
 }
 
 #binomial coefficient (C_k^n)

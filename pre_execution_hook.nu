@@ -20,7 +20,7 @@ if $update {
 
 ## update ip
 if $update {
-    print (echo "getting device ips...")
+    print (echo $"(ansi -e { fg: '#00ff00' attr: b })getting device ips...(ansi reset)")
     let host = (sys | get host | get hostname)
     let ips_file = "/home/kira/Yandex.Disk/Android Devices/Apps/Termux/ips.json"
     let ips = (nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/get-ips.nu)

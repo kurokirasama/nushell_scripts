@@ -125,7 +125,7 @@ export def openg [file?,--copy(-c)] {
   )
 
   if $copy {$url | xclip -sel clip}
-  print (echo-g $"($url) copied to clipboard!")
+  print (echo-g $"($url)")
 }
 
 #accumulate a list of files into the same table
@@ -203,7 +203,7 @@ export def rm-pipe [] {
     get name 
     | ansi strip
     | par-each {|file| 
-        ^rm -rf $file | ignore
+        rm -r -f $file | ignore
       } 
     | flatten
   }
@@ -213,6 +213,7 @@ export def rm-pipe [] {
 export def cp-pipe [
   to: string         #target directory
   --no_overwrite(-n) #if filename exists, it creates a copy
+  --update(-u)
   #
   #Example
   #ls *.txt | first 5 | cp-pipe ~/temp
@@ -220,8 +221,12 @@ export def cp-pipe [
   get name
   | ansi strip
   | each {|file| 
-    print (echo-g $"copying ($file)..." )
-    ^cp -ur $file ($to | path expand)
+    if $update {
+      print (echo-g $"copying ($file)..." )
+      ^cp -ur $file ($to | path expand)
+    } else {
+      cp -rp $file ($to | path expand)
+    }
   } 
 }
 
@@ -238,9 +243,9 @@ export def mv-pipe [
   | each {|file|
       print (echo-g $"moving ($file)..." )
       if $force {
-        ^mv -u $file ($to | path expand)
+        mv -u $file ($to | path expand)
       } else {
-        ^mv -f $file ($to | path expand)
+        mv -f $file ($to | path expand)
       }
     }
 }

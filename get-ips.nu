@@ -3,11 +3,26 @@
 export def main [
   device =  "wlo1"  #wlo1 for wifi (export default), eno1 for lan
 ] {
+  let host = (sys | get host | get hostname)
+  
+  let device = (
+    if ($device | is-empty) {
+      if $host =~ $env.MY_ENV_VARS.host_work {
+        "eno1"
+      } else {
+        "wlo1"
+      }
+    } else {
+      $device
+    }
+  )
+
   let internal = (ip -json add 
     | from json 
     | where ifname =~ $"($device)" 
     | select addr_info 
-    | flatten | find -v inet6 
+    | flatten 
+    | find -v inet6 
     | flatten 
     | get local 
     | get 0
