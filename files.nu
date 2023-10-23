@@ -243,9 +243,9 @@ export def mv-pipe [
   | each {|file|
       print (echo-g $"moving ($file)..." )
       if $force {
-        mv -u $file ($to | path expand)
+        ^mv -f $file ($to | path expand)
       } else {
-        mv -f $file ($to | path expand)
+        ^mv -u $file ($to | path expand)
       }
     }
 }
