@@ -205,7 +205,13 @@ def get_airCond [loc] {
 def get_weather [loc, --plot = true] {
     let response = (fetch_api $loc)
     let address = (get_address $loc)
-    let air_cond = (get_airCond $loc)
+    let air_cond = (
+        try {
+            get_airCond $loc
+        } catch {
+            "no data"
+        }
+    )
 
     ## Current conditions
     let cond = (get_weather_description_from_code ($response.realtime.data.values.weatherCode | into string))
@@ -267,7 +273,7 @@ def get_weather [loc, --plot = true] {
     mut data = []
     
     for i in 0..(($days | length) - 1) {
-        $data = ($data | append ($response.forecast.timelines.daily | get values | get $i | select weatherCodeMax temperatureMin temperatureMax windSpeedAvg humidityAvg precipitationProbabilityAvg rainIntensityAvg uvIndexAvg | transpose | transpose -r))
+        $data = ($data | append ($response.forecast.timelines.daily | get values | get $i | select weatherCodeMax temperatureMin temperatureMax windSpeedAvg humidityAvg precipitationProbabilityAvg rainIntensityAvg uvIndexAvg? | transpose | transpose -r))
     }
 
     mut forecast = ($days | dfr into-df | dfr append ($data | dfr into-df) | dfr into-nu)
@@ -290,7 +296,7 @@ def get_weather [loc, --plot = true] {
         | update uvIndexAvg {|f| uv_class $f.uvIndexAvg}
         | update weatherCodeMax {|f| get_weather_description_from_code ($f.weatherCodeMax | into string)} 
         | update windSpeedAvg {|f| $"(desc_wind $f.windSpeedAvg) \(($f.windSpeedAvg | into string -d 2)\)"} 
-        | reject index
+        | reject index?
         | rename Date Summary "T° min (°C)" "T° max (°C)" "Wind Speed (Km/h)" "Humidity (%)" "Precip. Prob. (%)" "Precip. Intensity (mm)" "UV Index"
     )
 

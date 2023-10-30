@@ -304,6 +304,24 @@ export def "ai git-push" [
   git status
   git commit -am $commit
   git push origin main
+
+  print (echo-g "updating deb files to gdrive...")
+  let mounted = ($env.MY_ENV_VARS.gdrive_debs | path expand | path exists)
+
+  if not $mounted {
+    print (echo-g "mounting gdrive...")
+    mount-ubb
+  }
+
+  let old_deb_date = ls ([$env.MY_ENV_VARS.gdrive_debs debs.7z] | path join) | get modified | get 0
+
+  let last_deb_date = ls $env.MY_ENV_VARS.debs | sort-by modified | last | get modified 
+
+  if $last_deb_date > $old_deb_date {
+    cd $env.MY_ENV_VARS.debs; cd ..
+    7z max debs debs/
+    mv -f debs.7z $env.MY_ENV_VARS.gdrive_debs
+  }
 }
 
 #audio to text transcription via whisper

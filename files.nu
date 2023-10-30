@@ -202,8 +202,8 @@ export def rm-pipe [] {
   if not ($in | is-empty) {
     get name 
     | ansi strip
-    | par-each {|file| 
-        rm -r -f $file | ignore
+    | each {|file| 
+        rm -rf $file | ignore
       } 
     | flatten
   }
