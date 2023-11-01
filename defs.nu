@@ -284,6 +284,22 @@ export def qrenc [url] {
   curl $"https://qrenco.de/($url)"
 }
 
+#compact with empty strings and nulls
+export def scompact [
+    ...columns: string # the columns to compactify
+    --invert(-i) # select the opposite
+] {
+    mut out = $in
+    for column in $columns {
+        if $invert {
+            $out = ($out | upsert $column {|row| if not ($row | get $column | is-empty) {null} else {$row | get $column}} | compact $column  )
+        } else {
+            $out = ($out | upsert $column {|row| if ($row | get $column | is-empty) {null} else {$row | get $column}} | compact $column  )
+        }
+    }
+    $out 
+}
+
 ## appimages
 
 #open balena-etche
