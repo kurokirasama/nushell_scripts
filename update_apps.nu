@@ -829,3 +829,14 @@ export def "apps-update myffmpeg" [--force(-f)] {
 export def "apps-update evernote-backup" [] {
   pip install --user --upgrade evernote-backup
 }
+
+#update joplin
+export def "apps-update joplin" [] {
+  print (echo-g "updating joplin ui...")
+  wget -O - https://raw.githubusercontent.com/laurent22/joplin/dev/Joplin_install_and_update.sh | bash
+
+  print (echo-g "updating jopling cli...")
+  bash -c "NPM_CONFIG_PREFIX=~/.joplin-bin npm install -g joplin"
+  sudo ^ln -s ~/.joplin-bin/bin/joplin /usr/bin/joplin
+}
+
