@@ -323,3 +323,66 @@ export def gg-trans [
   | http get $in
   | get 0.0.0
 }
+
+#search notes in joplin
+export def "joplin search" [
+  query?      #search query
+  --title(-t) #search in title
+  --body(-b)  #search in body
+  --tag(-g)   #search in tag
+  --edit(-e)  #edit selected note
+] {
+  let host = (sys | get host | get hostname)
+  let port = $env.MY_ENV_VARS.api_keys.joplin.port
+  let token = (
+    if ($host == $env.MY_ENV_VARS.host_work) {
+      $env.MY_ENV_VARS.api_keys.joplin.token.work
+    } else if ($host == deathnote) {
+      $env.MY_ENV_VARS.api_keys.joplin.token.deathnote
+    } else {
+        return-error "host not found!"
+    }
+  )
+
+  let query = if ($query | is-empty) {$in} else {$query}
+  let query = (
+    if $title {
+      "title:" + $query
+    } else if $body {
+      "body:" + $query
+    } else if $tag {
+      "tag:" + $query
+    } else {
+      $query
+    }
+  )
+
+  let url = {
+              "scheme": "http",
+              "host": "localhost",
+              "port": $port ,
+              "path": "search",
+              "query": ("query=" + $query + "&token=" + $token),
+            } | url join 
+    
+  let response = http get $url
+
+  let selection = (
+    $response.items 
+    | get title 
+    | input list -f (echo-g "Select note to display:")
+  )
+
+  let id = (
+    $response.items 
+    | where title == $selection 
+    | get id
+  )
+
+  if $edit {
+    joplin edit $id 
+  } else {
+    joplin cat $id | nu-highlight
+  }
+}
+  
