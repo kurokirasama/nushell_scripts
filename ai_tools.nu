@@ -237,8 +237,8 @@ export def "ai git-push" [
   #
   #Inspired by https://github.com/zurawiki/gptcommit
 ] {
-  let max_words = if $gpt4 {96000} else {12000}
-  let max_words_short = if $gpt4 {96000} else {12000}
+  let max_words = if $gpt4 {85000} else {10000}
+  let max_words_short = if $gpt4 {85000} else {10000}
 
   print (echo-g "asking chatgpt to summarize the differences in the repository...")
   let question = (git diff | str replace "\"" "'" -a)
@@ -403,7 +403,7 @@ export def "ai transcription-summary" [
   let output = $"($file | path parse | get stem)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gpt4 {96000} else {12000}
+  let max_words = if $gpt4 {85000} else {10000}
   let n_words = (wc -w $file | awk '{print $1}' | into int)
 
   if $n_words > $max_words {
@@ -601,7 +601,7 @@ export def "ai yt-summary" [
   let output = $"($title)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gpt4 {96000} else {12000}
+  let max_words = if $gpt4 {85000} else {10000}
   let n_words = (wc -w $the_subtitle | awk '{print $1}' | into int)
 
   if $n_words > $max_words {
@@ -711,7 +711,7 @@ export def "ai media-summary" [
   let output = $"($title)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gpt4 {96000} else {12000}
+  let max_words = if $gpt4 {85000} else {10000}
   let n_words = (wc -w $the_subtitle | awk '{print $1}' | into int)
 
   if $n_words > $max_words {
