@@ -26,7 +26,7 @@ export def "ai help" [] {
 #single call chatgpt wrapper
 export def chat_gpt [
     prompt?: string                               # the query to Chat GPT
-    --model(-m):string = "gpt-3.5-turbo"                 # the model gpt-3.5-turbo, gpt-4, etc
+    --model(-m):string = "gpt-3.5-turbo-1106"     # the model gpt-3.5-turbo, gpt-4, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9                       # the temperature of the model
     --list_system(-l)                             # select system message from list
@@ -34,12 +34,14 @@ export def chat_gpt [
     --select_system: string                       # directly select system message    
     --select_preprompt: string                    # directly select pre_prompt
     --delim_with_backquotes(-d)                   # to delimit prompt (not pre-prompt) with triple backquotes (')
-    --large_model(-k):bool = false                # use gpt-3.5-turbo-16k (gpt-4-32k) if model is gpt-3.5-turbo (gpt-4)
     #
     #Available models at https://platform.openai.com/docs/models, but some of them are:
     # - gpt-4 (8192 tokens)
+    # - gpt-4-1106-preview (128000 tokens), gpt-4-turbo for short
+    # - gpt-4-vision-preview (128000 tokens) 
     # - gpt-4-32k (32768 tokens)
     # - gpt-3.5-turbo (4096 tokens)
+    # - gpt-3.5-turbo-1106 (16385 tokens)
     # - gpt-3.5-turbo-16k (16384 tokens)
     # - text-davinci-003 (4097 tokens)
     #
@@ -76,21 +78,6 @@ export def chat_gpt [
   if ($prompt | is-empty) {
     return-error "Empty prompt!!!"
   }
-
-  #define model
-  let model = (
-    if $large_model {
-      if $model == "gpt-3.5-turbo" {
-        "gpt-3.5-turbo-16k"
-      } else if $model == "gpt-4" {
-        "gpt-4-32k"
-      } else {
-        $model
-      }
-    } else {
-      $model
-    }
-  )
   
   #select system message
   let system_messages = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_systemmessages.json] | path join))
@@ -132,6 +119,7 @@ export def chat_gpt [
   )
 
   # call to api
+  let model = if $model == "gpt-4-turbo" {"gpt-4-vision-preview"} else {$model}
   let header = [Authorization $"Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"]
   let site = "https://api.openai.com/v1/chat/completions"
   let request = {
@@ -155,18 +143,18 @@ export def chat_gpt [
 
 #fast call to the chat_gpt wrapper
 export def askgpt [
-  prompt?:string          # string with the prompt, can be piped
-  system?:string          # string with the system message. It has precedence over the system message flags
-  --programmer(-p)        # use programmer system message with temp 0.7, else use assistant with temp 0.9
-  --teacher(-s)           # use teacher (sensei) system message with temp 0.95, else use assistant with temp 0.9
-  --engineer(-e)          # use prompt_engineer system message with temp 0.8, else use assistant with temp 0.9
-  --rubb(-r)              # use rubb system message with temperature 0.5, else use assistant with temp 0.9
-  --list_system(-l)       # select system message from list (takes precedence over flags)
+  prompt?:string  # string with the prompt, can be piped
+  system?:string  # string with the system message. It has precedence over the system message flags
+  --programmer(-p) # use programmer s.m with temp 0.7, else use assistant with temp 0.9
+  --teacher(-s) # use teacher (sensei) s.m with temp 0.95, else use assistant with temp 0.9
+  --engineer(-e) # use prompt_engineer s.m. with temp 0.8, else use assistant with temp 0.9
+  --rubb(-r)     # use rubb s.m. with temperature 0.5, else use assistant with temp 0.9
+  --list_system(-l)       # select s.m from list (takes precedence over flags)
   --list_preprompt(-b)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
   --temperature(-t):float # takes precedence over the 0.7 and 0.9
-  --gpt4(-g)              # use gpt-4 instead of gpt-3.5-turbo
-  --large_model(-k)       # use gpt-3.5-turbo-16k (gpt-4-32k) if model is gpt-3.5-turbo (gpt-4)
-  --fast(-f)              # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
+  --gpt4(-g)              # use gpt-4-1106-preview instead of gpt-3.5-turbo-1106 (default)
+  --vision(-v)            # use gpt-4-vision-preview
+  --fast(-f) # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
   #
   #Only one system message flag allowwed.
   #For more personalization use `chat_gpt`
@@ -215,15 +203,24 @@ export def askgpt [
   )
 
   let answer = (
-    match [$gpt4,$list_system,$list_preprompt] {
-      [true,true,false] => {chat_gpt $prompt -t $temp -l -m gpt-4 -k $large_model},
-      [true,false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4 -k $large_model},
-      [false,true,false] => {chat_gpt $prompt -t $temp -l -k $large_model},
-      [false,false,false] => {chat_gpt $prompt -t $temp --select_system $system -k $large_model},
-      [true,true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4 -p -d -k $large_model},
-      [true,false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4 -p -d -k $large_model},
-      [false,true,true] => {chat_gpt $prompt -t $temp -l -p -d -k $large_model},
-      [false,false,true] => {chat_gpt $prompt -t $temp --select_system $system -p -d -k $large_model}
+    if $vision {
+      match [$list_system,$list_preprompt] {
+        [true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4-vision-preview -p -d},
+        [true,false] => {chat_gpt $prompt -t $temp -l -m gpt-4-vision-preview},
+        [false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4-vision-preview -p -d},
+        [false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4-vision-preview},
+      }
+    } else {
+      match [$gpt4,$list_system,$list_preprompt] {
+        [true,true,false] => {chat_gpt $prompt -t $temp -l -m gpt-4-1106-preview},
+        [true,false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4-1106-preview},
+        [false,true,false] => {chat_gpt $prompt -t $temp -l},
+        [false,false,false] => {chat_gpt $prompt -t $temp --select_system $system},
+        [true,true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4-1106-preview -p -d},
+        [true,false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4-1106-preview -p -d},
+        [false,true,true] => {chat_gpt $prompt -t $temp -l -p -d},
+        [false,false,true] => {chat_gpt $prompt -t $temp --select_system $system -p -d}
+      }
     }
   )
 
@@ -236,26 +233,12 @@ export def askgpt [
 
 #generate a git commit message via chatgpt and push the changes
 export def "ai git-push" [
-  --gpt4(-g)        # use gpt-4 instead of gpt-3.5-turbo
-  --large_model(-k) # use gpt-3.5-turbo-16k (gpt-4-32k) if model is gpt-3.5-turbo (gpt-4)
+  --gpt4(-g) # use gpt-4-1106-preview instead of gpt-3.5-turbo-1106
   #
   #Inspired by https://github.com/zurawiki/gptcommit
 ] {
-  let max_words = (
-    if $large_model {
-      if $gpt4 {15400} else {7400}
-    } else {
-      if $gpt4 {3400} else {1400}
-    }
-  )
-
-  let max_words_short = (
-    if $large_model {
-      if $gpt4 {15930} else {7930}
-    } else {
-      if $gpt4 {3930} else {1930}
-    }
-  )
+  let max_words = if $gpt4 {96000} else {12000}
+  let max_words_short = if $gpt4 {96000} else {12000}
 
   print (echo-g "asking chatgpt to summarize the differences in the repository...")
   let question = (git diff | str replace "\"" "'" -a)
@@ -267,23 +250,23 @@ export def "ai git-push" [
       match $gpt4 {
         true => {
           try {
-            chat_gpt $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m "gpt-4" -k $large_model
+            chat_gpt $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m "gpt-4-turbo"
           } catch {
             try {
-              chat_gpt $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m "gpt-4" -k $large_model
+              chat_gpt $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m "gpt-4-turbo"
             } catch {
-            chat_gpt $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d -m "gpt-4" -k $large_model
+            chat_gpt $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d -m "gpt-4-turbo"
             }
           }
         },
         false => {
           try {
-            chat_gpt $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -k $large_model
+            chat_gpt $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d
           } catch {
             try {
-              chat_gpt $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -k $large_model
+              chat_gpt $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d
             } catch {
-            chat_gpt $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d -k $large_model
+            chat_gpt $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d
             }
           }
         }
@@ -407,7 +390,7 @@ export def "ai video2text" [
 #resume transcription text via gpt 
 export def "ai transcription-summary" [
   file                #text file name with transcription text
-  --gpt4(-g) = false  #whether to use gpt-4 (default false)
+  --gpt4(-g) = false  #whether to use gpt-4-turbo (default false)
   --upload(-u) = true #whether to upload to gdrive (default true) 
   --notify(-n)        #notify to android via ntfy
 ] {
@@ -420,7 +403,7 @@ export def "ai transcription-summary" [
   let output = $"($file | path parse | get stem)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gpt4 {4000} else {2000}
+  let max_words = if $gpt4 {96000} else {12000}
   let n_words = (wc -w $file | awk '{print $1}' | into int)
 
   if $n_words > $max_words {
@@ -454,7 +437,7 @@ export def "ai transcription-summary" [
 
     print (echo-g $"asking chatgpt to combine the results in ($temp_output)...")
     if $gpt4 {
-      chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d -m "gpt-4" | save -f $output
+      chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d -m "gpt-4-turbo" | save -f $output
     } else {
       chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d | save -f $output
     }
@@ -491,7 +474,7 @@ export def "ai transcription-summary-single" [
 
   print (echo-g $"asking chatgpt for a summary of the file ($file)...")
   if $gpt4 {
-    chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d -m "gpt-4" | save -f $output
+    chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d -m "gpt-4-turbo" | save -f $output
   } else {
     chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d | save -f $output
   }
@@ -563,7 +546,7 @@ export def "ai generate-subtitles-pipe" [
 export def "ai yt-summary" [
   url?:string       # video url
   --lang = "en"     # language of the summary (default english: en)
-  --gpt4(-g)        # to use gpt4 instead of gpt-3.5
+  --gpt4(-g)        # to use gpt4-turbo instead of gpt-3.5
   --notify(-n)      # notify to android via ntfy
   #
   #Two characters words for languages
@@ -618,7 +601,7 @@ export def "ai yt-summary" [
   let output = $"($title)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gpt4 {3500} else {1500}
+  let max_words = if $gpt4 {96000} else {12000}
   let n_words = (wc -w $the_subtitle | awk '{print $1}' | into int)
 
   if $n_words > $max_words {
@@ -654,7 +637,7 @@ export def "ai yt-summary" [
 
     print (echo-g $"asking chatgpt to combine the results in ($temp_output)...")
     if $gpt4 {
-      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d -m "gpt-4" | save -f $output
+      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d -m "gpt-4-turbo" | save -f $output
     } else {
       chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d | save -f $output
     }
@@ -678,7 +661,7 @@ export def "ai yt-transcription-summary" [
 
   print (echo-g $"asking chatgpt for a summary of the file ($output)...")
   if $gpt4 {
-    chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt summarize_ytvideo -d -m "gpt-4" | save -f $output_file
+    chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt summarize_ytvideo -d -m "gpt-4-turbo" | save -f $output_file
   } else {
     chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt summarize_ytvideo -d | save -f $output_file
   }
@@ -728,7 +711,7 @@ export def "ai media-summary" [
   let output = $"($title)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gpt4 {3500} else {1500}
+  let max_words = if $gpt4 {96000} else {12000}
   let n_words = (wc -w $the_subtitle | awk '{print $1}' | into int)
 
   if $n_words > $max_words {
@@ -764,7 +747,7 @@ export def "ai media-summary" [
 
     print (echo-g $"asking chatgpt to combine the results in ($temp_output)...")
     if $gpt4 {
-      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d -m "gpt-4" | save -f $output
+      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d -m "gpt-4-turbo" | save -f $output
     } else {
       chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d | save -f $output
     }

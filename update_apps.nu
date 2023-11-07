@@ -616,7 +616,6 @@ export def "apps-update vivaldi" [] {
 
   print (echo-g "\ndownloading vivaldi...")
   aria2c --download-result=hide $release_url
-  sudo gdebi -n (ls *.deb | find vivaldi | get 0 | get name | ansi strip)
 }
 
 #update cmdg
