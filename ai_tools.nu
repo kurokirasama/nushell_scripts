@@ -23,17 +23,173 @@ export def "ai help" [] {
   ) 
 }
 
+#upload a file to chatpdf server
+export def "chatpdf add" [
+  file:string   #filename with extension
+  label?:string #label for the pdf (default is downcase filename with underscores as spaces)
+  --notify(-n)  #notify to android via ntfy
+] {
+  let file = if ($file | is-empty) {$in | get name} else {$file}
+
+  if ($file | path parse | get extension | str downcase) != pdf {
+    return-error "wrong file type, it must be a pdf!"
+  }
+
+  let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
+  let database_file = ([$env.MY_ENV_VARS.chatgpt_config chatpdf_ids.json] | path join)
+  let database = (open $database_file)
+
+  let url = "https://api.chatpdf.com/v1/sources/add-file"
+
+  let filename = ($file | path parse | get stem | str downcase | str replace -a " " "_")
+  let filepath = ($file | path expand)
+
+  if ($filename in ($database | columns)) {
+    return-error "there is already a file with the same name already uploaded!"
+  }
+
+  if not ($label | is-empty) {
+     if ($label in ($database | columns)) {
+      return-error "there is already a file with the same label already uploaded!"
+   }
+  }
+
+  let filename = if ($label | is-empty) {$filename} else {label}
+        
+  let header = $"x-api-key: ($api_key)"
+  # let response = (http post $url -t application/octet-stream $data -H ["x-api-key", $api])
+  let response = (curl -s -X POST $url -H $header -F $"file=@($filepath)" | from json)
+
+  if ($response | is-empty) {
+    return-error "empty response!"
+  } else if ("sourceId" not-in ($response | columns) ) {
+    return-error $response.message
+  }
+
+  let id = ($response | get sourceId)
+
+  $database | upsert $filename $id | save -f $database_file
+  if $notify {"upload finished!" | ntfy-send}
+}
+
+#delete a file from chatpdf server
+export def "chatpdf del" [
+] {
+  let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
+  let database_file = ([$env.MY_ENV_VARS.chatgpt_config chatpdf_ids.json] | path join)
+  let database = (open $database_file)
+
+  let selection = ($database | columns | sort | input list -f (echo-g "Select file to delete:"))
+
+  let url = "https://api.chatpdf.com/v1/sources/delete"
+  let data = {"sources": [($database | get $selection)]}
+  
+  let header = ["x-api-key", ($api_key)] 
+  let response = (http post $url -t application/json $data -H $header)
+  # let response = (curl -s -X POST $url -H 'Content-Type: application/json' -H $"x-api-key: ($api_key)" -d $data | from json)
+
+  $database | reject $selection | save -f $database_file
+}
+
+#chat with a pdf via chatpdf
+export def "chatpdf ask" [
+  prompt?:string            #question to the pdf
+  --select_pdf(-s):string   #specify which book to ask via filename (without extension), otherwise select from list
+] {
+  let prompt = if ($prompt | is-empty) {$in} else {$prompt}
+
+  let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
+  let database_file = ([$env.MY_ENV_VARS.chatgpt_config chatpdf_ids.json] | path join)
+  let database = (open $database_file)
+
+  let selection = (
+    if ($select_pdf | is-empty) {
+      $database 
+      | columns 
+      | sort 
+      | input list -f (echo-g "Select pdf to ask a question:")
+    } else {
+      $select_pdf
+      | str downcase 
+      | str replace -a " " "_"
+    }
+  )
+
+  if ($selection not-in ($database | columns)) {
+    return-error "pdf not found in server!"
+  }
+
+  let url = "https://api.chatpdf.com/v1/chats/message"
+
+  let header = ["x-api-key", ($api_key)]  
+  let request = {
+    "referenceSources": true,
+    "sourceId": ($database | get $selection),
+    "messages": [
+      {
+        "role": "user",
+        "content": $prompt
+      }
+    ]
+  }
+
+  let answer = (http post -t application/json -H $header $url $request) 
+
+  return $answer.content
+}
+
+#fast call to chatpdf ask
+export def askpdf [
+  prompt?     #question to ask to the pdf
+  --rubb(-r)  #use rubb file, otherwhise select from list
+  --btx(-b)   #use btx file, otherwhise select from list
+  --fast(-f)  #get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
+] {
+  if $rubb and $btx {
+    return-error "only one of these flags allowed!"
+  }
+  let prompt = (
+    if not $fast {
+      if ($prompt | is-empty) {$in} else {$prompt}
+    } else {
+      open ~/Yandex.Disk/ChatGpt/prompt.md
+    }
+  )
+
+  let answer = (
+    if $rubb {
+      chatpdf ask $prompt -s rubb
+    } else if $btx {
+      chatpdf ask ($prompt + (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join) | get chatpdf_btx)) -s btx
+    } else {
+      chatpdf ask $prompt
+    }
+  )
+
+  if $fast {
+    $answer | save -f ~/Yandex.Disk/ChatGpt/answer.md
+  } else {
+    return $answer  
+  } 
+}
+
+#list uploaded documents
+export def "chatpdf list" [] {
+  open ([$env.MY_ENV_VARS.chatgpt_config chatpdf_ids.json] | path join) | columns
+}
+
 #single call chatgpt wrapper
 export def chat_gpt [
     prompt?: string                               # the query to Chat GPT
     --model(-m):string = "gpt-3.5-turbo-1106"     # the model gpt-3.5-turbo, gpt-4, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9                       # the temperature of the model
+    --image(-i):string                            # filepath of image file for gpt-4-vision-preview
     --list_system(-l)                             # select system message from list
     --pre_prompt(-p)                              # select pre-prompt from list
     --select_system: string                       # directly select system message    
     --select_preprompt: string                    # directly select pre_prompt
-    --delim_with_backquotes(-d)                   # to delimit prompt (not pre-prompt) with triple backquotes (')
+    --delim_with_backquotes(-d)     # to delimit prompt (not pre-prompt) with triple backquotes (')
     #
     #Available models at https://platform.openai.com/docs/models, but some of them are:
     # - gpt-4 (8192 tokens)
@@ -79,6 +235,30 @@ export def chat_gpt [
     return-error "Empty prompt!!!"
   }
   
+  if ($model == "gpt-4-vision-preview") and ($image | is-empty) {
+    return-error "gpt-4-vision needs and image file!"
+  }
+
+  if ($model == "gpt-4-vision-preview") and (not ($image | path expand | path exists)) {
+    return-error "image file not found!" 
+  }
+
+  let extension = (
+    if $model == "gpt-4-vision-preview" {
+      $image | path parse | get extension
+    } else {
+      ""
+    }
+  )
+
+  let image = (
+    if $model == "gpt-4-vision-preview" {
+      open ($image | path expand) | encode base64
+    } else {
+      ""
+    }
+  )
+
   #select system message
   let system_messages = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_systemmessages.json] | path join))
 
@@ -119,25 +299,59 @@ export def chat_gpt [
   )
 
   # call to api
-  let model = if $model == "gpt-4-turbo" {"gpt-4-vision-preview"} else {$model}
+  let model = if $model == "gpt-4-turbo" {"gpt-4-1106-preview"} else {$model}
   let header = [Authorization $"Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"]
   let site = "https://api.openai.com/v1/chat/completions"
-  let request = {
-      model: $model,
-      messages: [
-        {
-          role: "system"
-          content: $system
-        },
-        {
-          role: "user"
-          content: $prompt
-        }
-      ]
-      temperature: $temp
-  }
+  let image_url = ("data:image/" + $extension + ";base64," + $image)
+  
+  let request = (
+    if $model == "gpt-4-vision-preview" {
+      {
+        model: $model,
+        messages: [
+          {
+            role: "system"
+            content: $system
+          },
+          {
+            role: "user"
+            content: [
+              {
+                "type": "text",
+                "text": $prompt
+              },
+              {
+                "type": "image_url",
+                "image_url": 
+                  {
+                    "url": $image_url
+                  }
+              }
+            ]
+          }
+        ],
+        temperature: $temp,
+        max_tokens: 4000
+      }
+    } else {
+      {
+        model: $model,
+        messages: [
+          {
+            role: "system"
+            content: $system
+          },
+          {
+            role: "user"
+            content: $prompt
+          }
+        ],
+        temperature: $temp
+      }
+    }
+  )
 
-  let answer = (http post -t application/json -H $header $site $request)  
+  let answer = http post -t application/json -H $header $site $request  
   return $answer.choices.0.message.content
 }
 
@@ -154,11 +368,16 @@ export def askgpt [
   --temperature(-t):float # takes precedence over the 0.7 and 0.9
   --gpt4(-g)              # use gpt-4-1106-preview instead of gpt-3.5-turbo-1106 (default)
   --vision(-v)            # use gpt-4-vision-preview
+  --image(-i):string      # filepath of the image to prompt to gpt-4-vision-preview
   --fast(-f) # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
   #
-  #Only one system message flag allowwed.
+  #Only one system message flag allowed.
   #For more personalization use `chat_gpt`
 ] {
+  if $vision and ($image | is-empty) {
+    return-error "gpt-4 vision needs and image file!"
+  }
+
   let prompt = (
     if not $fast {
       if ($prompt | is-empty) {$in} else {$prompt}
@@ -182,7 +401,7 @@ export def askgpt [
    }
   )
 
-   let system = (
+  let system = (
     if ($system | is-empty) {
       if $list_system {
         ""
@@ -205,10 +424,10 @@ export def askgpt [
   let answer = (
     if $vision {
       match [$list_system,$list_preprompt] {
-        [true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4-vision-preview -p -d},
-        [true,false] => {chat_gpt $prompt -t $temp -l -m gpt-4-vision-preview},
-        [false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4-vision-preview -p -d},
-        [false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4-vision-preview},
+        [true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4-vision-preview -p -d -i $image},
+        [true,false] => {chat_gpt $prompt -t $temp -l -m gpt-4-vision-preview -i $image},
+        [false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4-vision-preview -p -d -i $image},
+        [false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4-vision-preview -i $image},
       }
     } else {
       match [$gpt4,$list_system,$list_preprompt] {
@@ -288,19 +507,19 @@ export def "ai git-push" [
   git commit -am $commit
   git push origin main
 
-  print (echo-g "updating deb files to gdrive...")
+  #updating deb files to gdrive
   let mounted = ($env.MY_ENV_VARS.gdrive_debs | path expand | path exists)
+  if not $mounted {
+    print (echo-g "mounting gdrive...")
+    mount-ubb
+  }
 
   let old_deb_date = ls ([$env.MY_ENV_VARS.gdrive_debs debs.7z] | path join) | get modified | get 0
 
   let last_deb_date = ls $env.MY_ENV_VARS.debs | sort-by modified | last | get modified 
 
-  if $last_deb_date > $old_deb_date {
-    if not $mounted {
-      print (echo-g "mounting gdrive...")
-      mount-ubb
-    }
-    
+  if $last_deb_date > $old_deb_date {   
+    print (echo-g "updating deb files to gdrive...") 
     cd $env.MY_ENV_VARS.debs; cd ..
     7z max debs debs/
     mv -f debs.7z $env.MY_ENV_VARS.gdrive_debs
@@ -760,157 +979,74 @@ export def "ai media-summary" [
   if $notify {"summary finished!" | ntfy-send}
 }
 
-#upload a file to chatpdf server
-export def "chatpdf add" [
-  file:string   #filename with extension
-  label?:string #label for the pdf (default is downcase filename with underscores as spaces)
-  --notify(-n)  #notify to android via ntfy
-] {
-  let file = if ($file | is-empty) {$in | get name} else {$file}
-
-  if ($file | path parse | get extension | str downcase) != pdf {
-    return-error "wrong file type, it must be a pdf!"
-  }
-
-  let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
-  let database_file = ([$env.MY_ENV_VARS.chatgpt_config chatpdf_ids.json] | path join)
-  let database = (open $database_file)
-
-  let url = "https://api.chatpdf.com/v1/sources/add-file"
-
-  let filename = ($file | path parse | get stem | str downcase | str replace -a " " "_")
-  let filepath = ($file | path expand)
-
-  if ($filename in ($database | columns)) {
-    return-error "there is already a file with the same name already uploaded!"
-  }
-
-  if not ($label | is-empty) {
-     if ($label in ($database | columns)) {
-      return-error "there is already a file with the same label already uploaded!"
-   }
-  }
-
-  let filename = if ($label | is-empty) {$filename} else {label}
-        
-  let header = $"x-api-key: ($api_key)"
-  # let response = (http post $url -t application/octet-stream $data -H ["x-api-key", $api])
-  let response = (curl -s -X POST $url -H $header -F $"file=@($filepath)" | from json)
-
-  if ($response | is-empty) {
-    return-error "empty response!"
-  } else if ("sourceId" not-in ($response | columns) ) {
-    return-error $response.message
-  }
-
-  let id = ($response | get sourceId)
-
-  $database | upsert $filename $id | save -f $database_file
-  if $notify {"upload finished!" | ntfy-send}
-}
-
-#delete a file from chatpdf server
-export def "chatpdf del" [
-] {
-  let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
-  let database_file = ([$env.MY_ENV_VARS.chatgpt_config chatpdf_ids.json] | path join)
-  let database = (open $database_file)
-
-  let selection = ($database | columns | sort | input list -f (echo-g "Select file to delete:"))
-
-  let url = "https://api.chatpdf.com/v1/sources/delete"
-  let data = {"sources": [($database | get $selection)]}
-  
-  let header = ["x-api-key", ($api_key)] 
-  let response = (http post $url -t application/json $data -H $header)
-  # let response = (curl -s -X POST $url -H 'Content-Type: application/json' -H $"x-api-key: ($api_key)" -d $data | from json)
-
-  $database | reject $selection | save -f $database_file
-}
-
-#chat with a pdf via chatpdf
-export def "chatpdf ask" [
-  prompt?:string            #question to the pdf
-  --select_pdf(-s):string   #specify which book to ask via filename (without extension), otherwise select from list
+#single call to openai dall-e models
+export def dall_e [
+    prompt?: string                     # the query to dall-e
+    --output(-o):string = "dalle"       # png output image file name
+    --model(-m):string = "dall-e-2"     # the model: dall-e-2, dall-e-3
+    --task(-t):string = "generation"    # the method to use: generation, edit, variation
+    --number(-n):int = 1                # number of images to generate. Dall-e 3 = 1
+    --size(-s):string = "1024x1024"     # size of output image: 1024x1024, 1024x1792, 1792x1024
+    --quality(-q):string = "standard"   # quality of output image: standard, hd (only dall-e-3)
+    #
+    #Available models at https://platform.openai.com/docs/models, but 
+    # - dalle-2 (tokens)
+    # - dalle-3 (tokens)
 ] {
   let prompt = if ($prompt | is-empty) {$in} else {$prompt}
-
-  let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
-  let database_file = ([$env.MY_ENV_VARS.chatgpt_config chatpdf_ids.json] | path join)
-  let database = (open $database_file)
-
-  let selection = (
-    if ($select_pdf | is-empty) {
-      $database 
-      | columns 
-      | sort 
-      | input list -f (echo-g "Select pdf to ask a question:")
-    } else {
-      $select_pdf
-      | str downcase 
-      | str replace -a " " "_"
-    }
-  )
-
-  if ($selection not-in ($database | columns)) {
-    return-error "pdf not found in server!"
+  if ($prompt | is-empty) {
+    return-error "Empty prompt!!!"
   }
 
-  let url = "https://api.chatpdf.com/v1/chats/message"
-
-  let header = ["x-api-key", ($api_key)]  
-  let request = {
-    "referenceSources": true,
-    "sourceId": ($database | get $selection),
-    "messages": [
-      {
-        "role": "user",
-        "content": $prompt
-      }
-    ]
+  if $model not-in ["dall-e-2","dall-e-3"] {
+    return-error "Wrong model!!!"
   }
 
-  let answer = (http post -t application/json -H $header $url $request) 
+  match $task {
+    "generation" => {
+        if $model == "dall-e-3" and $number > 1 {
+          return-error "Dall-e-3 only allows 1 image!!!"
+        }
 
-  return $answer.content
+        if $number > 10 {
+          return-error "Max. number of requested images is 10!!!"
+        }
+
+        if $size not-in ["1024x1024", "1024x1792", "1792x1024"] {
+          return-error "Requested image sizes not available!!!" 
+        }
+
+        let site = "https://api.openai.com/v1/images/generations"
+        let header = [Authorization $"Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"]
+
+        let request = {
+          "model": $model,
+          "prompt": $prompt,
+          "n": $number,
+          "size": $size
+        }
+
+        let answer = http post -t application/json -H $header $site $request 
+
+        $answer.data.url 
+        | enumerate
+        | each {|img| 
+            http get $img.item | save -f $"($output)_($img.index).png"
+          }
+      },
+
+    "edit" => {},
+    "variation" => {},
+    _ => {return-error $"$(task) not available!!!"}
+  }
 }
 
-#fast call to chatpdf ask
-export def askpdf [
-  prompt?     #question to ask to the pdf
-  --rubb(-r)  #use rubb file, otherwhise select from list
-  --btx(-b)   #use btx file, otherwhise select from list
-  --fast(-f)  #get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
+#fast call to the dall-e wrapper
+export def askdalle [
+  prompt?:string  # string with the prompt, can be piped
+  --dalle3(-d)    # use dall-e-3 instead of dall-e-2 (default)
+  --fast(-f)      # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
+  #
+  #For more personalization use `dall_e`
 ] {
-  if $rubb and $btx {
-    return-error "only one of these flags allowed!"
-  }
-  let prompt = (
-    if not $fast {
-      if ($prompt | is-empty) {$in} else {$prompt}
-    } else {
-      open ~/Yandex.Disk/ChatGpt/prompt.md
-    }
-  )
-
-  let answer = (
-    if $rubb {
-      chatpdf ask $prompt -s rubb
-    } else if $btx {
-      chatpdf ask ($prompt + (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join) | get chatpdf_btx)) -s btx
-    } else {
-      chatpdf ask $prompt
-    }
-  )
-
-  if $fast {
-    $answer | save -f ~/Yandex.Disk/ChatGpt/answer.md
-  } else {
-    return $answer  
-  } 
-}
-
-#list uploaded documents
-export def "chatpdf list" [] {
-  open ([$env.MY_ENV_VARS.chatgpt_config chatpdf_ids.json] | path join) | columns
 }
