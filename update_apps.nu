@@ -646,6 +646,10 @@ export def "apps-update nushell" [] {
   git pull
   cargo install --path .
 
+  cd ~/software/nu_plugin_port_scan
+  cargo build
+  cargo install --path .
+
   print (echo-g "registering plugins...")
   reg-plugins
 }

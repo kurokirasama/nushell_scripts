@@ -927,3 +927,72 @@ export def "media extract-audio" [
   }
   if $notify {"extraction finished!" | ntfy-send}
 }
+
+#crop image by shortest dimention
+export def "media crop-image" [
+  image?:string
+  --name(-n)    #return name of cropped image
+  #
+  #Generates a new square image cropped by the shortest dimention.
+  #The output name is (image_file_name_cropped.ext)
+] {
+  let image = if ($image | is-empty) {$in | get name} else {$image}
+  let image_size = identify $image | split row " " | get 2 | split row "x" | uniq
+  
+  if ($image_size | length) == 1 {
+    print (echo-g "image already square!")
+    if $name {return $image} else {return}
+  }
+
+  print (echo-r "Image isn't square, croping to the minor dimension...")
+
+  let width = $image_size | get 0 | into int
+  let height = $image_size | get 1 | into int
+
+  let new_image = $"($image | path parse | get stem)_cropped.png"
+
+  if $width > $height {
+    let new_image_size = $height
+
+    let choice = ["center", "left", "right"] | input list (echo-g "choose from where you want to crop the image:")
+
+    match $choice {
+      "center" => {
+          convert ($image | path expand) -gravity Center -crop $"($new_image_size)x($new_image_size)+0+0" +repage $new_image
+        },
+
+      "left" => {
+          convert ($image | path expand) -gravity West -crop $"($new_image_size)x($new_image_size)+0+0" +repage $new_image
+        },
+
+      "right" => {
+          convert ($image | path expand) -gravity East -crop $"($new_image_size)x($new_image_size)+0+0" +repage $new_image
+        },
+
+      _ => {return-error "Wrong choice of location for cropped image!!!"}
+    }
+
+  } else {
+    let new_image_size = $width
+
+    let choice = ["center", "top", "bottom"] | input list (echo-g "choose from where you want to crop the image:")
+
+    match $choice {
+      "center" => {
+          convert ($image | path expand) -gravity Center -crop $"($new_image_size)x($new_image_size)+0+0" +repage $new_image
+        },
+
+      "top" => {
+          convert ($image | path expand) -gravity North -crop $"($new_image_size)x($new_image_size)+0+0" +repage $new_image
+        },
+
+      "bottom" => {
+          convert ($image | path expand) -gravity South -crop $"($new_image_size)x($new_image_size)+0+0" +repage $new_image
+        },
+
+      _ => {return-error "Wrong choice of location for cropped image!!!"}
+    }
+  }
+
+  if $name {return $new_image} else {return}
+}
