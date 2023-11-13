@@ -1053,10 +1053,10 @@ export def dall_e [
         }
 
         let image = media crop-image $image --name
-        let image_size = identify $image | split row " " | get 2 | split row "x" | first | get 0
+        let image_size = identify $image | split row " " | get 2 | split row "x" | first
         
         let mask = media crop-image $mask --name
-        let mask_size = identify $mask | split row " " | get 2 | split row "x" | first | get 0
+        let mask_size = identify $mask | split row " " | get 2 | split row "x" | first
 
         let site = "https://api.openai.com/v1/images/edits"
 
@@ -1070,6 +1070,8 @@ export def dall_e [
         }
 
         let answer = http post -t application/json -H $header $site $request 
+
+        return $answer
 
       },
 
