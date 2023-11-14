@@ -982,11 +982,11 @@ export def "ai media-summary" [
 #single call to openai dall-e models
 export def dall_e [
     prompt?: string                     # the query to dall-e
-    --output(-o):string = "dalle"       # png output image file name
+    --output(-o):string                 # png output image file name
     --model(-m):string = "dall-e-2"     # the model: dall-e-2, dall-e-3
     --task(-t):string = "generation"    # the method to use: generation, edit, variation
     --number(-n):int = 1                # number of images to generate. Dall-e 3 = 1
-    --size(-s):string = "1792x1024"     # size of output image: 1024x1024, 1024x1792, 1792x1024
+    --size(-s):string                   # size of output image
     --quality(-q):string = "standard"   # quality of output image: standard, hd (only dall-e-3)
     --image(-i):string                  # image base for editing and variation
     --mask(-k):string                   # masked image for editing
@@ -995,12 +995,14 @@ export def dall_e [
     #
     #The mask is and additional image whose fully transparent areas (e.g. where alpha is zero) indicate where the image should be edited. The prompt should describe the full new image, not just the erased area.
     #
-    #When editing images consider that the uploaded image and mask must both be square PNG images less than 4MB in size, and also must have the same dimensions as each other. The non-transparent areas of the mask are not used when generating the output, so they don’t necessarily need to match the original image like the example above. 
+    #When editing/variating images, consider that the uploaded image and mask must both be square PNG images less than 4MB in size, and also must have the same dimensions as each other. The non-transparent areas of the mask are not used when generating the output, so they don’t necessarily need to match the original image like the example above. 
     #
+    #For generation, available sizes are; 1024x1024, 1024x1792, 1792x1024 (default).
+    #For editing/variation, available sizes are: 256x256, 512x512, 1024x1024 (default).
 ] {
   #error checking
   let prompt = if ($prompt | is-empty) {$in} else {$prompt}
-  if ($prompt | is-empty) {
+  if ($prompt | is-empty) and ($task =~ "generation|edit") {
     return-error "Empty prompt!!!"
   }
 
@@ -1008,19 +1010,18 @@ export def dall_e [
     return-error "Wrong model!!!"
   }
 
-  if $size not-in ["1024x1024", "1024x1792", "1792x1024"] {
-    return-error "Requested image sizes not available!!!" 
-  }
-
-  #translate prompt if not in english
-  let english = chat_gpt --select_preprompt is_in_english $prompt | from json | get english | into bool
-  let prompt = if $english {chat_gpt --select_preprompt translate_dalle_prompt $prompt} else {$prompt}
-
   #methods
   let header = [Authorization $"Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"]
 
   match $task {
     "generation" => {
+        let output = if ($output | is-empty) {($image | path parse | get stem) + "_G"} else {$output}
+        let size = if ($size | is-empty) {"1792x1024"} else {$size}
+
+        if $size not-in ["1024x1024", "1024x1792", "1792x1024"] {
+          return-error "Requested image sizes not available!!!" 
+        }
+
         let size = if $model == "dall-e-2" {"1024x1024"} else {$size}
         let number = if $model == "dall-e-3" {1} else {$number}
         let quality = if $model == "dall-e-2" {"standard"} else {$quality}
@@ -1028,6 +1029,10 @@ export def dall_e [
         if $number > 10 {
           return-error "Max. number of requested images is 10!!!"
         }
+
+        #translate prompt if not in english
+        let english = chat_gpt --select_preprompt is_in_english $prompt | from json | get english | into bool
+        let prompt = if $english {chat_gpt --select_preprompt translate_dalle_prompt $prompt} else {$prompt}
 
         let site = "https://api.openai.com/v1/images/generations"
 
@@ -1043,20 +1048,35 @@ export def dall_e [
         $answer.data.url 
         | enumerate
         | each {|img| 
+            print (echo-g $"downloading image ($img.index | into string)...")
             http get $img.item | save -f $"($output)_($img.index).png"
           }
       },
 
     "edit" => {
+        let output = if ($output | is-empty) {($image | path parse | get stem) + "_E"} else {$output}
+        let size = if ($size | is-empty) {"1024x1024"} else {$size}
+
+        if $size not-in ["1024x1024", "512x512", "256x256"] {
+          return-error "Requested image sizes not available!!!" 
+        }
+
         if $model == "dall-e-3" {
           return-error "Dall-e-3 doesn't allow edits!!!"
         }
 
-        let image = media crop-image $image --name
-        let image_size = identify $image | split row " " | get 2 | split row "x" | first
-        
+        if ($image | is-empty) or ($mask | is-empty) {
+          return-error "image and mask needed for editing!!!"
+        }
+
+        let header = $"Authorization: Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"
+
+        let image = media crop-image $image --name        
         let mask = media crop-image $mask --name
-        let mask_size = identify $mask | split row " " | get 2 | split row "x" | first
+
+        #translate prompt if not in english
+        let english = chat_gpt --select_preprompt is_in_english $prompt | from json | get english | into bool
+        let prompt = if $english {chat_gpt --select_preprompt translate_dalle_prompt $prompt} else {$prompt}
 
         let site = "https://api.openai.com/v1/images/edits"
 
@@ -1065,17 +1085,64 @@ export def dall_e [
           "prompt": $prompt,
           "n": $number,
           "size": $size,
-          "image": $"@($image)",
-          "mask": $"@($mask)"
+          "image": (open ($image | path expand) | encode base64),
+          "mask": (open ($mask | path expand) | encode base64)
         }
 
-        let answer = http post -t application/json -H $header $site $request 
+        # let answer = http post -t application/x-www-form-urlencoded -H $header $site $request 
+        let answer = bash -c ("curl -s " + $site + " -H '" + $header + "' -F model='" + $model + "' -F n=" + ($number | into string) + " -F size='" + $size + "' -F image='@" + $image + "' -F mask='@" + $mask + "' -F prompt='" + $prompt + "'")
 
-        return $answer
-
+        $answer
+        | from json
+        | get data.url
+        | enumerate
+        | each {|img| 
+            print (echo-g $"downloading image ($img.index | into string)...")
+            http get $img.item | save -f $"($output)_($img.index).png"
+          }
       },
 
-    "variation" => {},
+    "variation" => {
+        let output = if ($output | is-empty) {($image | path parse | get stem) + "_V"} else {$output}
+        let size = if ($size | is-empty) {"1024x1024"} else {$size}
+
+        if $size not-in ["1024x1024", "512x512", "256x256"] {
+          return-error "Requested image sizes not available!!!" 
+        }
+
+        if $model == "dall-e-3" {
+          return-error "Dall-e-3 doesn't allow variations!!!"
+        }
+
+        if ($image | is-empty) {
+          return-error "image needed for variation!!!"
+        }
+
+        let header = $"Authorization: Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"
+
+        let image = media crop-image $image --name        
+
+        let site = "https://api.openai.com/v1/images/variations"
+
+        let request = {
+          "model": $model,
+          "n": $number,
+          "size": $size,
+          "image": (open ($image | path expand) | encode base64),
+        }
+
+        # let answer = http post -t application/x-www-form-urlencoded -H $header $site $request 
+        let answer = bash -c ("curl -s " + $site + " -H '" + $header + "' -F model='" + $model + "' -F n=" + ($number | into string) + " -F size='" + $size + "' -F image='@" + $image + "'")
+
+        $answer
+        | from json
+        | get data.url
+        | enumerate
+        | each {|img| 
+            print (echo-g $"downloading image ($img.index | into string)...")
+            http get $img.item | save -f $"($output)_($img.index).png"
+          }
+      },
     
     _ => {return-error $"$(task) not available!!!"}
   }

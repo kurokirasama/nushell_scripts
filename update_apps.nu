@@ -647,6 +647,7 @@ export def "apps-update nushell" [] {
   cargo install --path .
 
   cd ~/software/nu_plugin_port_scan
+  git pull
   cargo build
   cargo install --path .
 
