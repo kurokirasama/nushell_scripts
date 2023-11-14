@@ -18,7 +18,9 @@ export def "ai help" [] {
       - ai yt-summary
       - ai media-summary
       - ai generate-subtitles
-      - ai git-push\n"
+      - ai git-push
+      - dall_e 
+      - askdalle\n"
     | nu-highlight
   ) 
 }
@@ -1141,19 +1143,3 @@ export def askdalle [
   #For more personalization use `dall_e`
 ] {
 }
-
-# ```bash
-#    convert original.png -gravity Center -crop 585x585+0+0 +repage cropped.png
-#    ```
-#    This command tells ImageMagick to crop the image to 585x585, keeping the center of the image.
-
-#    If you want to cut specifically from the left:
-#    ```bash
-#    convert original.png -crop 585x585+0+0 +repage cropped-left.png
-#    ```
-#    And from the right:
-#    ```bash
-#    convert original.png -crop 585x585+439+0 +repage cropped-right.png
-#    ```
-
-#    Decreto Exento RA N° 352/8244/2023
