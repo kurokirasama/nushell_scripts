@@ -1080,15 +1080,6 @@ export def dall_e [
 
         let site = "https://api.openai.com/v1/images/edits"
 
-        let request = {
-          "model": $model,
-          "prompt": $prompt,
-          "n": $number,
-          "size": $size,
-          "image": (open ($image | path expand) | encode base64),
-          "mask": (open ($mask | path expand) | encode base64)
-        }
-
         # let answer = http post -t application/x-www-form-urlencoded -H $header $site $request 
         let answer = bash -c ("curl -s " + $site + " -H '" + $header + "' -F model='" + $model + "' -F n=" + ($number | into string) + " -F size='" + $size + "' -F image='@" + $image + "' -F mask='@" + $mask + "' -F prompt='" + $prompt + "'")
 
@@ -1123,13 +1114,6 @@ export def dall_e [
         let image = media crop-image $image --name        
 
         let site = "https://api.openai.com/v1/images/variations"
-
-        let request = {
-          "model": $model,
-          "n": $number,
-          "size": $size,
-          "image": (open ($image | path expand) | encode base64),
-        }
 
         # let answer = http post -t application/x-www-form-urlencoded -H $header $site $request 
         let answer = bash -c ("curl -s " + $site + " -H '" + $header + "' -F model='" + $model + "' -F n=" + ($number | into string) + " -F size='" + $size + "' -F image='@" + $image + "'")
