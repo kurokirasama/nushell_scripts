@@ -88,8 +88,7 @@ export def "chatpdf del" [
   
   let header = ["x-api-key", ($api_key)] 
   let response = (http post $url -t application/json $data -H $header)
-  # let response = (curl -s -X POST $url -H 'Content-Type: application/json' -H $"x-api-key: ($api_key)" -d $data | from json)
-
+  
   $database | reject $selection | save -f $database_file
 }
 
@@ -181,56 +180,56 @@ export def "chatpdf list" [] {
 }
 
 #single call chatgpt wrapper
+#
+#Available models at https://platform.openai.com/docs/models, but some of them are:
+# - gpt-4 (8192 tokens)
+# - gpt-4-1106-preview (128000 tokens), gpt-4-turbo for short
+# - gpt-4-vision-preview (128000 tokens) 
+# - gpt-4-32k (32768 tokens)
+# - gpt-3.5-turbo (4096 tokens)
+# - gpt-3.5-turbo-1106 (16385 tokens)
+# - gpt-3.5-turbo-16k (16384 tokens)
+# - text-davinci-003 (4097 tokens)
+#
+#Available system messages are:
+# - assistant
+# - psychologist
+# - programer
+# - get_diff_summarizer
+# - meeting_summarizer
+# - ytvideo_summarizer
+# - teacher
+# - spanish_translator
+# - html_parser
+# - rubb
+#
+#Available pre_prompts are:
+# - empty
+# - recreate_text
+# - summarize_transcription
+# - consolidate_transcription
+# - trans_to_spanish
+# - summarize_git_diff
+# - summarize_git_diff_short
+# - summarize_ytvideo
+# - consolidate_ytvideo
+# - parse_html
+# - elaborate_idea
+#
+#Note that:
+# - --select_system > --list_system > --system
+# - --select_preprompt > --pre_prompt
 export def chat_gpt [
     prompt?: string                               # the query to Chat GPT
     --model(-m):string = "gpt-3.5-turbo-1106"     # the model gpt-3.5-turbo, gpt-4, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9                       # the temperature of the model
-    --image(-i):string                            # filepath of image file for gpt-4-vision-preview
+    --image(-i):string                        # filepath of image file for gpt-4-vision-preview
     --list_system(-l)                             # select system message from list
     --pre_prompt(-p)                              # select pre-prompt from list
+    --delim_with_backquotes(-d)   # to delimit prompt (not pre-prompt) with triple backquotes (')
     --select_system: string                       # directly select system message    
     --select_preprompt: string                    # directly select pre_prompt
-    --delim_with_backquotes(-d)     # to delimit prompt (not pre-prompt) with triple backquotes (')
-    #
-    #Available models at https://platform.openai.com/docs/models, but some of them are:
-    # - gpt-4 (8192 tokens)
-    # - gpt-4-1106-preview (128000 tokens), gpt-4-turbo for short
-    # - gpt-4-vision-preview (128000 tokens) 
-    # - gpt-4-32k (32768 tokens)
-    # - gpt-3.5-turbo (4096 tokens)
-    # - gpt-3.5-turbo-1106 (16385 tokens)
-    # - gpt-3.5-turbo-16k (16384 tokens)
-    # - text-davinci-003 (4097 tokens)
-    #
-    #Available system messages are:
-    # - assistant
-    # - psychologist
-    # - programer
-    # - get_diff_summarizer
-    # - meeting_summarizer
-    # - ytvideo_summarizer
-    # - teacher
-    # - spanish_translator
-    # - html_parser
-    # - rubb
-    #
-    #Available pre_prompts are:
-    # - empty
-    # - recreate_text
-    # - summarize_transcription
-    # - consolidate_transcription
-    # - trans_to_spanish
-    # - summarize_git_diff
-    # - summarize_git_diff_short
-    # - summarize_ytvideo
-    # - consolidate_ytvideo
-    # - parse_html
-    # - elaborate_idea
-    #
-    #Note that:
-    # - --select_system > --list_system > --system
-    # - --select_preprompt > --pre_prompt
 ] {
   let prompt = if ($prompt | is-empty) {$in} else {$prompt}
   if ($prompt | is-empty) {
@@ -358,9 +357,12 @@ export def chat_gpt [
 }
 
 #fast call to the chat_gpt wrapper
+#
+#Only one system message flag allowed.
+#For more personalization use `chat_gpt`
 export def askgpt [
   prompt?:string  # string with the prompt, can be piped
-  system?:string  # string with the system message. It has precedence over the system message flags
+  system?:string  # string with the system message. It has precedence over the s.m. flags
   --programmer(-p) # use programmer s.m with temp 0.7, else use assistant with temp 0.9
   --teacher(-s) # use teacher (sensei) s.m with temp 0.95, else use assistant with temp 0.9
   --engineer(-e) # use prompt_engineer s.m. with temp 0.8, else use assistant with temp 0.9
@@ -372,9 +374,6 @@ export def askgpt [
   --vision(-v)            # use gpt-4-vision-preview
   --image(-i):string      # filepath of the image to prompt to gpt-4-vision-preview
   --fast(-f) # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
-  #
-  #Only one system message flag allowed.
-  #For more personalization use `chat_gpt`
 ] {
   if $vision and ($image | is-empty) {
     return-error "gpt-4 vision needs and image file!"
@@ -453,10 +452,10 @@ export def askgpt [
 }
 
 #generate a git commit message via chatgpt and push the changes
+#
+#Inspired by https://github.com/zurawiki/gptcommit
 export def "ai git-push" [
   --gpt4(-g) # use gpt-4-1106-preview instead of gpt-3.5-turbo-1106
-  #
-  #Inspired by https://github.com/zurawiki/gptcommit
 ] {
   let max_words = if $gpt4 {85000} else {10000}
   let max_words_short = if $gpt4 {85000} else {10000}
@@ -591,7 +590,7 @@ export def "ai screen2text" [
 export def "ai video2text" [
   file?:string                #video file name with extension
   --language(-l):string = "Spanish"  #language of audio file
-  --summary(-s):bool = true        #whether to transcribe or not. Default true, false means it just extracts audio
+  --summary(-s):bool = true   #whether to transcribe or not. False means it just extracts audio
   --notify(-n)                #notify to android via ntfy
 ] {
   let file = if ($file | is-empty) {$in} else {$file}
@@ -728,13 +727,13 @@ export def "ai audio2summary" [
 }
 
 #generate subtitles of video file via whisper and mymemmory/openai api
+#
+#`? trans` and `whisper --help` for more info on languages
 export def "ai generate-subtitles" [
   file                               #input video file
-  --language(-l) = "en-US/English"   #language of input video file, mymmemory/whisper (default en-US/English)
+  --language(-l) = "en-US/English"   #language of input video file, mymmemory/whisper
   --translate(-t) = false            #to translate to spanish
   --notify(-n)                       #notify to android via ntfy
-  #
-  #`? trans` and `whisper --help` for more info on languages
 ] {
   let filename = ($file | path parse | get stem)
 
@@ -750,11 +749,11 @@ export def "ai generate-subtitles" [
 }
 
 #generate subtitles of video file via whisper and mymemmory api for piping
+#
+#`? trans` and `whisper --help` for more info on languages
 export def "ai generate-subtitles-pipe" [
-  --language(-l) = "en-US/English"   #language of input video file, mymmemory/whisper (default en-US/English)
+  --language(-l) = "en-US/English"   #language of input video file, mymmemory/whisper
   --translate(-t)                    #to translate to spanish
-  #
-  #`? trans` and `whisper --help` for more info on languages
 ] {
   $in
   | get name 
@@ -764,19 +763,16 @@ export def "ai generate-subtitles-pipe" [
 }
 
 #get a summary of a youtube video via chatgpt
+#
+#Two characters words for languages
+#es: spanish
+#fr: french
 export def "ai yt-summary" [
   url?:string       # video url
   --lang = "en"     # language of the summary (default english: en)
   --gpt4(-g)        # to use gpt4-turbo instead of gpt-3.5
   --notify(-n)      # notify to android via ntfy
-  #
-  #Two characters words for languages
-  #es: spanish
-  #fr: french
 ] {
-  #example sans subs https://www.youtube.com/watch?v=wa6dpyBu2gE
-  #example with subs https://www.youtube.com/watch?v=MciOgsEOHZM
-  
   #deleting previous temp file
   if ((ls | find yt_temp | length) > 0) {rm yt_temp* | ignore}
   
@@ -890,15 +886,15 @@ export def "ai yt-transcription-summary" [
 }
 
 #get a summary of a video or audio via chatgpt
+#
+#Two characters words for languages
+#es: spanish
+#fr: french
 export def "ai media-summary" [
   file:string            # video, audio or subtitle file (vtt, srt) file name with extension
   --lang(-l) = "Spanish" # language of the summary
   --gpt4(-g)             # to use gpt4 instead of gpt-3.5
   --notify(-n)           # notify to android via ntfy
-  #
-  #Two characters words for languages
-  #es: spanish
-  #fr: french
 ] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
   let title = ($file | path parse | get stem) 
@@ -982,6 +978,15 @@ export def "ai media-summary" [
 }
 
 #single call to openai dall-e models
+#
+#For dall-e-2 the only available size is 1024x1024 that is sent by default.
+#
+#The mask is and additional image whose fully transparent areas (e.g. where alpha is zero) indicate where the image should be edited. The prompt should describe the full new image, not just the erased area.
+#
+#When editing/variating images, consider that the uploaded image and mask must both be square PNG images less than 4MB in size, and also must have the same dimensions as each other. The non-transparent areas of the mask are not used when generating the output, so they don’t necessarily need to match the original image like the example above. 
+#
+#For generation, available sizes are; 1024x1024, 1024x1792, 1792x1024 (default).
+#For editing/variation, available sizes are: 256x256, 512x512, 1024x1024 (default).
 export def dall_e [
     prompt?: string                     # the query to dall-e
     --output(-o):string                 # png output image file name
@@ -992,15 +997,6 @@ export def dall_e [
     --quality(-q):string = "standard"   # quality of output image: standard, hd (only dall-e-3)
     --image(-i):string                  # image base for editing and variation
     --mask(-k):string                   # masked image for editing
-    #
-    #For dall-e-2 the only available size is 1024x1024 that is sent by default.
-    #
-    #The mask is and additional image whose fully transparent areas (e.g. where alpha is zero) indicate where the image should be edited. The prompt should describe the full new image, not just the erased area.
-    #
-    #When editing/variating images, consider that the uploaded image and mask must both be square PNG images less than 4MB in size, and also must have the same dimensions as each other. The non-transparent areas of the mask are not used when generating the output, so they don’t necessarily need to match the original image like the example above. 
-    #
-    #For generation, available sizes are; 1024x1024, 1024x1792, 1792x1024 (default).
-    #For editing/variation, available sizes are: 256x256, 512x512, 1024x1024 (default).
 ] {
   #error checking
   let prompt = if ($prompt | is-empty) {$in} else {$prompt}
@@ -1135,11 +1131,11 @@ export def dall_e [
 }
 
 #fast call to the dall-e wrapper
+#
+#For more personalization use `dall_e`
 export def askdalle [
   prompt?:string  # string with the prompt, can be piped
   --dalle3(-d)    # use dall-e-3 instead of dall-e-2 (default)
   --fast(-f)      # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
-  #
-  #For more personalization use `dall_e`
 ] {
 }
