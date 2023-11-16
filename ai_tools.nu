@@ -20,7 +20,9 @@ export def "ai help" [] {
       - ai generate-subtitles
       - ai git-push
       - dall_e 
-      - askdalle\n"
+      - askdalle
+      - ai tts
+      - tts\n"
     | nu-highlight
   ) 
 }
@@ -531,7 +533,8 @@ export def "ai git-push" [
 export def "ai audio2text" [
   filename                    #audio file input
   --language(-l) = "Spanish"  #language of audio file
-  --output_format(-o) = "txt" #output format: txt (default), vtt, srt, tsv, json, all
+  --output_format(-o) = "txt" #output format: txt, vtt, srt, tsv, json, all
+  --translate(-t)             #translate audio to english
   --notify(-n)                #notify to android via ntfy
 ] {
   let file = ($filename | path parse | get stem)
@@ -552,7 +555,10 @@ export def "ai audio2text" [
   }
 
   print (echo-g "transcribing to text...")
-  whisper $"($file)-clean.mp3" --language $language --output_format $output_format --verbose False --fp16 False
+  match $translate {
+    false => {whisper $"($file)-clean.mp3" --language $language --output_format $output_format --verbose False --fp16 False},
+    true => {whisper $"($file)-clean.mp3" --language $language --output_format $output_format --verbose False --fp16 False --task translate}
+  }
 
   if $notify {"transcription finished!" | ntfy-send}
 }
@@ -1013,7 +1019,14 @@ export def dall_e [
 
   match $task {
     "generation" => {
-        let output = if ($output | is-empty) {($image | path parse | get stem) + "_G"} else {$output}
+        let output = (
+          if ($output | is-empty) {
+            (chat_gpt --select_preprompt dalle_image_name -d $prompt | from json | get name) + "_G"
+          } else {
+            $output
+          }
+        )
+
         let size = if ($size | is-empty) {"1792x1024"} else {$size}
 
         if $size not-in ["1024x1024", "1024x1792", "1792x1024"] {
@@ -1029,8 +1042,8 @@ export def dall_e [
         }
 
         #translate prompt if not in english
-        let english = chat_gpt --select_preprompt is_in_english $prompt | from json | get english | into bool
-        let prompt = if $english {chat_gpt --select_preprompt translate_dalle_prompt $prompt} else {$prompt}
+        let english = chat_gpt --select_preprompt is_in_english -d $prompt | from json | get english | into bool
+        let prompt = if $english {chat_gpt --select_preprompt translate_dalle_prompt -d $prompt} else {$prompt}
 
         let site = "https://api.openai.com/v1/images/generations"
 
@@ -1074,7 +1087,7 @@ export def dall_e [
 
         #translate prompt if not in english
         let english = chat_gpt --select_preprompt is_in_english $prompt | from json | get english | into bool
-        let prompt = if $english {chat_gpt --select_preprompt translate_dalle_prompt $prompt} else {$prompt}
+        let prompt = if $english {chat_gpt --select_preprompt translate_dalle_prompt -d $prompt} else {$prompt}
 
         let site = "https://api.openai.com/v1/images/edits"
 
@@ -1132,10 +1145,89 @@ export def dall_e [
 
 #fast call to the dall-e wrapper
 #
-#For more personalization use `dall_e`
+#For more personalization and help check `? dall_e`
 export def askdalle [
-  prompt?:string  # string with the prompt, can be piped
-  --dalle3(-d)    # use dall-e-3 instead of dall-e-2 (default)
-  --fast(-f)      # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
+  prompt?:string  #string with the prompt, can be piped
+  --dalle3(-d)    #use dall-e-3 instead of dall-e-2 (default)
+  --edit(-e)      #use edition mode instead of generation
+  --variation(-v) #use variation mode instead of generation
+  --fast(-f)      #get prompt from ~/Yandex.Disk/ChatGpt/prompt.md
+  --image(-i):string #image to use in edition mode or variation
+  --mask(-k):string  #mask to use in edition mode
+  --output(-o):string #filename for output images, default used if not present
+  --number(-n):int = 1 #number of images to generate
+  --size(-s):string = "1792x1024" #size of the output image
+  --quality(-q):string = "standard" #quality of the output image: standard or hd
 ] {
+  let prompt = (
+    if not $fast {
+      if ($prompt | is-empty) {$in} else {$prompt}
+    } else {
+      open ~/Yandex.Disk/ChatGpt/prompt.md
+    }
+  )
+
+  match [$dalle3,$edit,$variation] {
+    [true,false,false]  => {
+        dall_e $prompt -o $output -m "dall-e-3" -t "generation" -n $number -s $size -q $quality -i $image -k $mask
+      },
+    [false,false,false]  => {
+        dall_e $prompt -o $output -t "generation" -n $number -s $size -q $quality -i $image -k $mask
+      },
+    [true,true,false]  => {
+        dall_e $prompt -o $output -m "dall-e-3" -t "edit" -n $number -s $size -q $quality -i $image -k $mask
+        },
+    [false,true,false]  => {
+        dall_e $prompt -o $output -t "edit" -n $number -s $size -q $quality -i $image -k $mask
+      },
+    [true,false,true]  => {
+        dall_e $prompt -o $output -m "dall-e-3" -t "variation" -n $number -s $size -q $quality -i $image -k $mask
+      },
+    [false,false,true]  => {
+        dall_e $prompt -o $output -t "variation" -n $number -s $size -q $quality -i $image -k $mask
+      },
+    _ => {return-error "Combination of flags not allowed!"}
+  }
+}
+
+#openai text-to-speech wrapper
+#
+#Available models are: tts-1, tts-1-hd
+#
+#Available voices are: alloy, echo, fable, onyx, nova, and shimmer
+#
+#Available formats are: mp3, opus, aac and flac
+export def "ai tts" [
+  prompt?:string                  #text to convert to speech
+  --model(-m):string = "tts-1"    #model of the output
+  --voice(-v):string = "nova"     #voice selection
+  --output(-o):string = "speech"  #output file name
+  --format(-f):string = "mp3"     #output file format
+] {
+  let prompt = if ($prompt | is-empty) {$in} else {$prompt}
+  let output = if ($output | is-empty) {"speech"} else {$output}
+
+  let header = [Authorization $"Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"]
+
+  let url = "https://api.openai.com/v1/audio/speech"
+
+  let request = {
+    "model": $model,
+    "input": $prompt,
+    "voice": $voice
+  }
+
+  http post -t application/json -H $header $url $request | save -f $"($output).($format)"
+} 
+
+#fast call to `ai tts` with most parameters as default
+export def tts [
+  prompt?:string #text to convert to speech
+  --hd(-h)       #use hd model
+  --output(-o):string #output file name    
+] {
+  match $hd {
+    true => {ai tts -m tts-1-hd -o $output $prompt},
+    false => {ai tts -o $output $prompt}
+  }
 }
