@@ -344,3 +344,23 @@ export def "libreoffice backup" [] {
 export def "libreoffice restore" [] {
   cp -r ($env.MY_ENV_VARS.linux_backup + "/libreoffice/*") ~/.config/libreoffice/
 }
+
+#update nushell sublime syntax
+export def "nushell-syntax-2-sublime" [
+ --include_custom(-i) #include custom commands
+] {
+  let commands = (
+    if $include_custom {
+      scope commands | where is_plugin == true or is_builtin == true or is_custom == true | get name | str join " | "
+    } else {
+      scope commands | where is_plugin == true or is_builtin == true | get name | str join " | "
+    }
+  )
+  
+  let commands = "(?x: " + $commands + ")"
+  bash -c ("sed -i -E 's/" + '\(\?x\:.*/' + $commands + "/g' ~/.config/sublime-text/Packages/User/nushell.sublime-syntax")
+
+  cp nushell-syntax-2-sublime ~/Dropbox/Development/linux/sublime/nushell_sublime_syntax/
+  cd ~/Dropbox/Development/linux/sublime/nushell_sublime_syntax/
+  ai git-push -g
+}
