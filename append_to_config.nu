@@ -5,11 +5,11 @@ use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/table_manipulation.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/files.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/crypt.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/defs.nu *
+use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/ai_tools.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/system.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/aliases.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/apis.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/media.nu *
-use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/ai_tools.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/update_apps.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/network.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/transmission.nu *

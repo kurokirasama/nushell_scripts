@@ -291,7 +291,7 @@ export def get-monitors [] {
 }
 
 #backup sublime settings
-export def "sublime backup" [] {
+export def "subl backup" [] {
   cd $env.MY_ENV_VARS.linux_backup
 
   let source_dir = "~/.config/sublime-text"
@@ -301,7 +301,7 @@ export def "sublime backup" [] {
 }
 
 #restore sublime settings
-export def "sublime restore" [] {
+export def "subl restore" [] {
   cd $env.MY_ENV_VARS.linux_backup
   
   7z x sublime-installedPackages.7z -o/home/kira/.config/sublime-text/
@@ -336,31 +336,105 @@ export def "gnome-settings restore" [] {
 }
 
 #backup libre office settings
-export def "libreoffice backup" [] {
+export def "libreoff backup" [] {
   cp -r ~/.config/libreoffice/* ([$env.MY_ENV_VARS.linux_backup libreoffice] | path join)
 }
 
 #restore libre office settings
-export def "libreoffice restore" [] {
+export def "libreoff restore" [] {
   cp -r ($env.MY_ENV_VARS.linux_backup + "/libreoffice/*") ~/.config/libreoffice/
 }
 
 #update nushell sublime syntax
 export def "nushell-syntax-2-sublime" [
- --include_custom(-i) #include custom commands
+ --push(-p) #push changes in submile syntax repo
 ] {
-  let commands = (
-    if $include_custom {
-      scope commands | where is_plugin == true or is_builtin == true or is_custom == true | get name | str join " | "
-    } else {
-      scope commands | where is_plugin == true or is_builtin == true | get name | str join " | "
-    }
+  let builtin = (
+      scope commands 
+      | where is_builtin == true and is_keyword == false
+      | get name 
+      | each {|com| 
+          $com 
+          | split row " " 
+          | get 0
+        } 
+      | flatten
+      | uniq
+      | str join " | "
   )
-  
-  let commands = "(?x: " + $commands + ")"
-  bash -c ("sed -i -E 's/" + '\(\?x\:.*/' + $commands + "/g' ~/.config/sublime-text/Packages/User/nushell.sublime-syntax")
 
-  cp nushell-syntax-2-sublime ~/Dropbox/Development/linux/sublime/nushell_sublime_syntax/
-  cd ~/Dropbox/Development/linux/sublime/nushell_sublime_syntax/
-  ai git-push -g
+  let plugins = (
+      scope commands 
+      | where is_plugin == true
+      | get name 
+      | each {|com| 
+          $com 
+          | split row " "
+          | get 0
+        } 
+      | flatten
+      | uniq
+      | str join " | "
+  )
+
+  let custom = (
+      scope commands 
+      | where is_custom == true
+      | get name 
+      | each {|com| 
+          $com 
+          | split row " " 
+          | get 0
+        } 
+      | flatten
+      | uniq
+      | str join " | "
+  )  
+
+  let keywords = (
+      scope commands 
+      | where is_keyword == true
+      | get name 
+      | each {|com| 
+          $com 
+          | split row " " 
+          | get 0
+        } 
+      | flatten
+      | uniq
+      | str join " | "
+  ) 
+
+  let aliases = (
+      scope aliases 
+      | get name 
+      | uniq
+      | str join " | "
+  )   
+
+  let extra_builtin = " | else"
+  let builtin = "    (?x: " + $builtin + $extra_builtin + ")"
+  let plugins = "    (?x: " + $plugins + ")"
+  let custom = "    (?x: " + $custom + ")"
+  let keywords = "    (?x: " + $keywords + ")"
+  let aliases = "    (?x: " + $aliases + ")"
+  let operators = "    (?x: and | or | mod | in | not-in | not | xor | bit-or | bit-xor | bit-and | bit-shl | bit-shr | starts-with | ends-with)"
+
+  let new_commands = [] ++ $builtin ++ $custom ++ $plugins ++ $keywords ++ $aliases ++ $operators
+ 
+  mut file = open ~/.config/sublime-text/Packages/User/nushell.sublime-syntax | lines
+  let idx = $file | indexify | find '(?x:' | get index
+
+  for -n i in $idx {
+    $file = ($file | upsert $i.item ($new_commands | get $i.index))
+  }
+  
+  $file | save -f ~/.config/sublime-text/Packages/User/nushell.sublime-syntax
+
+  cp ~/.config/sublime-text/Packages/User/nushell.sublime-syntax ~/Dropbox/Development/linux/sublime/nushell_sublime_syntax/
+
+  if $push {
+    cd ~/Dropbox/Development/linux/sublime/nushell_sublime_syntax/
+    ai git-push -g
+  }
 }

@@ -1226,8 +1226,9 @@ export def tts [
   --hd(-h)       #use hd model
   --output(-o):string #output file name    
 ] {
-  match $hd {
-    true => {ai tts -m tts-1-hd -o $output $prompt},
-    false => {ai tts -o $output $prompt}
+  if $hd {
+    ai tts -m tts-1-hd -o $output $prompt
+  } else {
+    ai tts -o $output $prompt
   }
 }
