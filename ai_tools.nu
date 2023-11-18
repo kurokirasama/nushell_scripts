@@ -1199,7 +1199,7 @@ export def askdalle [
 #Available voices are: alloy, echo, fable, onyx, nova, and shimmer
 #
 #Available formats are: mp3, opus, aac and flac
-export def "ai tts" [
+export def "ai openai-tts" [
   prompt?:string                  #text to convert to speech
   --model(-m):string = "tts-1"    #model of the output
   --voice(-v):string = "nova"     #voice selection
@@ -1222,15 +1222,68 @@ export def "ai tts" [
   http post -t application/json -H $header $url $request | save -f $"($output).($format)"
 } 
 
-#fast call to `ai tts` with most parameters as default
+#elevenlabs text-to-speech wrapper
+#
+#English only
+#
+#Available models are: Eleven Multilingual v2, Eleven Multilingual v1, Eleven English v1 (default), Eleven Turbo v2
+#
+#Available voices are: alloy, echo, fable, onyx, nova, and shimmer
+#
+#Available formats are: mp3, opus, aac and flac
+export def "ai elevenlabs-tts" [
+  prompt?:string                  #text to convert to speech
+  --model(-m):string = "tts-1"    #model of the output
+  --voice(-v):string = "Bella"    #voice selection
+  --output(-o):string = "speech"  #output file name
+  --format(-f):string = "mp3"     #output file format
+  --endpoint(-e):string           #request endpoint  
+  --select_endpoint(-s)           #select endpoint from list    
+] {
+  let prompt = if ($prompt | is-empty) {$in} else {$prompt}
+
+  let get_endpoints = ["models" "voices" "history" "user"]
+  let post_endpoints = ["text-to-speech" ]
+
+  let endpoint = (
+    if $select_endpoint or ($endpoint | is-empty) {
+      $get_endpoints ++ $post_endpoints
+      | input list -f (echo-g "Select endpoint:")
+    } else {
+      $endpoint
+    }
+  )
+
+  if $endpoint not-in ($get_endpoints ++ $post_endpoints) {
+    return-error "non valid endpoint!!"
+  }
+
+  let site = "https://api.elevenlabs.io/v1/"
+  let header = [xi-api-key $env.MY_ENV_VARS.api_keys.elevenlabs.api_key]
+  let url = $site + $endpoint
+
+  if $endpoint in $get_endpoints {
+    return (http get -H $header $url)
+  } else {
+    return (print ("work in progress!"))
+  }
+  
+}
+
+#fast call to `ai tts`'s with most parameters as default
 export def tts [
   prompt?:string #text to convert to speech
-  --hd(-h)       #use hd model
-  --output(-o):string #output file name    
+  --hd(-h)       #use hd model (in openai api)
+  --openai(-a)   #use openai api instead of elevenlabs
+  --output(-o):string #output file name
 ] {
-  if $hd {
-    ai tts -m tts-1-hd -o $output $prompt
+  if $openai {
+    if $hd {
+      ai openai-tts -m tts-1-hd -o $output $prompt
+    } else {
+      ai openai-tts -o $output $prompt
+    }
   } else {
-    ai tts -o $output $prompt
+    return (print ("work in progress!"))
   }
 }
