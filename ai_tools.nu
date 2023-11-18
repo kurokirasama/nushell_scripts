@@ -1,28 +1,30 @@
 #ai tools
 export def "ai help" [] {
   print (
-    echo "This set of tools need a few dependencies installed:\n
-      ffmpeg\n
-      whisper:\n
-        pip install git+https://github.com/openai/whisper.git\n
-      yt-dlp:\n 
-        python3 -m pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz\n
-      METHODS\n
-      - chat_gpt
-      - askgpt
-      - ai audio2text
-      - ai video2text
-      - ai screen2text
-      - ai audio2summary
-      - ai transcription-summary
-      - ai yt-summary
-      - ai media-summary
-      - ai generate-subtitles
-      - ai git-push
-      - dall_e 
-      - askdalle
-      - ai tts
-      - tts\n"
+    echo ["This set of tools need a few dependencies installed:"
+      "ffmpeg"
+      "whisper:"
+      "  pip install git+https://github.com/openai/whisper.git"
+      "yt-dlp:" 
+      "  python3 -m pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz"
+      "METHODS"
+      "- chat_gpt"
+      "- askgpt"
+      "- ai audio2text"
+      "- ai video2text"
+      "- ai screen2text"
+      "- ai audio2summary"
+      "- ai transcription-summary"
+      "- ai yt-summary"
+      "- ai media-summary"
+      "- ai generate-subtitles"
+      "- ai git-push"
+      "- dall_e" 
+      "- askdalle"
+      "- ai tts"
+      "- tts"
+    ]
+    | str join "\n"
     | nu-highlight
   ) 
 }
