@@ -98,30 +98,7 @@ let-env MY_ENV_VARS = {}
 
 let-env MY_ENV_VARS = (
   $env.MY_ENV_VARS 
-  | upsert linux_backup "/home/kira/Yandex.Disk/Backups/linux"
-  | upsert nu_scripts "/home/kira/Yandex.Disk/Backups/linux/nu_scripts"
-  | upsert credentials "/home/kira/Yandex.Disk/Backups/linux/credentials"
-  | upsert debs "/home/kira/Yandex.Disk/Backups/linux/debs"
-  | upsert youtube_database "/home/kira/Yandex.Disk/Backups/linux/youtube_music_playlists"
-  | upsert appImages "/home/kira/Yandex.Disk/Backups/linux/software/appimages"
-  | upsert local_manga "/home/kira/Downloads/Manga"
-  | upsert external_manga "/home/kira/media/Seagate Expansion Drive/Manga/mangaPORver"
-  | upsert zoom "/home/kira/Documents/Zoom"
-  | upsert mps "/home/kira/Yandex.Disk/mps"
-  | upsert nushell_dir "/home/kira/software/nushell"
-  | upsert media_database "/home/kira/Dropbox/Directorios"
-  | upsert home_wifi "Kira"
-  | upsert google_calendars "Clases|Congresos|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Certamenes y Tests|Familia"
-  | upsert google_calendars_full "TV Shows|Contacts|Festivos en Chile|Cuentas|kurokirasama@gmail.com|Evernote GCalendar|Colegios|Teleton|Medicos|Clases|Certamenes y Tests|Familia|Congresos"
-  | upsert termux_ip "192.168.4.142"
-  | upsert mail "kurokirasama@gmail.com"
-  | upsert mail_ubb "lgomez@ubiobio.cl"
-  | upsert mail_lmgg "luismiguelgomezguzman@gmail.com"
-  | upsert l_prompt "short"
-  | upsert data "/home/kira/Yandex.Disk/cards"
-  | upsert gdriveTranscriptionSummaryDirectory "/home/kira/gdrive/Depto/DireccionEscuelaIngenieria/NotasReunionesAi"
-  | upsert chatgpt_config "/home/kira/Yandex.Disk/Backups/linux/chatgptConfigs"
-  | upsert datasets "/home/kira/Yandex.Disk/Downloads/datasets"
+  | upsert var value
   | upsert api_keys {}
 )
 
