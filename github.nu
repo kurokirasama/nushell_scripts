@@ -50,7 +50,7 @@ export def upload-debs-to-gdrive [] {
   let mounted = ($env.MY_ENV_VARS.gdrive_debs | path expand | path exists)
   if not $mounted {
     print (echo-g "mounting gdrive...")
-    mount-ubb
+    google-drive-ocamlfuse ~/gdrive/
   }
 
   let old_deb_date = ls ([$env.MY_ENV_VARS.gdrive_debs debs.7z] | path join) | get modified | get 0
