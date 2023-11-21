@@ -38,15 +38,15 @@ export def "gcal add" [
 }
 
 #show gcal agenda in selected calendars
+#
+# Examples
+# agenda 
+# agenda --full
+# agenda "--details=all"
+# agenda --full "--details=all"
 export def "gcal agenda" [
   --full    #show all calendars (export default: 0)
   ...rest   #extra flags for gcalcli between quotes (specified full needed)
-  #
-  # Examples
-  # agenda 
-  # agenda --full
-  # agenda "--details=all"
-  # agenda --full "--details=all"
 ] {
   let calendars = $env.MY_ENV_VARS.google_calendars
   let calendars_full = $env.MY_ENV_VARS.google_calendars_full
@@ -59,15 +59,15 @@ export def "gcal agenda" [
 }
 
 #show gcal week in selected calendards
+#
+# Examples
+# semana 
+# semana --full
+# semana "--details=all"
+# semana --full "--details=all"
 export def "gcal semana" [
   --full    #show all calendars (export default: 0)
   ...rest   #extra flags for gcalcli between quotes (specified full needed)
-  #
-  # Examples
-  # semana 
-  # semana --full
-  # semana "--details=all"
-  # semana --full "--details=all"
 ] {
   let calendars = $env.MY_ENV_VARS.google_calendars
   let calendars_full = $env.MY_ENV_VARS.google_calendars_full
@@ -80,15 +80,15 @@ export def "gcal semana" [
 }
 
 #show gcal month in selected calendards
+#
+# Examples
+# mes 
+# mes --full
+# mes "--details=all"
+# mes --full "--details=all"
 export def "gcal mes" [
   --full    #show all calendars (export default: 0)
   ...rest   #extra flags for gcalcli between quotes (specified full needed)
-  #
-  # Examples
-  # mes 
-  # mes --full
-  # mes "--details=all"
-  # mes --full "--details=all"
 ] {
   let calendars = $env.MY_ENV_VARS.google_calendars
   let calendars_full = $env.MY_ENV_VARS.google_calendars_full

@@ -20,7 +20,13 @@ export def coretemp [] {
 
 #battery stats
 export def batstat [] {
-  upower -i /org/freedesktop/UPower/devices/battery_BAT0 | grep -E "state|time|percentage"
+  upower -i /org/freedesktop/UPower/devices/battery_BAT0 
+  | lines 
+  | find state & time & percentage 
+  | str trim
+  | split column ":" 
+  | transpose -r -d 
+  | str trim
 }
 
 #listen ports
@@ -35,7 +41,11 @@ export def cblue [] {
 
 #ram info
 export def ram [] {
-  free -h  | from ssv | rename type total used free | select type used free total
+  free -h
+  | str replace ":" "" -a
+  | from ssv 
+  | rename type total used free 
+  | select type used free total
 }
 
 #yewtube

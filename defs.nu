@@ -181,23 +181,23 @@ export def check-link [link?,timeout?:int] {
 }
 
 #send email via Gmail with signature files (posfix configuration required)
+#
+#Examples:
+#-Body from cli:
+#  send-gmail test@gmail.com "the subject" --body "the body"
+#  echo "the body" | send-gmail test@gmail.com "the subject"
+#-Body from a file:
+#  open file.txt | send-gmail test@gmail.com "the subject"
+#-Attachments:
+# send-gmail test@gmail.com "the subject" --body "the body" this_file.txt
+# echo "the body" | send-gmail test@gmail.com "the subject" this_file.txt,other_file.pdf
+# open file.txt | send-gmail test@gmail.com "the subject" this_file.txt,other_file.pdf,other.srt
 export def send-gmail [
   to:string       #email to
   subject:string  #email subject
   --body:string   #email body, use double quotes to use escape characters like \n
   --from:string   #email from, export default: $MY_ENV_VARS.mail
   ...attachments  #email attachments file names list (in current directory), separated by comma
-  #
-  #Examples:
-  #-Body from cli:
-  #  send-gmail test@gmail.com "the subject" --body "the body"
-  #  echo "the body" | send-gmail test@gmail.com "the subject"
-  #-Body from a file:
-  #  open file.txt | send-gmail test@gmail.com "the subject"
-  #-Attachments:
-  # send-gmail test@gmail.com "the subject" --body "the body" this_file.txt
-  # echo "the body" | send-gmail test@gmail.com "the subject" this_file.txt,other_file.pdf
-  # open file.txt | send-gmail test@gmail.com "the subject" this_file.txt,other_file.pdf,other.srt
 ] {
   let inp = if ($in | is-empty) { "" } else { $in | into string }
   let from = if ($from | is-empty) {$env.MY_ENV_VARS.mail} else {$from}
@@ -220,10 +220,10 @@ export def send-gmail [
     let BODY = (
       if ($inp | is-empty) { 
         $signature 
-        | str prepend $"($body)\n" 
+        | str prepend $"($body)\n"
       } else { 
         $signature 
-        | str prepend $"($inp)\n" 
+        | str prepend $"($inp)\n"
       } 
     )
 

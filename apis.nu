@@ -23,20 +23,20 @@ export def bitly [longurl] {
 }
 
 #translate text using mymemmory or openai api
+#
+#Use ISO standar names for the languages, for example:
+#english: en-US
+#spanish: es-ES
+#italian: it-IT
+#swedish: sv-SV
+#
+#More in: https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes
 export def trans [
   ...text:string    #search query
   --from:string     #from which language you are translating (default english)
   --to:string       #to which language you are translating (default spanish)
-  --openai = false  #to use openai api instead of mymemmory, only translate to spanish
+  --openai          #to use openai api instead of mymemmory, only translate to spanish
   --gpt4            #use gpt4 for translating (default false)
-  #
-  #Use ISO standar names for the languages, for example:
-  #english: en-US
-  #spanish: es-ES
-  #italian: it-IT
-  #swedish: sv-SV
-  #
-  #More in: https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes
 ] {
   let search = if ($text | is-empty) {$in} else {$text}
   if ($search | is-empty) {
@@ -215,12 +215,12 @@ export def "maps address-from-loc" [latitude:number,longitude:number] {
 }
 
 #clp exchange rates via fixer.io API
+#
+#Show CLP/CLF,USD,BTC,new_currency exchange
 export def exchange_rates [
   new_currency?:string  #include unique new currency
   --symbols(-s)         #only show available symbols
   --update_dataset(-u)  #update local dataset
-  #
-  #Show CLP/CLF,USD,BTC,new_currency exchange
 ] {
   let api_key = $env.MY_ENV_VARS.api_keys.fixer_io.api_key
 
@@ -290,7 +290,6 @@ export def gg-trans [
   --destination(-d): string = "es", # The destination language
   --list(-l)  # Select destination language from list
 ] {
-
   mut dest = ""
 
   if $list {

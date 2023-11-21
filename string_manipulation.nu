@@ -1,11 +1,11 @@
 #string prepend
 export def "str prepend" [toprepend] { 
-  build-string $toprepend $in
+  $toprepend + $in
 }
 
 #string append
 export def "str append" [toappend] { 
-  build-string $in $toappend
+  $in + $toappend
 }
 
 #build-string (temporary, replace all build-string instances by "+" syntax)

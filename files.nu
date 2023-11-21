@@ -13,26 +13,25 @@ export def echo-r [string:string] {
 }
 
 #switch-case like instruction
+#
+# Example:
+# let x = "3"
+# switch $x {
+#   1: { echo "you chose one" },
+#   2: { echo "you chose two" },
+#   3: { echo "you chose three" }
+# }
+#
+# let x = "4"
+# switch $x {
+#   1: { echo "you chose one" },
+#   2: { echo "you chose two" },
+#   3: { echo "you chose three" }
+# } { otherwise: { echo "otherwise" }}
 export def switch [
   var                #input var to test
   cases: record      #record with all cases
   otherwise?: record #record code for otherwise
-  #
-  # Example:
-  # let x = "3"
-  # switch $x {
-  #   1: { echo "you chose one" },
-  #   2: { echo "you chose two" },
-  #   3: { echo "you chose three" }
-  # }
-  #
-  # let x = "4"
-  # switch $x {
-  #   1: { echo "you chose one" },
-  #   2: { echo "you chose two" },
-  #   3: { echo "you chose three" }
-  # } { otherwise: { echo "otherwise" }}
-  #
 ] {
   if ($cases | is-column $var) {
     $cases 
@@ -129,11 +128,12 @@ export def openg [file?,--copy(-c)] {
 }
 
 #accumulate a list of files into the same table
+#
+#Example
+#ls *.json | openm
+#let list = ls *.json; openm $list
 export def openm [
   list? #list of files
-  #Example
-  #ls *.json | openm
-  #let list = ls *.json; openm $list
 ] {
   let list = if ($list | is-empty) {$in} else {$list}
   
@@ -172,18 +172,18 @@ export def "7z folders" [--not_delete(-n)] {
 }
 
 #compress to 7z using max compression
+#
+# Example:
+# compress all files in current directory and delete them
+# 7z max filename * -d
+# compress all files in current directory and split into pieces of 3Gb (b|k|m|g)
+# 7z max filename * "-v3g"
+# both
+# 7z max filename * "-v3g -sdel"
 export def "7z max" [
   filename: string  #existing or not existing 7z filename
   ...rest:  string  #files to compress and extra flags for 7z (add flags between quotes)
   --delete(-d)      #delete files after compression
-  #
-  # Example:
-  # compress all files in current directory and delete them
-  # 7z max filename * -d
-  # compress all files in current directory and split into pieces of 3Gb (b|k|m|g)
-  # 7z max filename * "-v3g"
-  # both
-  # 7z max filename * "-v3g -sdel"
 ] {
   if ($rest | is-empty) {
     return-error "no files to compress specified"
@@ -210,13 +210,13 @@ export def rm-pipe [] {
 }
 
 #cp trough pipe to same dir
+#
+#Example
+#ls *.txt | first 5 | cp-pipe ~/temp
 export def cp-pipe [
   to: string         #target directory
   --no_overwrite(-n) #if filename exists, it creates a copy
   --update(-u)
-  #
-  #Example
-  #ls *.txt | first 5 | cp-pipe ~/temp
 ] {
   get name
   | ansi strip
@@ -231,12 +231,12 @@ export def cp-pipe [
 }
 
 #mv trough pipe to same dir
+#
+#Example
+#ls *.txt | first 5 | mv-pipe ~/temp
 export def mv-pipe [
   to: string  #target directory
   --force(-f) #force rewrite of file
-  #
-  #Example
-  #ls *.txt | first 5 | mv-pipe ~/temp
 ] {
   get name 
   | ansi strip

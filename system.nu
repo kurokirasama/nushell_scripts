@@ -423,7 +423,7 @@ export def "nushell-syntax-2-sublime" [
   let new_commands = [] ++ $builtin ++ $custom ++ $plugins ++ $keywords ++ $aliases ++ $operators
  
   mut file = open ~/.config/sublime-text/Packages/User/nushell.sublime-syntax | lines
-  let idx = $file | indexify | find '(?x:' | get index
+  let idx = $file | indexify | find '(?x:' | get index | drop
 
   for -n i in $idx {
     $file = ($file | upsert $i.item ($new_commands | get $i.index))
