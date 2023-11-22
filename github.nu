@@ -22,7 +22,7 @@ export def clone-ubuntu-install [] {
 
 #copy private linux backup dir to private repo and commit (alias quantum)
 export def quick-ubuntu-and-tools-update-module [
-  --update_scripts(-s)  #also update nushell sripts public repo
+  --update_scripts(-s)  #also update nushell scripts public repo
   --upload_debs(-d)     #also upload debs files to gdrive
   --force(-f)           #force the copy
 ] {

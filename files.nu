@@ -641,3 +641,17 @@ export def "open pdf" [
         ^$swallower $launcher $choice
     }
 }
+
+#concatenate all files in current directory
+#
+#asummes all are text files
+export def join-text-files [
+  output:string   #output filename
+  --extension(-e):string #extension of files to concatenate
+] {
+  ls $"*.($extension)"
+  | each {|file| 
+      open $file.name
+    }
+  | save -f $output
+}
