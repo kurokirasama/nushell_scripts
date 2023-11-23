@@ -208,22 +208,29 @@ export def send-gmail [
     return-error "missing @ in email-from or email-to!!"
   } else {
     let signature_file = (
-      switch $from {
-        $env.MY_ENV_VARS.mail : {|| echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_kurokirasama_signature"] | path join)},
-        $env.MY_ENV_VARS.mail_ubb : {|| echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_ubb_signature"] | path join)},
-        $env.MY_ENV_VARS.mail_lmgg : {|| echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_lmgg_signature"] | path join)}
-      } {otherwise : {|| echo ([$env.MY_ENV_VARS.nu_scripts "send-gmail_other_signature"] | path join)}}
+      match $from {
+        ($env.MY_ENV_VARS.mail) => {
+          [$env.MY_ENV_VARS.nu_scripts "send-gmail_kurokirasama_signature"] | path join
+        },
+        ($env.MY_ENV_VARS.mail_ubb) => {
+          [$env.MY_ENV_VARS.nu_scripts "send-gmail_ubb_signature"] | path join
+        },
+        ($env.MY_ENV_VARS.mail_lmgg) => {
+          [$env.MY_ENV_VARS.nu_scripts "send-gmail_lmgg_signature"] | path join
+        },
+        _ => {
+          [$env.MY_ENV_VARS.nu_scripts "send-gmail_other_signature"] | path join
+        }
+      }
     )
 
     let signature = (open $signature_file)
 
     let BODY = (
       if ($inp | is-empty) { 
-        $signature 
-        | str prepend $"($body)\n"
+        $"($body)\n" + $signature 
       } else { 
-        $signature 
-        | str prepend $"($inp)\n"
+        $"($inp)\n" + $signature 
       } 
     )
 
@@ -232,14 +239,12 @@ export def send-gmail [
     } else {
       let ATTACHMENTS = ($attachments 
         | split row ","
-        | par-each {|file| 
-            [$env.PWD $file] 
-            | path join
+        | each {|file| 
+            [$env.PWD $file] | path join
           } 
         | str join " --attach="
-        | str prepend "--attach="
       )
-      bash -c $"\'echo ($BODY) | mail ($ATTACHMENTS) -r ($from) -s \"($subject)\" ($to) --debug-level 10\'"
+      bash -c $"\'echo ($BODY) | mail --attach=($ATTACHMENTS) -r ($from) -s \"($subject)\" ($to) --debug-level 10\'"
     }
   }
 }

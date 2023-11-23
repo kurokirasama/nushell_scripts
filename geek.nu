@@ -26,7 +26,7 @@ export def "geek find" [
       | complete 
       | get stdout
     } else {
-      let command = (build-string "geeknote find --search " $search " " ($rest | str join ' '))
+      let command = "geeknote find --search " + $search + " " + ($rest | str join ' ')
       do -i {nu -c $command} 
       | complete 
       | get stdout
@@ -55,7 +55,7 @@ export def "geek show" [
       | complete 
       | get stdout
     } else {
-      let command = (build-string "geeknote show " ($item | into string) " " ($rest | str join ' '))
+      let command = "geeknote show " + ($item | into string) + " " + ($rest | str join ' ')
       do -i {nu -c $command} 
       | complete 
       | get stdout
@@ -78,7 +78,7 @@ export def "geek edit" [
   if ($rest | is-empty) {
     geeknote edit $item
   } else {
-    let command = (build-string "geeknote edit " ($item | into string) " " ($rest | str join ' '))
+    let command = "geeknote edit " + ($item | into string) + " " + ($rest | str join ' ')
     nu -c $command
   }
 }
@@ -91,7 +91,7 @@ export def "geek create" [
   #geek create "--title 'a note'"
   #geek create "--title 'a note' --tag linux --content 'the content'"
 ] {
-  nu -c (build-string "geeknote create" " " $commands)
+  nu -c ("geeknote create " + $commands)
 }
 
 #export evernote notes to enex files

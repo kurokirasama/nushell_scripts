@@ -369,7 +369,7 @@ export def "media split-video" [
     | get duration
   )
 
-  let full_secs = (build-string $full_length sec | into duration)
+  let full_secs = ($full_length + "sec") | into duration
   let full_hhmmss = (into hhmmss $full_secs)
 
   let n_segments = (
@@ -611,7 +611,7 @@ export def "media merge-videos-auto" [
   | where type == file 
   | get name
   | each {|file|
-      echo (build-string "file \'" (($env.PWD) | path join $file) "\'\n") | save --append list.txt
+      ("file \'" + (($env.PWD) | path join $file) + "\'\n") | save --append list.txt
     }
 
   print (echo-g "merging videos...")

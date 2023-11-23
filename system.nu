@@ -26,9 +26,9 @@ export def nufetch [--table(-t)] {
       | str trim
       | transpose -ird 
     )
-    let os = (build-string ($s2 | get "Operating System") " " $nu.os-info.arch)
+    let os = ($s2 | get "Operating System") + " " + $nu.os-info.arch
     let host = (open /sys/devices/virtual/dmi/id/product_name | lines | get 0)
-    let shell = (build-string ($env.SHELL | path parse | get stem) " " (version | get version))
+    let shell = ($env.SHELL | path parse | get stem) + " " + (version | get version)
     let screen_res = (
       xrandr 
       | lines 
@@ -51,8 +51,8 @@ export def nufetch [--table(-t)] {
     )
     let free_disk = ($s.disks | where mount == / | get free | get 0)
     let total_disk = ($s.disks | where mount == / | get total | get 0)
-    let disk = (build-string  ($total_disk - $free_disk) " / " $total_disk)
-    let mem = (build-string $s.mem.used " / " $s.mem.total)
+    let disk = (($total_disk - $free_disk) | into string) + " / " + ($total_disk | into string)
+    let mem = ($s.mem.used | into string) + " / " + ($s.mem.total | into string)
     let gpus = (
       lspci 
       | lines 

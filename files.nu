@@ -608,50 +608,12 @@ export def re-enamerate [prefix] {
   }
 }
 
-#select pdf to open
-export def "open pdf" [
-    --launcher: string = "okular"
-    --no-swallow: bool
-    --swallower: string = "devour"
-    --from
-] {
-  let from = if ($from | is-empty) {$env.PWD} else {$from}
-  
-    let choices = (
-        get-files
-        | find pdf
-        | ansi strip-table
-        | get name
-        | to text
-    )
-
-    let choice = (
-        $choices
-        | fzf --ansi
-        | str trim
-    )
-    if ($choice | is-empty) {
-        print "user chose to exit..."
-        return
-    }
-
-    if ($no_swallow) {
-        ^$launcher $choice
-    } else {
-        ^$swallower $launcher $choice
-    }
-}
-
 #concatenate all files in current directory
 #
 #asummes all are text files
 export def join-text-files [
-  output:string   #output filename
-  --extension(-e):string #extension of files to concatenate
+  extension:string #extension of files to concatenate
+  output:string    #output filename (without extension)
 ] {
-  ls $"*.($extension)"
-  | each {|file| 
-      open $file.name
-    }
-  | save -f $output
+  open ("*." + $extension) | save -f ($output + "." + $extension)
 }

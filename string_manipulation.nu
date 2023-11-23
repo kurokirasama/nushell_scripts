@@ -8,19 +8,14 @@ export def "str append" [toappend] {
   $in + $toappend
 }
 
-#build-string (temporary, replace all build-string instances by "+" syntax)
-export def build-string [...rest] {
-  $rest | str join ""
-}
-
 #string repeat
 export def "str repeat" [count: int] { 
-  each {|it| 
-    let str = $it; echo 1..$count 
-    | each {||
-        echo $str 
-      } 
-  } 
+  let str = $in 
+  mut out = $str
+  for i in 1..$count {
+    $out = $out + $str 
+  }
+  return $out
 }
 
 #remove accent
