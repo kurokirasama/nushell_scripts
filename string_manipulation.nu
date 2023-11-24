@@ -101,4 +101,86 @@ export def rename-date [file,--extra = ""] {
   )
 }
 
-#fill
+#progress bar
+#
+#Example:
+# def test [] {
+#     let max = 200
+#     mut progress_bar = progress_bar 0 $max
+#     for i in 1..($max) {
+#         $progress_bar = (progress_bar $i $max $progress_bar)
+#         sleep 0.01sec
+#     }
+# }
+export def progress_bar [
+    count:int 
+    max:int 
+    progress_bar?:string
+    --symbol(-s):string = "█"
+    --color(-c):string = "#FFFFFF"
+    --background_symbol = "▒"
+    --background_color(-B) = "#A0A0A0"
+] {
+    let term_length = (term size).columns
+    let max_number_of_chars = $term_length / 2 | math ceil
+    let bar_increment = (
+      if $max >= $max_number_of_chars {
+        $max / $max_number_of_chars | math ceil
+      } else {
+        $max_number_of_chars / $max | math floor
+      }
+    )
+
+    let $offset = (
+      match $term_length {
+        83 => {
+          if $max >= $max_number_of_chars {
+            7
+          } else {
+            15
+          }
+        },
+        159 => {
+          if $max >= $max_number_of_chars {
+            -4
+          } else {
+            13
+          }
+        },
+        79 => {
+          if $max >= $max_number_of_chars {
+            9
+          } else {
+            17
+          }
+        },
+        _ => {0}
+      }
+    )
+
+    mut progress_bar = if ($progress_bar | is-empty) {$symbol} else {$progress_bar}
+
+    print -n (
+        [
+            (ansi -e { fg: $background_color })
+            "\r"
+            ($background_symbol | fill -c $background_symbol -w ($max_number_of_chars + $offset) -a r)
+            "\r"
+            (ansi -e { fg: $color })
+            $"(($count / $max * 100) | into string -d 2 | fill -c 0 -a r -w 6)% " 
+            ($progress_bar)
+            (ansi reset)
+        ] 
+        | str join
+    )
+
+    if $max >= $max_number_of_chars {
+      if $count mod $bar_increment == 0 { 
+          $progress_bar = $progress_bar + $symbol
+      }
+    } else {
+      $progress_bar = $progress_bar + ($symbol | str repeat $bar_increment)
+    }
+
+    return $progress_bar
+}

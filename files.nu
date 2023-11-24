@@ -214,19 +214,23 @@ export def rm-pipe [] {
 #Example
 #ls *.txt | first 5 | cp-pipe ~/temp
 export def cp-pipe [
-  to: string         #target directory
-  --no_overwrite(-n) #if filename exists, it creates a copy
-  --update(-u)
+  to: string  #target directory
+  --force     #force copy
 ] {
-  get name
-  | ansi strip
-  | each {|file| 
-    if $update {
-      print (echo-g $"copying ($file)..." )
+  let files = $in | get name | ansi strip-table
+  let number = $files | length
+  mut progress_bar = progress_bar 0 $number
+
+  for i in 0..($number - 1) {
+    let file = $files | get $i 
+    
+    if $force {
       ^cp -ur $file ($to | path expand)
     } else {
-      cp -rp $file ($to | path expand)
+      ^cp -fr $file ($to | path expand)
     }
+
+    $progress_bar = (progress_bar $i $number $progress_bar)
   } 
 }
 
@@ -238,16 +242,21 @@ export def mv-pipe [
   to: string  #target directory
   --force(-f) #force rewrite of file
 ] {
-  get name 
-  | ansi strip
-  | each {|file|
-      print (echo-g $"moving ($file)..." )
-      if $force {
-        ^mv -f $file ($to | path expand)
-      } else {
-        ^mv -u $file ($to | path expand)
-      }
+  let files = $in | get name | ansi strip-table
+  let number = $files | length
+  mut progress_bar = progress_bar 0 $number
+
+  for i in 0..($number - 1) {
+    let file = $files | get $i 
+
+    if $force {
+      ^mv -f $file ($to | path expand)
+    } else {
+      ^mv -u $file ($to | path expand)
     }
+
+    $progress_bar = (progress_bar $i $number $progress_bar)
+  }
 }
 
 #ls by date (newer last)
