@@ -8,11 +8,13 @@ if not ("~/.pwd_sizes.json" | path expand | path exists) {
 let interval = 12hr 
 let last_record = (open ~/.pwd_sizes.json | where directory == $env.PWD)
 let now = (date now)
-let not_update = if ($last_record | length) == 0 {
-    false
-} else {
-    (($last_record | get updated | get 0 | into datetime) + $interval > $now)
-}
+let not_update = (
+    if ($last_record | length) == 0 {
+        false
+    } else {
+        (($last_record | get updated | get 0 | into datetime) + $interval > $now)
+    }
+)
 let not_gdrive = not ($env.PWD =~ gdrive)
 
 #calculating pwd_size

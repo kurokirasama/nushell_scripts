@@ -166,9 +166,10 @@ export def print-file [file?,--n_copies(-n):int] {
 export def "7z folders" [--not_delete(-n)] {
   if not $not_delete {
     bash -c "find . -maxdepth 1 -mindepth 1 -type d -print0 | parallel -0 --eta 7z a -t7z -sdel -bso0 -bsp0 -m0=lzma2 -mx=9 -ms=on -mmt=on {}.7z {}"
-  } else {
-    bash -c "find . -maxdepth 1 -mindepth 1 -type d -print0 | parallel -0 --eta 7z a -t7z -bso0 -bsp0 -m0=lzma2 -mx=9 -ms=on -mmt=on {}.7z {}"
+    return
   }
+
+  bash -c "find . -maxdepth 1 -mindepth 1 -type d -print0 | parallel -0 --eta 7z a -t7z -bso0 -bsp0 -m0=lzma2 -mx=9 -ms=on -mmt=on {}.7z {}"
 }
 
 #compress to 7z using max compression
@@ -187,11 +188,12 @@ export def "7z max" [
 ] {
   if ($rest | is-empty) {
     return-error "no files to compress specified"
-  } else if ($delete | is-empty) or (not $delete) {
-    7z a -t7z -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" $rest
-  } else {
-    7z a -t7z -sdel -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" $rest
   }
+  if ($delete | is-empty) or (not $delete) {
+    7z a -t7z -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" $rest
+    return
+  }
+  7z a -t7z -sdel -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" $rest
 }
 
 #rm trough pipe
@@ -215,7 +217,7 @@ export def rm-pipe [] {
 #ls *.txt | first 5 | cp-pipe ~/temp
 export def cp-pipe [
   to: string  #target directory
-  --force     #force copy
+  --force(-f) #force copy
 ] {
   let files = $in | get name | ansi strip-table
   let number = ($files | length) - 1
@@ -410,10 +412,10 @@ export def join-pdfs [
 ] {
   if ($rest | is-empty) {
     return-error "not enough pdfs provided"
-  } else {
-    pdftk $rest cat output output.pdf
-    print (echo-g "pdf merged in output.pdf")
   }
+  
+  pdftk $rest cat output output.pdf
+  print (echo-g "pdf merged in output.pdf")
 }
 
 #create media database for downloads and all mounted disks
@@ -494,37 +496,11 @@ export def lister [file] {
 
 #create anime dirs according to files
 export def mk-anime [--wzf] {
-  if not $wzf {
+  if $wzf {
     try {
       get-files
     } catch {
       return-error "no files found"
-      return
-    }
-    | get name 
-    | each {|file| 
-        $file 
-        | parse "{fansub} {name} - {chapter}"
-      } 
-    | flatten 
-    | get name 
-    | uniq 
-    | each {|dir| 
-        if not ($dir | path expand | path exists) {
-          mkdir $dir
-        }
-
-        get-files 
-        | find -i $dir 
-        | mv-pipe $dir
-        | ignore
-      }
-  } else {
-    try {
-      get-files
-    } catch {
-      return-error "no files found"
-      return
     }
     | get name 
     | each {|file| 
@@ -544,7 +520,33 @@ export def mk-anime [--wzf] {
         | mv-pipe $dir
         | ignore
       }
+
+    return  
   }
+
+  try {
+    get-files
+  } catch {
+    return-error "no files found"
+  }
+  | get name 
+  | each {|file| 
+      $file 
+      | parse "{fansub} {name} - {chapter}"
+    } 
+  | flatten 
+  | get name 
+  | uniq 
+  | each {|dir| 
+      if not ($dir | path expand | path exists) {
+        mkdir $dir
+      }
+
+      get-files 
+      | find -i $dir 
+      | mv-pipe $dir
+      | ignore
+    }
 }
 
 #open google analytics csv file
