@@ -182,5 +182,8 @@ export def progress_bar [
       $progress_bar = $progress_bar + ($symbol | str repeat $bar_increment)
     }
 
+    if $count == $max {
+      print ("\n")
+    }
     return $progress_bar
 }
