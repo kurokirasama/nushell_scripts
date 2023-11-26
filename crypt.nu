@@ -8,25 +8,25 @@ export def nu-crypt [
 ] {
 	let file = if ($file | is-empty) {$in | get name} else {$file}
 
-	if ($encrypt) {
-		gpg --pinentry-mode loopback --symmetric --armor --yes $file
-	} else if ($decrypt) {
-		if ($output_file | is-empty) {
-			if $no_ui {
-				gpg --pinentry-mode loopback --decrypt --quiet $file
+	match [$encrypt,$decrypt] {
+		[true,false] => {gpg --pinentry-mode loopback --symmetric --armor --yes $file},
+		[false,true] => {
+			if ($output_file | is-empty) {
+				if $no_ui {
+					gpg --pinentry-mode loopback --decrypt --quiet $file
+				} else {
+					gpg --decrypt --quiet $file
+				}
 			} else {
-				gpg --decrypt --quiet $file
+				if $no_ui {
+					gpg --pinentry-mode loopback --output $output_file --quiet --decrypt $file
+				} else {
+					gpg --output $output_file --quiet --decrypt $file
+				}
 			}
-		} else {
-			if $no_ui {
-				gpg --pinentry-mode loopback --output $output_file --quiet --decrypt $file
-			} else {
-				gpg --output $output_file --quiet --decrypt $file
-			}
-		}
-	} else {
-		return-error "missing option -d or -f!"
-	} 	
+		},
+		_ => {return-error "flag combination not allowed!!"} 	
+	}
 }
 
 #open credentials

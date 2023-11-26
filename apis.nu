@@ -85,42 +85,40 @@ export def trans [
       return $translated
     }
   }
-  
 }
 
 #get rebrandly short link
 export def "rebrandly get" [longurl] {
- if ($longurl | is-empty) {
+  if ($longurl | is-empty) {
     return-error "no url provided"
-  } else {
-    let credential = $env.MY_ENV_VARS.api_keys.rebrandly
-    let api_key = ($credential | get api_key)
-    
-    let url = "https://api.rebrandly.com/v1/links"
-    let content = {"destination": $longurl}
-
-    let response = (http post $url $content -H ["apikey", $api_key] --content-type "application/json" -H ["UserAgent:","UserAgent,curl/7.68.0"])
-    let shorturl = ($response | get shortUrl)
-
-    $shorturl | copy
-    print (echo-g $"($shorturl) copied to clipboard!")
   }
+
+  let credential = $env.MY_ENV_VARS.api_keys.rebrandly
+  let api_key = ($credential | get api_key)
+    
+  let url = "https://api.rebrandly.com/v1/links"
+  let content = {"destination": $longurl}
+
+  let response = (http post $url $content -H ["apikey", $api_key] --content-type "application/json" -H ["UserAgent:","UserAgent,curl/7.68.0"])
+  let shorturl = ($response | get shortUrl)
+
+  $shorturl | copy
+  print (echo-g $"($shorturl) copied to clipboard!")
 } 
 
 #list rebrandly last 25 short links
 export def "rebrandly list" [longurl="www.google.com"] {
- if ($longurl | is-empty) {
+  if ($longurl | is-empty) {
     return-error "no url provided"
-  } else {
-    let credential = $env.MY_ENV_VARS.api_keys.rebrandly
-    let api_key = ($credential | get api_key)
-    
-    let base_url = "https://api.rebrandly.com/v1/links"
-    let url = $base_url + "?domain.id=" + $longurl + "&orderBy=createdAt&orderDir=desc&limit=25"
+  } 
 
-    http get $url -H ["apikey", $api_key] -H ["accept", "application/json"]
+  let credential = $env.MY_ENV_VARS.api_keys.rebrandly
+  let api_key = ($credential | get api_key)
     
-  }
+  let base_url = "https://api.rebrandly.com/v1/links"
+  let url = $base_url + "?domain.id=" + $longurl + "&orderBy=createdAt&orderDir=desc&limit=25"
+
+  http get $url -H ["apikey", $api_key] -H ["accept", "application/json"]
 }
 
 #get eta via maps api
@@ -207,11 +205,11 @@ export def "maps address-from-loc" [latitude:number,longitude:number] {
 
   let response = (http get $url)
 
-  if $response.status == OK {
-    return $response.results.0.formatted_address
-  } else {
+  if $response.status != OK {
     return-error "address not found!"
-  }
+  } 
+
+  return $response.results.0.formatted_address
 }
 
 #clp exchange rates via fixer.io API
@@ -224,63 +222,61 @@ export def exchange_rates [
 ] {
   let api_key = $env.MY_ENV_VARS.api_keys.fixer_io.api_key
 
-  if (not $symbols) {
-    let url = (
-      if ($new_currency | is-empty) {
-        $"http://data.fixer.io/api/latest?access_key=($api_key)&symbols=CLP,CLF,USD,BTC"
-      } else {
-        $"http://data.fixer.io/api/latest?access_key=($api_key)&symbols=CLP,CLF,USD,BTC,($new_currency)"
-      }
-    )
-    let response = (http get $url)
-  
-    if not $response.success {
-      return-error $response.error
-    }
-  
-    let eur_usd = (1 / $response.rates.USD)
-    let eur_btc = (1 / $response.rates.BTC)
-    let eur_clf = (1 / $response.rates.CLF)
-    let eur_new = if ($new_currency | is-empty) {0} else {1 / ($response.rates | get $new_currency)}
-
-    let output = (
-      if ($new_currency | is-empty) {
-        {
-          UF:  ($eur_clf * $response.rates.CLP)
-          USD: ($eur_usd * $response.rates.CLP),
-          EUR: $response.rates.CLP,
-          BTC: ($eur_btc * $response.rates.CLP)
-        }
-      } else {
-        {
-          UF:  ($eur_clf * $response.rates.CLP)
-          USD: ($eur_usd * $response.rates.CLP),
-          EUR: $response.rates.CLP,
-          BTC: ($eur_btc * $response.rates.CLP),
-          $"($new_currency)": ($eur_new * $response.rates.CLP)
-        }
-      }
-    )
-
-    if $update_dataset {
-      let to_save = (
-        $output 
-        | rename -c {UF: date}
-        | upsert date (date now | format date "%Y.%m.%d %H:%M:%S")
-      )
-      
-      open ([$env.MY_ENV_VARS.datasets exchange_rates.csv] | path join) 
-      | append $to_save 
-      | save -f ([$env.MY_ENV_VARS.datasets exchange_rates.csv] | path join)
-    }
-
-    return $output
-
-  } else {
+  if $symbols {
     let url_symbols = $"http://data.fixer.io/api/symbols?access_key=($api_key)"
     let symbols = (http get $url_symbols)
     return $symbols.symbols
   }
+
+  let url = (
+    if ($new_currency | is-empty) {
+      $"http://data.fixer.io/api/latest?access_key=($api_key)&symbols=CLP,CLF,USD,BTC"
+    } else {
+      $"http://data.fixer.io/api/latest?access_key=($api_key)&symbols=CLP,CLF,USD,BTC,($new_currency)"
+    }
+  )
+  let response = (http get $url)
+  
+  if not $response.success {
+    return-error $response.error
+  }
+  
+  let eur_usd = (1 / $response.rates.USD)
+  let eur_btc = (1 / $response.rates.BTC)
+  let eur_clf = (1 / $response.rates.CLF)
+  let eur_new = if ($new_currency | is-empty) {0} else {1 / ($response.rates | get $new_currency)}
+
+  let output = (
+    if ($new_currency | is-empty) {
+      {
+        UF:  ($eur_clf * $response.rates.CLP)
+        USD: ($eur_usd * $response.rates.CLP),
+        EUR: $response.rates.CLP,
+        BTC: ($eur_btc * $response.rates.CLP)
+      }
+    } else {
+      {
+        UF:  ($eur_clf * $response.rates.CLP)
+        USD: ($eur_usd * $response.rates.CLP),
+        EUR: $response.rates.CLP,
+        BTC: ($eur_btc * $response.rates.CLP),
+        $"($new_currency)": ($eur_new * $response.rates.CLP)
+      }
+    }
+  )
+
+  if $update_dataset {
+    let to_save = (
+      $output 
+      | rename -c {UF: date}
+      | upsert date (date now | format date "%Y.%m.%d %H:%M:%S")
+    )
+    
+    open ([$env.MY_ENV_VARS.datasets exchange_rates.csv] | path join) 
+    | append $to_save 
+    | save -f ([$env.MY_ENV_VARS.datasets exchange_rates.csv] | path join)
+  }
+  return $output
 }
 
 # Translate text using Google Translate
@@ -345,14 +341,11 @@ export def "joplin search" [
 
   let query = if ($query | is-empty) {$in} else {$query}
   let query = (
-    if $title {
-      "title:" + $query
-    } else if $body {
-      "body:" + $query
-    } else if $tag {
-      "tag:" + $query
-    } else {
-      $query
+    match [$title,$body,$tag] {
+      [true,false,false] => {"title:" + $query},
+      [false,true,false] => {"body:" + $query},
+      [false,false,true] => {"tag:" + $query},
+      _ => {$query}
     }
   )
 
@@ -384,4 +377,3 @@ export def "joplin search" [
     joplin cat $id | nu-highlight
   }
 }
-  

@@ -54,16 +54,13 @@ export def "chatpdf add" [
     return-error "there is already a file with the same name already uploaded!"
   }
 
-  if not ($label | is-empty) {
-     if ($label in ($database | columns)) {
-      return-error "there is already a file with the same label already uploaded!"
-   }
-  }
+  if (not ($label | is-empty)) and ($label in ($database | columns)) {
+    return-error "there is already a file with the same label already uploaded!"
+  }  
 
   let filename = if ($label | is-empty) {$filename} else {label}
         
   let header = $"x-api-key: ($api_key)"
-  # let response = (http post $url -t application/octet-stream $data -H ["x-api-key", $api])
   let response = (curl -s -X POST $url -H $header -F $"file=@($filepath)" | from json)
 
   if ($response | is-empty) {
@@ -99,7 +96,7 @@ export def "chatpdf del" [
 #chat with a pdf via chatpdf
 export def "chatpdf ask" [
   prompt?:string            #question to the pdf
-  --select_pdf(-s):string   #specify which book to ask via filename (without extension), otherwise select from list
+  --select_pdf(-s):string   #specify which book to ask via filename (without extension)
 ] {
   let prompt = if ($prompt | is-empty) {$in} else {$prompt}
 
@@ -150,9 +147,6 @@ export def askpdf [
   --btx(-b)   #use btx file, otherwhise select from list
   --fast(-f)  #get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
 ] {
-  if $rubb and $btx {
-    return-error "only one of these flags allowed!"
-  }
   let prompt = (
     if not $fast {
       if ($prompt | is-empty) {$in} else {$prompt}
@@ -162,12 +156,11 @@ export def askpdf [
   )
 
   let answer = (
-    if $rubb {
-      chatpdf ask $prompt -s rubb
-    } else if $btx {
-      chatpdf ask ($prompt + (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join) | get chatpdf_btx)) -s btx
-    } else {
-      chatpdf ask $prompt
+    match [$rubb,$btx] {
+      [true,true] => {return-error "only one of these flags allowed!"},
+      [true,false] => {chatpdf ask $prompt -s rubb},
+      [false,true] => {chatpdf ask ($prompt + (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join) | get chatpdf_btx)) -s btx},
+      [false,false] => {chatpdf ask $prompt}
     }
   )
 
@@ -464,7 +457,7 @@ export def "ai git-push" [
   let max_words = if $gpt4 {85000} else {10000}
   let max_words_short = if $gpt4 {85000} else {10000}
 
-  print (echo-g "asking chatgpt to summarize the differences in the repository...")
+  print (echo-g "\nasking chatgpt to summarize the differences in the repository...")
   let question = (git diff | str replace "\"" "'" -a)
   let prompt = ($question | ^awk ("'BEGIN{total=0} {total+=NF; if(total<=(" + $"($max_words)" + ")) print; else exit}'"))
   let prompt_short = ($question | ^awk ("'BEGIN{total=0} {total+=NF; if(total<=(" + $"($max_words_short)" + ")) print; else exit}'"))
@@ -891,21 +884,17 @@ export def "ai media-summary" [
   let extension = ($file | path parse | get extension) 
   let media_type = (askgpt $"does the extension file format ($extension) correspond to and audio, video or subtitle file? Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle or none." | from json | get answer)
 
-  if $media_type =~ video {
-    ai video2text $file -l $lang
-  } else if $media_type =~ audio {
-    ai audio2text $file -l $lang
-  } else if $media_type =~ subtitle {
-    if $extension !~ "vtt|srt" {
-      return-error "subtitle file extension not supported!"
-    }
-    if $extension =~ vtt {
-      ffmpeg -i $file -f srt $"($title)-clean.txt"
-    } else {
-      mv -f $file $"($title)-clean.txt"
-    }
-  } else {
-    return-error $"wrong media type: ($extension)"
+  match $media_type {
+    "video" => {ai video2text $file -l $lang},
+    "audio" => {ai audio2text $file -l $lang},
+    "subtitle" => {
+      match $extension {
+        "vtt" => {ffmpeg -i $file -f srt $"($title)-clean.txt"},
+        "srt" => {mv -f $file $"($title)-clean.txt"},
+        _ => {return-error "subtitle file extension not supported!"}
+      }
+    },
+    _ => {return-error $"wrong media type: ($extension)"}
   }
 
   print (echo-g $"transcription file saved as ($title)-clean.txt")

@@ -72,7 +72,7 @@ export def mcx [file?] {
 export def jd [
   --ubb(-b) #check ubb jdownloader
 ] {
-  if ($ubb | is-empty) or (not $ubb) {
+  if (not $ubb) {
     jdown
   } else {
     jdown -b 1
@@ -153,12 +153,13 @@ export def countdown [
   if $muted == 'no' {
     termdown $n
     ^mpv --no-terminal $BEEP  
-  } else {
-    termdown $n
-    unmute
-    ^mpv --no-terminal $BEEP
-    mute
-  }   
+    return
+  }
+
+  termdown $n
+  unmute
+  ^mpv --no-terminal $BEEP
+  mute
 }
 
 #check validity of a link
@@ -204,48 +205,49 @@ export def send-gmail [
 
   if ($body | is-empty) and ($inp | is-empty) {
     return-error "body unexport defined!!"
-  } else if not (($from | str contains "@") and ($to | str contains "@")) {
+  } 
+  if not (($from | str contains "@") and ($to | str contains "@")) {
     return-error "missing @ in email-from or email-to!!"
-  } else {
-    let signature_file = (
-      match $from {
-        ($env.MY_ENV_VARS.mail) => {
-          [$env.MY_ENV_VARS.nu_scripts "send-gmail_kurokirasama_signature"] | path join
-        },
-        ($env.MY_ENV_VARS.mail_ubb) => {
-          [$env.MY_ENV_VARS.nu_scripts "send-gmail_ubb_signature"] | path join
-        },
-        ($env.MY_ENV_VARS.mail_lmgg) => {
-          [$env.MY_ENV_VARS.nu_scripts "send-gmail_lmgg_signature"] | path join
-        },
-        _ => {
-          [$env.MY_ENV_VARS.nu_scripts "send-gmail_other_signature"] | path join
-        }
+  } 
+
+  let signature_file = (
+    match $from {
+      ($env.MY_ENV_VARS.mail) => {
+        [$env.MY_ENV_VARS.nu_scripts "send-gmail_kurokirasama_signature"] | path join
+      },
+      ($env.MY_ENV_VARS.mail_ubb) => {
+        [$env.MY_ENV_VARS.nu_scripts "send-gmail_ubb_signature"] | path join
+      },
+      ($env.MY_ENV_VARS.mail_lmgg) => {
+        [$env.MY_ENV_VARS.nu_scripts "send-gmail_lmgg_signature"] | path join
+      },
+      _ => {
+        [$env.MY_ENV_VARS.nu_scripts "send-gmail_other_signature"] | path join
       }
-    )
-
-    let signature = (open $signature_file)
-
-    let BODY = (
-      if ($inp | is-empty) { 
-        $"($body)\n" + $signature 
-      } else { 
-        $"($inp)\n" + $signature 
-      } 
-    )
-
-    if ($attachments | is-empty) {
-      echo $BODY | mail -r $from -s $subject $to
-    } else {
-      let ATTACHMENTS = ($attachments 
-        | split row ","
-        | each {|file| 
-            [$env.PWD $file] | path join
-          } 
-        | str join " --attach="
-      )
-      bash -c $"\'echo ($BODY) | mail --attach=($ATTACHMENTS) -r ($from) -s \"($subject)\" ($to) --debug-level 10\'"
     }
+  )
+
+  let signature = (open $signature_file)
+
+  let BODY = (
+    if ($inp | is-empty) { 
+      $"($body)\n" + $signature 
+    } else { 
+      $"($inp)\n" + $signature 
+    } 
+  )
+
+  if ($attachments | is-empty) {
+    echo $BODY | mail -r $from -s $subject $to
+  } else {
+    let ATTACHMENTS = ($attachments 
+      | split row ","
+      | each {|file| 
+          [$env.PWD $file] | path join
+        } 
+      | str join " --attach="
+    )
+    bash -c $"\'echo ($BODY) | mail --attach=($ATTACHMENTS) -r ($from) -s \"($subject)\" ($to) --debug-level 10\'"
   }
 }
 
@@ -258,11 +260,12 @@ export def reset-alpine-auth [] {
 
 #run matlab in cli
 export def matlab-cli [--ubb(-b)] {
-  if not $ubb {
-    matlab19 -nosplash -nodesktop -sd $"\"($env.PWD)\"" -logfile "/home/kira/Dropbox/matlab/log19.txt" -r "setenv('SHELL', '/bin/bash');"
-  } else {
+  if $ubb {
     matlab19_ubb -nosplash -nodesktop -sd $"\"($env.PWD)\"" -logfile "/home/kira/Dropbox/matlab/log19.txt" -r "setenv('SHELL', '/bin/bash');"
-  }
+    return
+  } 
+
+  matlab19 -nosplash -nodesktop -sd $"\"($env.PWD)\"" -logfile "/home/kira/Dropbox/matlab/log19.txt" -r "setenv('SHELL', '/bin/bash');"
 }
 
 #get files all at once from webpage using wget
@@ -294,15 +297,15 @@ export def scompact [
     ...columns: string # the columns to compactify
     --invert(-i) # select the opposite
 ] {
-    mut out = $in
-    for column in $columns {
-        if $invert {
-            $out = ($out | upsert $column {|row| if not ($row | get $column | is-empty) {null} else {$row | get $column}} | compact $column  )
-        } else {
-            $out = ($out | upsert $column {|row| if ($row | get $column | is-empty) {null} else {$row | get $column}} | compact $column  )
-        }
-    }
-    $out 
+  mut out = $in
+  for column in $columns {
+    if $invert {
+      $out = ($out | upsert $column {|row| if not ($row | get $column | is-empty) {null} else {$row | get $column}} | compact $column  )
+      } else {
+        $out = ($out | upsert $column {|row| if ($row | get $column | is-empty) {null} else {$row | get $column}} | compact $column  )
+      }
+  }
+  return $out 
 }
 
 ## appimages
