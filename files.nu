@@ -218,10 +218,10 @@ export def cp-pipe [
   --force     #force copy
 ] {
   let files = $in | get name | ansi strip-table
-  let number = $files | length
+  let number = ($files | length) - 1
   mut progress_bar = progress_bar 0 $number
 
-  for i in 0..($number - 1) {
+  for i in 0..$number {
     let file = $files | get $i 
     
     if $force {
