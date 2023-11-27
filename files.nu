@@ -232,7 +232,7 @@ export def cp-pipe [
       ^cp -fr $file ($to | path expand)
     }
 
-    $progress_bar = (progress_bar $i $number $progress_bar)
+    $progress_bar = (progress_bar $i ($number + 1) $progress_bar)
   } 
 }
 

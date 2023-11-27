@@ -11,16 +11,16 @@ export def speedtest-plot [] {
 }
 
 #plot data table using gnuplot
+#
+#Example: If $x is a table with 2 columns
+#$x | gnu-plot
+#($x | column 0) | gnu-plot
+#($x | column 1) | gnu-plot
+#($x | column 0) | gnu-plot --title "My Title"
+#gnu-plot $x --title "My Title"
 export def gnu-plot [
   data?           #1 or 2 column table
   --title:string  #title
-  #
-  #Example: If $x is a table with 2 columns
-  #$x | gnu-plot
-  #($x | column 0) | gnu-plot
-  #($x | column 1) | gnu-plot
-  #($x | column 0) | gnu-plot --title "My Title"
-  #gnu-plot $x --title "My Title"
 ] {
   let x = if ($data | is-empty) {$in} else {$data}
   let n_cols = ($x | transpose | length)
@@ -48,20 +48,17 @@ export def gnu-plot [
 } 
 
 #plot data table using plot plugin
+#
+#Example:
 export def plot-table [
   data?          #a table with only the y values of the plots
   --type = "l"   #type of plot (bars (b), steps (s), points (p), line (l) default)
   --title = ""   #title
   --width:number
-  # 
-  #Example:
 ] {
   let x = (if ($data | is-empty) {$in} else {$data} | reject index?)
   let n_cols = ($x | transpose | length)
   let name_cols = ($x | transpose | column2 0)
-
-  # let ylabel = if $n_cols == 1 {$name_cols | get 0} else {$name_cols | get 1}
-  # let xlabel = if $n_cols == 1 {""} else {$name_cols | get 0}
 
   mut list = []
   for col in ($x | columns) {

@@ -23,7 +23,7 @@ export def network-switcher [] {
     | into int
   )
 
-  echo-g $"current net: ($current_network_name), strength: ($current_network_strength)"
+  print (echo-g $"current net: ($current_network_name), strength: ($current_network_strength)")
 
   let network_list = (
     nmcli -t -f ssid,signal,rate,in-use dev wifi list 
@@ -36,25 +36,24 @@ export def network-switcher [] {
 
   let number_nets = ($network_list | length)
 
-  echo-g "checking each network..."
+  print (echo-g "checking each network...")
 
   for i in 0..($number_nets - 1) {
     let net = ($network_list | get $i)
-    echo $"net: ($net.name), strength: ($net.signal)"
+    print (echo $"net: ($net.name), strength: ($net.signal)")
     if ($net.name == "") {continue}
 
     if ($net.name) in ($known_networks_info | get known_networks) {
       if ($net.signal | into int) >= ($current_network_strength + $threshold) {
         let notification = $"Switching to network ($net.name) that has a better signal \(($net.signal) > (($current_network_strength) + ($threshold))\)"
-        echo-g $notification
+        print (echo-g $notification)
         notify-send $notification
         sudo nmcli device wifi connect $net.name
         return
-      } else {
-        let notification = $"Network ($net.name) is well known but its signal's strength is not worth switching"
-        echo-g $notification
-        notify-send $notification
-      }
+      } 
+      let notification = $"Network ($net.name) is well known but its signal's strength is not worth switching"
+      print (echo-g $notification)
+      notify-send $notification
     }
   }
 }
@@ -156,12 +155,11 @@ export def get-ips [
 }
 
 #get devices connected to network
+#
+#It needs nmap2json, installable (ubuntu at least) via:
+#`sudo gem install nmap2json`
 export def get-devices [
-  device = "wlo1" #wlo1 for wifi (export default), eno1 for lan
-  #
-  #It needs nmap2json, installable (ubuntu at least) via
-  #
-  #sudo gem install nmap2json
+  device = "wlo1" #wlo1 for wifi, eno1 for lan
 ] {
   let ipinfo = (
     if (? | where name == pnet | length) > 0 {

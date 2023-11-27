@@ -43,7 +43,8 @@ export def "into duration-from-hhmmss" [hhmmss?] {
 }
 
 #convert duration to hh:mm:ss
-export def "into hhmmss" [dur:duration] {
+export def "into hhmmss" [dur?:duration] {
+  let dur = if ($dur | is-empty) {$in} else {$dur}
   let seconds = (
     $dur
     | into duration --unit sec
