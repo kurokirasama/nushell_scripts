@@ -412,7 +412,7 @@ export def "nushell-syntax-2-sublime" [
       | str join " | "
   )   
 
-  let extra_builtin = " | else"
+  let extra_builtin = " | else | catch"
   let builtin = "    (?x: " + $builtin + $extra_builtin + ")"
   let plugins = "    (?x: " + $plugins + ")"
   let custom = "    (?x: " + $custom + ")"
