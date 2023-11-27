@@ -221,7 +221,7 @@ export def cp-pipe [
 ] {
   let files = $in | get name | ansi strip-table
   let number = ($files | length) - 1
-  mut progress_bar = progress_bar 0 $number
+  mut progress_bar = ""
 
   for i in 0..$number {
     let file = $files | get $i 
@@ -232,7 +232,7 @@ export def cp-pipe [
       ^cp -fr $file ($to | path expand)
     }
 
-    $progress_bar = (progress_bar $i ($number + 1) $progress_bar)
+    $progress_bar = (progress_bar $i $number $progress_bar)
   } 
 }
 
