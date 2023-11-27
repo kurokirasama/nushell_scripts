@@ -104,11 +104,21 @@ export def rename-date [file,--extra = ""] {
 
 #progress bar
 #
-#Example:
+#Example 1:
 # def test [] {
 #     let max = 200
 #     mut progress_bar = progress_bar 0 $max
 #     for i in 1..($max) {
+#         $progress_bar = (progress_bar $i $max $progress_bar)
+#         sleep 0.01sec
+#     }
+# }
+#
+#Example 2 :
+# def test [] {
+#     let max = 200
+#     mut progress_bar = ""
+#     for i in 0..($max) {
 #         $progress_bar = (progress_bar $i $max $progress_bar)
 #         sleep 0.01sec
 #     }
