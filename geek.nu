@@ -1,13 +1,15 @@
 #geeknote wrapper for accesing evernote
 export def "geek help" [] {
-  print (
-    echo "geeknote wrapper: git clone git://github.com/jeffkowalski/geeknote.git\n
-      METHODS\n
-      - geek find
-      - geek show
-      - geek edit
-      - geek create
-      - geek export\n"
+  print ([
+    "geeknote wrapper: git clone git://github.com/jeffkowalski/geeknote.git"
+      "METHODS:"
+      "- geek find"
+      "- geek show"
+      "- geek edit"
+      "- geek create"
+      "- geek export"
+    ] 
+    | str join "\n"
     | nu-highlight
   ) 
 }

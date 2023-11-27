@@ -17,18 +17,17 @@ export def aroot [ scaler, denominator, num] {
 
 #Factorial of the given number
 export def "math fac" [num: int] {
-	if $num >= 0 {
-		if $num < 2 {
-			$num
-		} else {
-			seq 2 $num | math product
-		}
+	if $num < 0 {
+		return-error 'Error: can only calculate non-negative integers'
+	}
+	if $num < 2 {
+		$num
 	} else {
-		echo 'Error: can only calculate non-negative integers'
+		seq 2 $num | math product
 	}
 }
 
-## Mine https://github.com/kurokirasama/nushell_scripts.git ##
+## Mine ##
 
 #Calculate roots of the quadratic function: ax^2+bx+x
 export def "math qroots" [
@@ -42,15 +41,13 @@ export def "math qroots" [
 		let r1 = (($s - $b) / (2 * $a))
 		let r2 = (0 - (($s + $b) / (2 * $a)))
 		
-		echo $"root #1: ($r1)"
-		echo $"root #2: ($r2)"		
+		return {root_1: $r1, root_2: $r2}
 	} else {
 		let s = ((0 - $d) | math sqrt)
 		let r = ((0 - $b) / (2 * $a))
 		let i = ($s / (2 * $a))
 
-		echo $"root #1: ($r) + ($i)*i"
-		echo $"root #2: ($r) - ($i)*i"
+		return {root_1: $"($r) + ($i)*i", root_2: $"($r) - ($i)*i"}
 	}
 }
 
@@ -58,14 +55,13 @@ export def "math qroots" [
 export def "math isprime" [n: int] {
 	let max = ($n | math sqrt | math ceil)
 
-	if $n == 1 {
+	if $n == 1 or ($n mod 2) == 0 {
 		return false
-	} else if $n == 2 {
-		return true
-	} else if ($n mod 2) == 0 { 
-		return false 
 	} 
-	
+	if $n == 2 {
+		return true
+	} 
+
 	for m in (seq 3 2 $max) {
 		if ($n mod $m) == 0 { 
 			return false 
@@ -87,44 +83,48 @@ export def "math primelist" [n: int] {
 					}
 				)
 
-	$primes | append $primes2
+	return ($primes ++ $primes2)
 }
 
 #Multiplication table of n till max
 export def "math mtable" [n: int, max: int] {
 	seq 1 $max 
 	| each {|it| 
-		echo $"($it)*($n) = ($n * $it)"
+		print ($"($it)*($n) = ($n * $it)")
 	}
 }
 
 #Check if year is leap
 export def isleap [year: int] {
-	if ( (($year mod 4) == 0 and ($year mod 100) != 0) or ($year mod 400) == 0 ) { 
-		echo "It is a leap year." 
-	} else { 
-		echo "It is not a leap year."
-	}
+	let div_4 = ($year mod 4) == 0
+	let not_div_100 = ($year mod 100) != 0
+	let div_400 = ($year mod 400) == 0
+
+	if ($div_4 and $not_div_100) or $div_400 { 
+		return true 
+	} 
+	return false
 }
 
 #Greatest common divisior (gcd) between 2 integers
 export def "math gcd" [a: int, b:int] {
 	if $a < $b { 
-		math gcd $b $a 
-	} else if $b == 0 { 
-		$a 
-	} else { 
-		math gcd $b ($a mod $b) 
-	}
+		return (math gcd $b $a )
+	} 
+	if $b == 0 { 
+		return $a 
+	} 
+
+	return (math gcd $b ($a mod $b) )
 }
 
 #Least common multiple (lcm) between 2 integers
 export def "math lcm" [a: int, b:int] {
 	if $a == $b and $b == 0 {
-		0
-	} else {
-		$a * ($b / (math gcd $a $b))
-	}
+		return 0
+	} 
+
+	$a * ($b / (math gcd $a $b))
 }
 
 #Decimal number to custom base representation
@@ -139,12 +139,11 @@ export def dec2base [
 	let chars = ['0' '1' '2' '3' '4' '5' '6' '7' '8' '9' 'A' 'B' 'C' 'D' 'E' 'F']
 	
 	if $number == 0 { 
-		'' 
-	} else {
-		let newNumber = (($number - ($number mod $base)) / $base)
+		return ''
+	} 
 
-		[(dec2base $newNumber $base) ($chars | get ($number mod $base))] | str join
-	}	
+	let newNumber = (($number - ($number mod $base)) / $base)
+	return ([(dec2base $newNumber $base) ($chars | get ($number mod $base))] | str join)
 }
 
 #Custom base representation number to decimal
@@ -212,7 +211,11 @@ export def scale-minmax-table [a, b,input?] {
 
 #exp function
 export def "math exp" [ ] {
-    each {|x| "e(" + $"($x)" + ")\n" | bc -l | into float }
+    each {|x| 
+    	"e(" + $"($x)" + ")\n" 
+    	| bc -l 
+    	| into float
+    }
 }
 
 #random int
@@ -225,7 +228,6 @@ export def randi [
 #random selection from a list
 export def rand-select [
 	x?	#list
-	#Select random element of x
 ] { 
 	let xs = if ($x | is-empty) {$in} else {$x}
 	let len = ($xs | length) 
@@ -252,7 +254,7 @@ export def "math bin-coeff" [n:int, k:int] {
 
 #number of permutation of r elements in a set of n elements (P_r^n)
 export def "math perm-coeff" [n:int, r:int] {
-	($n - $r + 1)..($n) | range2llist | math product
+	($n - $r + 1)..($n) | range2list | math product
 }
 
 #fibonacci sequence

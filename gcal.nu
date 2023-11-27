@@ -1,12 +1,13 @@
 #gcalcli wrapper for accesing google calendar
 export def "gcal help" [] {
-  print (
-    echo "gcalcli wrapper:\n
-      METHODS\n
-      - gcal add
-      - gcal agenda
-      - gcal semana
-      - gcal mes\n"
+  print ([
+    "gcalcli wrapper:"
+      "METHODS"
+      "- gcal add"
+      "- gcal agenda"
+      "- gcal semana"
+      "- gcal mes"
+    ] | str join "\n"
     | nu-highlight
   ) 
 }
@@ -51,11 +52,12 @@ export def "gcal agenda" [
   let calendars = $env.MY_ENV_VARS.google_calendars
   let calendars_full = $env.MY_ENV_VARS.google_calendars_full
 
-  if not $full {
-    gcalcli --calendar $"($calendars)" agenda --military $rest
-  } else {
+  if $full {
     gcalcli --calendar $"($calendars_full)" agenda --military $rest
-  }
+    return
+  } 
+
+  gcalcli --calendar $"($calendars)" agenda --military $rest
 }
 
 #show gcal week in selected calendards
@@ -72,11 +74,12 @@ export def "gcal semana" [
   let calendars = $env.MY_ENV_VARS.google_calendars
   let calendars_full = $env.MY_ENV_VARS.google_calendars_full
   
-  if not $full {
-    gcalcli --calendar $"($calendars)" calw $rest --military --monday
-  } else {
+  if $full {
     gcalcli --calendar $"($calendars_full)" calw $rest --military --monday
-  }
+    return
+  } 
+
+  gcalcli --calendar $"($calendars)" calw $rest --military --monday
 }
 
 #show gcal month in selected calendards
@@ -94,8 +97,9 @@ export def "gcal mes" [
   let calendars_full = $env.MY_ENV_VARS.google_calendars_full
   
   if not $full {
-    gcalcli --calendar $"($calendars)" calm $rest --military --monday
-  } else {
     gcalcli --calendar $"($calendars_full)" calm $rest --military --monday
-  }
+    return
+  } 
+
+  gcalcli --calendar $"($calendars)" calm $rest --military --monday
 }
