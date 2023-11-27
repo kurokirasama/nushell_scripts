@@ -8,14 +8,11 @@ export def "str append" [toappend] {
   $in + $toappend
 }
 
-#string repeat
+#string repeat 
+#
+#needs nushell std library
 export def "str repeat" [count: int] { 
-  let str = $in 
-  mut out = $str
-  for i in 1..$count {
-    $out = $out + $str 
-  }
-  return $out
+  repeat $count | str join ""
 }
 
 #remove accent
@@ -47,18 +44,17 @@ export def "into hhmmss" [dur?:duration] {
   let dur = if ($dur | is-empty) {$in} else {$dur}
   let seconds = (
     $dur
-    | into duration --unit sec
-    | into string 
+    | format duration sec
     | split row " "
     | get 0
     | into int
   )
 
-  let h = (($seconds / 3600) | into int | into string | fill -a r -c "0" -w 2)
-  let m = (($seconds / 60 ) | into int | into string | fill -a r -c "0" -w 2)
-  let s = ($seconds mod 60 | into string | fill -a r -c "0" -w 2)
+  let h = $seconds / 3600 | into int | into string | fill -a r -c "0" -w 2
+  let m = ($seconds / 60) mod 60 | into int | into string | fill -a r -c "0" -w 2
+  let s = $seconds mod 60 | into int | into string | fill -a r -c "0" -w 2
 
-  $"($h):($m):($s)"
+  $h + ":" + $m + ":" + $s 
 }
 
 #extract first link from text
@@ -70,13 +66,13 @@ export def open-link [] {
   | openf
 }
 
-#format dateting
+#format date
+#
+#format date in the form Mmm ss, hh:mm
+#Example: "Apr 24, 15:08"
 export def "date my-format" [
   date?: string #date in form 
   --extra = ""  #some text to append to the date (default empty)
-  #
-  #format date in the form Mmm ss, hh:mm
-  #Example: "Apr 24, 15:08"
 ] {
   let date = if ($date | is-empty) {$in} else {$date}
 
@@ -155,7 +151,7 @@ export def progress_bar [
           if $max >= $max_number_of_chars {
             -4
           } else {
-            13
+            5
           }
         },
         79 => {

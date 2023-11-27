@@ -1,27 +1,28 @@
 #transmission wrapper
 export def "t help" [] {
-  print (
-    echo "transmission-daemon wrapper.\n
-      METHODS\n
-      - t start
-      - t stop
-      - t reload
-      - t list
-      - t basic-stats
-      - t full-stats
-      - t ui
-      - t add
-      - t add-from-file
-      - t info
-      - t remove
-      - t remove-delete
-      - t remove-done
-      - t remove-name
-      - t start-torrent
-      - t start-all-torrents
-      - t stop-torrent
-      - t stop-all-torrents\n"
-    | nu-highlight
+  print ([
+    "transmission-daemon wrapper"
+      "METHODS:"
+      "- t start"
+      "- t stop"
+      "- t reload"
+      "- t list"
+      "- t basic-stats"
+      "- t full-stats"
+      "- t ui"
+      "- t add"
+      "- t add-from-file"
+      "- t info"
+      "- t remove"
+      "- t remove-delete"
+      "- t remove-done"
+      "- t remove-name"
+      "- t start-torrent"
+      "- t start-all-torrents"
+      "- t stop-torrent"
+      "- t stop-all-torrents"
+    ]
+    | str join "\n"
   )
 }
 
@@ -97,11 +98,11 @@ export def "t remove" [
 }
 
 #delete torrent from download queue deleting files
+#Examples
+#t-removedelete 2 3 6 9
+#t list | some filter | t-removedelete
 export def "t remove-delete" [
   ...ids    #list of ids
-  #Examples
-  #t-removedelete 2 3 6 9
-  #t list | some filter | t-removedelete
 ] {
   if ($ids | is-empty) {
     $in

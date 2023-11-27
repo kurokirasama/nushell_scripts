@@ -1,14 +1,15 @@
 #yandex-disk wrappers
 export def ydx [] {
-  print (
-    echo "yandex-disk wrapper.\n
-      METHODS\n
-      - ydx status
-      - ydx start
-      - ydx stop
-      - ydx help
-      - ydx last\n"
-    | nu-highlight
+  print ([
+    "yandex-disk wrapper."
+      "METHODS:"
+      "- ydx status"
+      "- ydx start"
+      "- ydx stop"
+      "- ydx help"
+      "- ydx last"
+    ]
+    | str join "\n"
   )
 }
 

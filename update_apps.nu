@@ -200,15 +200,16 @@ export def github-app-update [
     if $install == "y" {
       sudo gdebi -n ($info.name | ansi strip)
     }
-  } else {
-    print (echo-g $"\ndownloading ($repo)...")
-    aria2c --download-result=hide $url
+    return
+  } 
+  
+  print (echo-g $"\ndownloading ($repo)...")
+  aria2c --download-result=hide $url
 
-    if $file_type == "deb" {
-      let install = (input (echo-g "Would you like to install it now? (y/n): "))
-      if $install == "y" {
-        sudo gdebi -n ($info.name | ansi strip)
-      }
+  if $file_type == "deb" {
+    let install = (input (echo-g "Would you like to install it now? (y/n): "))
+    if $install == "y" {
+      sudo gdebi -n ($info.name | ansi strip)
     }
   }
 }
@@ -589,7 +590,6 @@ export def "apps-update vivaldi" [] {
 
   if ($release_url | length) == 0 {
     return-error "no releases found!"
-    return
   }
 
   let last_version = (
@@ -671,7 +671,7 @@ export def reg-plugins [] {
       try {
         nu -c $'register ($file)'
       } catch {
-        echo-r "failed!"
+        print (echo-r "failed!")
       }
     }
 }
@@ -770,16 +770,6 @@ export def "apps-update whisper" [] {
   pip install --upgrade --no-deps --force-reinstall git+https://github.com/openai/whisper.git
 }
 
-#update gptcomit
-# export def "apps-update gptcommit" [] {
-#   cargo install --locked gptcommit --force
-# }
-
-#update chatgpt
-# export def "apps-update chatgpt" [] {
-#   pip3 install git+https://github.com/mmabrouk/chatgpt-wrapper --upgrade
-# }
-
 #update manim
 export def "apps-update manim" [] {
   pip3 install manim --upgrade
@@ -809,8 +799,9 @@ export def "apps-update nchat" [] {
 export def "apps-update myffmpeg" [--force(-f)] {
   cd ~/software/nvidia/nv-codec-headers
   let pull = git pull
+
   if $pull != "Already up to date." or $force {
-    echo-g "updating nv-codec-headers..."
+    print (echo-g "updating nv-codec-headers...")
     git pull
     sudo make install
   } else {
@@ -819,14 +810,16 @@ export def "apps-update myffmpeg" [--force(-f)] {
 
   cd ~/software/nvidia/ffmpeg
   let pull = git pull
-  if $pull != "Already up to date." or $force {
-    echo-g "updating ffmpeg..."
-    git pull
-    ./configure --enable-nonfree --enable-cuda-nvcc --enable-libnpp --extra-cflags=-I/usr/local/cuda/include --extra-ldflags=-L/usr/local/cuda/lib64
-    ./ffmpeg -h
-  } else {
-    echo-g "ffmpeg already up to date!"
+
+  if $pull == "Already up to date." and (not $force) {
+    print (echo-g "ffmpeg already up to date!")
+    return
   }
+
+  print (echo-g "updating ffmpeg...")
+  git pull
+  ./configure --enable-nonfree --enable-cuda-nvcc --enable-libnpp --extra-cflags=-I/usr/local/cuda/include --extra-ldflags=-L/usr/local/cuda/lib64
+  ./ffmpeg -h
 }
 
 #update evernote-backuo tool

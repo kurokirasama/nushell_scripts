@@ -1,29 +1,31 @@
 #tools to deal with media files
 export def "media help" [] {
-  print (
-    echo "media manipulation and visualization tools: ffmpeg, sox, subsync and mpv required.\n
-      METHODS\n
-      - media video-info
-      - media mpv-info
-      - media trans-sub
-      - media sub-sync
-      - media remove-noise
-      - media remove-audio-noise
-      - media screen-record
-      - media remove-audio
-      - media cut-video
-      - media split-video
-      - media cut-audio
-      - media extract-audio
-      - media merge-videos
-      - media merge-videos-auto
-      - media compress-video
-      - media delete-non-compressed
-      - media find
-      - media myt
-      - media delete-mps
-      - mpv (alias)
-      - media to\n"
+  print ([
+    "media manipulation and visualization tools: ffmpeg, sox, subsync and mpv required."
+      "METHODS:"
+      "- media video-info"
+      "- media mpv-info"
+      "- media trans-sub"
+      "- media sub-sync"
+      "- media remove-noise"
+      "- media remove-audio-noise"
+      "- media screen-record"
+      "- media remove-audio"
+      "- media cut-video"
+      "- media split-video"
+      "- media cut-audio"
+      "- media extract-audio"
+      "- media merge-videos"
+      "- media merge-videos-auto"
+      "- media compress-video"
+      "- media delete-non-compressed"
+      "- media find"
+      "- media myt"
+      "- media delete-mps"
+      "- mpv (alias)"
+      "- media to"
+    ]
+    | str join "\n"
     | nu-highlight
   ) 
 }
@@ -40,14 +42,14 @@ export def "media mpv-info" [file?] {
   ^mpv -vo null -ao null -frames 0 $video
 }
 
-#translate subtitle to spanish via mymemmory api
+#translate subtitle to spanish via mymemmory or openai api
+#
+#`? trans` for more info on languages
 export def "media trans-sub" [
   file?
   --from:string = "en-US" #from which language you are translating
-  --open_ai        #use openai api to make the translations
+  --open_ai(-o)        #use openai api to make the translations
   --notify(-n)     #notify to android via ntfy
-  #
-  #`? trans` for more info on languages
 ] {
   let file = if ($file | is-empty) {$file | get name} else {$file}
   dos2unix -q $file
@@ -57,7 +59,7 @@ export def "media trans-sub" [
   let new_file = $"($file_info | get stem)_translated.($file_info | get extension)"
   let lines = ($file_content | length)
 
-  echo $"translating ($file)..."
+  print (echo-g $"translating ($file)...")
 
   if not ($new_file | path expand | path exists) {
     touch $new_file
@@ -72,50 +74,55 @@ export def "media trans-sub" [
 
           if ($translated | is-empty) or ($translated =~ "error:") {
             return-error $"error while translating: ($translated)"
-            return
-          } else {
-            # print (echo ($line.item + "\ntranslated to\n" + $translated))
+          } 
 
-            $translated | ansi strip | save --append $new_file
-            "\n" | save --append $new_file
-          }
+          # print (echo ($line.item + "\ntranslated to\n" + $translated))
+          $translated | ansi strip | save --append $new_file
+          "\n" | save --append $new_file
         } else {
           $line.item | save --append $new_file
           "\n" | save --append $new_file
         }
         print -n (echo-g $"\r($line.index / $lines * 100 | math round -p 3)%")
-      } 
-  } else {
-    let start = (cat $new_file | decode utf-8 | lines | length)
+      }
 
-    $file_content
-    | last ($lines - $start)
-    | enumerate
-    | each {|line|
-        if (not $line.item =~ "-->") and (not $line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
-          let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
-          let translated = ($fixed_line | trans --from $from --openai $open_ai)
-
-          if $translated =~ "error:" {
-            return-error $"error while translating: ($translated)"
-            return
-          } else {
-            print (echo ($line.item + "\ntranslated to\n" + $translated))
-
-            $translated | ansi strip | save --append $new_file
-            "\n" | save --append $new_file
-          }
-        } else {
-          $line.item | save --append $new_file
-          "\n" | save --append $new_file
-        }
-        # print -n (echo-g $"\r(($line.index + $start) / $lines * 100 | math round -p 3)%")
-      } 
+    return 
   } 
+
+  let start = (cat $new_file | decode utf-8 | lines | length)
+
+  $file_content
+  | last ($lines - $start)
+  | enumerate
+  | each {|line|
+      if (not $line.item =~ "-->") and (not $line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
+        let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
+        let translated = ($fixed_line | trans --from $from --openai $open_ai)
+
+        if $translated =~ "error:" {
+          return-error $"error while translating: ($translated)"
+        } 
+
+        print (echo ($line.item + "\ntranslated to\n" + $translated))
+
+        $translated | ansi strip | save --append $new_file
+        "\n" | save --append $new_file
+      } else {
+        $line.item | save --append $new_file
+        "\n" | save --append $new_file
+      }
+      # print -n (echo-g $"\r(($line.index + $start) / $lines * 100 | math round -p 3)%")
+    }
+
   if $notify {"translation finished!" | ntfy-send}
 }
 
 #sync subtitles
+#
+#Examples
+#sub-sync file.srt "-4"
+#sub-sync file.srt "-4" --t1 00:02:33
+#sub-sync file.srt "-4" --no_backup 1
 export def "media sub-sync" [
   file:string      #subtitle file name to process
   d1:string        #delay at the beginning or at time specified by t1 (<0 adelantar, >0 retrasar)
@@ -123,30 +130,22 @@ export def "media sub-sync" [
   --d2:string      #delay at the end or at time specified by t2
   --t2:string      #time position of delay d2 (hh:mm:ss)t
   --no_backup:int  #whether to not backup $file or yes (export default no:0, ie, it will backup)
-  #
-  #Examples
-  #sub-sync file.srt "-4"
-  #sub-sync file.srt "-4" --t1 00:02:33
-  #sub-sync file.srt "-4" --no_backup 1
 ] {
-
-  let file_exist = (($env.PWD) | path join $file | path exists)
-  
-  if $file_exist {
-    if ($no_backup | is-empty) or $no_backup == 0 {
-      cp $file $"($file).backup"
-    }
-
-    let t1 = if ($t1 | is-empty) {"@"} else {$t1}  
-    let d2 = if ($d2 | is-empty) {""} else {$d2}
-    let t2 = if ($d2 | is-empty) {""} else {if ($t2 | is-empty) {"@"} else {$t2}}
-  
-    bash -c $"subsync -e latin1 ($t1)($d1) ($t2)($d2) < \"($file)\" > output.srt; cp output.srt \"($file)\""
-
-    rm output.srt | ignore
-  } else {
+  if not ($env.PWD | path join $file | path exists) {
     return-error $"subtitle file ($file) doesn't exist in (pwd-short)"
   }
+
+  if ($no_backup | is-empty) or $no_backup == 0 {
+    cp $file $"($file).backup"
+  }
+
+  let t1 = if ($t1 | is-empty) {"@"} else {$t1}  
+  let d2 = if ($d2 | is-empty) {""} else {$d2}
+  let t2 = if ($d2 | is-empty) {""} else {if ($t2 | is-empty) {"@"} else {$t2}}
+  
+  bash -c $"subsync -e latin1 ($t1)($d1) ($t2)($d2) < \"($file)\" > output.srt; cp output.srt \"($file)\""
+
+  rm output.srt | ignore
 }
 
 #remove audio noise 
@@ -252,11 +251,11 @@ export def "media remove-audio-noise" [
 }
 
 #screen record
+#
+#TODO: making sure it works in a video call
 export def "media screen-record" [
   file:string = "video"  #output filename without extension
   --audio:bool = true  #whether to record with audio or not
-  #
-  #Pending: making sure it works in a video call
 ] {
   if $audio {
     print (echo-g "recording screen with audio...")
@@ -359,8 +358,8 @@ export def "media cut-video" [
 export def "media split-video" [
   file                      #video file name
   --number_segments(-n):int #number of pieces to generate (takes precedence over -d)
-  --duration(-d):duration   #duration of each segment (in duration format) except probably the last one
-  --delta:duration = 10sec           #duration of overlaping beetween segments.
+  --duration(-d):duration   #duration of each segment except probably the last one
+  --delta:duration = 10sec  #duration of overlaping beetween segments
   --notify(-n)              #notify to android via ntfy
 ] {
   let full_length = (
@@ -399,6 +398,12 @@ export def "media split-video" [
 }
 
 #convert media files recursively to specified format
+#
+#Examples (make sure there are only compatible files in all subdirectories)
+#media-to mp4 (avi/mkv to mp4)
+#media-to mp4 -c (avi to mp4)
+#media-to aac (audio files to aac)
+#media-to mp3 (audio files to mp3)
 export def "media to" [
   to:string                 #destination format (aac, mp3 or mp4)
   --copy(-c)                #copy video codec and audio to mp3 (for mp4 only)
@@ -406,12 +411,6 @@ export def "media to" [
   --file(-f):string         #specify unique file to convert
   --vcodec(-v):string = "libx264"  #video codec (for single file only)
   --notify(-n)              #notify to android via ntfy
-  #
-  #Examples (make sure there are only compatible files in all subdirectories)
-  #media-to mp4 (avi/mkv to mp4)
-  #media-to mp4 -c (avi to mp4)
-  #media-to aac (audio files to aac)
-  #media-to mp3 (audio files to mp3)
 ] {
   if ($file | is-empty) {
     #to aac or mp3
@@ -508,41 +507,42 @@ export def "media to" [
         }
       }
     }
-  } else {
-    let filename = ($file | path parse | get stem)
-    let ext = ($file | path parse | get extension) 
-
-    if $to =~ "aac" or $to =~ "mp3" {
-      ffmpeg -n -loglevel 48 -i $file -c:a $to -b:a 64k $"($filename).($to)"
-    } else if $to =~ "mp4" {
-      if $copy {
-        if $ext =~ "mkv" {
-          ffmpeg -n -loglevel 48 -i $file -c:v copy -c:a mp3 -c:s mov_text $"($filename).($to)"
-        } else {
-          ffmpeg -n -loglevel 48 -i $file -c:v copy -c:a mp3 $"($filename).($to)"
-        }
-      } else {
-        if $ext =~ "mkv" {
-          ffmpeg -n -loglevel 48 -i $file -c:v $vcodec -c:a aac -c:s mov_text $"($filename).($to)"
-        } else {
-          ffmpeg -n -loglevel 48 -i $file -c:v $vcodec -c:a aac $"($filename).($to)"
-        }
-      }
-    } 
+    return
   }
+
+  let filename = ($file | path parse | get stem)
+  let ext = ($file | path parse | get extension) 
+
+  if $to =~ "aac" or $to =~ "mp3" {
+    ffmpeg -n -loglevel 48 -i $file -c:a $to -b:a 64k $"($filename).($to)"
+  } else if $to =~ "mp4" {
+    if $copy {
+      if $ext =~ "mkv" {
+        ffmpeg -n -loglevel 48 -i $file -c:v copy -c:a mp3 -c:s mov_text $"($filename).($to)"
+      } else {
+        ffmpeg -n -loglevel 48 -i $file -c:v copy -c:a mp3 $"($filename).($to)"
+      }
+    } else {
+      if $ext =~ "mkv" {
+        ffmpeg -n -loglevel 48 -i $file -c:v $vcodec -c:a aac -c:s mov_text $"($filename).($to)"
+      } else {
+        ffmpeg -n -loglevel 48 -i $file -c:v $vcodec -c:a aac $"($filename).($to)"
+      }
+    }
+  } 
   if $notify {"conversion finished!" | ntfy-send}
 }
 
 #cut segment from audio file
+#
+#Example: cut 10s starting at second 60 
+#cut_audio input.ext output.ext 60 10
 export def "media cut-audio" [
   infile:string   #input audio file
   outfile:string  #output audio file
   start:int       #start of the piece to extract (s) 
   duration:int    #duration of the piece to extract (s)
   --notify(-n)    #notify to android via ntfy
-  #
-  #Example: cut 10s starting at second 60 
-  #cut_audio input.ext output.ext 60 10
 ] {  
   try {
     myffmpeg -ss $start -i $"($infile)" -t $duration -c copy $"($outfile)"
@@ -564,23 +564,23 @@ export def "media merge-subs" [
 }
 
 #merge videos
+#
+#To get a functional output, all audio sample rate must be the same
+#check with video-info video_file
+#
+#The file with the list must have the following structure:
+#
+#~~~
+#file '/path/to/file/file1'"
+#.
+#.
+#.
+#file '/path/to/file/fileN'"
+#~~~
 export def "media merge-videos" [
   list         #text file with list of videos to merge
   output       #output file
   --notify(-n) #notify to android via ntfy
-  #
-  #To get a functional output, all audio sample rate must be the same
-  #check with video-info video_file
-  #
-  #The file with the list must have the following structure:
-  #
-  #~~~
-  #file '/path/to/file/file1'"
-  #.
-  #.
-  #.
-  #file '/path/to/file/fileN'"
-  #~~~
 ] {
   print (echo-g "merging videos...")
   myffmpeg -f concat -safe 0 -i $"($list)" -c copy $"($output)"
@@ -591,13 +591,13 @@ export def "media merge-videos" [
 }
 
 #auto merge all videos in dir
+#
+#To get a functional output, all audio sample rate must be the same
+#check with video-info video_file
 export def "media merge-videos-auto" [
   ext    #unique extension of all videos to merge
   output #output file
   --notify(-n) #notify to android via ntfy
-  #
-  #To get a functional output, all audio sample rate must be the same
-  #check with video-info video_file
 ] {
   let list = (($env.PWD) | path join "list.txt")
 
@@ -623,28 +623,28 @@ export def "media merge-videos-auto" [
 }
 
 #reduce size of video files recursively, to mp4 x265
+#
+#Considers only mp4 and webm files
+#
+#media compress-video
+#media compress-video -m
+#media compress-video -l 1
+#media compress-video -c 20
+#media compress-video -v libx264
+#
+#After ensuring that the conversions are ok, run
+#
+#media delete-non-compressed
+#
+#to delete original files
 export def "media compress-video" [
   --file(-f):string         #single file
   --level(-l):int           #level of recursion (-maxdepth in ^find, minimun = 1).
-  --crf(-c):int = 28            #compression rate, range 0-51, sane range 18-28.
+  --crf(-c):int = 28        #compression rate, range 0-51, sane range 18-28.
   --vcodec(-v):string = "libx265"  #video codec: libx264 | libx265.
+  --append(-a):string = "com" # what to append to compressed file names
   --mkv(-m)                 #include mkv files
-  --append(-a):string = "com"      # what to append to compressed file names
   --notify(-n)              #notify to android via ntfy
-  #
-  #Considers only mp4 and webm files
-  #
-  #media compress-video
-  #media compress-video -m
-  #media compress-video -l 1
-  #media compress-video -c 20
-  #media compress-video -v libx264
-  #
-  #After ensuring that the conversions are ok, run
-  #
-  #media delete-non-compressed
-  #
-  #to delete original files
 ] {
   if ($file | is-empty) {
     let n_files = (
@@ -665,107 +665,108 @@ export def "media compress-video" [
       | length
     )
 
-    if $n_files > 0 {
-      print (echo-g $"($n_files) video files found...")
+    if $n_files == 0 {return-error "no files found..."}
 
-      if ($level | is-empty) {
-        if not $mkv {
-          try {
-            print (echo-g "trying myffmpeg...")
-            bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
-          } catch {
-            print (echo-r "failed myffmpeg...")
-            print (echo-g "trying ffmpeg...")
-            bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
-          }
-        } else {
-          try {
-            print (echo-g "trying myffmpeg...")
-            bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
-          } catch {
-            print (echo-r "failed myffmpeg...")
-            print (echo-g "trying ffmpeg...")
-            bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
-          }
+    print (echo-g $"($n_files) video files found...")
+
+    if ($level | is-empty) {
+      if not $mkv {
+        try {
+          print (echo-g "trying myffmpeg...")
+          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
+        } catch {
+          print (echo-r "failed myffmpeg...")
+          print (echo-g "trying ffmpeg...")
+          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
         }
       } else {
-        if not $mkv {
-          try {
-            print (echo-g "trying myffmpeg...")
-            bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
-          } catch {
-            print (echo-r "failed myffmpeg...")
-            print (echo-g "trying ffmpeg...")
-            bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
-          }
-        } else {
-          try {
-            print (echo-g "trying myffmpeg...")
-            bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
-          } catch {
-            print (echo-r "failed myffmpeg...")
-            print (echo-g "trying ffmpeg...")
-            bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
-          }
+        try {
+          print (echo-g "trying myffmpeg...")
+          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
+        } catch {
+          print (echo-r "failed myffmpeg...")
+          print (echo-g "trying ffmpeg...")
+          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
         }
       }
     } else {
-      return-error "no files found..."
-    }
-  } else {
-    let ext = ($file | path parse | get extension)
-    let name = ($file | path parse | get stem)
-
-    switch $ext {
-      "avi" : {||
+      if not $mkv {
         try {
           print (echo-g "trying myffmpeg...")
-          myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
         } catch {
           print (echo-r "failed myffmpeg...")
           print (echo-g "trying ffmpeg...")
-          ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
         }
-      },
-      "mp4" : {||
+      } else {
         try {
           print (echo-g "trying myffmpeg...")
-          myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
         } catch {
           print (echo-r "failed myffmpeg...")
           print (echo-g "trying ffmpeg...")
-          ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
-        }
-      },
-      "webm" : {||
-        try {
-          print (echo-g "trying myffmpeg...")
-          myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
-        } catch {
-          print (echo-r "failed myffmpeg...")
-          print (echo-g "trying ffmpeg...")
-          ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
-        }
-      },
-      "mkv" : {||
-        try {
-          print (echo-g "trying myffmpeg...")
-          myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac -c:s mov_text $"($name)_($append).mp4"
-        } catch {
-          print (echo-r "failed myffmpeg...")
-          print (echo-g "trying ffmpeg...")
-          ffmpeg -i $file -vcodec $vcodec -c:a aac -c:s mov_text $"($name)_($append).mp4"
+          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
         }
       }
     }
+    return
+  } 
+
+  let ext = ($file | path parse | get extension)
+  let name = ($file | path parse | get stem)
+
+  match $ext {
+    "avi" => {
+      try {
+        print (echo-g "trying myffmpeg...")
+        myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+      } catch {
+        print (echo-r "failed myffmpeg...")
+        print (echo-g "trying ffmpeg...")
+        ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+      }
+    },
+    "mp4" => {
+      try {
+        print (echo-g "trying myffmpeg...")
+        myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+      } catch {
+        print (echo-r "failed myffmpeg...")
+        print (echo-g "trying ffmpeg...")
+        ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+      }
+    },
+    "webm" => {
+      try {
+        print (echo-g "trying myffmpeg...")
+        myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+      } catch {
+        print (echo-r "failed myffmpeg...")
+        print (echo-g "trying ffmpeg...")
+        ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+      }
+    },
+    "mkv" => {
+      try {
+        print (echo-g "trying myffmpeg...")
+        myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac -c:s mov_text $"($name)_($append).mp4"
+      } catch {
+        print (echo-r "failed myffmpeg...")
+        print (echo-g "trying ffmpeg...")
+        ffmpeg -i $file -vcodec $vcodec -c:a aac -c:s mov_text $"($name)_($append).mp4"
+      }
+    },
+    _ => {return-error "file extension not allowed"}
   }
+  
   if $notify {"compression finished!" | ntfy-send}
 }
 
 #delete original videos after compression recursively
 export def "media delete-non-compressed" [
   file?
-  --append(-a):string = 'compressed_by_me'
+  --append(-a):string = '_com'
 ] {
   ls **/* 
   | where type == file 
@@ -854,26 +855,27 @@ export def "media myt" [file?, --reverse(-r)] {
   let delete = (input "delete file? (y/n): ")
   if $delete == "y" {
     rm $video
-  } else {
-    let move = (input "move file to pending? (y/n): ")
-    if $move == "y" {
-      mv $video pending
-    }
+    return
+  } 
+
+  let move = (input "move file to pending? (y/n): ")
+  if $move == "y" {
+    mv $video pending
   } 
 }
 
 #delete non wanted media in mps (youtube download folder)
 export def "media delete-mps" [] {
   if $env.MY_ENV_VARS.mps !~ $env.PWD {
-    return-error "wrong directory to run this"
-  } else {
-     le
-     | where type == "file" and ext !~ "mp4|mkv|webm|part" 
-     | par-each {|it| 
-         rm $"($it.name)" 
-         | ignore
-       }     
-  }
+    return-error "wrong directory to run this!"
+  } 
+
+  le
+  | where type == "file" and ext !~ "mp4|mkv|webm|part" 
+  | par-each {|it| 
+      rm $"($it.name)" 
+      | ignore
+    }     
 }
 
 #mpv
@@ -886,23 +888,20 @@ export def mpv [video?, --puya(-p)] {
   }
 
   let file = (
-    switch ($file | typeof) {
-      "record": {|| 
+    match ($file | typeof) {
+      "record" => { 
         $file
         | get name
         | ansi strip
       },
-      "table": {||
+      "table" => {
         $file
         | get name
         | get 0
         | ansi strip
       },
-    } { 
-        "otherwise": {|| 
-          $file
-        }
-      }
+      _ => {$file}
+    }
   )
   
   if not $puya {
@@ -921,20 +920,25 @@ export def "media extract-audio" [
   let file = ($filename | path parse | get stem)
 
   print (echo-g "extracting audio...")
-  switch $audio_format {
-    "mp3" : {|| ffmpeg -loglevel 1 -i $"($filename)" -ar 44100 -ac 2 -ab 192k -f mp3 -vn $"($file).mp3"},
-    "wav" : {|| ffmpeg -loglevel 1 -i $"($filename)" -acodec pcm_s16le -ar 128k -vn $"($file).wav"}
+  match $audio_format {
+    "mp3" => {
+      ffmpeg -loglevel 1 -i $"($filename)" -ar 44100 -ac 2 -ab 192k -f mp3 -vn $"($file).mp3"
+    },
+    "wav" => {
+      ffmpeg -loglevel 1 -i $"($filename)" -acodec pcm_s16le -ar 128k -vn $"($file).wav"
+    },
+    _ => {return-error "format not allowed!"}
   }
   if $notify {"extraction finished!" | ntfy-send}
 }
 
-#crop image by shortest dimention
+#crop image by shortest dimension
+#
+#Generates a new square image cropped by the shortest dimention.
+#The output name is (image_file_name_cropped.ext)
 export def "media crop-image" [
   image?:string
   --name(-n)    #return name of cropped image
-  #
-  #Generates a new square image cropped by the shortest dimention.
-  #The output name is (image_file_name_cropped.ext)
 ] {
   let image = if ($image | is-empty) {$in | get name} else {$image}
   let image_size = identify $image | split row " " | get 2 | split row "x" | uniq
@@ -949,7 +953,7 @@ export def "media crop-image" [
   let width = $image_size | get 0 | into int
   let height = $image_size | get 1 | into int
 
-  let new_image = $"($image | path parse | get stem)_cropped.png"
+  let new_image = $"($image | path parse | get stem)_cropped.png"t
 
   if $width > $height {
     let new_image_size = $height

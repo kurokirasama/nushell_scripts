@@ -12,43 +12,12 @@ export def echo-r [string:string] {
   echo $"(ansi -e { fg: '#ff0000' attr: b })($string)(ansi reset)"
 }
 
-#switch-case like instruction
-#
-# Example:
-# let x = "3"
-# switch $x {
-#   1: { echo "you chose one" },
-#   2: { echo "you chose two" },
-#   3: { echo "you chose three" }
-# }
-#
-# let x = "4"
-# switch $x {
-#   1: { echo "you chose one" },
-#   2: { echo "you chose two" },
-#   3: { echo "you chose three" }
-# } { otherwise: { echo "otherwise" }}
-export def switch [
-  var                #input var to test
-  cases: record      #record with all cases
-  otherwise?: record #record code for otherwise
-] {
-  if ($cases | is-column $var) {
-    $cases 
-    | get $var 
-    | do $in
-  } else if not ($otherwise | is-empty) {
-    $otherwise 
-    | get "otherwise" 
-    | do $in
-  }
-}
-
 #verify if a column exist within a table
 export def is-column [name] { 
   $name in ($in | columns) 
 }
 
+######################################################
 ######################################################
 
 #wrapper for describe
@@ -84,23 +53,20 @@ export def openf [file?] {
   let file = if ($file | is-empty) {$in} else {$file}
 
   let file = (
-    switch ($file | typeof) {
-      "record": {|| 
+    match ($file | typeof) {
+      "record" => {
         $file
         | get name
         | ansi strip
       },
-      "table": {||
+      "table" => {
         $file
         | get name
         | get 0
         | ansi strip
       },
-    } { 
-        "otherwise": {||
-          $file
-        }
-      }
+      _ => {$file}
+    }
   )
    
   bash -c $'xdg-open "($file)" 2>/dev/null &'
@@ -245,8 +211,8 @@ export def mv-pipe [
   --force(-f) #force rewrite of file
 ] {
   let files = $in | get name | ansi strip-table
-  let number = $files | length
-  mut progress_bar = progress_bar 0 $number
+  let number = ($files | length) - 1
+  mut progress_bar = ""
 
   for i in 0..($number - 1) {
     let file = $files | get $i 
@@ -277,26 +243,23 @@ export def lg [
   --date(-t)    #sort by date
   --reverse(-r) #reverse order
 ] {
-  let t = if $date {"true"} else {"false"}
-  let r = if $reverse {"true"} else {"false"}
-
-  switch $t {
-    "true": {||
-      switch $r {
-        "true": {||
+  match $date {
+    true => {
+      match $reverse {
+        true => {
           ls | sort-by -r modified | grid -c
         },
-        "false": {||
+        false => {
           ls | sort-by modified | grid -c
         }
       }
     },
-    "false": {||
-      switch $r {
-        "true": {||
+    false => {
+      match $reverse {
+        true => {
           ls | sort-by -i -r type name | grid -c
         },
-        "false": {||
+        false => {
           ls | sort-by -i type name | grid -c
         }
       }

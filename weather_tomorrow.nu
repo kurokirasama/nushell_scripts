@@ -1,6 +1,6 @@
 # Weather Script based on IP Address 
 # - Weather using tomorrow.io api
-# - Air polution condition using airvisual api
+# - Air polution condition using airvisual api (deprecated)
 # - Street address using google maps api
 # - Version 2.0
 export def --env weather [--home(-h),--ubb(-b),--no_plot] {
@@ -24,29 +24,29 @@ export def --env get_weather_by_interval [INTERVAL_WEATHER:duration] {
 
         if not $env.NETWORK.status {
             return ($last_runtime_data | get weather)
-        } else {    
-            let LAST_WEATHER_TIME = ($last_runtime_data | get last_weather_time)
-    
-            if ($LAST_WEATHER_TIME | into datetime) + ($INTERVAL_WEATHER | into duration) < (date now) {
-                let WEATHER = (get_weather_for_prompt (get_location))
+        } 
 
-                if $WEATHER.mystatus {
-                    let NEW_WEATHER_TIME = (date now | format date '%Y-%m-%d %H:%M:%S %z')
-            
-                    $last_runtime_data 
-                    | upsert weather $"($WEATHER.Icon) ($WEATHER.Temperature)" 
-                    | upsert weather_text $"($WEATHER.Condition) ($WEATHER.Temperature)" 
-                    | upsert last_weather_time $NEW_WEATHER_TIME 
-                    | save -f $weather_runtime_file
+        let LAST_WEATHER_TIME = ($last_runtime_data | get last_weather_time)
     
-                    return $"($WEATHER.Icon) ($WEATHER.Temperature)"
-                } else {
-                    return ($last_runtime_data | get weather)
-                }
-            } else {
-                return ($last_runtime_data | get weather)
-            }
+        if ($LAST_WEATHER_TIME | into datetime) + ($INTERVAL_WEATHER | into duration) >= (date now) {
+            return ($last_runtime_data | get weather)
         }
+    
+        let WEATHER = (get_weather_for_prompt (get_location))
+
+        if not $WEATHER.mystatus {
+            return ($last_runtime_data | get weather)
+        }
+        
+        let NEW_WEATHER_TIME = (date now | format date '%Y-%m-%d %H:%M:%S %z')
+           
+        $last_runtime_data 
+        | upsert weather $"($WEATHER.Icon) ($WEATHER.Temperature)" 
+        | upsert weather_text $"($WEATHER.Condition) ($WEATHER.Temperature)" 
+        | upsert last_weather_time $NEW_WEATHER_TIME 
+        | save -f $weather_runtime_file
+    
+        return $"($WEATHER.Icon) ($WEATHER.Temperature)"
     } else {
         let WEATHER = (get_weather_for_prompt (get_location))
         let LAST_WEATHER_TIME = (date now | format date '%Y-%m-%d %H:%M:%S %z') 
@@ -398,32 +398,32 @@ def get_weather_for_prompt [loc] {
 }
 
 def get_weather_icon [icon_description: string] {
-    switch $icon_description {
-        "clear-day": {|| (char -u f185)},
-        "clear-night": {|| (char -u f186)},
-        "rain": {|| (char -u e318)},
-        "drizzle": {|| (char -u e319)},
-        "light-rain": {|| (char -u e336)},
-        "heavy-rain": {|| (char -u e317)},
-        "snow": {|| (char -u fa97)},
-        "light-snow": {|| (char -u e31a)},
-        "heavy-snow": {|| (char -u "1F328")},
-        "flurries": {|| (char -u e35e)},
-        "freezing-drizzle": {|| (char -u fb7d)},
-        "sleet": {|| (char -u e3ad)},
-        "wind": {|| (char -u fa9c)},
-        "fog": {|| (char -u e313)},
-        "light-fog": {|| (char -u fa90)},
-        "cloudy": {|| (char -u e312)},
-        "partly-cloudy-day": {|| (char -u e21d)},
-        "partly-cloudy-night": {|| (char -u e226)},
-        "mostly-clear-day": {|| (char -u e302)},
-        "mostly-clear-night": {|| (char -u e32e)},
-        "mostly-cloudy-day": {|| (char -u e376)},
-        "mostly-cloudy-night": {|| (char -u e378)},
-        "hail": {|| (char -u fa91)},
-        "thunderstorm": {|| (char -u e31d)},
-        "tornado": {|| (char -u e351)}
+    match $icon_description {
+        "clear-day" => {(char -u f185)},
+        "clear-night" => {(char -u f186)},
+        "rain" => {(char -u e318)},
+        "drizzle" => {(char -u e319)},
+        "light-rain" => {(char -u e336)},
+        "heavy-rain" => {(char -u e317)},
+        "snow" => {(char -u fa97)},
+        "light-snow" => {(char -u e31a)},
+        "heavy-snow" => {(char -u "1F328")},
+        "flurries" => {(char -u e35e)},
+        "freezing-drizzle" => {(char -u fb7d)},
+        "sleet" => {(char -u e3ad)},
+        "wind" => {(char -u fa9c)},
+        "fog" => {(char -u e313)},
+        "light-fog" => {(char -u fa90)},
+        "cloudy" => {(char -u e312)},
+        "partly-cloudy-day" => {(char -u e21d)},
+        "partly-cloudy-night" => {(char -u e226)},
+        "mostly-clear-day" => {(char -u e302)},
+        "mostly-clear-night" => {(char -u e32e)},
+        "mostly-cloudy-day" => {(char -u e376)},
+        "mostly-cloudy-night" => {(char -u e378)},
+        "hail" => {(char -u fa91)},
+        "thunderstorm" => {(char -u e31d)},
+        "tornado" => {(char -u e351)}
     }
 }
 
@@ -438,37 +438,31 @@ def get_icon_description_from_code [
     sunrise
     sunset
 ] {
-    let day = (
-        if (date now | format date '%H:%M:%S') < $sunset and (date now | format date '%H:%M:%S') > $sunrise {
-            true
-        } else {
-            false
-        }
-    )
+    let day = (date now | format date '%H:%M:%S') < $sunset and (date now | format date '%H:%M:%S') > $sunrise
 
-    switch ($code | into string) {
-        "1000" : {|| if $day {"clear-day"} else {"clear-night"}},
-        "1100" : {|| if $day {"mostly-clear-day"} else {"mostly-clear-night"}},
-        "1101" : {|| if $day {"partly-cloudy-day"} else {"partly-cloudy-night"}},       
-        "1102" : {|| if $day {"mostly-cloudy-day"} else {"mostly-cloudy-night"}},     
-        "1001" : {|| "cloudy"},             
-        "2000" : {|| "fog"},                 
-        "2100" : {|| "light-fog"},
-        "4000" : {|| "drizzle"},
-        "4001" : {|| "rain"},
-        "4200" : {|| "light-rain"},          
-        "4201" : {|| "heavy-rain"},          
-        "5000" : {|| "snow"},              
-        "5001" : {|| "flurries"},
-        "5100" : {|| "light-snow"},          
-        "5101" : {|| "heavy-snow"},          
-        "6000" : {|| "freezing-rain"},
-        "6001" : {|| "freezing-rain"},
-        "6200" : {|| "freezing-rain"},
-        "6201" : {|| "freezing-rain"},
-        "7000" : {|| "sleet"},
-        "7101" : {|| "sleet"},
-        "7102" : {|| "sleet"},
-        "8000" : {|| "thunderstorm"}
+    match ($code | into string) {
+        "1000" => {if $day {"clear-day"} else {"clear-night"}},
+        "1100" => {if $day {"mostly-clear-day"} else {"mostly-clear-night"}},
+        "1101" => {if $day {"partly-cloudy-day"} else {"partly-cloudy-night"}},       
+        "1102" => {if $day {"mostly-cloudy-day"} else {"mostly-cloudy-night"}},     
+        "1001" => {"cloudy"},             
+        "2000" => {"fog"},                 
+        "2100" => {"light-fog"},
+        "4000" => {"drizzle"},
+        "4001" => {"rain"},
+        "4200" => {"light-rain"},          
+        "4201" => {"heavy-rain"},          
+        "5000" => {"snow"},              
+        "5001" => {"flurries"},
+        "5100" => {"light-snow"},          
+        "5101" => {"heavy-snow"},          
+        "6000" => {"freezing-rain"},
+        "6001" => {"freezing-rain"},
+        "6200" => {"freezing-rain"},
+        "6201" => {"freezing-rain"},
+        "7000" => {"sleet"},
+        "7101" => {"sleet"},
+        "7102" => {"sleet"},
+        "8000" => {"thunderstorm"}
     }   
 }
