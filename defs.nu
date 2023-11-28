@@ -308,6 +308,11 @@ export def scompact [
   return $out 
 }
 
+#local http server
+export def "http serve" [root:string ="."] {
+  simple-http-server $root
+}
+
 ## appimages
 
 #open balena-etche
