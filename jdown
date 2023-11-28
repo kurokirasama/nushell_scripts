@@ -5,7 +5,7 @@
 #pip3 install myjdapi
 
 def main():   
-   import myjdapi, datetime, json
+   import myjdapi, json
    from sys import exit
 
    import argparse
