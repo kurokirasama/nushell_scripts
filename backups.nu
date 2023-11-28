@@ -146,3 +146,10 @@ export def "nushell-syntax-2-sublime" [
     ai git-push -g
   }
 }
+
+#backup nushell history
+export def "history backup" [
+  output?:string = "hist" #output filename
+] {
+  open $nu.history-path | query db $"vacuum main into '($output).db'" 
+}
