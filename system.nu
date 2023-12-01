@@ -123,7 +123,7 @@ export def left_prompt [] {
 #short help
 export def ? [...search] {
   if ($search | is-empty) {
-    help commands
+    print (help commands)
     return
   } 
 

@@ -94,3 +94,11 @@ export def union [a: list, b: list] {
   | append $b 
   | uniq
 }
+
+#select rows in a table from list of ints
+export def get-rows [rows:list] {
+  $in
+  | enumerate
+  | where $it.index in $rows
+  | get item 
+}

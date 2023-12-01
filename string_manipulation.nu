@@ -128,6 +128,7 @@ export def progress_bar [
     --background_symbol = "▒"
     --background_color(-B) = "#A0A0A0"
 ] {
+    let max = if $max == 0 {1} else {$max}
     let term_length = (term size).columns
     let max_number_of_chars = $term_length / 2 | math ceil
     let bar_increment = (
