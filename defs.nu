@@ -259,13 +259,8 @@ export def reset-alpine-auth [] {
 }
 
 #run matlab in cli
-export def matlab-cli [--ubb(-b)] {
-  if $ubb {
-    matlab19_ubb -nosplash -nodesktop -sd $"\"($env.PWD)\"" -logfile "/home/kira/Dropbox/matlab/log19.txt" -r "setenv('SHELL', '/bin/bash');"
-    return
-  } 
-
-  matlab19 -nosplash -nodesktop -sd $"\"($env.PWD)\"" -logfile "/home/kira/Dropbox/matlab/log19.txt" -r "setenv('SHELL', '/bin/bash');"
+export def matlab-cli [] {
+  matlab -nosplash -nodesktop -softwareopengl -sd $"\"($env.PWD)\"" -logfile "/home/kira/Dropbox/matlab/log23.txt" -r "setenv('SHELL', '/bin/bash');"
 }
 
 #get files all at once from webpage using wget
