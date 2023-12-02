@@ -214,7 +214,7 @@ export def mv-pipe [
   let number = ($files | length) - 1
   mut progress_bar = ""
 
-  for i in 0..($number - 1) {
+  for i in 0..$number {
     let file = $files | get $i 
 
     if $force {
