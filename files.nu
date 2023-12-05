@@ -200,6 +200,7 @@ export def cp-pipe [
 
     $progress_bar = (progress_bar $i $number $progress_bar)
   } 
+  progress_bar $number $number $progress_bar
 }
 
 #mv trough pipe to same dir
@@ -225,6 +226,7 @@ export def mv-pipe [
 
     $progress_bar = (progress_bar $i $number $progress_bar)
   }
+  progress_bar $number $number $progress_bar
 }
 
 #ls by date (newer last)
