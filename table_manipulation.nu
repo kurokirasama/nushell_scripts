@@ -102,3 +102,12 @@ export def get-rows [rows:list] {
   | where $it.index in $rows
   | get item 
 }
+
+# interactively select columns from a table
+export def iselect [] {
+    let tgt = $in
+    let cols = ($tgt | columns)
+
+    let choices = ($cols | input list -m "Pick columns to get: ")
+    $tgt | select $choices
+}
