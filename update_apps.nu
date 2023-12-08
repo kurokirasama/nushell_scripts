@@ -837,3 +837,9 @@ export def "apps-update joplin" [] {
   sudo ^ln -s ~/.joplin-bin/bin/joplin /usr/bin/joplin
 }
 
+#update tiv
+export def "apps-update tiv" [] {
+  cd ~/software/TerminalImageViewer/
+  git pull; cd src/
+  make; sudo make install
+}
