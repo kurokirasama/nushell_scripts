@@ -834,7 +834,8 @@ export def "apps-update joplin" [] {
 
   print (echo-g "updating jopling cli...")
   bash -c "NPM_CONFIG_PREFIX=~/.joplin-bin npm install -g joplin"
-  sudo ^ln -s ~/.joplin-bin/bin/joplin /usr/bin/joplin
+  sudo rm -f /usr/bin/joplin
+  bash -c "sudo ln -s ~/.joplin-bin/bin/joplin /usr/bin/joplin"
 }
 
 #update tiv

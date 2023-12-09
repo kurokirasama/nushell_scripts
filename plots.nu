@@ -52,7 +52,7 @@ export def gnu-plot [
 #Example:
 export def plot-table [
   data?          #a table with only the y values of the plots
-  --type = "l"   #type of plot (bars (b), steps (s), points (p), line (l) default)
+  --type = "l"   #type of plot (bars (b), steps (s), points (p), line (l))
   --title = ""   #title
   --width:number
 ] {
