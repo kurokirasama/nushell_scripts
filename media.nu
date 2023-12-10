@@ -49,7 +49,7 @@ export def "media trans-sub" [
   file?
   --from:string = "en-US" #from which language you are translating
   --open_ai(-o)        #use openai api to make the translations
-  --notify(-n)     #notify to android via ntfy
+  --notify(-n)     #notify to android via join/tasker
 ] {
   let file = if ($file | is-empty) {$file | get name} else {$file}
   dos2unix -q $file
@@ -114,7 +114,7 @@ export def "media trans-sub" [
       # print -n (echo-g $"\r(($line.index + $start) / $lines * 100 | math round -p 3)%")
     }
 
-  if $notify {"translation finished!" | ntfy-send}
+  if $notify {"translation finished!" | tasker send-notification}
 }
 
 #sync subtitles
@@ -157,7 +157,7 @@ export def "media remove-noise" [
   output?              #output file name without extension, wav or mp3 produced
   --delete(-d):bool = true  #whether to delete existing tmp files or not
   --outExt(-E):string = "wav" #output format, mp3 or wav
-  --notify(-n)         #notify to android via ntfy
+  --notify(-n)         #notify to android via join/tasker
 ] {
   if $delete {
     try {
@@ -202,7 +202,7 @@ export def "media remove-noise" [
   }
 
   notify-send "noise removal done!"
-  if $notify {"noise removal finished!" | ntfy-send}
+  if $notify {"noise removal finished!" | tasker send-notification}
 }
 
 #remove audio noise from video
@@ -213,7 +213,7 @@ export def "media remove-audio-noise" [
   noiseLevel      #level reduction adjustment (0.2-0.3)
   output?         #output file name with extension (same extension as $file)
   --merge:bool = true  #whether to merge clean audio with video
-  --notify(-n)    #notifua to android via ntfy
+  --notify(-n)    #notifua to android via join/tasker
 ] {
   try {
     ls ([$env.PWD tmp*] | path join) | rm-pipe
@@ -247,7 +247,7 @@ export def "media remove-audio-noise" [
 
   print (echo-g "done!")
   notify-send "noise removal done!"
-  if $notify {"noise removal finished!" | ntfy-send}
+  if $notify {"noise removal finished!" | tasker send-notification}
 }
 
 #screen record
@@ -305,7 +305,7 @@ export def "media screen-record" [
 export def "media remove-audio" [
   input_file: string #the input file
   output_file?       #the output file
-  --notify(-n)       #notify to android via ntfy
+  --notify(-n)       #notify to android via join/tasker
 ] {
   let output_file = (
     if ($output_file | is-empty) {
@@ -321,7 +321,7 @@ export def "media remove-audio" [
     echo-r "trying ffmpeg..."
     ffmpeg -n -loglevel 0 -i $input_file -c copy -an $output_file
   }
-  if $notify {"summary finished!" | ntfy-send}
+  if $notify {"summary finished!" | tasker send-notification}
 }
 
 #cut segment of video file
@@ -331,7 +331,7 @@ export def "media cut-video" [
   SEGEND                   #timestamp of the end of the segment (hh:mm:ss)
   --output_file(-o):string #output file
   --append(-a):string = "cutted"  #append to file name
-  --notify(-n)             #notify to android via ntfy
+  --notify(-n)             #notify to android via join/tasker
 ] {
   let ext = ($file | path parse | get extension)
   let name = ($file | path parse | get stem)
@@ -351,7 +351,7 @@ export def "media cut-video" [
     echo-r "trying ffmpeg..."
     ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
   }
-  if $notify {"summary finished!" | ntfy-send}
+  if $notify {"summary finished!" | tasker send-notification}
 }
 
 #split video file
@@ -360,7 +360,7 @@ export def "media split-video" [
   --number_segments(-n):int #number of pieces to generate (takes precedence over -d)
   --duration(-d):duration   #duration of each segment except probably the last one
   --delta:duration = 10sec  #duration of overlaping beetween segments
-  --notify(-n)              #notify to android via ntfy
+  --notify(-n)              #notify to android via join/tasker
 ] {
   let full_length = (
     media video-info $file
@@ -394,7 +394,7 @@ export def "media split-video" [
 
   print (echo-g $"generating part ($n_segments): ($segment_start) - ($full_hhmmss)...")
   media cut-video $file $segment_start $full_hhmmss -a $n_segments
-  if $notify {"video split finished!" | ntfy-send}
+  if $notify {"video split finished!" | tasker send-notification}
 }
 
 #convert media files recursively to specified format
@@ -410,7 +410,7 @@ export def "media to" [
   --mkv(-m)                 #include mkv files (for mp4 only)
   --file(-f):string         #specify unique file to convert
   --vcodec(-v):string = "libx264"  #video codec (for single file only)
-  --notify(-n)              #notify to android via ntfy
+  --notify(-n)              #notify to android via join/tasker
 ] {
   if ($file | is-empty) {
     #to aac or mp3
@@ -530,7 +530,7 @@ export def "media to" [
       }
     }
   } 
-  if $notify {"conversion finished!" | ntfy-send}
+  if $notify {"conversion finished!" | tasker send-notification}
 }
 
 #cut segment from audio file
@@ -542,25 +542,25 @@ export def "media cut-audio" [
   outfile:string  #output audio file
   start:int       #start of the piece to extract (s) 
   duration:int    #duration of the piece to extract (s)
-  --notify(-n)    #notify to android via ntfy
+  --notify(-n)    #notify to android via join/tasker
 ] {  
   try {
     myffmpeg -ss $start -i $"($infile)" -t $duration -c copy $"($outfile)"
   } catch {
     ffmpeg -ss $start -i $"($infile)" -t $duration -c copy $"($outfile)"
   }
-  if $notify {"cut finished!" | ntfy-send}
+  if $notify {"cut finished!" | tasker send-notification}
 }
 
 #merge subs to mkv video
 export def "media merge-subs" [
   filename     #name (without extencion) of both subtitle and mkv file
-  --notify(-n) #notify to android via ntfy
+  --notify(-n) #notify to android via join/tasker
 ] { 
   mkvmerge -o myoutput.mkv  $"($filename).mkv" --language "0:spa" --track-name $"0:($filename)" $"($filename).srt"
   mv myoutput.mkv $"($filename).mkv"
   rm $"($filename).srt" | ignore
-  if $notify {"subs merge finished!" | ntfy-send}
+  if $notify {"subs merge finished!" | tasker send-notification}
 }
 
 #merge videos
@@ -580,14 +580,14 @@ export def "media merge-subs" [
 export def "media merge-videos" [
   list         #text file with list of videos to merge
   output       #output file
-  --notify(-n) #notify to android via ntfy
+  --notify(-n) #notify to android via join/tasker
 ] {
   print (echo-g "merging videos...")
   myffmpeg -f concat -safe 0 -i $"($list)" -c copy $"($output)"
   
   print (echo-g "done!")
   notify-send "video merge done!"
-  if $notify {"video merge finished!" | ntfy-send}
+  if $notify {"video merge finished!" | tasker send-notification}
 }
 
 #auto merge all videos in dir
@@ -597,7 +597,7 @@ export def "media merge-videos" [
 export def "media merge-videos-auto" [
   ext    #unique extension of all videos to merge
   output #output file
-  --notify(-n) #notify to android via ntfy
+  --notify(-n) #notify to android via join/tasker
 ] {
   let list = (($env.PWD) | path join "list.txt")
 
@@ -619,7 +619,7 @@ export def "media merge-videos-auto" [
       
   print (echo-g "done!")
   notify-send "video merge done!"
-  if $notify {"video merge finished!" | ntfy-send}
+  if $notify {"video merge finished!" | tasker send-notification}
 }
 
 #reduce size of video files recursively, to mp4 x265
@@ -644,7 +644,7 @@ export def "media compress-video" [
   --vcodec(-v):string = "libx265"  #video codec: libx264 | libx265.
   --append(-a):string = "com" # what to append to compressed file names
   --mkv(-m)                 #include mkv files
-  --notify(-n)              #notify to android via ntfy
+  --notify(-n)              #notify to android via join/tasker
 ] {
   if ($file | is-empty) {
     let n_files = (
@@ -760,7 +760,7 @@ export def "media compress-video" [
     _ => {return-error "file extension not allowed"}
   }
   
-  if $notify {"compression finished!" | ntfy-send}
+  if $notify {"compression finished!" | tasker send-notification}
 }
 
 #delete original videos after compression recursively
@@ -929,7 +929,7 @@ export def "media extract-audio" [
     },
     _ => {return-error "format not allowed!"}
   }
-  if $notify {"extraction finished!" | ntfy-send}
+  if $notify {"extraction finished!" | tasker send-notification}
 }
 
 #crop image by shortest dimension
