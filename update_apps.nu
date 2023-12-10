@@ -36,6 +36,11 @@ export def apps-update [] {
     print (echo-r "Something went wrong with taskerpermissions instalation!")
   }
   try {
+    apps-update join
+  } catch {
+    print (echo-r "Something went wrong with taskerpermissions instalation!")
+  }
+  try {
     apps-update lutris #ignore if ppa works again
   } catch {
     print (echo-r "Something went wrong with lutris instalation!")
@@ -224,9 +229,14 @@ export def "apps-update pandoc" [] {
   github-app-update jgm pandoc
 }
 
-#update pandoc deb
+#update tasker helper deb
 export def "apps-update taskerpermissions" [] {
   github-app-update joaomgcd Tasker-Permissions -a taskerpermissions
+}
+
+#update join deb
+export def "apps-update join" [] {
+  github-app-update joaomgcd JoinDesktop -a taskerpermissions
 }
   
 #update lutris deb
