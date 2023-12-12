@@ -296,7 +296,7 @@ def get_weather [loc, --plot = true] {
         | update uvIndexAvg {|f| uv_class $f.uvIndexAvg}
         | update weatherCodeMax {|f| get_weather_description_from_code ($f.weatherCodeMax | into string)} 
         | update windSpeedAvg {|f| $"(desc_wind $f.windSpeedAvg) \(($f.windSpeedAvg | into string -d 2)\)"} 
-        | reject -i index?
+        | reject index?
         | rename Date Summary "T° min (°C)" "T° max (°C)" "Wind Speed (Km/h)" "Humidity (%)" "Precip. Prob. (%)" "Precip. Intensity (mm)" "UV Index"
     )
 

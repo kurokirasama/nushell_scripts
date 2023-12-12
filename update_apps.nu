@@ -650,7 +650,7 @@ export def "apps-update nushell" [] {
   cd ~/software/nu_plugin_plot
   git pull
   cargo build --release
-  cargo install --path .
+  cp -f target/release/nu_plugin_plot ~/.cargo/bin
 
   cd ~/software/nu_plugin_net
   git pull

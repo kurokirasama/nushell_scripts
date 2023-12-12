@@ -3,7 +3,7 @@ export def copy-scripts-and-commit [] {
   print (echo-g "updating public repository...")
   let files = (
     ls $env.MY_ENV_VARS.nu_scripts 
-    | find -v private & signature & env_vars & aliases & before
+    | find -v private & signature & env_vars & aliases & before & send_not
     | append (ls $env.MY_ENV_VARS.linux_backup | find append)
     | append (ls $env.MY_ENV_VARS.credentials | find -v .asc)
   )

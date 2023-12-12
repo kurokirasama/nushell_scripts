@@ -3,6 +3,7 @@ use std *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/string_manipulation.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/table_manipulation.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/files.nu *
+use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/tasker.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/crypt.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/defs.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/system.nu *
@@ -22,7 +23,6 @@ use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/yt_api.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/maths.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/plots.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/defs_private.nu *
-use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/tasker.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/zoxide.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/weather_tomorrow.nu [weather,get_weather_by_interval]
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/alias_defs.nu *
