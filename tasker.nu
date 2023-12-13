@@ -6,12 +6,12 @@ export def "tasker help" [] {
 			"    https://github.com/joaomgcd/JoinDesktop"
 			"METHODS:"
 			"- tasker send-notification"
-			"tasker phone-call"
-			"tasker tts"
+			"- tasker phone-call"
+			"- tasker tts"
+			"- tasker sms"
 	 	]
 	 	| str join "\n"
 	)
-
 }
 
 #send notificacion via join
@@ -38,8 +38,6 @@ export def "tasker send-notification" [
 		}
 	)
 	
-
-
 	{
     	scheme: "https",
     	host: "joinjoaomgcd.appspot.com",
@@ -65,8 +63,19 @@ export def "tasker phone-call" [
 	let phone = if ($phone | is-empty) {$in} else {$phone}
 	let title = "phone call started from " + (sys | get host.hostname)
 
-	let deviceId = $env.MY_ENV_VARS.api_keys.join | get $device | get deviceId
-	let apikey = $env.MY_ENV_VARS.api_keys.join | get $device | get apikey
+	let apikey = $env.MY_ENV_VARS.api_keys.join.apikey
+	let deviceId = (
+		if ($select_device | is-empty) {
+			$env.MY_ENV_VARS.api_keys.join.devices | get $device
+		} else {
+			$env.MY_ENV_VARS.api_keys.join.devices
+			| get (
+				$env.MY_ENV_VARS.api_keys.join.devices
+				| columns
+				| input list -f (echo-g "select device:")
+			  ) 	
+		}
+	)
 
 	{
     	scheme: "https",
@@ -88,7 +97,7 @@ export def "tasker phone-call" [
 export def "tasker tts" [
 	text?:string
 	--device(-d):string = "note12"
-	--language(-l):string = "eng" #language of tts (spa, eng, etc)
+	--language(-l):string = "spa" #language of tts (spa, eng, etc)
 	--select_device(-s)
 ] {
 	let text = if ($text | is-empty) {$in} else {$text}
@@ -117,6 +126,45 @@ export def "tasker tts" [
         	say: ($text | url encode),
         	title: ($title | url encode),
         	language: $language,
+        	deviceId: $deviceId
+    	}
+  	}
+  	| url join
+  	| http get $in
+  	| ignore
+}
+
+#sms via join
+export def "tasker sms" [
+	phone:string
+	text?:string
+	--device(-d):string = "note12"
+	--select_device(-s)
+] {
+	let sms = if ($text | is-empty) {$in} else {$text}
+
+	let apikey = $env.MY_ENV_VARS.api_keys.join.apikey
+	let deviceId = (
+		if ($select_device | is-empty) {
+			$env.MY_ENV_VARS.api_keys.join.devices | get $device
+		} else {
+			$env.MY_ENV_VARS.api_keys.join.devices
+			| get (
+				$env.MY_ENV_VARS.api_keys.join.devices
+				| columns
+				| input list -f (echo-g "select device:")
+			  ) 	
+		}
+	)
+
+	{
+    	scheme: "https",
+    	host: "joinjoaomgcd.appspot.com",
+    	path: "/_ah/api/messaging/v1/sendPush",
+    	params: {
+        	apikey: $apikey,
+        	smsnumber: ($phone | url encode),
+        	smstext: ($sms | url encode),
         	deviceId: $deviceId
     	}
   	}

@@ -58,11 +58,11 @@ export def plot-table [
 ] {
   let x = (if ($data | is-empty) {$in} else {$data} | reject index?)
   let n_cols = ($x | transpose | length)
-  let name_cols = ($x | transpose | column2 0)
+  let name_cols = ($x | columns)
 
   mut list = []
   for col in ($x | columns) {
-    $list = ($list | append [($x | get $col)])
+    $list = ($list | append [($x | get $col | into float)])
   }
 
   if ($width | is-empty) {
