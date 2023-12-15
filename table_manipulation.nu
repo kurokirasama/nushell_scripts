@@ -111,3 +111,15 @@ export def iselect [] {
     let choices = ($cols | input list -m "Pick columns to get: ")
     $tgt | select $choices
 }
+
+#default a whole table
+def default-table [value: any = null] {
+    mut input = $in
+    let cols = $input | columns
+
+    for $col in $cols {
+        $input = ($input | default $value $col)
+    }
+
+    $input
+}

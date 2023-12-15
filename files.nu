@@ -12,6 +12,15 @@ export def echo-r [string:string] {
   echo $"(ansi -e { fg: '#ff0000' attr: b })($string)(ansi reset)"
 }
 
+#custom color echo
+export def echo-c [string:string,color:string,--bold(-b)] {
+  if $bold {
+    echo $"(ansi -e { fg: ($color) attr: b })($string)(ansi reset)"
+  } else {
+    echo $"(ansi -e { fg: ($color)})($string)(ansi reset)"
+  }
+}
+
 #verify if a column exist within a table
 export def is-column [name] { 
   $name in ($in | columns) 

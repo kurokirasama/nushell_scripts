@@ -1,7 +1,7 @@
 #!/usr/bin/env nu
 
 export def main [
-  device =  "wlo1"  #wlo1 for wifi (export default), eno1 for lan
+  device?  #wlo1 for wifi (export default), eno1 for lan
 ] {
   let host = (sys | get host | get hostname)
   

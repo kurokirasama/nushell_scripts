@@ -26,7 +26,7 @@ export def "tasker send-notification" [
 	
 	let apikey = $env.MY_ENV_VARS.api_keys.join.apikey
 	let deviceId = (
-		if ($select_device | is-empty) {
+		if not $select_device {
 			$env.MY_ENV_VARS.api_keys.join.devices | get $device
 		} else {
 			$env.MY_ENV_VARS.api_keys.join.devices
@@ -98,14 +98,14 @@ export def "tasker tts" [
 	text?:string
 	--device(-d):string = "note12"
 	--language(-l):string = "spa" #language of tts (spa, eng, etc)
-	--select_device(-s)
+	--select_device(-s):bool = false
 ] {
 	let text = if ($text | is-empty) {$in} else {$text}
 	let title = "tts sent from " + (sys | get host.hostname)
 
 	let apikey = $env.MY_ENV_VARS.api_keys.join.apikey
 	let deviceId = (
-		if ($select_device | is-empty) {
+		if not $select_device {
 			$env.MY_ENV_VARS.api_keys.join.devices | get $device
 		} else {
 			$env.MY_ENV_VARS.api_keys.join.devices

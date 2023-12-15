@@ -1,4 +1,4 @@
-#ai tools
+    #ai tools
 export def "ai help" [] {
   print (
     echo ["This set of tools need a few dependencies installed:"
@@ -9,7 +9,7 @@ export def "ai help" [] {
       "  python3 -m pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz"
       "METHODS"
       "- chat_gpt"
-      "- askgpt"
+      "- askai"
       "- ai audio2text"
       "- ai video2text"
       "- ai screen2text"
@@ -23,6 +23,7 @@ export def "ai help" [] {
       "- askdalle"
       "- ai tts"
       "- tts"
+      "- google_ai"
     ]
     | str join "\n"
     | nu-highlight
@@ -188,30 +189,11 @@ export def "chatpdf list" [] {
 # - gpt-3.5-turbo-16k (16384 tokens)
 # - text-davinci-003 (4097 tokens)
 #
-#Available system messages are:
-# - assistant
-# - psychologist
-# - programer
-# - get_diff_summarizer
-# - meeting_summarizer
-# - ytvideo_summarizer
-# - teacher
-# - spanish_translator
-# - html_parser
-# - rubb
+#system messages are available in:
+#   [$env.MY_ENV_VARS.chatgpt_config chagpt_systemmessages.json] | path join
 #
-#Available pre_prompts are:
-# - empty
-# - recreate_text
-# - summarize_transcription
-# - consolidate_transcription
-# - trans_to_spanish
-# - summarize_git_diff
-# - summarize_git_diff_short
-# - summarize_ytvideo
-# - consolidate_ytvideo
-# - parse_html
-# - elaborate_idea
+#pre_prompts are available in:
+#   [$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join
 #
 #Note that:
 # - --select_system > --list_system > --system
@@ -353,11 +335,16 @@ export def chat_gpt [
   return $answer.choices.0.message.content
 }
 
-#fast call to the chat_gpt wrapper
+#fast call to the chat_gpt and gemini wrappers
 #
 #Only one system message flag allowed.
-#For more personalization use `chat_gpt`
-export def askgpt [
+#
+#--gpt4 and --gemini are mutually exclusive flags.
+#
+#Uses chatgpt by default
+#
+#For more personalization use `chat_gpt` or `gemini`
+export def askai [
   prompt?:string  # string with the prompt, can be piped
   system?:string  # string with the system message. It has precedence over the s.m. flags
   --programmer(-p) # use programmer s.m with temp 0.7, else use assistant with temp 0.9
@@ -368,12 +355,33 @@ export def askgpt [
   --list_preprompt(-b)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
   --temperature(-t):float # takes precedence over the 0.7 and 0.9
   --gpt4(-g)              # use gpt-4-1106-preview instead of gpt-3.5-turbo-1106 (default)
-  --vision(-v)            # use gpt-4-vision-preview
-  --image(-i):string      # filepath of the image to prompt to gpt-4-vision-preview
+  --vision(-v)            # use gpt-4-vision-preview/gemini-pro-vision
+  --image(-i):string      # filepath of the image to prompt to vision models
   --fast(-f) # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
+  --gemini(-G) #use google gemini instead of chatgpt
+  --bison(-B)  #use google bison instead of chatgpt (needs --gemini)
+  --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt4
 ] {
+  if $chat {
+    if $gemini {
+      google_ai -c
+    } else {
+      # $chat_gpt -c
+      print (echo-g "in progress")
+    }
+    return
+  }
+
+  if $gpt4 and $gemini {
+    return-error "Please select only one ai system!"
+  }
+
+  if $bison and (not $gemini) {
+    return-error "--bison needs --gemini!"
+  }
+  
   if $vision and ($image | is-empty) {
-    return-error "gpt-4 vision needs and image file!"
+    return-error "vision models need and image file!"
   }
 
   let prompt = (
@@ -419,6 +427,39 @@ export def askgpt [
     }
   )
 
+  #use google
+  if $gemini {
+    let answer = (
+      if $vision {
+        match [$list_system,$list_preprompt] {
+          [true,true] => {google_ai $prompt -t $temp -l -m gemini-pro-vision -p -d -i $image},
+          [true,false] => {google_ai $prompt -t $temp -l -m gemini-pro-vision -i $image},
+          [false,true] => {google_ai $prompt -t $temp --select_system $system -m gemini-pro-vision -p -d -i $image},
+          [false,false] => {google_ai $prompt -t $temp --select_system $system -m gemini-pro-vision -i $image},
+        }
+      } else {
+        match [$bison,$list_system,$list_preprompt] {
+        [true,true,false] => {google_ai $prompt -t $temp -l -m text-bison-001},
+        [true,false,false] => {google_ai $prompt -t $temp --select_system $system -m text-bison-001},
+        [false,true,false] => {google_ai $prompt -t $temp -l},
+        [false,false,false] => {google_ai $prompt -t $temp --select_system $system},
+        [true,true,true] => {google_ai $prompt -t $temp -l -m text-bison-001 -p -d},
+        [true,false,true] => {google_ai $prompt -t $temp --select_system $system -m text-bison-001 -p -d},
+        [false,true,true] => {google_ai $prompt -t $temp -l -p -d},
+        [false,false,true] => {google_ai $prompt -t $temp --select_system $system -p -d}
+      }
+      }
+    )
+
+    if $fast {
+      $answer | save -f ~/Yandex.Disk/ChatGpt/answer.md
+      return
+    } else {
+      return $answer  
+    } 
+  }
+
+  #use chatgpt
   let answer = (
     if $vision {
       match [$list_system,$list_preprompt] {
@@ -453,19 +494,26 @@ export def askgpt [
 #Inspired by https://github.com/zurawiki/gptcommit
 export def "ai git-push" [
   --gpt4(-g) # use gpt-4-1106-preview instead of gpt-3.5-turbo-1106
+  --gemini(-G) #use google gemini model 
 ] {
-  let max_words = if $gpt4 {85000} else {10000}
-  let max_words_short = if $gpt4 {85000} else {10000}
+  if $gpt4 and $gemini {
+    return-error "select only one model!"
+  }
 
-  print (echo-g "asking chatgpt to summarize the differences in the repository...")
+  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {5000}
+  let max_words_short = if $gpt4 {85000} else if (not $gemini) {10000} else {5000}
+
+  let model = if $gemini {"gemini"} else {"chatgpt"}
+
+  print (echo-g $"asking ($model) to summarize the differences in the repository...")
   let question = (git diff | str replace "\"" "'" -a)
   let prompt = ($question | ^awk ("'BEGIN{total=0} {total+=NF; if(total<=(" + $"($max_words)" + ")) print; else exit}'"))
   let prompt_short = ($question | ^awk ("'BEGIN{total=0} {total+=NF; if(total<=(" + $"($max_words_short)" + ")) print; else exit}'"))
 
   let commit = (
     try {
-      match $gpt4 {
-        true => {
+      match [$gpt4,$gemini] {
+        [true,false] => {
           try {
             chat_gpt $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m "gpt-4-turbo"
           } catch {
@@ -476,14 +524,25 @@ export def "ai git-push" [
             }
           }
         },
-        false => {
+        [false,false] => {
           try {
             chat_gpt $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d
           } catch {
             try {
               chat_gpt $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d
             } catch {
-            chat_gpt $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d
+              chat_gpt $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d
+            }
+          }
+        },
+        [false,true] => {
+          try {
+            google_ai $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d
+          } catch {
+            try {
+              google_ai $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d
+            } catch {
+              google_ai $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d
             }
           }
         }
@@ -592,11 +651,18 @@ export def "ai video2text" [
 
 #resume transcription text via gpt 
 export def "ai transcription-summary" [
-  file                #text file name with transcription text
-  --gpt4(-g) = false  #whether to use gpt-4-turbo (default false)
-  --upload(-u) = true #whether to upload to gdrive (default true) 
-  --notify(-n)        #notify to android via join/tasker
+  file                 #text file name with transcription text
+  --gpt4(-g) = false   #use gpt-4-turbo
+  --gemini(-G) = false #use google gemini
+  --upload(-u) = true  #whether to upload to gdrive
+  --notify(-n)         #notify to android via join/tasker
 ] {
+  if $gpt4 and $gemini {
+    return-error "please choose only one model!"
+  }
+
+  let model = if $gemini {"gemini"} else {"chatgpt"}
+
   #removing existing temp files
   ls | where name =~ "split|summaries" | rm-pipe
 
@@ -606,7 +672,7 @@ export def "ai transcription-summary" [
   let output = $"($file | path parse | get stem)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gpt4 {85000} else {10000}
+  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {5000}
   let n_words = (wc -w $file | awk '{print $1}' | into int)
 
   if $n_words > $max_words {
@@ -621,7 +687,7 @@ export def "ai transcription-summary" [
     let files = (ls | find split | where name !~ summary)
 
     $files | each {|split_file|
-      ai transcription-summary-single ($split_file | get name | ansi strip) -u false -g $gpt4
+      ai transcription-summary-single ($split_file | get name | ansi strip) -u false -g $gpt4 -G $gemini
     }
 
     let temp_output = $"($file | path parse | get stem)_summaries.md"
@@ -638,12 +704,15 @@ export def "ai transcription-summary" [
 
     let prompt = (open $temp_output)
 
-    print (echo-g $"asking chatgpt to combine the results in ($temp_output)...")
+    print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
     if $gpt4 {
-      chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d -m "gpt-4-turbo" | save -f $output
+      chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d -m "gpt-4-turbo" 
+    } else if (not $gemini) {
+      chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d 
     } else {
-      chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d | save -f $output
+      google_ai $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d 
     }
+    | save -f $output
 
     if $upload {
       if not $mounted {
@@ -659,28 +728,38 @@ export def "ai transcription-summary" [
     return
   }
   
-  ai transcription-summary-single $file -u $upload -g $gpt4 
+  ai transcription-summary-single $file -u $upload -g $gpt4 -G $gemini
   if $notify {"summary finished!" | tasker send-notification}
 }
 
 #resume transcription via gpt in one go
 export def "ai transcription-summary-single" [
-  file                #text file name with transcription text
-  --gpt4(-g) = false  #whether to use gpt-4 (default false)
-  --upload(-u) = true #whether to upload to gdrive (default true) 
+  file                 #text file name with transcription text
+  --gpt4(-g) = false   #whether to use gpt-4
+  --gemini(-G) = false #whether to use google gemini
+  --upload(-u) = true  #whether to upload to gdrive 
 ] {
+  if $gpt4 and $gemini {
+    return-error "choose only one model!"
+  }
+
+  let model = if $gemini {"gemini"} else {"chatgpt"}
+
   let up_folder = $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory
   let mounted = ($up_folder | path expand | path exists)
   let output = $"($file | path parse | get stem)_summary.md"
 
   let prompt = (open $file)
 
-  print (echo-g $"asking chatgpt for a summary of the file ($file)...")
+  print (echo-g $"asking ($model) for a summary of the file ($file)...")
   if $gpt4 {
-    chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d -m "gpt-4-turbo" | save -f $output
+    chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d -m "gpt-4-turbo"
+  } else if (not $gemini) {
+    chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d
   } else {
-    chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d | save -f $output
+    google_ai $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d
   }
+  | save -f $output
 
   if $upload {
     if not $mounted {
@@ -696,12 +775,13 @@ export def "ai transcription-summary-single" [
 #audio 2 transcription summary via chatgpt
 export def "ai audio2summary" [
   file
-  --gpt4(-g)          #whether to use gpt-4 (default false)
-  --upload(-u) = true #whether to upload the summary and audio to gdrive (dafault true)
+  --gpt4(-g)          #whether to use gpt-4 
+  --gemini(-G)        #use google gemini model
+  --upload(-u) = true #whether to upload the summary and audio to gdrive 
   --notify(-n)        #notify to android via join/tasker
 ] {
   ai audio2text $file
-  ai transcription-summary $"($file | path parse | get stem)-clean.txt" -u $upload -g $gpt4
+  ai transcription-summary $"($file | path parse | get stem)-clean.txt" -u $upload -g $gpt4 -G $gemini
   if $upload {
     print (echo-g $"uploading ($file)...")
     cp $"($file | path parse | get stem)-clean.mp3" ($env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory)
@@ -752,10 +832,15 @@ export def "ai generate-subtitles-pipe" [
 #fr: french
 export def "ai yt-summary" [
   url?:string       # video url
-  --lang = "en"     # language of the summary (default english: en)
+  --lang = "en"     # language of the summary (default english)
   --gpt4(-g)        # to use gpt4-turbo instead of gpt-3.5
+  --gemini(-G)      #use google gemini model
   --notify(-n)      # notify to android via join/tasker
 ] {
+  if $gemini and $gpt4 {
+    return-error "please choose only one model!"
+  }
+
   #deleting previous temp file
   if ((ls | find yt_temp | length) > 0) {rm yt_temp* | ignore}
   
@@ -801,8 +886,9 @@ export def "ai yt-summary" [
   let output = $"($title)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gpt4 {85000} else {10000}
+  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {5000}
   let n_words = (wc -w $the_subtitle | awk '{print $1}' | into int)
+  let model = if $gemini {"gemini"} else {"chatgpt"}
 
   if $n_words > $max_words {
     print (echo-g $"splitting transcription of ($title)...")
@@ -818,7 +904,7 @@ export def "ai yt-summary" [
     $files | each {|split_file|
       let t_input = (open ($split_file | get name))
       let t_output = ($split_file | get name | path parse | get stem)
-      ai yt-transcription-summary $t_input $t_output -g $gpt4
+      ai yt-transcription-summary $t_input $t_output -g $gpt4 -G $gemini
     }
 
     let temp_output = $"($title)_summaries.md"
@@ -835,36 +921,45 @@ export def "ai yt-summary" [
 
     let prompt = (open $temp_output)
 
-    print (echo-g $"asking chatgpt to combine the results in ($temp_output)...")
+    print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
     if $gpt4 {
-      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d -m "gpt-4-turbo" | save -f $output
+      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d -m "gpt-4-turbo" 
+    } else if (not $gemini) {
+      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d
     } else {
-      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d | save -f $output
+      google_ai $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d 
     }
+    | save -f $output
 
     if $notify {"summary finished!" | tasker send-notification}
     return
   }
   
-  ai yt-transcription-summary (open $the_subtitle) $output -g $gpt4
+  ai yt-transcription-summary (open $the_subtitle) $output -g $gpt4 -G $gemini
   if $notify {"summary finished!" | tasker send-notification}
 }
 
 #resume youtube video transcription text via gpt
 export def "ai yt-transcription-summary" [
-  prompt              #transcription text
-  output              #output name without extension
-  --gpt4(-g) = false  #whether to use gpt-4 (default false)
-  --notify(-n)        #notify to android via join/tasker
+  prompt                #transcription text
+  output                #output name without extension
+  --gpt4(-g) = false    #whether to use gpt-4 
+  --gemini(-G) = false  #use google gemini
+  --notify(-n)          #notify to android via join/tasker
 ] {
   let output_file = $"($output)_summary.md"
+  let model = ig $gemini {"gemini"} else {"chatgpt"}
 
-  print (echo-g $"asking chatgpt for a summary of the file ($output)...")
+  print (echo-g $"asking ($model) for a summary of the file ($output)...")
   if $gpt4 {
-    chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt summarize_ytvideo -d -m "gpt-4-turbo" | save -f $output_file
+    chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt summarize_ytvideo -d -m "gpt-4-turbo"
+  } else if (not $gemini) {
+    chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt summarize_ytvideo -d
   } else {
-    chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt summarize_ytvideo -d | save -f $output_file
+    google_ai $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt summarize_ytvideo -d
   }
+  | save -f $output_file
+
   if $notify {"summary finished!" | tasker send-notification}
 }
 
@@ -877,12 +972,13 @@ export def "ai media-summary" [
   file:string            # video, audio or subtitle file (vtt, srt) file name with extension
   --lang(-l) = "Spanish" # language of the summary
   --gpt4(-g)             # to use gpt4 instead of gpt-3.5
+  --gemini(-G)           # use google gemini
   --notify(-n)           # notify to android via join/tasker
 ] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
   let title = ($file | path parse | get stem) 
   let extension = ($file | path parse | get extension) 
-  let media_type = (askgpt $"does the extension file format ($extension) correspond to and audio, video or subtitle file? Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle or none." | from json | get answer)
+  let media_type = (askai $"does the extension file format ($extension) correspond to and audio, video or subtitle file? Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle or none." | from json | get answer)
 
   match $media_type {
     "video" => {ai video2text $file -l $lang},
@@ -907,7 +1003,7 @@ export def "ai media-summary" [
   let output = $"($title)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gpt4 {85000} else {10000}
+  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {5000}
   let n_words = (wc -w $the_subtitle | awk '{print $1}' | into int)
 
   if $n_words > $max_words {
@@ -940,13 +1036,17 @@ export def "ai media-summary" [
     }
 
     let prompt = (open $temp_output)
+    let model = if $gemini {"gemini"} else {"chatgpt"}
 
-    print (echo-g $"asking chatgpt to combine the results in ($temp_output)...")
+    print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
     if $gpt4 {
-      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d -m "gpt-4-turbo" | save -f $output
+      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d -m "gpt-4-turbo"
+    } else if (not $gemini) {
+      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d
     } else {
-      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d | save -f $output
+      google_ai $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d
     }
+    | save -f $output
 
     if $notify {"summary finished!" | tasker send-notification}
     return
@@ -1064,7 +1164,6 @@ export def dall_e [
 
         let site = "https://api.openai.com/v1/images/edits"
 
-        # let answer = http post -t application/x-www-form-urlencoded -H $header $site $request 
         let answer = bash -c ("curl -s " + $site + " -H '" + $header + "' -F model='" + $model + "' -F n=" + ($number | into string) + " -F size='" + $size + "' -F image='@" + $image + "' -F mask='@" + $mask + "' -F prompt='" + $prompt + "'")
 
         $answer
@@ -1099,7 +1198,6 @@ export def dall_e [
 
         let site = "https://api.openai.com/v1/images/variations"
 
-        # let answer = http post -t application/x-www-form-urlencoded -H $header $site $request 
         let answer = bash -c ("curl -s " + $site + " -H '" + $header + "' -F model='" + $model + "' -F n=" + ($number | into string) + " -F size='" + $size + "' -F image='@" + $image + "'")
 
         $answer
@@ -1257,4 +1355,312 @@ export def tts [
   } else {
     return (print ("work in progress!"))
   }
+}
+
+#single call to google ai LLM api wrapper
+#
+#Available models at https://ai.google.dev/models:
+# - Gemini Pro (gemini-pro): text -> text
+# - Gemini Pro Vision (gemini-pro-vision): text & images -> text
+# - PaLM2 Bison (text-bison-001): text -> text
+# - Embedding (embedding-001): text -> text
+# - Retrieval (aqa): text -> text
+#
+#system messages are available in:
+#   [$env.MY_ENV_VARS.chatgpt_config chagpt_systemmessages.json] | path join
+#
+#pre_prompts are available in:
+#   [$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join
+#
+#You can adjust the following safety settings categories:
+# - HARM_CATEGORY_HARASSMENT
+# - HARM_CATEGORY_HATE_SPEECH
+# - HARM_CATEGORY_SEXUALLY_EXPLICIT
+# - HARM_CATEGORY_DANGEROUS_CONTENT
+#
+#The possible thresholds are:
+# - BLOCK_NONE
+# - BLOCK_ONLY_HIGH
+# - BLOCK_MEDIUM_AND_ABOVE  
+# - BLOCK_LOW_AND_ABOVE
+#
+#You must use the flag --safety_settings and provide a table with two columns:
+# - category and threshold
+#
+#Note that:
+# - --select_system > --list_system > --system
+# - --select_preprompt > --pre_prompt
+export def google_ai [
+    prompt?: string                               # the query to Gemini
+    --model(-m):string = "gemini-pro"     # the model gemini-pro, gemini-pro-vision, etc
+    --system(-s):string = "You are a helpful assistant." # system message
+    --temp(-t): float = 0.9                       # the temperature of the model
+    --image(-i):string                        # filepath of image file for gemini-pro-vision
+    --list_system(-l)                             # select system message from list
+    --pre_prompt(-p)                              # select pre-prompt from list
+    --delim_with_backquotes(-d)   # to delimit prompt (not pre-prompt) with triple backquotes (')
+    --select_system: string                       # directly select system message    
+    --select_preprompt: string                    # directly select pre_prompt
+    --safety_settings:table #table with safety setting configuration (default all:BLOCK_NONE)
+    --chat(-c)              #starts chat mode (text only, gemini only)
+] {
+  #api parameters
+  let apikey = $env.MY_ENV_VARS.api_keys.google.gemini
+
+  let safetySettings = (
+    if ($safety_settings | is-empty) {
+      [
+          {
+              category: "HARM_CATEGORY_HARASSMENT",
+              threshold: "BLOCK_NONE",
+          },
+          {
+              category: "HARM_CATEGORY_HATE_SPEECH",
+              threshold: "BLOCK_NONE"
+          },
+          {
+              category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+              threshold: "BLOCK_NONE",
+          },
+          {
+              category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+              threshold: "BLOCK_NONE",
+          }
+      ]
+    } else {
+      $safety_settings
+    }
+  )
+
+  let for_bison_beta = if ($model =~ "bison") {"3"} else {""}
+  let for_bison_gen = if ($model =~ "bison") {":generateText"} else {":generateContent"}
+
+  let url_request = {
+      scheme: "https",
+      host: "generativelanguage.googleapis.com",
+      path: ("/v1beta" + $for_bison_beta +  "/models/" + $model + $for_bison_gen),
+      params: {
+          key: $apikey,
+      }
+    } | url join
+
+  #chat mode
+  if $chat {
+    if $model =~ "bison" {
+      return-error "only gemini model allowed in chat mode!"
+    }
+
+    print (echo-g "starting chat with gemini...")
+    print (echo-c "enter empty prompt to exit" "green")
+
+    let chat_char = "> "
+    let answer_color = "#FFFF00"
+
+    mut chat_prompt = "You are going to take the role of a helpful assistant that deliver its responses in markdown format (except only this one) and if you give any mathematical formula, then you must give it in latex code, delimited by double $.\nNow please greet the user."
+
+    mut contents = [
+          {
+            role: "user",
+            parts: [
+              {
+                "text": $chat_prompt
+              }
+            ]
+          }
+        ]
+
+    mut chat_request = {
+        contents: $contents,
+        generationConfig: {
+            temperature: $temp,
+        },
+        safetySettings: $safetySettings
+      }
+
+    mut answer = http post -t application/json $url_request $chat_request | get candidates.content.parts.0.text.0 
+
+    print (echo-c ("\n" + $answer + "\n") $answer_color)
+
+    #update request
+    $contents = (update_gemini_content $contents $answer "model")
+
+    #first question
+    $chat_prompt = (input $chat_char)
+
+    while not ($chat_prompt | is-empty) {
+      $contents = (update_gemini_content $contents $chat_prompt "user")
+
+      $chat_request.contents = $contents
+
+      $answer = (http post -t application/json $url_request $chat_request | get candidates.content.parts.0.text.0)
+
+      print (echo-c ("\n" + $answer + "\n") $answer_color)
+
+      $contents = (update_gemini_content $contents $answer "model")
+
+      $chat_prompt = (input $chat_char)
+    }
+
+    print (echo-g "chat with gemini ended...")
+    let sav = input (echo-g "would you like to save the conversation? (y/n): ")
+    if $sav == "y" {
+      let filename = input (echo-g "enter filename (default: gemini_chat): ")
+      let filename = if ($filename | is-empty) {"gemini_chat"} else {$filename}
+      save_gemini_chat $contents $filename
+    }
+    return
+  }
+
+  let prompt = if ($prompt | is-empty) {$in} else {$prompt}
+  if ($prompt | is-empty) {
+    return-error "Empty prompt!!!"
+  }
+  
+  if ($model == "gemini-pro-vision") and ($image | is-empty) {
+    return-error "gemini-pro-vision needs and image file!"
+  }
+
+  if ($model == "gemini-pro-vision") and (not ($image | path expand | path exists)) {
+    return-error "image file not found!" 
+  }
+
+  let extension = (
+    if $model == "gemini-pro-vision" {
+      $image | path parse | get extension
+    } else {
+      ""
+    }
+  )
+
+  let image = (
+    if $model == "gemini-pro-vision" {
+      open ($image | path expand) | encode base64
+    } else {
+      ""
+    }
+  )
+
+  #select system message
+  let system_messages = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_systemmessages.json] | path join))
+
+  mut ssystem = ""
+  if ($list_system and ($select_system | is-empty)) {
+    let selection = ($system_messages | columns | input list -f (echo-g "Select system message: "))
+    $ssystem = ($system_messages | get $selection)
+  } else if (not ($select_system | is-empty)) {
+    try {
+      $ssystem = ($system_messages | get $select_system)
+    } 
+  }
+  let system = if ($ssystem | is-empty) {$system} else {$ssystem}
+
+  #select pre-prompt
+  let pre_prompts = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join))
+
+  mut preprompt = ""
+  if ($pre_prompt and ($select_preprompt | is-empty)) {
+    let selection = ($pre_prompts | columns | input list -f (echo-g "Select pre-prompt: "))
+    $preprompt = ($pre_prompts | get $selection)
+  } else if (not ($select_preprompt | is-empty)) {
+    try {
+      $preprompt = ($pre_prompts | get $select_preprompt)
+    }
+  }
+
+  let prompt = (
+    if ($preprompt | is-empty) and $delim_with_backquotes {
+      "'''" + "\n" + $prompt + "\n" + "'''"
+    } else if ($preprompt | is-empty) {
+      $prompt
+    } else if $delim_with_backquotes {
+      $preprompt + "\n" + "'''" + "\n" + $prompt + "\n" + "'''"
+    } else {
+      $preprompt + $prompt
+    } 
+  )
+
+  let prompt = "Hey, in this question, you are going to take the following role:\n" + $system + "\n\nNow I need you to do the following:\n" + $prompt
+
+  # call to api
+  let request = (
+    if $model == "gemini-pro-vision" {
+      {
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: $prompt
+              },
+              {
+                  inline_data: {
+                    mime_type:  "image/jpeg",
+                    data: $image
+                }
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+            temperature: $temp,
+        },
+        safetySettings: $safetySettings
+      }
+    } else if ($model =~ "gemini") {
+      {
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                "text": $prompt
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+            temperature: $temp,
+        },
+        safetySettings: $safetySettings
+      }
+    } else if ($model =~ "bison") {
+      {
+        prompt: { 
+          text: $prompt
+        }
+      }
+    } else {
+      print (echo-r "model not available or comming soon")
+    } 
+  )
+
+  let answer = http post -t application/json $url_request $request
+
+  if ($model =~ "gemini") {
+    return $answer.candidates.content.parts.0.text.0
+  } else if ($model =~ "bison") {
+    return $answer.candidates.output.0
+  }
+}
+
+#update gemini contents with new content
+def update_gemini_content [
+  contents:list #contents to update
+  new:string    #message to add
+  role:string   #role of the message: user or model
+] {
+  let parts = [[text];[$new]]
+  return ($contents ++ {role: $role, parts: $parts})
+}
+
+#save gemini conversation to plain text
+def save_gemini_chat [contents,filename] {
+  $contents 
+  | flatten 
+  | flatten 
+  | skip
+  | each {|row| 
+    "**" + $row.role + "**: " + $row.text + "\n"
+    } 
+  | save $"($filename).md" -f
 }

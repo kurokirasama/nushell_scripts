@@ -642,6 +642,7 @@ export def "apps-update nushell" [] {
   cd ~/software/nushell
   git pull
   bash scripts/install-all.sh
+  cargo clean
 
   print (echo-g "updating config file...")
   update-nu-config
@@ -651,15 +652,18 @@ export def "apps-update nushell" [] {
   git pull
   cargo build --release
   cp -f target/release/nu_plugin_plot ~/.cargo/bin
+  cargo clean
 
   cd ~/software/nu_plugin_net
   git pull
   cargo install --path .
+  cargo clean
 
   cd ~/software/nu_plugin_port_scan
   git pull
   cargo build
   cargo install --path .
+  cargo clean
 
   print (echo-g "registering plugins...")
   reg-plugins

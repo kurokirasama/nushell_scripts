@@ -1,17 +1,17 @@
 ## Source https://github.com/nushell/nu_scripts/tree/main/maths ##
 
 #Root with a custom denominator
-export def root [ denominator, num ] {
+export def "math root" [ denominator, num ] {
 	$num ** ( 1 / $denominator ) | math round  -p 10
 }
 
 #Cube root
-export def croot [num] {
+export def "math croot" [num] {
 	$num ** ( 1 / 3 ) | math round -p 10
 }
 
 #Root with a custom scaler and denominator
-export def aroot [ scaler, denominator, num] {
+export def "math aroot" [ scaler, denominator, num] {
 	$num ** ($scaler / $denominator) | math round -p 10
 }
 
@@ -259,7 +259,7 @@ export def "math perm-coeff" [n:int, r:int] {
 
 #fibonacci sequence
 export def "math fibonacci" [n:int] {
-	unfold [0, 1] {|fib| 
+	generate [0, 1] {|fib| 
 		{
 			out: $fib.0, 
 			next: [$fib.1, ($fib.0 + $fib.1)]

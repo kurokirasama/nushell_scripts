@@ -248,3 +248,8 @@ export def wifi-pass [] {
     } 
   | flatten
 }
+
+#show stored ips
+export def show-ips [] {
+  open $env.MY_ENV_VARS.ips | table -e
+}
