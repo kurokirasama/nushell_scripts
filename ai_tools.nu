@@ -1456,7 +1456,7 @@ export def google_ai [
     let chat_char = "> "
     let answer_color = "#FFFF00"
 
-    mut chat_prompt = "You are going to take the role of a helpful assistant that deliver its responses in markdown format (except only this one) and if you give any mathematical formula, then you must give it in latex code, delimited by double $.\nNow please greet the user."
+    mut chat_prompt = "You are going to take the role of a helpful assistant that deliver its responses in markdown format (except only this one response) and if you give any mathematical formulas, then you must give it in latex code, delimited by double $.\nPick a name for yourself so users can address you..\nNow please greet the user."
 
     mut contents = [
           {
