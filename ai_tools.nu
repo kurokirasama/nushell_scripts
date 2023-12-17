@@ -1663,4 +1663,6 @@ def save_gemini_chat [contents,filename] {
     "**" + $row.role + "**: " + $row.text + "\n"
     } 
   | save $"($filename).md" -f
+
+  mv -f $"($filename).md" $env.MY_ENV_VARS.download_dir
 }
