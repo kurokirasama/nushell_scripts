@@ -1,5 +1,5 @@
 #copy private nushell script dir to public repo and commit
-export def copy-scripts-and-commit [] {
+export def copy-scripts-and-commit [--gemini(-G):bool = false] {
   print (echo-g "updating public repository...")
   let files = (
     ls $env.MY_ENV_VARS.nu_scripts 
@@ -11,7 +11,11 @@ export def copy-scripts-and-commit [] {
   $files | cp-pipe $env.MY_ENV_VARS.nu_scripts_public
 
   cd $env.MY_ENV_VARS.nu_scripts_public
-  ai git-push -g
+  if $gemini {
+    ai git-push -G
+  } else {
+    ai git-push -g
+  }
 }
 
 #clone ubuntu backup repo as main local repo
@@ -25,6 +29,7 @@ export def quick-ubuntu-and-tools-update-module [
   --update_scripts(-s)  #also update nushell scripts public repo
   --upload_debs(-d)     #also upload debs files to gdrive
   --force(-f)           #force the copy
+  --gemini(-G)          #use google gemini instead of gpt-4-turbo
 ] {
   let destination = "~/software/ubuntu_semiautomatic_install/" | path expand
   if not ($destination | path exists) {
@@ -39,9 +44,13 @@ export def quick-ubuntu-and-tools-update-module [
   }
   
   cd $destination
-  ai git-push -g
+  if $gemini {
+    ai git-push -G
+  } else {
+    ai git-push -g
+  }
 
-  if $update_scripts {copy-scripts-and-commit}
+  if $update_scripts {copy-scripts-and-commit -G $gemini}
   if $upload_debs {upload-debs-to-gdrive}
 }
 
