@@ -361,17 +361,8 @@ export def askai [
   --gemini(-G) #use google gemini instead of chatgpt
   --bison(-B)  #use google bison instead of chatgpt (needs --gemini)
   --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt4
+  --database(-D) #load chat conversation from database
 ] {
-  if $chat {
-    if $gemini {
-      google_ai -c
-    } else {
-      # $chat_gpt -c
-      print (echo-g "in progress")
-    }
-    return
-  }
-
   if $gpt4 and $gemini {
     return-error "Please select only one ai system!"
   }
@@ -427,27 +418,31 @@ export def askai [
     }
   )
 
+  if $chat {
+    if $gemini {
+      google_ai $prompt -c -D $database -t $temp --select_system $system -l $list_system
+    } else {
+      # chat_gpt $prompt -c -D $database -t $temp --select_system $system
+      print (echo-g "in progress")
+    }
+    return
+  }
+
   #use google
   if $gemini {
     let answer = (
       if $vision {
-        match [$list_system,$list_preprompt] {
-          [true,true] => {google_ai $prompt -t $temp -l -m gemini-pro-vision -p -d -i $image},
-          [true,false] => {google_ai $prompt -t $temp -l -m gemini-pro-vision -i $image},
-          [false,true] => {google_ai $prompt -t $temp --select_system $system -m gemini-pro-vision -p -d -i $image},
-          [false,false] => {google_ai $prompt -t $temp --select_system $system -m gemini-pro-vision -i $image},
+        match $list_preprompt {
+          true => {google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -p -d -i $image},
+          false => {google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -i $image}
         }
       } else {
-        match [$bison,$list_system,$list_preprompt] {
-        [true,true,false] => {google_ai $prompt -t $temp -l -m text-bison-001},
-        [true,false,false] => {google_ai $prompt -t $temp --select_system $system -m text-bison-001},
-        [false,true,false] => {google_ai $prompt -t $temp -l},
-        [false,false,false] => {google_ai $prompt -t $temp --select_system $system},
-        [true,true,true] => {google_ai $prompt -t $temp -l -m text-bison-001 -p -d},
-        [true,false,true] => {google_ai $prompt -t $temp --select_system $system -m text-bison-001 -p -d},
-        [false,true,true] => {google_ai $prompt -t $temp -l -p -d},
-        [false,false,true] => {google_ai $prompt -t $temp --select_system $system -p -d}
-      }
+          match [$bison,$list_preprompt] {
+          [true,false] => {google_ai $prompt -t $temp -l $list_system -m text-bison-001}
+          [false,false] => {google_ai $prompt -t $temp -l $list_system},
+          [true,true] => {google_ai $prompt -t $temp -l $list_system -m text-bison-001 -p -d},
+          [false,true] => {google_ai $prompt -t $temp -l $list_system -p -d},
+        }
       }
     )
 
@@ -1396,13 +1391,14 @@ export def google_ai [
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9                       # the temperature of the model
     --image(-i):string                        # filepath of image file for gemini-pro-vision
-    --list_system(-l)                             # select system message from list
+    --list_system(-l):bool = false            # select system message from list
     --pre_prompt(-p)                              # select pre-prompt from list
     --delim_with_backquotes(-d)   # to delimit prompt (not pre-prompt) with triple backquotes (')
     --select_system: string                       # directly select system message    
     --select_preprompt: string                    # directly select pre_prompt
     --safety_settings:table #table with safety setting configuration (default all:BLOCK_NONE)
-    --chat(-c)              #starts chat mode (text only, gemini only)
+    --chat(-c)     #starts chat mode (text only, gemini only)
+    --database(-D):bool = false #continue a chat mode conversation from database
 ] {
   #api parameters
   let apikey = $env.MY_ENV_VARS.api_keys.google.gemini
@@ -1444,10 +1440,26 @@ export def google_ai [
       }
     } | url join
 
+  #select system message
+  let system_messages = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_systemmessages.json] | path join))
+
+  mut ssystem = ""
+  if ($list_system and ($select_system | is-empty)) {
+    let selection = ($system_messages | columns | input list -f (echo-g "Select system message: "))
+    $ssystem = ($system_messages | get $selection)
+  } else if (not ($select_system | is-empty)) {
+    $ssystem = ($system_messages | get $select_system)
+  }
+  let system = if ($ssystem | is-empty) {$system} else {$ssystem}
+
   #chat mode
   if $chat {
     if $model =~ "bison" {
       return-error "only gemini model allowed in chat mode!"
+    }
+
+    if $database and (ls ([$env.MY_ENV_VARS.chatgpt bard] | path join) | length) == 0 {
+      return-error "no saved conversations exist!"
     }
 
     print (echo-g "starting chat with gemini...")
@@ -1456,9 +1468,25 @@ export def google_ai [
     let chat_char = "> "
     let answer_color = "#FFFF00"
 
-    mut chat_prompt = "You are going to take the role of a helpful assistant that deliver its responses in markdown format (except only this one response) and if you give any mathematical formulas, then you must give it in latex code, delimited by double $. Users do not need to know about this.\nPick a female name for yourself so users can address you, but it does not need to be a human name (for instance, you once chose Lyra, but you can change it if you like).\nNow please greet the user, making sure you state your name."
+    let chat_prompt = (
+      if $database {
+        "Please greet the user again stating your name and summarize in a brief sentence our conversation so far."
+      } else {
+        "Please take the next role:\n\n" + $system + "\n\nYou will also deliver your responses in markdown format (except only this first one) and if you give any mathematical formulas, then you must give it in latex code, delimited by double $. Users do not need to know about this last 2 instructions.\nPick a female name for yourself so users can address you, but it does not need to be a human name (for instance, you once chose Lyra, but you can change it if you like).\nNow please greet the user, making sure you state your name."
+      }
+    )
 
-    mut contents = [
+    mut contents = (
+      if $database {
+        ls ([$env.MY_ENV_VARS.chatgpt bard] | path join)
+        | get name
+        | path parse
+        | get stem 
+        | input list -f (echo-c "select conversation to continue: " "#FF00FF")
+        | open ({parent: ($env.MY_ENV_VARS.chatgpt + "/bard"), stem: $in, extension: "json"} | path join)
+        | update_gemini_content $in $chat_prompt "user"
+      } else {
+        [
           {
             role: "user",
             parts: [
@@ -1468,6 +1496,8 @@ export def google_ai [
             ]
           }
         ]
+      }
+    )
 
     mut chat_request = {
         contents: $contents,
@@ -1485,7 +1515,11 @@ export def google_ai [
     $contents = (update_gemini_content $contents $answer "model")
 
     #first question
-    $chat_prompt = (input $chat_char)
+    if not ($prompt | is-empty) {
+      print (echo-c ($chat_char + $prompt + "\n") "white")
+    }
+    mut chat_prompt = if ($prompt | is-empty) {input $chat_char} else {$prompt}
+
 
     while not ($chat_prompt | is-empty) {
       $contents = (update_gemini_content $contents $chat_prompt "user")
@@ -1500,13 +1534,31 @@ export def google_ai [
 
       $chat_prompt = (input $chat_char)
     }
-
     print (echo-g "chat with gemini ended...")
-    let sav = input (echo-g "would you like to save the conversation? (y/n): ")
+
+    let sav = input (echo-c "would you like to save the conversation in local drive? (y/n): " "green")
     if $sav == "y" {
       let filename = input (echo-g "enter filename (default: gemini_chat): ")
       let filename = if ($filename | is-empty) {"gemini_chat"} else {$filename}
       save_gemini_chat $contents $filename
+    }
+
+    let sav = input (echo-c "would you like to save the conversation in joplin? (y/n): " "green")
+    if $sav == "y" {
+      mut filename = input (echo-g "enter note title: ")
+      while ($filename | is-empty) {
+        $filename = (input (echo-g "enter note title: "))
+      }
+      save_gemini_chat $contents $filename -j
+    }
+
+    let sav = input (echo-c "would you like to save this in the conversations database? (y/n): " "green")
+    if $sav == "y" {
+      mut filename = input (echo-g "enter filename: ")
+      while ($filename | is-empty) {
+        $filename = (input (echo-g "enter filename: "))
+      }
+      save_gemini_chat $contents $filename -d
     }
     return
   }
@@ -1540,20 +1592,6 @@ export def google_ai [
     }
   )
 
-  #select system message
-  let system_messages = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_systemmessages.json] | path join))
-
-  mut ssystem = ""
-  if ($list_system and ($select_system | is-empty)) {
-    let selection = ($system_messages | columns | input list -f (echo-g "Select system message: "))
-    $ssystem = ($system_messages | get $selection)
-  } else if (not ($select_system | is-empty)) {
-    try {
-      $ssystem = ($system_messages | get $select_system)
-    } 
-  }
-  let system = if ($ssystem | is-empty) {$system} else {$ssystem}
-
   #select pre-prompt
   let pre_prompts = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join))
 
@@ -1578,7 +1616,7 @@ export def google_ai [
       $preprompt + $prompt
     } 
   )
-
+  
   let prompt = "Hey, in this question, you are going to take the following role:\n" + $system + "\n\nNow I need you to do the following:\n" + $prompt
 
   # call to api
@@ -1649,20 +1687,47 @@ def update_gemini_content [
   new:string    #message to add
   role:string   #role of the message: user or model
 ] {
+  let contents = if ($contents | is-empty) {$in} else {$contents}
   let parts = [[text];[$new]]
   return ($contents ++ {role: $role, parts: $parts})
 }
 
 #save gemini conversation to plain text
-def save_gemini_chat [contents,filename] {
-  $contents 
-  | flatten 
-  | flatten 
-  | skip
-  | each {|row| 
-    "**" + $row.role + "**: " + $row.text + "\n"
-    } 
-  | save $"($filename).md" -f
+def save_gemini_chat [
+  contents
+  filename
+  --joplin(-j)    #save note to joplin instead of local
+  --database(-d)  #save database instead
+] {
+  if $joplin and $database {
+    return-error "only one of these flags allowed"
+  }
 
-  mv -f $"($filename).md" $env.MY_ENV_VARS.download_dir
+  let plain_text = (
+    $contents 
+    | flatten 
+    | flatten 
+    | skip
+    | each {|row| 
+        if $row.role =~ "model" {
+          $row.text + "\n"
+        } else {
+          "> **" + $row.text + "**\n"
+        }
+      }
+  )
+
+  if $joplin {
+    $plain_text | joplin create $filename -n "AI_Bard" -t "ai,bard,ai_conversations"
+    return 
+  } 
+
+  if $database {
+    $contents | save -f ([$env.MY_ENV_VARS.chatgpt bard $"($filename).json"] | path join)
+    return
+  }
+
+  $plain_text | save -f ([$env.MY_ENV_VARS.download_dir $"($filename).txt"] | path join)
+  
+  mv -f ([$env.MY_ENV_VARS.download_dir $"($filename).txt"] | path join) ([$env.MY_ENV_VARS.download_dir $"($filename).md"] | path join)
 }

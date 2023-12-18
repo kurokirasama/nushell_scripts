@@ -374,6 +374,48 @@ export def "joplin search" [
   if $edit {
     joplin edit $id 
   } else {
+    print (echo-g $"node id: ($id)")
     joplin cat $id | nu-highlight
   }
 }
+
+#create joplin note
+export def "joplin create" [ 
+  title:string            #title of the note
+  content?:string         #body of the note (can be piped)
+  --tags(-t):string       #comma separated list of tags
+  --notebook(-n):string   #specify notebook instead of list
+] {
+  let content = if ($content | is-empty) {$in} else {$content} | to text | str join
+
+  let notebooks = joplin ls / | lines | str trim 
+  let notebook = (
+    if ($notebook | is-empty) {
+      $notebooks
+      | input list -f (echo-g "select notebook for the note: ")
+    } else {
+      $notebook
+    }
+  )
+
+  if $notebook not-in $notebooks {
+    return-error "notebook doesn't exists!"
+  }
+  
+  joplin use $notebook
+  joplin mknote $title
+
+  if not ($tags | is-empty) {
+    $tags
+    | split row ","
+    | each {|tag|
+        joplin tag add $tag $title
+        sleep 0.1sec
+      }    
+  }
+
+  $content | xclip -sel clip
+  print ("copy (ctrl + shit + v) after the second line, in the following window...")
+  joplin edit $title
+  joplin sync
+} 
