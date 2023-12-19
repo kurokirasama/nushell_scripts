@@ -353,6 +353,7 @@ export def askai [
   --rubb(-R)     # use rubb s.m. with temperature 0.5, else use assistant with temp 0.9
   --list_system(-l)       # select s.m from list (takes precedence over flags)
   --list_preprompt(-p)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
+  --delimit_with_quotes(-d) #add '''  before and after prompt
   --temperature(-t):float # takes precedence over the 0.7 and 0.9
   --gpt4(-g)              # use gpt-4-1106-preview instead of gpt-3.5-turbo-1106 (default)
   --vision(-v)            # use gpt-4-vision-preview/gemini-pro-vision
@@ -420,9 +421,9 @@ export def askai [
 
   if $chat {
     if $gemini {
-      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt  -l $list_system -d
+      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt  -l $list_system -d $delimit_with_quotes
     } else {
-      # chat_gpt $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d
+      # chat_gpt $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d $delimit_with_quotes
       print (echo-g "in progress")
     }
     return
@@ -432,11 +433,11 @@ export def askai [
   if $gemini {
     let answer = (
       if $vision {
-        google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -p $list_preprompt -d -i $image
+        google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -p $list_preprompt -d true -i $image
       } else {
           match $bison {
-          true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d},
-          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -d},
+          true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d true},
+          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -d true},
         }
       }
     )
@@ -527,12 +528,12 @@ export def "ai git-push" [
         },
         [false,true] => {
           try {
-            google_ai $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d
+            google_ai $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true
           } catch {
             try {
-              google_ai $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d
+              google_ai $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true
             } catch {
-              google_ai $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d
+              google_ai $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d true
             }
           }
         }
@@ -700,7 +701,7 @@ export def "ai transcription-summary" [
     } else if (not $gemini) {
       chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d 
     } else {
-      google_ai $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d 
+      google_ai $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d true
     }
     | save -f $output
 
@@ -747,7 +748,7 @@ export def "ai transcription-summary-single" [
   } else if (not $gemini) {
     chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d
   } else {
-    google_ai $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d
+    google_ai $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d true
   }
   | save -f $output
 
@@ -917,7 +918,7 @@ export def "ai yt-summary" [
     } else if (not $gemini) {
       chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d
     } else {
-      google_ai $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d 
+      google_ai $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d true
     }
     | save -f $output
 
@@ -946,7 +947,7 @@ export def "ai yt-transcription-summary" [
   } else if (not $gemini) {
     chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt summarize_ytvideo -d
   } else {
-    google_ai $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt summarize_ytvideo -d
+    google_ai $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt summarize_ytvideo -d true
   }
   | save -f $output_file
 
@@ -1034,7 +1035,7 @@ export def "ai media-summary" [
     } else if (not $gemini) {
       chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d
     } else {
-      google_ai $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d
+      google_ai $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d true
     }
     | save -f $output
 
@@ -1388,7 +1389,7 @@ export def google_ai [
     --image(-i):string                        # filepath of image file for gemini-pro-vision
     --list_system(-l):bool = false            # select system message from list
     --pre_prompt(-p):bool = false             # select pre-prompt from list
-    --delim_with_backquotes(-d)   # to delimit prompt (not pre-prompt) with triple backquotes (')
+    --delim_with_backquotes(-d):bool = false # to delimit prompt (not pre-prompt) with triple backquotes (')
     --select_system: string                       # directly select system message    
     --select_preprompt: string                    # directly select pre_prompt
     --safety_settings:table #table with safety setting configuration (default all:BLOCK_NONE)
