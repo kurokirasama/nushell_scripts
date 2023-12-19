@@ -347,12 +347,12 @@ export def chat_gpt [
 export def askai [
   prompt?:string  # string with the prompt, can be piped
   system?:string  # string with the system message. It has precedence over the s.m. flags
-  --programmer(-p) # use programmer s.m with temp 0.7, else use assistant with temp 0.9
-  --teacher(-s) # use teacher (sensei) s.m with temp 0.95, else use assistant with temp 0.9
-  --engineer(-e) # use prompt_engineer s.m. with temp 0.8, else use assistant with temp 0.9
-  --rubb(-r)     # use rubb s.m. with temperature 0.5, else use assistant with temp 0.9
+  --programmer(-P) # use programmer s.m with temp 0.7, else use assistant with temp 0.9
+  --teacher(-T) # use teacher (sensei) s.m with temp 0.95, else use assistant with temp 0.9
+  --engineer(-E) # use prompt_engineer s.m. with temp 0.8, else use assistant with temp 0.9
+  --rubb(-R)     # use rubb s.m. with temperature 0.5, else use assistant with temp 0.9
   --list_system(-l)       # select s.m from list (takes precedence over flags)
-  --list_preprompt(-b)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
+  --list_preprompt(-p)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
   --temperature(-t):float # takes precedence over the 0.7 and 0.9
   --gpt4(-g)              # use gpt-4-1106-preview instead of gpt-3.5-turbo-1106 (default)
   --vision(-v)            # use gpt-4-vision-preview/gemini-pro-vision
@@ -420,9 +420,9 @@ export def askai [
 
   if $chat {
     if $gemini {
-      google_ai $prompt -c -D $database -t $temp --select_system $system -l $list_system
+      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt  -l $list_system -d
     } else {
-      # chat_gpt $prompt -c -D $database -t $temp --select_system $system
+      # chat_gpt $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d
       print (echo-g "in progress")
     }
     return
@@ -432,16 +432,11 @@ export def askai [
   if $gemini {
     let answer = (
       if $vision {
-        match $list_preprompt {
-          true => {google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -p -d -i $image},
-          false => {google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -i $image}
-        }
+        google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -p $list_preprompt -d -i $image
       } else {
-          match [$bison,$list_preprompt] {
-          [true,false] => {google_ai $prompt -t $temp -l $list_system -m text-bison-001}
-          [false,false] => {google_ai $prompt -t $temp -l $list_system},
-          [true,true] => {google_ai $prompt -t $temp -l $list_system -m text-bison-001 -p -d},
-          [false,true] => {google_ai $prompt -t $temp -l $list_system -p -d},
+          match $bison {
+          true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d},
+          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -d},
         }
       }
     )
@@ -1392,7 +1387,7 @@ export def google_ai [
     --temp(-t): float = 0.9                       # the temperature of the model
     --image(-i):string                        # filepath of image file for gemini-pro-vision
     --list_system(-l):bool = false            # select system message from list
-    --pre_prompt(-p)                              # select pre-prompt from list
+    --pre_prompt(-p):bool = false             # select pre-prompt from list
     --delim_with_backquotes(-d)   # to delimit prompt (not pre-prompt) with triple backquotes (')
     --select_system: string                       # directly select system message    
     --select_preprompt: string                    # directly select pre_prompt
@@ -1451,6 +1446,33 @@ export def google_ai [
     $ssystem = ($system_messages | get $select_system)
   }
   let system = if ($ssystem | is-empty) {$system} else {$ssystem}
+
+  print ($system)
+
+  #select pre-prompt
+  let pre_prompts = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join))
+
+  mut preprompt = ""
+  if ($pre_prompt and ($select_preprompt | is-empty)) {
+    let selection = ($pre_prompts | columns | input list -f (echo-g "Select pre-prompt: "))
+    $preprompt = ($pre_prompts | get $selection)
+  } else if (not ($select_preprompt | is-empty)) {
+    try {
+      $preprompt = ($pre_prompts | get $select_preprompt)
+    }
+  }
+
+  let prompt = (
+    if ($preprompt | is-empty) and $delim_with_backquotes {
+      "'''" + "\n" + $prompt + "\n" + "'''"
+    } else if ($preprompt | is-empty) {
+      $prompt
+    } else if $delim_with_backquotes {
+      $preprompt + "\n" + "'''" + "\n" + $prompt + "\n" + "'''"
+    } else {
+      $preprompt + $prompt
+    } 
+  )
 
   #chat mode
   if $chat {
@@ -1592,31 +1614,6 @@ export def google_ai [
     }
   )
 
-  #select pre-prompt
-  let pre_prompts = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join))
-
-  mut preprompt = ""
-  if ($pre_prompt and ($select_preprompt | is-empty)) {
-    let selection = ($pre_prompts | columns | input list -f (echo-g "Select pre-prompt: "))
-    $preprompt = ($pre_prompts | get $selection)
-  } else if (not ($select_preprompt | is-empty)) {
-    try {
-      $preprompt = ($pre_prompts | get $select_preprompt)
-    }
-  }
-
-  let prompt = (
-    if ($preprompt | is-empty) and $delim_with_backquotes {
-      "'''" + "\n" + $prompt + "\n" + "'''"
-    } else if ($preprompt | is-empty) {
-      $prompt
-    } else if $delim_with_backquotes {
-      $preprompt + "\n" + "'''" + "\n" + $prompt + "\n" + "'''"
-    } else {
-      $preprompt + $prompt
-    } 
-  )
-  
   let prompt = "Hey, in this question, you are going to take the following role:\n" + $system + "\n\nNow I need you to do the following:\n" + $prompt
 
   # call to api
