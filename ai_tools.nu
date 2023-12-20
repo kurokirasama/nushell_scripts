@@ -1,4 +1,6 @@
-    #ai tools
+export alias bard = askai -c -G
+
+#ai tools
 export def "ai help" [] {
   print (
     echo ["This set of tools need a few dependencies installed:"
@@ -1759,7 +1761,7 @@ export def "gcal ai" [
   )
 
 #######################
-  print ($gcal_query)##
+  print ($gcal_query)
 #######################
 
   let method = $gcal_query | get method 
