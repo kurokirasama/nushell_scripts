@@ -343,6 +343,8 @@ export def chat_gpt [
 #
 #Uses chatgpt by default
 #
+#if --force and --chat are used together, first prompt is taken from file
+#
 #For more personalization use `chat_gpt` or `gemini`
 export def askai [
   prompt?:string  # string with the prompt, can be piped
@@ -475,6 +477,7 @@ export def askai [
 
   if $fast {
     $answer | save -f ~/Yandex.Disk/ChatGpt/answer.md
+    return
   } else {
     return $answer  
   } 
@@ -1448,8 +1451,6 @@ export def google_ai [
   }
   let system = if ($ssystem | is-empty) {$system} else {$ssystem}
 
-  print ($system)
-
   #select pre-prompt
   let pre_prompts = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join))
 
@@ -1728,4 +1729,73 @@ def save_gemini_chat [
   $plain_text | save -f ([$env.MY_ENV_VARS.download_dir $"($filename).txt"] | path join)
   
   mv -f ([$env.MY_ENV_VARS.download_dir $"($filename).txt"] | path join) ([$env.MY_ENV_VARS.download_dir $"($filename).md"] | path join)
+}
+
+#gcal via ai
+#
+#Use a natural language description to:
+#- Ask for information about your week or month schedule
+#- Add an event to your calendar
+export def "gcal ai" [
+  request?:string #query to gcal
+  --gpt4(-g)     #uses gpt-4-turbo
+  --gemini(-G)   #uses gemini
+] {
+  let request = if ($request | is-empty) {$in} else {$request}
+  let date_now = date now | format date "%Y.%m.%d"
+
+  let prompt =  $request + ".\nPlease consider that today's date is " + $date_now
+
+  #get data to make query to gcal
+  let gcal_query = (
+    if $gemini {
+      google_ai $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d true
+    } else if $gpt4 {
+      chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d -m "gpt-4-turbo"
+    } else {
+      chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d
+    }
+    | from json
+  )
+
+#######################
+  print ($gcal_query)##
+#######################
+
+  let method = $gcal_query | get method 
+
+  #get data from gcal using appropriate method and answer user question
+  match $method {
+    "agenda" => {
+      let mode = $gcal_query | get mode
+      let start = $gcal_query | get start
+      let end = $gcal_query | get end
+
+      let gcal_info = (
+        match $mode {
+          "full" => {gcal agenda -f $start $end},
+          _ => {gcal agenda $start $end}
+        }
+      )
+
+      let gcal2nl_prompt =  "'''\n" + $gcal_info + "\n'''\n===\n" + $prompt + "\n==="
+
+      #user question response
+      let gcal_response = (
+        if $gemini {
+          google_ai $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -d false
+        } else if $gpt4 {
+          chat_gpt $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -m "gpt-4-turbo"
+        } else {
+          chat_gpt $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl
+        }
+      )
+
+      return $gcal_response
+    },
+    "add" => {
+      print ("in progress")
+    },
+    _ => {return-error "wrong method!"}
+  }
 }

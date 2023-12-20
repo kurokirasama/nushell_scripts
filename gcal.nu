@@ -7,6 +7,7 @@ export def "gcal help" [] {
       "- gcal agenda"
       "- gcal semana"
       "- gcal mes"
+      "- gcal list"
     ] | str join "\n"
     | nu-highlight
   ) 
@@ -22,8 +23,7 @@ export def "gcal add" [
 ] {
   let calendar = (
     if ($calendar | is-empty) {
-      $env.MY_ENV_VARS.google_calendars_full 
-      | split row "|"
+      gcal list -r
       | sort
       | input list -f (echo-g "Select calendar: ")
     } else {
@@ -46,17 +46,12 @@ export def "gcal add" [
 # agenda "--details=all"
 # agenda --full "--details=all"
 export def "gcal agenda" [
-  --full    #show all calendars (export default: 0)
-  ...rest   #extra flags for gcalcli between quotes (specified full needed)
+  --full(-f)  #show all calendars
+  ...rest     #extra flags for gcalcli between quotes (specified full needed)
 ] {
-  let calendars = $env.MY_ENV_VARS.google_calendars
-  let calendars_full = $env.MY_ENV_VARS.google_calendars_full
 
-  if $full {
-    gcalcli --calendar $"($calendars_full)" agenda --military $rest
-    return
-  } 
-
+  let calendars = gcal list -R (not $full) -f $full| str join "|"
+  
   gcalcli --calendar $"($calendars)" agenda --military $rest
 }
 
@@ -68,16 +63,10 @@ export def "gcal agenda" [
 # semana "--details=all"
 # semana --full "--details=all"
 export def "gcal semana" [
-  --full    #show all calendars (export default: 0)
-  ...rest   #extra flags for gcalcli between quotes (specified full needed)
+  --full(-f) #show all calendars (export default: 0)
+  ...rest    #extra flags for gcalcli between quotes (specified full needed)
 ] {
-  let calendars = $env.MY_ENV_VARS.google_calendars
-  let calendars_full = $env.MY_ENV_VARS.google_calendars_full
-  
-  if $full {
-    gcalcli --calendar $"($calendars_full)" calw $rest --military --monday
-    return
-  } 
+  let calendars = gcal list -R (not $full) -f $full | str join "|"
 
   gcalcli --calendar $"($calendars)" calw $rest --military --monday
 }
@@ -90,16 +79,31 @@ export def "gcal semana" [
 # mes "--details=all"
 # mes --full "--details=all"
 export def "gcal mes" [
-  --full    #show all calendars (export default: 0)
-  ...rest   #extra flags for gcalcli between quotes (specified full needed)
+  --full(-f)  #show all calendars (export default: 0)
+  ...rest     #extra flags for gcalcli between quotes (specified full needed)
 ] {
-  let calendars = $env.MY_ENV_VARS.google_calendars
-  let calendars_full = $env.MY_ENV_VARS.google_calendars_full
-  
-  if not $full {
-    gcalcli --calendar $"($calendars_full)" calm $rest --military --monday
-    return
-  } 
+  let calendars = gcal list -R (not $full) -f $full | str join "|"
 
   gcalcli --calendar $"($calendars)" calm $rest --military --monday
+}
+
+#list available calendars
+export def "gcal list" [
+  --readers(-r) #exclude read-only calendars
+  --readers_bool(-R):bool = false #same as -r, but bool flag
+  --full(-f):bool = true  #if false, filter not wanted calendars
+] {
+  gcalcli list
+  | ansi strip
+  | lines
+  | skip 2 
+  | if $readers or $readers_bool {find -v reader} else {find ""}
+  | if $full {find ""} else {find -v Cuentas}
+  | drop 
+  | str replace -a "owner" "" 
+  | str replace "writer" "" 
+  | str replace "reader" "" 
+  | str replace "    " "" 
+  | str replace "   " "" 
+  | str trim
 }

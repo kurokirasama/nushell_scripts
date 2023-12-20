@@ -7,6 +7,7 @@ use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/tasker.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/crypt.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/defs.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/system.nu *
+use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/gcal.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/apis.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/ai_tools.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/github.nu *
@@ -17,7 +18,6 @@ use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/update_apps.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/network.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/transmission.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/yandex.nu *
-use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/gcal.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/geek.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/yt_api.nu *
 use /home/kira/Yandex.Disk/Backups/linux/nu_scripts/maths.nu *
