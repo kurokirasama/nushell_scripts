@@ -1,5 +1,3 @@
-export alias quantum = quick-ubuntu-and-tools-update-module
-
 #copy private nushell script dir to public repo and commit
 export def copy-scripts-and-commit [--gemini(-G):bool = false] {
   print (echo-g "updating public repository...")
@@ -75,3 +73,5 @@ export def upload-debs-to-gdrive [] {
     mv -f debs.7z $env.MY_ENV_VARS.gdrive_debs
   }
 }
+
+export alias quantum = quick-ubuntu-and-tools-update-module

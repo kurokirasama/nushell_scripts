@@ -1736,12 +1736,19 @@ def save_gemini_chat [
 #gcal via ai
 #
 #Use a natural language description to:
-#- Ask for information about your week or month schedule
+#
+#- Ask for information about your calendar schedule
 #- Add an event to your calendar
+#
+#Example:
+#- tell me my events this week
+#- tell me my work events next week
+#- tell me my medical appointmenst in january 2024
+#- tell me my available times for a meeting next week
 export def "gcal ai" [
   request?:string #query to gcal
-  --gpt4(-g)     #uses gpt-4-turbo
-  --gemini(-G)   #uses gemini
+  --gpt4(-g)      #uses gpt-4-turbo
+  --gemini(-G)    #uses gemini
 ] {
   let request = if ($request | is-empty) {$in} else {$request}
   let date_now = date now | format date "%Y.%m.%d"
@@ -1759,10 +1766,6 @@ export def "gcal ai" [
     }
     | from json
   )
-
-#######################
-  print ($gcal_query)
-#######################
 
   let method = $gcal_query | get method 
 
@@ -1796,7 +1799,13 @@ export def "gcal ai" [
       return $gcal_response
     },
     "add" => {
-      print ("in progress")
+      let calendar = $gcal_query | get calendar
+      let title = $gcal_query | get title
+      let when = $gcal_query | get start
+      let where = $gcal_query | get where
+      let duration = $gcal_query | get duration
+      
+      gcal add $calendar $title $when $where $duration
     },
     _ => {return-error "wrong method!"}
   }
