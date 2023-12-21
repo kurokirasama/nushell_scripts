@@ -1818,3 +1818,6 @@ export def "gcal ai" [
     _ => {return-error "wrong method!"}
   }
 }
+
+#alias for gcal ai with gemini
+export alias g = gcal ai -G
