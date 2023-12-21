@@ -11,6 +11,8 @@ export def copy-scripts-and-commit [--gemini(-G):bool = false] {
   $files | cp-pipe $env.MY_ENV_VARS.nu_scripts_public
 
   cd $env.MY_ENV_VARS.nu_scripts_public
+  sed -i 's/\/home\/kira\/Yandex.Disk\/Backups\/linux\/nu_scripts/\/path\/to\/nushell_scripts/g' append_to_config.nu
+  
   if $gemini {
     ai git-push -G
   } else {

@@ -212,11 +212,23 @@ def uv_class [uvIndex:number] {
 #AQUIIII
 # air pollution
 def get_airCond [loc] {
-    let apiKey = $env.MY_ENV_VARS.api_keys.air_visual.api_key
-    let lat = (echo $loc | split row "," | get 0)
-    let lon = (echo $loc | split row "," | get 1)
-    let url = $"https://api.airvisual.com/v2/nearest_city?lat=($lat)&lon=($lon)&key=($apiKey)"
-    let aqius = ((http get $url).data.current.pollution.aqius | into int)
+    let apikey = $env.MY_ENV_VARS.api_keys.air_visual.api_key
+
+    let aqius = {
+          scheme: "https",
+          host: "api.airvisual.com",
+          path: "/v2/nearest_city",
+          params: {
+              lat: ($loc | split row "," | get 0),
+              lon: ($loc | split row "," | get 1),
+              key: $apikey
+          }
+        } 
+        | url join
+        | http get $in 
+        | get data.current.pollution.aqius
+        | into int
+
 
     # clasification (standard)
     if $aqius < 51 { 

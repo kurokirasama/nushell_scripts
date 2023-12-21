@@ -1710,6 +1710,7 @@ def save_gemini_chat [
   if $joplin and $database {
     return-error "only one of these flags allowed"
   }
+  let filename = if ($filename | is-empty) {input (echo-g "enter filename: ")} else {$filename}
 
   let plain_text = (
     $contents 

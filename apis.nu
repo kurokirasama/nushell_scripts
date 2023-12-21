@@ -46,7 +46,7 @@ export def trans [
   match $openai {
     false => {
       let trans_credential = $env.MY_ENV_VARS.api_keys.mymemmory
-      let key = ($trans_credential | get token)
+      let apikey = ($trans_credential | get token)
       let user = ($trans_credential | get username)
 
       let from = if ($from | is-empty) {"en-US"} else {$from}
@@ -54,7 +54,18 @@ export def trans [
 
       let to_translate = ($search | str join "%20")
 
-      let url = $"https://api.mymemory.translated.net/get?q=($to_translate)&langpair=($from)%7C($to)&of=json&key=($key)&de=($user)"
+      let url = {
+        scheme: "https",
+        host: "api.mymemory.translated.net",
+        path: "/get",
+        params: {
+            q: $to_translate,
+            langpair: ($from + "%7C" + $to),
+            of: "json",
+            key: $apikey,
+            de: $user
+        }
+      } | url join
   
       let response = (http get $url)
       let status = ($response | get responseStatus)
@@ -113,12 +124,21 @@ export def "rebrandly list" [longurl="www.google.com"] {
   } 
 
   let credential = $env.MY_ENV_VARS.api_keys.rebrandly
-  let api_key = ($credential | get api_key)
+  let apikey = ($credential | get api_key)
     
-  let base_url = "https://api.rebrandly.com/v1/links"
-  let url = $base_url + "?domain.id=" + $longurl + "&orderBy=createdAt&orderDir=desc&limit=25"
+  let url = {
+        scheme: "https",
+        host: "api.rebrandly.com",
+        path: "/v1/links",
+        params: {
+            domain.id: $longurl,
+            orderBy: "createdAt",
+            orderDir: "desc",
+            limit: 25
+        }
+      } | url join
 
-  http get $url -H ["apikey", $api_key] -H ["accept", "application/json"]
+  http get $url -H ["apikey", $apikey] -H ["accept", "application/json"]
 }
 
 #get eta via maps api
@@ -128,14 +148,23 @@ export def "maps eta" [
   --mode = "driving"  #driving mode (driving, transit, walking)
   --avoid             #whether to avoid highways (default:false)
 ] {
-  let api_key = $env.MY_ENV_VARS.api_keys.google.general
+  let apikey = $env.MY_ENV_VARS.api_keys.google.general
 
   let origin_address = (
     if $origin =~ '^(-?\d+\.\d+),(-?\d+\.\d+)$' {
-      http get ("https://maps.googleapis.com/maps/api/geocode/json?latlng=" + $origin + "&sensor=true&key=" + $api_key)
-      | get results 
-      | get formatted_address 
-      | get 0
+      {
+        scheme: "https",
+        host: "maps.googleapis.com",
+        path: "/maps/api/geocode/json",
+        params: {
+            latlng: $origin,
+            sensor: "true",
+            key: $apikey
+        }
+      } 
+      | url join
+      | http get $in
+      | get results.formatted_address.0
     } else {
       $origin
     } 
@@ -143,10 +172,19 @@ export def "maps eta" [
   
   let destination_address = (
     if $destination =~ '^(-?\d+\.\d+),(-?\d+\.\d+)$' {
-      http get ("https://maps.googleapis.com/maps/api/geocode/json?latlng=" + $destination + "&sensor=true&key=" + $api_key) 
-      | get results 
-      | get formatted_address 
-      | get 0 
+       {
+        scheme: "https",
+        host: "maps.googleapis.com",
+        path: "/maps/api/geocode/json",
+        params: {
+            latlng: $destination,
+            sensor: "true",
+            key: $apikey
+        }
+      } 
+      | url join
+      | http get $in 
+      | get results.formatted_address.0 
     } else {
       $destination
     }
@@ -154,9 +192,26 @@ export def "maps eta" [
 
   let avoid_option = if $avoid {"&avoid=highways"} else {""} 
 
-  let url = ("https://maps.googleapis.com/maps/api/directions/json?origin=" + $origin + "&destination=" + $destination + "&mode=" + $mode + "&departure_time=now&key=" + $api_key + $avoid_option)
+  let url = ("https://maps.googleapis.com/maps/api/directions/json?origin=" + $origin + "&destination=" + $destination + "&mode=" + $mode + "&departure_time=now&key=" + $apikey + $avoid_option)
 
-  let response = (http get $url)
+  let response = (
+    {
+      scheme: "https",
+      host: "maps.googleapis.com",
+      path: "/maps/api/geocode/json",
+      params: {
+        origin: $origin,
+        destination: $destination,
+        mode: $mode,
+        departure_time: "now",
+        sensor: "true",
+        key: $apikey
+      }
+    } 
+    | url join 
+    | str append $avoid_option
+    | http get $in
+  )
 
   let distance = $response.routes.legs.0.distance.text.0
   let steps = $response.routes.legs.0.steps

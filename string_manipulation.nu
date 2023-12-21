@@ -1,10 +1,10 @@
 #string prepend
-export def "str prepend" [toprepend] { 
+export def "str prepend" [toprepend:string] { 
   $toprepend + $in
 }
 
 #string append
-export def "str append" [toappend] { 
+export def "str append" [toappend:string] { 
   $in + $toappend
 }
 
@@ -22,7 +22,7 @@ export def "str remove-accent" [text?:string] {
 }
 
 #convert hh:mm:ss to duration
-export def "into duration-from-hhmmss" [hhmmss?] {
+export def "into duration-from-hhmmss" [hhmmss?:string] {
   if ($hhmmss | is-empty) {
     $in
   } else {

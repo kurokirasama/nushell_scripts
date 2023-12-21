@@ -858,3 +858,8 @@ export def "apps-update tiv" [] {
   git pull; cd src/
   make; sudo make install
 }
+
+#update mermaid filter
+export def "apps-update mermaid" [] {
+  sudo npm update --global mermaid-filter
+}
