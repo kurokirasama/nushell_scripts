@@ -54,6 +54,9 @@ export def quick-ubuntu-and-tools-update-module [
   if $upload_debs {upload-debs-to-gdrive}
 }
 
+#alias for short call
+export alias quantum = quick-ubuntu-and-tools-update-module
+
 #upload deb files to gdrive
 export def upload-debs-to-gdrive [] {
   let mounted = ($env.MY_ENV_VARS.gdrive_debs | path expand | path exists)
@@ -73,5 +76,3 @@ export def upload-debs-to-gdrive [] {
     mv -f debs.7z $env.MY_ENV_VARS.gdrive_debs
   }
 }
-
-export alias quantum = quick-ubuntu-and-tools-update-module

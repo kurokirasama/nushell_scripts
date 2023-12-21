@@ -104,10 +104,21 @@ def fetch_api [loc] {
 
     let units = "metric"
     mut response = {}
+
+    let url_request = {
+      scheme: "https",
+      host: "api.tomorrow.io",
+      path: "/v4/weather/forecast",
+      params: {
+          location: $loc,
+          units: $units,
+          apikey: $apiKey
+      }
+    } | url join
     
     let forecast = (
         try {
-            http get $"https://api.tomorrow.io/v4/weather/forecast?location=($loc)&units=($units)&apikey=($apiKey)" | upsert mystatus true
+            http get $url_request | upsert mystatus true
         } catch {
             {"mystatus": false}
         }
@@ -117,9 +128,20 @@ def fetch_api [loc] {
         return {"mystatus": false}
     }
 
+    let url_request = {
+      scheme: "https",
+      host: "api.tomorrow.io",
+      path: "/v4/weather/realtime",
+      params: {
+          location: $loc,
+          units: $units,
+          apikey: $apiKey
+      }
+    } | url join
+
     let realtime = (
         try {
-            http get $"https://api.tomorrow.io/v4/weather/realtime?location=($loc)&units=($units)&apikey=($apiKey)" | upsert mystatus true
+            http get $url_request | upsert mystatus true
         } catch {
             {"mystatus": false}
         }
@@ -139,14 +161,22 @@ def fetch_api [loc] {
 # street address
 def get_address [loc] {
     let mapsAPIkey = $env.MY_ENV_VARS.api_keys.google.general
-    
-    let url = $"https://maps.googleapis.com/maps/api/geocode/json?latlng=($loc)&sensor=true&key=($mapsAPIkey)"
 
-    http get $url
+    {
+      scheme: "https",
+      host: "maps.googleapis.com",
+      path: "/maps/api/geocode/json",
+      params: {
+          latlng: $loc,
+          sensor: "true",
+          key: $mapsAPIkey
+      }
+    }
+    | url join
+    | http get $in
     | get results
     | get 0
     | get formatted_address
-
 }
 
 # wind description (adjust to your liking)
@@ -163,7 +193,10 @@ def desc_wind [wind] {
 }
 
 # uv description (standard)
-def uv_class [uvIndex] {
+def uv_class [uvIndex:number] {
+    if ($uvIndex | is-empty) {
+        return "no data"
+    }
     if $uvIndex < 2.9 { 
         "Low" 
     } else if $uvIndex < 5.9 { 
@@ -176,7 +209,7 @@ def uv_class [uvIndex] {
         "Extreme" 
     }
 }
-
+#AQUIIII
 # air pollution
 def get_airCond [loc] {
     let apiKey = $env.MY_ENV_VARS.api_keys.air_visual.api_key
@@ -204,6 +237,11 @@ def get_airCond [loc] {
 # parse all the information
 def get_weather [loc, --plot = true] {
     let response = (fetch_api $loc)
+
+    if not $response.mystatus {
+        return-error "something went wrong with the call to the weather api"
+    }
+
     let address = (get_address $loc)
     let air_cond = (
         try {

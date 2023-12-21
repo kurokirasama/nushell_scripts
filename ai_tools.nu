@@ -1,5 +1,3 @@
-export alias bard = askai -c -G
-
 #ai tools
 export def "ai help" [] {
   print (
@@ -9,6 +7,8 @@ export def "ai help" [] {
       "  pip install git+https://github.com/openai/whisper.git"
       "yt-dlp:" 
       "  python3 -m pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz"
+      "gcalcli:"
+      "  sudo apt-get install gcalcli"
       "METHODS"
       "- chat_gpt"
       "- askai"
@@ -26,6 +26,7 @@ export def "ai help" [] {
       "- ai tts"
       "- tts"
       "- google_ai"
+      "- gcal ai"
     ]
     | str join "\n"
     | nu-highlight
@@ -423,6 +424,7 @@ export def askai [
     }
   )
 
+  #chat mode
   if $chat {
     if $gemini {
       google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt  -l $list_system -d $delimit_with_quotes
@@ -484,6 +486,11 @@ export def askai [
     return $answer  
   } 
 }
+
+#alias for bard
+export alias bard = askai -c -G
+#alias for chatgpt
+export alias chatgpt = askai -c -g
 
 #generate a git commit message via chatgpt and push the changes
 #
@@ -1502,14 +1509,19 @@ export def google_ai [
       }
     )
 
-    mut contents = (
+    let database_file = (
       if $database {
         ls ([$env.MY_ENV_VARS.chatgpt bard] | path join)
         | get name
         | path parse
         | get stem 
-        | input list -f (echo-c "select conversation to continue: " "#FF00FF")
-        | open ({parent: ($env.MY_ENV_VARS.chatgpt + "/bard"), stem: $in, extension: "json"} | path join)
+        | input list -f (echo-c "select conversation to continue: " "#FF00FF" -b)
+      } else {""}
+    )
+
+    mut contents = (
+      if $database {
+        open ({parent: ($env.MY_ENV_VARS.chatgpt + "/bard"), stem: $database_file, extension: "json"} | path join)
         | update_gemini_content $in $chat_prompt "user"
       } else {
         [
@@ -1546,7 +1558,6 @@ export def google_ai [
     }
     mut chat_prompt = if ($prompt | is-empty) {input $chat_char} else {$prompt}
 
-
     while not ($chat_prompt | is-empty) {
       $contents = (update_gemini_content $contents $chat_prompt "user")
 
@@ -1580,11 +1591,7 @@ export def google_ai [
 
     let sav = input (echo-c "would you like to save this in the conversations database? (y/n): " "green")
     if $sav == "y" {
-      mut filename = input (echo-g "enter filename: ")
-      while ($filename | is-empty) {
-        $filename = (input (echo-g "enter filename: "))
-      }
-      save_gemini_chat $contents $filename -d
+      save_gemini_chat $contents $database_file -d
     }
     return
   }
@@ -1746,11 +1753,11 @@ def save_gemini_chat [
 #- tell me my medical appointmenst in january 2024
 #- tell me my available times for a meeting next week
 export def "gcal ai" [
-  request?:string #query to gcal
-  --gpt4(-g)      #uses gpt-4-turbo
-  --gemini(-G)    #uses gemini
+  ...request:string #query to gcal
+  --gpt4(-g)        #uses gpt-4-turbo
+  --gemini(-G)      #uses gemini
 ] {
-  let request = if ($request | is-empty) {$in} else {$request}
+  let request = if ($request | is-empty) {$in} else {$request | str join}
   let date_now = date now | format date "%Y.%m.%d"
 
   let prompt =  $request + ".\nPlease consider that today's date is " + $date_now
@@ -1800,10 +1807,11 @@ export def "gcal ai" [
     },
     "add" => {
       let calendar = $gcal_query | get calendar
-      let title = $gcal_query | get title
       let when = $gcal_query | get start
       let where = $gcal_query | get where
       let duration = $gcal_query | get duration
+
+      let title = askai -G ("if the next text is using a naming convention, rewrite it in normal writing in the original language, i.e., separate words by a space. Only return your response without any commentary on your part, in plain text without any formatting. The text: " + ($gcal_query | get title ))
       
       gcal add $calendar $title $when $where $duration
     },
