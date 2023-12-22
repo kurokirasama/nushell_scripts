@@ -60,17 +60,17 @@ export def plot-table [
   let n_cols = ($x | transpose | length)
   let name_cols = ($x | columns)
 
-  print ($x | describe)
-  print ($x)
+  # print ($x | describe)
+  # print ($x)
 
-  $x | save x.json
+  # $x | save -f x.json
   mut list = []
   for col in ($x | columns) {
     $list = ($list | append [($x | get $col | into float)])
   }
 
-  print ($list | describe)
-  print ($list | flatten)
+  # print ($list | describe)
+  # print ($list | flatten)
 
   if ($width | is-empty) {
     match $type {

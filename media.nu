@@ -885,7 +885,7 @@ export def mpv [video?, --puya(-p)] {
 
   match $type {
     "table" => {
-      $video | each {|f| [$f] | mpv}
+      $video | each {|f| $f | mpv}
     },
     _ => {
       let file = (
