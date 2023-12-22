@@ -369,6 +369,14 @@ export def askai [
   --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt4
   --database(-D) #load chat conversation from database
 ] {
+  let prompt = (
+    if not $fast {
+      if ($prompt | is-empty) {$in} else {$prompt}
+    } else {
+      open ~/Yandex.Disk/ChatGpt/prompt.md
+    }
+  )
+
   if $gpt4 and $gemini {
     return-error "Please select only one ai system!"
   }
@@ -380,14 +388,6 @@ export def askai [
   if $vision and ($image | is-empty) {
     return-error "vision models need and image file!"
   }
-
-  let prompt = (
-    if not $fast {
-      if ($prompt | is-empty) {$in} else {$prompt}
-    } else {
-      open ~/Yandex.Disk/ChatGpt/prompt.md
-    }
-  )
     
   let temp = (
     if ($temperature | is-empty) {

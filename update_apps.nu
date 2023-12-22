@@ -85,10 +85,14 @@ export def get-github-latest [
 ] {
   let git_token = $env.MY_ENV_VARS.api_keys.github.api_key
 
-  let assets_url = (
-    http get $"https://api.github.com/repos/($owner)/($repo)/releases/latest" -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
+  let assets_url = {
+      scheme: "https",
+      host: "api.github.com",
+      path: $"/repos/($owner)/($repo)/releases/latest",
+    } 
+    | url join
+    | http get $in -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
     | select assets_url tag_name
-  )
 
   let info = (
     http get $assets_url.assets_url -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
@@ -348,7 +352,7 @@ export def "apps-update chrome" [] {
   let text = ($html | chat_gpt --select_system html_parser --select_preprompt parse_html)
 
   let prompt = ("From the following text delimited by triple backquotes ('), extract only the linux version number of Chrome that is mentioned:\n'''\n" + $text + "\n'''\nReturn your response in json format with the unique key 'version'")
-  let new_version = ($prompt | askgpt -t 0.2 | from json | get version)
+  let new_version = ($prompt | askai -t 0.2 -g | from json | get version)
 
   let current_version = (google-chrome-stable --version | split row "Google Chrome "  | str trim | last)
 
@@ -563,7 +567,7 @@ export def "apps-update ttyplot" [] {
     | find http 
     | find ttyplot 
     | first 
-    | split row "href=\"" 
+    | split row "href=\""
     | last 
     | split row "\">"
     | first

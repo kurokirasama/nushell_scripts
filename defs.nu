@@ -304,7 +304,7 @@ export def scompact [
 }
 
 #local http server
-export def "http serve" [root:string ="."] {
+export def "http server" [root:string ="."] {
   simple-http-server $root
 }
 
