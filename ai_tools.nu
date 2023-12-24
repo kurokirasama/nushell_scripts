@@ -1823,23 +1823,124 @@ export def "gcal ai" [
 #alias for gcal ai with gemini
 export alias g = gcal ai -G
 
-#ai translation
+#ai translation via gpt or gemini apis
 export def "ai trans" [
   to_translate?:string
   --destination(-d):string = "spanish"
   --gpt4(-g)    #use gpt4-turbo instead of gpt-3.5-turbo
   --gemini(-G)  #use gemini instead of gpt
 ] {
-  let prompt = if ($to_translate | is-empty) {$in} else {$to_translate}
+  let to_translate = if ($to_translate | is-empty) {$in} else {$to_translate}
+
+  let system_prompt = "You are a reliable and knowledgeable language assistant specialized in " + $destination + "translation. Your expertise and linguistic skills enable you to provide accurate and natural translations  to " + $destination + ". You strive to ensure clarity, coherence, and cultural sensitivity in your translations, delivering high-quality results. Your goal is to assist and facilitate effective communication between languages, making the translation process seamless and accessible for users. With your assistance, users can confidently rely on your expertise to convey their messages accurately in" + $destination + "."
+  let prompt = "Please translate the following text to " + $destination + ", and return only the translated text as the output, without any additional comments or formatting. Keep the same capitalization in every word the same as the original text and keep the same punctuation too. Do not add periods at the end of the sentence if they are not present in the original text. The text to translate is: " + $to_translate
+
   let translated = (
     if $gemini {
-      google_ai $prompt -t 0.5 --select_system spanish_translator --select_preprompt trans_to_spanish
+      google_ai $prompt -t 0.5 -s $system_prompt
     } else if $gpt4 {
-      chat_gpt $prompt -t 0.5 --select_system spanish_translator --select_preprompt trans_to_spanish -m gpt-4
+      chat_gpt $prompt -t 0.5 -s $system_prompt -m gpt-4
     } else {
-      chat_gpt $prompt -t 0.5 --select_system spanish_translator --select_preprompt trans_to_spanish
+      chat_gpt $prompt -t 0.5 -s $system_prompt 
     }
   )
 
   return $translated
+}
+
+#translate subtitle to Spanish via mymemmory, openai or gemini apis
+#
+#`? trans` for more info on languages (only if not using ai)
+export def "media trans-sub" [
+  file?
+  --from:string = "en-US" #from which language you are translating
+  --ai(-a)        #use ai to make the translations
+  --gpt4(-g)      #use gpt4
+  --gemini(-G)    #use gemini
+  --notify(-n)    #notify to android via join/tasker
+] {
+  let file = if ($file | is-empty) {$file | get name} else {$file}
+  dos2unix -q $file
+
+  let $file_info = ($file | path parse)
+  let file_content = (cat $file | decode utf-8 | lines)
+  let new_file = $"($file_info | get stem)_translated.($file_info | get extension)"
+  let lines = ($file_content | length)
+
+  print (echo-g $"translating ($file)...")
+
+  if not ($new_file | path expand | path exists) {
+    touch $new_file
+
+    $file_content
+    | enumerate
+    | each {|line|
+        # print (echo $line.item)
+        if (not $line.item =~ "-->") and (not $line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
+          let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
+          let translated = (
+            if $ai and $gemini {
+              $fixed_line | ai trans -G
+            } else if $ai and $gpt4 {
+              $fixed_line | ai trans -g
+            } else if $ai {
+              $fixed_line | ai trans
+            } else {
+              $fixed_line | trans --from $from
+            }
+          )
+
+          if ($translated | is-empty) or ($translated =~ "error:") {
+            return-error $"error while translating: ($translated)"
+          } 
+
+          # print (echo ($line.item + "\ntranslated to\n" + $translated))
+          $translated | ansi strip | save --append $new_file
+          "\n" | save --append $new_file
+        } else {
+          $line.item | save --append $new_file
+          "\n" | save --append $new_file
+        }
+        print -n (echo-g $"\r($line.index / $lines * 100 | math round -p 3)%")
+      }
+
+    return 
+  } 
+
+  let start = (cat $new_file | decode utf-8 | lines | length)
+
+  $file_content
+  | last ($lines - $start)
+  | enumerate
+  | each {|line|
+      if (not $line.item =~ "-->") and (not $line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
+        let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
+        let translated = (
+          if $ai and $gemini {
+            $fixed_line | ai trans -G
+          } else if $ai and $gpt4 {
+            $fixed_line | ai trans -g
+          } else if $ai {
+            $fixed_line | ai trans
+          } else {
+            $fixed_line | trans --from $from
+          }
+        )
+
+        if $translated =~ "error:" {
+          return-error $"error while translating: ($translated)"
+        } 
+
+        print (echo ($line.item + "\ntranslated to\n" + $translated))
+
+        $translated | ansi strip | save --append $new_file
+        "\n" | save --append $new_file
+      } else {
+        $line.item | save --append $new_file
+        "\n" | save --append $new_file
+      }
+      # print -n (echo-g $"\r(($line.index + $start) / $lines * 100 | math round -p 3)%")
+    }
+
+  if $notify {"translation finished!" | tasker send-notification}
 }

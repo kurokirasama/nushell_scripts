@@ -9,11 +9,11 @@ use /path/to/nushell_scripts/defs.nu *
 use /path/to/nushell_scripts/system.nu *
 use /path/to/nushell_scripts/gcal.nu *
 use /path/to/nushell_scripts/aliases.nu *
+use /path/to/nushell_scripts/media.nu *
 use /path/to/nushell_scripts/apis.nu *
 use /path/to/nushell_scripts/ai_tools.nu *
 use /path/to/nushell_scripts/github.nu *
 use /path/to/nushell_scripts/backups.nu *
-use /path/to/nushell_scripts/media.nu *
 use /path/to/nushell_scripts/update_apps.nu *
 use /path/to/nushell_scripts/network.nu *
 use /path/to/nushell_scripts/transmission.nu *
