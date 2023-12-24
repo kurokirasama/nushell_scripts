@@ -1822,3 +1822,24 @@ export def "gcal ai" [
 
 #alias for gcal ai with gemini
 export alias g = gcal ai -G
+
+#ai translation
+export def "ai trans" [
+  to_translate?:string
+  --destination(-d):string = "spanish"
+  --gpt4(-g)    #use gpt4-turbo instead of gpt-3.5-turbo
+  --gemini(-G)  #use gemini instead of gpt
+] {
+  let prompt = if ($to_translate | is-empty) {$in} else {$to_translate}
+  let translated = (
+    if $gemini {
+      google_ai $prompt -t 0.5 --select_system spanish_translator --select_preprompt trans_to_spanish
+    } else if $gpt4 {
+      chat_gpt $prompt -t 0.5 --select_system spanish_translator --select_preprompt trans_to_spanish -m gpt-4
+    } else {
+      chat_gpt $prompt -t 0.5 --select_system spanish_translator --select_preprompt trans_to_spanish
+    }
+  )
+
+  return $translated
+}

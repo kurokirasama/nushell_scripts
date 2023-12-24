@@ -35,66 +35,46 @@ export def trans [
   ...text:string    #search query
   --from:string     #from which language you are translating (default english)
   --to:string       #to which language you are translating (default spanish)
-  --openai          #to use openai api instead of mymemmory, only translate to spanish
-  --gpt4            #use gpt4 for translating (default false)
 ] {
   let search = if ($text | is-empty) {$in} else {$text}
   if ($search | is-empty) {
     return-error "no search query provided!"
   } 
-  
-  match $openai {
-    false => {
-      let trans_credential = $env.MY_ENV_VARS.api_keys.mymemmory
-      let apikey = ($trans_credential | get token)
-      let user = ($trans_credential | get username)
+  let trans_credential = $env.MY_ENV_VARS.api_keys.mymemmory
+  let apikey = ($trans_credential | get token)
+  let user = ($trans_credential | get username)
 
-      let from = if ($from | is-empty) {"en-US"} else {$from}
-      let to = if ($to | is-empty) {"es-ES"} else {$to}
+  let from = if ($from | is-empty) {"en-US"} else {$from}
+  let to = if ($to | is-empty) {"es-ES"} else {$to}
 
-      let to_translate = ($search | str join "%20")
+  let to_translate = ($search | str join "%20")
 
-      let url = {
-        scheme: "https",
-        host: "api.mymemory.translated.net",
-        path: "/get",
-        params: {
-            q: $to_translate,
-            langpair: ($from + "%7C" + $to),
-            of: "json",
-            key: $apikey,
-            de: $user
-        }
-      } | url join
-  
-      let response = (http get $url)
-      let status = ($response | get responseStatus)
-      let translated = ($response | get responseData | get translatedText)
-  
-      if $status == 200 {
-        let quota = ($response | get quotaFinished)
-        if $quota {
-          return-error "error: word quota limit excedeed!"
-        }
-  
-        return $translated
-      } else {
-        return-error $"error: bad request ($status)!"
-      }
+  let url = {
+    scheme: "https",
+    host: "api.mymemory.translated.net",
+    path: "/get",
+    params: {
+        q: $to_translate,
+        langpair: ($from + "%7C" + $to),
+        of: "json",
+        key: $apikey,
+        de: $user
     }
-
-    true => {
-      let prompt = ($search | str join " ")
-      let translated = (
-        if $gpt4 {
-          chat_gpt $prompt -t 0.8 --select_system spanish_translator --select_preprompt trans_to_spanish -m gpt-4
-        } else {
-          chat_gpt $prompt -t 0.8 --select_system spanish_translator --select_preprompt trans_to_spanish
-        }
-      )
-
-      return $translated
+  } | url join
+  
+  let response = (http get $url)
+  let status = ($response | get responseStatus)
+  let translated = ($response | get responseData | get translatedText)
+  
+  if $status == 200 {
+    let quota = ($response | get quotaFinished)
+    if $quota {
+      return-error "error: word quota limit excedeed!"
     }
+  
+    return $translated
+  } else {
+    return-error $"error: bad request ($status)!"
   }
 }
 

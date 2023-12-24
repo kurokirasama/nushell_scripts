@@ -179,7 +179,20 @@ let new_keybinds = [
             	  	value: "!$"
           	   },
                { send: Enter }]
-    	}
+    },
+    {
+        name: insert_sudo
+        modifier: alt
+        keycode: char_s
+        mode: [emacs, vi_insert, vi_normal]
+        event: [
+                { edit: MoveToStart }
+                { edit: InsertString,
+                  value: "sudo "
+                }
+                { edit: MoveToEnd }
+               ]
+    }
 ]
 
 let n_new_k = ($new_keybinds | length)
