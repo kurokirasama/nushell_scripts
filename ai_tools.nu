@@ -503,8 +503,8 @@ export def "ai git-push" [
     return-error "select only one model!"
   }
 
-  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {5000}
-  let max_words_short = if $gpt4 {85000} else if (not $gemini) {10000} else {5000}
+  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {19000}
+  let max_words_short = if $gpt4 {85000} else if (not $gemini) {10000} else {19000}
 
   let model = if $gemini {"gemini"} else {"chatgpt"}
 
@@ -675,7 +675,7 @@ export def "ai transcription-summary" [
   let output = $"($file | path parse | get stem)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {5000}
+  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {19000}
   let n_words = (wc -w $file | awk '{print $1}' | into int)
 
   if $n_words > $max_words {
@@ -889,7 +889,7 @@ export def "ai yt-summary" [
   let output = $"($title)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {5000}
+  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {19000}
   let n_words = (wc -w $the_subtitle | awk '{print $1}' | into int)
   let model = if $gemini {"gemini"} else {"chatgpt"}
 
@@ -1006,7 +1006,7 @@ export def "ai media-summary" [
   let output = $"($title)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {5000}
+  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {19000}
   let n_words = (wc -w $the_subtitle | awk '{print $1}' | into int)
 
   if $n_words > $max_words {
@@ -1558,6 +1558,7 @@ export def google_ai [
     }
     mut chat_prompt = if ($prompt | is-empty) {input $chat_char} else {$prompt}
 
+    mut count = ($contents | length) - 1
     while not ($chat_prompt | is-empty) {
       $contents = (update_gemini_content $contents $chat_prompt "user")
 
@@ -1569,15 +1570,18 @@ export def google_ai [
 
       $contents = (update_gemini_content $contents $answer "model")
 
+      $count = $count + 1
+
       $chat_prompt = (input $chat_char)
     }
+    print ($count)
     print (echo-g "chat with gemini ended...")
 
     let sav = input (echo-c "would you like to save the conversation in local drive? (y/n): " "green")
     if $sav == "y" {
       let filename = input (echo-g "enter filename (default: gemini_chat): ")
       let filename = if ($filename | is-empty) {"gemini_chat"} else {$filename}
-      save_gemini_chat $contents $filename
+      save_gemini_chat $contents $filename $count
     }
 
     let sav = input (echo-c "would you like to save the conversation in joplin? (y/n): " "green")
@@ -1586,7 +1590,7 @@ export def google_ai [
       while ($filename | is-empty) {
         $filename = (input (echo-g "enter note title: "))
       }
-      save_gemini_chat $contents $filename -j
+      save_gemini_chat $contents $filename $count -j
     }
 
     let sav = input (echo-c "would you like to save this in the conversations database? (y/n): " "green")
@@ -1704,6 +1708,7 @@ def update_gemini_content [
 def save_gemini_chat [
   contents
   filename
+  count?:int = 1  #lines no skip when saving plain text
   --joplin(-j)    #save note to joplin instead of local
   --database(-d)  #save database instead
 ] {
@@ -1716,7 +1721,7 @@ def save_gemini_chat [
     $contents 
     | flatten 
     | flatten 
-    | skip
+    | skip $count
     | each {|row| 
         if $row.role =~ "model" {
           $row.text + "\n"
