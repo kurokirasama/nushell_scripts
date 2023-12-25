@@ -113,7 +113,7 @@ export def iselect [] {
 }
 
 #default a whole table
-def default-table [value: any = null] {
+export def default-table [value: any = null] {
     mut input = $in
     let cols = $input | columns
 
