@@ -1574,7 +1574,7 @@ export def google_ai [
 
       $chat_prompt = (input $chat_char)
     }
-    print ($count)
+
     print (echo-g "chat with gemini ended...")
 
     let sav = input (echo-c "would you like to save the conversation in local drive? (y/n): " "green")
