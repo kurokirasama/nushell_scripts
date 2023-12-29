@@ -421,7 +421,7 @@ export def "joplin create" [
   --tags(-t):string       #comma separated list of tags
   --notebook(-n):string   #specify notebook instead of list
 ] {
-  let content = if ($content | is-empty) {$in} else {$content} | to text | str join
+  let content = if ($content | is-empty) {$in} else {$content}
 
   let notebooks = joplin ls / | lines | str trim 
   let notebook = (
@@ -449,8 +449,6 @@ export def "joplin create" [
       }    
   }
 
-  $content | xclip -sel clip
-  print ("copy (ctrl + shit + v) after the second line, in the following window...")
-  joplin edit $title
+  joplin set $title body $"'($content)'"
   joplin sync
 } 

@@ -367,8 +367,8 @@ export def "media to" [
     #to mp4
     } else if $to =~ "mp4" {
       let n_files = (ls **/*
-          | insert "ext" {|| 
-              $in.name | path parse | get extension
+          | insert "ext" {|f| 
+              $f.name | path parse | get extension
             }  
           | where ext =~ "avi|webm"
           | length
@@ -400,8 +400,8 @@ export def "media to" [
 
       if $mkv {
         let n_files = (ls **/*
-          | insert "ext" {|| 
-              $in.name | path parse | get extension
+          | insert "ext" {|f| 
+              $f.name | path parse | get extension
             }  
           | where ext =~ "mkv"
           | length

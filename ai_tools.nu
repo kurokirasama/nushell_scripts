@@ -1515,6 +1515,7 @@ export def google_ai [
         | get name
         | path parse
         | get stem 
+        | sort
         | input list -f (echo-c "select conversation to continue: " "#FF00FF" -b)
       } else {""}
     )
