@@ -452,3 +452,10 @@ export def "joplin create" [
   joplin set $title body $"'($content)'"
   joplin sync
 } 
+
+#alias for joplin 
+export alias j = joplin
+#alias for joplin create
+export alias "j create" = joplin create
+#alias for joplin search
+export alias "j search" = joplin search
