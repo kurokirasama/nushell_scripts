@@ -19,6 +19,8 @@ export def main [tags?:string = "AI,ai_notes,bard"] {
         }
 
       joplin set $title body $"'($content)'"
+
+      rm -f $file.name
     }
 
   joplin sync
