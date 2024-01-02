@@ -565,7 +565,7 @@ export def replicate-tree [to:string] {
 
 #rename all files starting with certain prefix, enumerating them
 export def re-enamerate [prefix] {
-  let files = (get-files | where name =~ $"^($prefix)")
+  let files = (get-files | where name =~ $"^($prefix)" | sort-by modified)
   let n_files = ($files | length)
   let n_digits = (($n_files | math log 10) + 1 | math floor | into int)
 
