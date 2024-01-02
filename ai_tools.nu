@@ -1127,7 +1127,8 @@ export def dall_e [
           "model": $model,
           "prompt": $prompt,
           "n": $number,
-          "size": $size
+          "size": $size,
+          "quality": $quality
         }
 
         let answer = http post -t application/json -H $header $site $request 
