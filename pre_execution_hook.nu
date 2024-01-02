@@ -29,3 +29,9 @@ if $update {
     | upsert $host ($ips | from json)
     | save -f $ips_file
 }
+
+## adding new gemini_voice_notes to joplin
+if $update {
+    print (echo $"(ansi -e { fg: '#00ff00' attr: b })Adding Gemini voice chat notes to Joplin, if any...(ansi reset)")
+    nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/GeminiJson2Joplin.nu
+}

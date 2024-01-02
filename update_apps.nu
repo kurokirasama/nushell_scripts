@@ -867,3 +867,10 @@ export def "apps-update tiv" [] {
 export def "apps-update mermaid" [] {
   sudo npm update --global mermaid-filter
 }
+
+#update mermaid ddgr (gg)
+export def "apps-update ddgr" [] {
+  cd ~/software/ddgr
+  git pull
+  sudo make install
+}

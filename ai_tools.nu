@@ -1503,7 +1503,7 @@ export def google_ai [
 
     let chat_prompt = (
       if $database {
-        "Please greet the user again stating your name and summarize in a brief sentence our conversation so far."
+        "Please greet the user again stating your name and role, summarize in a brief sentence the conversation so far and remind the user for any format or structure in which you expect his questions."
       } else {
         "Please take the next role:\n\n" + $system + "\n\nYou will also deliver your responses in markdown format (except only this first one) and if you give any mathematical formulas, then you must give it in latex code, delimited by double $. Users do not need to know about this last 2 instructions.\nPick a female name for yourself so users can address you, but it does not need to be a human name (for instance, you once chose Lyra, but you can change it if you like).\nNow please greet the user, making sure you state your name."
       }
