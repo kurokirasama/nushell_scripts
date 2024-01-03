@@ -1097,7 +1097,7 @@ export def dall_e [
     "generation" => {
         let output = (
           if ($output | is-empty) {
-            (chat_gpt --select_preprompt dalle_image_name -d $prompt | from json | get name) + "_G"
+            (google_ai --select_preprompt dalle_image_name -d true $prompt | from json | get name) + "_G"
           } else {
             $output
           }
@@ -1118,8 +1118,9 @@ export def dall_e [
         }
 
         #translate prompt if not in english
-        let english = chat_gpt --select_preprompt is_in_english -d $prompt | from json | get english | into bool
-        let prompt = if $english {chat_gpt --select_preprompt translate_dalle_prompt -d $prompt} else {$prompt}
+        let english = google_ai --select_preprompt is_in_english -d true $prompt | from json | get english | into bool
+        let prompt = if $english {google_ai --select_preprompt translate_dalle_prompt -d true $prompt} else {$prompt}
+        let prompt = google_ai --select_preprompt improve_dalle_prompt -d true $prompt
 
         let site = "https://api.openai.com/v1/images/generations"
 
