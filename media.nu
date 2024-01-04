@@ -22,6 +22,7 @@ export def "media help" [] {
       "- media find"
       "- media myt"
       "- media delete-mps"
+      "- media crop-video"
       "- mpv (alias)"
       "- media to"
     ]
@@ -917,4 +918,44 @@ export def "media crop-image" [
   }
 
   if $name {return $new_image} else {return}
+}
+
+#crop video 
+export def "media crop-video" [
+  video?:string
+  --left(-l):string = "0" #horizontal offset of the crop area from the left edge of the video
+  --top(-t):string = "0"  #vertical offset of the crop area from the left edge of the video
+  --size(-s):string       #resolution of output video (ex: "720:1280")
+  --append_to_filename(-a):string = "cropped" #append to original filename to differentiate
+  --android(-A)           #use android resolution "720:x"
+] {
+  let video = if ($video | is-empty) {$in | get name} else {$video}
+  let resolution = media video-info $video | get streams.0 | select width height
+  let output_resolution = (
+    if not ($size | is-empty) {
+      $size
+    } else if $android {
+      "720:" + ($resolution.height | into string)
+    } else {
+      return-error "output resolution not specified!"
+    }
+  )
+
+  let filename = $video | path parse | get stem 
+  let extension = $video | path parse | get extension
+
+  if $extension != "mp4" {
+    media to mp4 -f $video
+  }
+
+  let file = $filename + ".mp4"
+  let output = $filename + "_" + $append_to_filename + ".mp4"
+
+  let crop_command = "crop=" + $output_resolution + ":" + $left + ":" + $top
+
+  try {
+    myffmpeg -i $file -vf $crop_command $output
+  } catch {
+    ffmpeg -i $file -vf $crop_command $output
+  }
 }

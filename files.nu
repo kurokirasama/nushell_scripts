@@ -202,9 +202,9 @@ export def cp-pipe [
     let file = $files | get $i 
     
     if $force {
-      ^cp -ur $file ($to | path expand)
-    } else {
       ^cp -fr $file ($to | path expand)
+    } else {
+      ^cp -ur $file ($to | path expand)
     }
 
     $progress_bar = (progress_bar $i $number $progress_bar)
@@ -306,7 +306,7 @@ export def le [] {
 
 #get list of files recursively
 export def get-files [
-  --full(-f)
+  --full(-f)      #recursuve
   --dir(-d):string
   --full_path(-F)
   --sort_by_date(-t)
