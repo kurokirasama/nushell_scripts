@@ -123,3 +123,17 @@ export def default-table [value: any = null] {
 
     $input
 }
+
+#append table to table
+export def append-table [tab2:table,tab1?:table] {
+  let tab1 = if ($tab1 | is-empty) {$in} else {$tab1}
+
+  if ($tab1 | length) != ($tab2 | length) {
+    return-error "tables must have the same length!"
+  }
+
+  $tab1
+  | dfr into-df 
+  | dfr append ($tab2 | dfr into-df) 
+  | dfr into-nu
+}
