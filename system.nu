@@ -347,3 +347,23 @@ def history-stats [
   print $"(ansi green)Total commands:(ansi reset)   ($total_cmds)"
   print $"(ansi green)Unique commands:(ansi reset)  ($unique_cmds)"
 }
+
+#umount fuse drive
+#
+#possible drives:
+#- box
+#- gdrive
+#- onedrive
+#- yandex
+export def um [drive?:string] {
+  let drive = (
+    if ($drive | is-empty) {
+      ls ~/rclone
+      | get name 
+      | input list -f (echo-g "Select drive to umount: ")
+    } else {
+      "~/rclone/" + $drive
+    }
+  )
+  fusermount -u $drive
+}
