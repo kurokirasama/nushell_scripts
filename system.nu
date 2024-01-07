@@ -274,7 +274,11 @@ export def umall [user?] {
     | get mount_point
     | each {|drive| 
         print (echo-g $"umounting ($drive  | ansi strip)...")
-        umount ($drive | ansi strip)
+        try {
+          umount -q ($drive | ansi strip)
+        } catch {
+          sudo umount -q ($drive | ansi strip)
+        }
       }
   } catch {
     return-error "device is busy!"
