@@ -120,15 +120,28 @@ export def "nushell-syntax-2-sublime" [
       | str join " | "
   )   
 
+  let personal_external = (
+    $env.PATH 
+    | find bash & nushell 
+    | get 0 
+    | ls $in 
+    | find -v Readme 
+    | get name 
+    | path parse 
+    | get stem
+    | str join " | "
+  )
+
   let extra_builtin = " | else | catch"
   let builtin = "    (?x: " + $builtin + $extra_builtin + ")"
   let plugins = "    (?x: " + $plugins + ")"
   let custom = "    (?x: " + $custom + ")"
   let keywords = "    (?x: " + $keywords + ")"
   let aliases = "    (?x: " + $aliases + ")"
+  let personal_external = "    (?x: " + $personal_external + ")"
   let operators = "    (?x: and | or | mod | in | not-in | not | xor | bit-or | bit-xor | bit-and | bit-shl | bit-shr | starts-with | ends-with)"
 
-  let new_commands = [] ++ $builtin ++ $custom ++ $plugins ++ $keywords ++ $aliases ++ $operators
+  let new_commands = [] ++ $builtin ++ $custom ++ $plugins ++ $keywords ++ $aliases ++ $personal_external ++ $operators
  
   mut file = open ~/.config/sublime-text/Packages/User/nushell.sublime-syntax | lines
   let idx = $file | indexify | find '(?x:' | get index | drop
@@ -157,7 +170,7 @@ export def "history backup" [
 #export rclone config
 export def "rclone export" [] {
   cd $env.MY_ENV_VARS.linux_backup
-
+ 
   rclone config dump 
   | from json 
   | save -f rclone_config.json

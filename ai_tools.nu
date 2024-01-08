@@ -21,6 +21,7 @@ export def "ai help" [] {
       "- ai media-summary"
       "- ai generate-subtitles"
       "- ai git-push"
+      "- ai google_search-summary"
       "- dall_e" 
       "- askdalle"
       "- ai tts"
@@ -490,9 +491,9 @@ export def askai [
 }
 
 #alias for bard
-export alias bard = askai -c -G -w -W 1
+export alias bard = askai -c -G -W 2
 #alias for chatgpt
-export alias chatgpt = askai -c -g
+export alias chatgpt = askai -c -g -W 3
 
 #generate a git commit message via chatgpt and push the changes
 #
@@ -1414,8 +1415,6 @@ export def google_ai [
     --web_search(-w):bool = false #include $web_results web search results in the prompt
     --web_results(-W):int = 5     #number of web results to include
 ] {
-  #for web search
-  let max_words = 18000
   #api parameters
   let apikey = $env.MY_ENV_VARS.api_keys.google.gemini
 
@@ -1569,8 +1568,8 @@ export def google_ai [
 
     mut count = ($contents | length) - 1
     while not ($chat_prompt | is-empty) {
-      let web_content = if $web_search {google_search $chat_prompt -n $web_results -m -v} else {""}
-      let web_content = ($web_content | ^awk ("'BEGIN{total=0} {total+=NF; if(total<=(" + $"($max_words)" + ")) print; else exit}'"))
+      let web_content = if $web_search {google_search $chat_prompt -n $web_results -v} else {""}
+      let web_content = if $web_search {ai google_search-summary $chat_prompt $web_content -G -m} else {""}
 
       $chat_prompt = (
         if $web_search {
@@ -1649,8 +1648,8 @@ export def google_ai [
     }
   )
 
-  let web_content = if $web_search {google_search $prompt -n $web_results -m -v} else {""}
-  let web_content = ($web_content | ^awk ("'BEGIN{total=0} {total+=NF; if(total<=(" + $"($max_words)" + ")) print; else exit}'")) 
+  let web_content = if $web_search {google_search $prompt -n $web_results -v} else {""}
+  let web_content = if $web_search {ai google_search-summary $prompt $web_content -G -m} else {""}
   
   let prompt = (
     if $web_search {
@@ -1980,3 +1979,63 @@ export def "media trans-sub" [
 
   if $notify {"translation finished!" | tasker send-notification}
 }
+
+#summarize the output of google_search via ai
+export def "ai google_search-summary" [
+  question:string     #the question made to google
+  web_content?: table #table output of google_search
+  --md(-m)            #return concatenated md instead of table
+  --gemini(-G)        #uses gemini instead of gpt-4-turbo
+] {
+  let max_words = if $gemini {18000} else {85000}
+  let web_content = if ($web_content | is-empty) {$in} else {$web_content}
+  let n_webs = $web_content | length
+
+  let model = if $gemini {"gemini"} else {"chatgpt"}
+  let prompt = (
+    open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join) 
+    | get summarize_html2text 
+    | str replace "<question>" $question 
+  )
+
+  print (echo-g $"asking ($model) to summarize the web results...")
+  mut content = []
+  for i in 0..($n_webs - 1) {
+    let web = $web_content | get $i
+
+    print (echo-c $"summarizing the results of ($web.displayLink)..." "green")
+
+    let truncated_content = $web.content | ^awk ("'BEGIN{total=0} {total+=NF; if(total<=(" + $"($max_words)" + ")) print; else exit}'")
+
+    let complete_prompt = $prompt + "\n'''\n" + $truncated_content + "\n'''"
+
+    let summarized_content = (
+      if $gemini {
+        google_ai $complete_prompt --select_system html2text_summarizer
+      } else {
+        chat_gpt $complete_prompt --select_system html2text_summarizer -m gpt-4-turbo
+      } 
+    )
+
+    $content = $content ++ $summarized_content
+  }
+
+  let content = $content | wrap content
+  let updated_content = $web_content | reject content | append-table $content
+
+  if $md {
+    mut md_output = ""
+
+    for i in 0..($n_webs - 1) {
+      let web = $updated_content | get $i
+      
+      $md_output = $md_output + "# " + $web.title + "\n"
+      $md_output = $md_output + "link: " + $web.link + "\n\n"
+      $md_output = $md_output + $web.content + "\n\n"
+    }
+
+    return $md_output
+  } else {
+    return $updated_content
+  }
+} 
