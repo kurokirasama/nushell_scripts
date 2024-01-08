@@ -459,3 +459,81 @@ export alias j = joplin
 export alias "j create" = joplin create
 #alias for joplin search
 export alias "j search" = joplin search
+
+#google search
+export def google_search [
+  ...query:string
+  --number_of_results(-n):int = 5 #number of results to use
+  --verbose(-v) #show some debug messages
+  --md(-m) #md output instead of table
+] {
+  let query = if ($query | is-empty) {$in} else {$query} | str join " "
+
+  if ($query | is-empty) {
+    return-error "empty query!"
+  }
+
+  let apikey = $env.MY_ENV_VARS.api_keys.google.search.apikey
+  let cx = $env.MY_ENV_VARS.api_keys.google.search.cx
+
+  if $verbose {print (echo-g $"querying to google search...")}
+  let search_result = {
+      scheme: "https",
+      host: "www.googleapis.com",
+      path: "/customsearch/v1",
+      params: {
+          key: $apikey,
+          cx: $cx
+          q: ($query | url encode)
+      }
+    } 
+    | url join
+    | http get $in 
+    | get items 
+    | first $number_of_results 
+    | select title link displayLink
+
+  let n_result = $search_result | length
+
+  mut content = []
+
+  for i in 0..($n_result - 1) {
+    let web = $search_result | get $i
+    if $verbose {print (echo-c $"retrieving data from: ($web.displayLink)" "green")}
+      
+    let raw_content = try {http get $web.link} catch {""}
+
+    let processed_content = (
+      try {
+        $raw_content
+        | html2text --ignore-links --ignore-images --dash-unordered-list 
+        | lines 
+        | uniq
+        | to text
+      } catch {
+        $raw_content
+      }
+    )
+
+    $content = $content ++ $processed_content
+  }
+
+  let final_content = $content | wrap "content"
+  let results = $search_result | append-table $final_content
+
+  if $md {
+      mut md_output = ""
+
+      for i in 0..(($results | length) - 1) {
+        let web = $results | get $i
+        
+        $md_output = $md_output + "# " + $web.title + "\n"
+        $md_output = $md_output + "link: " + $web.link + "\n\n"
+        $md_output = $md_output + $web.content + "\n\n"
+      }
+
+      return $md_output
+  } 
+
+  return $results
+}

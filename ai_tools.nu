@@ -370,7 +370,6 @@ export def askai [
   --database(-D) #load chat conversation from database
   --web_search(-w) #include web search results into the prompt
   --web_results(-W):int = 5 #how many web results to include
-  --web_ai(-a)  #use ai to process web search
 ] {
   let prompt = (
     if not $fast {
@@ -430,7 +429,7 @@ export def askai [
   #chat mode
   if $chat {
     if $gemini {
-      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt  -l $list_system -d $delimit_with_quotes -w $web_search -W $web_results -a $web_ai
+      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt  -l $list_system -d $delimit_with_quotes -w $web_search -W $web_results
     } else {
       # chat_gpt $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d $delimit_with_quotes
       print (echo-g "in progress")
@@ -445,8 +444,8 @@ export def askai [
         google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -p $list_preprompt -d true -i $image
       } else {
           match $bison {
-          true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d true -w $web_search -W $web_results -a $web_ai},
-          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -d true -w $web_search -W $web_results -a $web_ai},
+          true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d true -w $web_search -W $web_results},
+          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -d true -w $web_search -W $web_results},
         }
       }
     )
@@ -491,7 +490,7 @@ export def askai [
 }
 
 #alias for bard
-export alias bard = askai -c -G
+export alias bard = askai -c -G -w -W 1
 #alias for chatgpt
 export alias chatgpt = askai -c -g
 
@@ -1414,8 +1413,9 @@ export def google_ai [
     --database(-D):bool = false #continue a chat mode conversation from database
     --web_search(-w):bool = false #include $web_results web search results in the prompt
     --web_results(-W):int = 5     #number of web results to include
-    --web_ai(-a):bool = false #use ai to process web information
 ] {
+  #for web search
+  let max_words = 18000
   #api parameters
   let apikey = $env.MY_ENV_VARS.api_keys.google.gemini
 
@@ -1491,15 +1491,6 @@ export def google_ai [
     } else {
       $preprompt + $query
     } 
-  )
-
-  let web_content = if $web_search {google_search $query -n $web_results -a $web_ai -m -v} 
-  let prompt = (
-    if $web_search {
-      $prompt + "\n\n You can complement your answer with the following up to date information about my question I obtained from the web, in markdown format:\n" + $web_content
-    } else {
-      $prompt
-    }
   )
 
   #chat mode
@@ -1578,11 +1569,12 @@ export def google_ai [
 
     mut count = ($contents | length) - 1
     while not ($chat_prompt | is-empty) {
-      let web_content = if $web_search {google_search $query -n $web_results -a $web_ai -m -v} 
+      let web_content = if $web_search {google_search $chat_prompt -n $web_results -m -v} else {""}
+      let web_content = ($web_content | ^awk ("'BEGIN{total=0} {total+=NF; if(total<=(" + $"($max_words)" + ")) print; else exit}'"))
 
       $chat_prompt = (
         if $web_search {
-          $chat_prompt + "\n\n You can complement your answer with the following up to date information about my question I obtained from the web, in markdown format:\n" + $web_content
+          $chat_prompt + "\n\nYou can complement your answer with the following up to date information (if you need it) about my question I obtained from a google search, in markdown format:\n" + $web_content
         } else {
           $chat_prompt
         }
@@ -1654,6 +1646,17 @@ export def google_ai [
       open ($image | path expand) | encode base64
     } else {
       ""
+    }
+  )
+
+  let web_content = if $web_search {google_search $prompt -n $web_results -m -v} else {""}
+  let web_content = ($web_content | ^awk ("'BEGIN{total=0} {total+=NF; if(total<=(" + $"($max_words)" + ")) print; else exit}'")) 
+  
+  let prompt = (
+    if $web_search {
+      $prompt + "\n\n You can complement your answer with the following up to date information about my question I obtained from a google search, in markdown format:\n" + $web_content
+    } else {
+      $prompt
     }
   )
 
@@ -1976,92 +1979,4 @@ export def "media trans-sub" [
     }
 
   if $notify {"translation finished!" | tasker send-notification}
-}
-
-#google search
-export def google_search [
-  ...query:string
-  --number_of_results(-n):int = 5 #number of results to use
-  --ai(-a):bool = false #use ai to process the content of each search result
-  --verbose(-v) #show some debug messages
-  --md(-m) #md output instead of table
-] {
-  let query = if ($query | is-empty) {$in} else {$query} | str join " "
-
-  let apikey = $env.MY_ENV_VARS.api_keys.google.search.apikey
-  let cx = $env.MY_ENV_VARS.api_keys.google.search.cx
-
-  if $verbose {print (echo-g $"querying to google search...")}
-  let search_result = {
-      scheme: "https",
-      host: "www.googleapis.com",
-      path: "/customsearch/v1",
-      params: {
-          key: $apikey,
-          cx: $cx
-          q: ($query | url encode)
-      }
-    } 
-    | url join
-    | http get $in 
-    | get items 
-    | first $number_of_results 
-    | select title link displayLink
-
-  let n_result = $search_result | length
-
-  mut content = []
-
-  for i in 0..($n_result - 1) {
-    let web = $search_result | get $i
-    if $verbose {print (echo-g $"retrieving data from: ($web.displayLink)")}
-      
-    let raw_content = lynx -dump $web.link
-
-    let processed_content = (
-      if $ai {
-        try {
-          if $verbose {print -n ("trying gemini... ")}
-
-          let r = google_ai $raw_content --select_system lynx_dump_extracter --select_preprompt extract_lynx_dump_info -d true
-          if $verbose {print (echo-g $"(char -u eab2)")}
-
-          $r
-        } catch {
-          if $verbose {
-            print (echo-r $"(char -u ea76)")
-            print -n ("trying gpt-4-turbo...")
-          }
-
-          let r = chat_gpt $raw_content --select_system lynx_dump_extracter --select_preprompt extract_lynx_dump_info -m gpt-4-turbo -d
-          if $verbose {print (echo-g $"(char -u eab2)")}
-
-          $r
-        }
-      } else {
-        $raw_content
-      }
-    )
-
-    $content = $content ++ $processed_content
-  }
-
-  let final_content = $content | wrap "content"
-  let results = $search_result | append-table $final_content
-
-  if $md {
-      mut md_output = ""
-
-      for i in 0..(($results | length) - 1) {
-        let web = $results | get $i
-        
-        $md_output = $md_output + "# " + $web.title + "\n"
-        $md_output = $md_output + "link: " + $web.link + "\n\n"
-        $md_output = $md_output + $web.content + "\n\n"
-      }
-
-      return $md_output
-  } 
-
-  return $results
 }

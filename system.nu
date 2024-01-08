@@ -367,3 +367,26 @@ export def um [drive?:string] {
   )
   fusermount -u $drive
 }
+
+
+#mount fuse drive via rclone
+#
+#possible drives:
+#- box
+#- gdrive
+#- onedrive
+#- yandex
+export def rmount [drive?:string] {
+  let drive = (
+    if ($drive | is-empty) {
+      ls ~/rclone
+      | get name 
+      | input list -f (echo-g "Select drive to umount: ")
+    } else {
+      "~/rclone/" + $drive
+    }
+  )
+
+  let remote = $drive | path parse | get stem
+  bash -c $"'rclone mount ($remote): ($drive) &'"
+}

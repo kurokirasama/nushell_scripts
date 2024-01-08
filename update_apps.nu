@@ -875,26 +875,8 @@ export def "apps-update ddgr" [] {
   sudo make install
 }
 
-#export rclone config
-export def "rclone export" [] {
-  cd $env.MY_ENV_VARS.linux_backup
-
-  rclone config dump 
-  | from json 
-  | save -f rclone_config.json
-
-  try {
-    nu-crypt -e -n rclone_config.json
-    rm rclone_config.json
-  } catch {
-    return-error "something went wrong with the encryption"
-  }
-}
-
-#import rclone config
-export def "rclone import" [] {
-  cd $env.MY_ENV_VARS.linux_backup
-  nu-crypt -d -n rclone_config.json.asc | save -f rclone_config.json
-  rclone config import rclone_config.json
-  rm rclone_config.json
+#update html2text
+export def "apps-update html2text" [] {
+  cd ~/software/html2text; git pull 
+  cp -f html2text.py ~/Yandex.Disk/Comandos_bash_for_nushell/html2text
 }
