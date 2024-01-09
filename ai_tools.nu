@@ -723,7 +723,7 @@ export def "ai transcription-summary" [
     if $upload {
       if not $mounted {
         print (echo-g "mounting gdrive...")
-        mount-ubb
+        rmount $env.MY_ENV_VARS.gdrive_mount_point
       }
 
       print (echo-g "uploading summary to gdrive...")
@@ -770,7 +770,7 @@ export def "ai transcription-summary-single" [
   if $upload {
     if not $mounted {
       print (echo-g "mounting gdrive...")
-      mount-ubb
+      rmount $env.MY_ENV_VARS.gdrive_mount_point
     }
 
     print (echo-g "uploading summary to gdrive...")
