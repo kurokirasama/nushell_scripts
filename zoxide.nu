@@ -4,7 +4,7 @@ export def --env z [...rest:string@"__z_complete"] {
   let path = if ($rest | length) <= 1 and ($arg0 | path expand | path type) == dir {
     $arg0
   } else {
-    (zoxide query --exclude $env.PWD -- $rest | str trim -r -c "\n")
+    (zoxide query --exclude $env.PWD -- ...$rest | str trim -r -c "\n")
   }
   cd $path
 }
