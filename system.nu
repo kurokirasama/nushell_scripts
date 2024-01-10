@@ -356,14 +356,41 @@ def history-stats [
 #- onedrive
 #- yandex
 #- photos
-export def um [drive?:string] {
+export def um [
+  drive?:string
+  --all(-a)
+] {
+  if $all {
+    mount 
+    | lines 
+    | find rclone 
+    | parse "{storage}:{rest}" 
+    | get storage
+    | each {|drive|
+        $drive
+        | str prepend "~/rclone/"
+        | path expand
+        | 
+        | fusermount -u $in
+      }
+    return
+  }
+
+  let mounted = mount | lines | find rclone
+  if ($mounted | length) == 0 {
+    return-error "no mounted storages!"
+  }
+
   let drive = (
     if ($drive | is-empty) {
-      ls ~/rclone
-      | get name 
+      $mounted
+      | parse "{storage}:{rest}" 
+      | get storage 
       | input list -f (echo-g "Select drive to umount: ")
+      | str prepend "~/rclone/"
+      | path expand
     } else {
-      "~/rclone/" + $drive
+      ("~/rclone/" + $drive) | path expand
     }
   )
   fusermount -u $drive
@@ -380,15 +407,18 @@ export def um [drive?:string] {
 export def rmount [drive?:string] {
   let drive = (
     if ($drive | is-empty) {
-      ls ~/rclone
-      | get name 
+      rclone listremotes 
+      | lines 
+      | str replace ":" "" 
+      | str trim 
       | input list -f (echo-g "Select drive to umount: ")
+      | str prepend "~/rclone/"
     } else {
       "~/rclone/" + $drive
     }
   )
 
   let remote = $drive | path parse | get stem
-  let option = if $drive =~ "photos|mega" {"--vfs-cache-mode writes"} else {""}
+  let option = if $drive =~ "photos|mega|onedrive" {"--vfs-cache-mode writes"} else {""}
   bash -c $"'rclone mount ($remote): ($drive) ($option) &'"
 }
