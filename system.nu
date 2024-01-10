@@ -355,6 +355,7 @@ def history-stats [
 #- gdrive
 #- onedrive
 #- yandex
+#- photos
 export def um [drive?:string] {
   let drive = (
     if ($drive | is-empty) {
@@ -388,5 +389,6 @@ export def rmount [drive?:string] {
   )
 
   let remote = $drive | path parse | get stem
-  bash -c $"'rclone mount ($remote): ($drive) &'"
+  let option = if $drive =~ "photos" {"--vfs-cache-mode writes"} else {""}
+  bash -c $"'rclone mount ($remote): ($drive) ($option) &'"
 }

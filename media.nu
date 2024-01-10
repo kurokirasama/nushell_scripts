@@ -81,7 +81,7 @@ export def "media remove-noise" [
   end                  #end (hh:mm:ss) of audio noise (no speaker)
   noiseLevel           #level reduction adjustment (0.2-0.3)
   output?              #output file name without extension, wav or mp3 produced
-  --delete(-d):bool = true  #whether to delete existing tmp files or not
+  --delete(-d) = true  #whether to delete existing tmp files or not
   --outExt(-E):string = "wav" #output format, mp3 or wav
   --notify(-n)         #notify to android via join/tasker
 ] {
@@ -138,7 +138,7 @@ export def "media remove-audio-noise" [
   end             #end (hh:mm:ss) of audio noise (no speaker)
   noiseLevel      #level reduction adjustment (0.2-0.3)
   output?         #output file name with extension (same extension as $file)
-  --merge:bool = true  #whether to merge clean audio with video
+  --merge = true  #whether to merge clean audio with video
   --notify(-n)    #notifua to android via join/tasker
 ] {
   try {
@@ -181,7 +181,7 @@ export def "media remove-audio-noise" [
 #TODO: making sure it works in a video call
 export def "media screen-record" [
   file:string = "video"  #output filename without extension
-  --audio:bool = true  #whether to record with audio or not
+  --audio = true  #whether to record with audio or not
 ] {
   if $audio {
     print (echo-g "recording screen with audio...")

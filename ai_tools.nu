@@ -638,7 +638,7 @@ export def "ai screen2text" [
 export def "ai video2text" [
   file?:string                #video file name with extension
   --language(-l):string = "Spanish"  #language of audio file
-  --summary(-s):bool = true   #whether to transcribe or not. False means it just extracts audio
+  --summary(-s) = true   #whether to transcribe or not. False means it just extracts audio
   --notify(-n)                #notify to android via join/tasker
 ] {
   let file = if ($file | is-empty) {$in} else {$file}
@@ -1404,15 +1404,15 @@ export def google_ai [
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9                       # the temperature of the model
     --image(-i):string                        # filepath of image file for gemini-pro-vision
-    --list_system(-l):bool = false            # select system message from list
-    --pre_prompt(-p):bool = false             # select pre-prompt from list
-    --delim_with_backquotes(-d):bool = false # to delimit prompt (not pre-prompt) with triple backquotes (')
+    --list_system(-l) = false            # select system message from list
+    --pre_prompt(-p) = false             # select pre-prompt from list
+    --delim_with_backquotes(-d) = false # to delimit prompt (not pre-prompt) with triple backquotes (')
     --select_system: string                       # directly select system message    
     --select_preprompt: string                    # directly select pre_prompt
     --safety_settings:table #table with safety setting configuration (default all:BLOCK_NONE)
     --chat(-c)     #starts chat mode (text only, gemini only)
-    --database(-D):bool = false #continue a chat mode conversation from database
-    --web_search(-w):bool = false #include $web_results web search results in the prompt
+    --database(-D) = false #continue a chat mode conversation from database
+    --web_search(-w) = false #include $web_results web search results in the prompt
     --web_results(-W):int = 5     #number of web results to include
 ] {
   #api parameters

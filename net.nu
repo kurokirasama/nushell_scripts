@@ -19,7 +19,7 @@ do -i {nethogs -c 2 -t -d 5}
 | update DOWN {|up| 
 	$up.DOWN | fill -a l -c "0" -w 7
   } 
-| format "{NAME}:{UP}:{DOWN}" 
+| format pattern "{NAME}:{UP}:{DOWN}" 
 | str join "\n"
 | save -f /home/kira/.nethogs
 

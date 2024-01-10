@@ -90,8 +90,8 @@ export def "gcal mes" [
 #list available calendars
 export def "gcal list" [
   --readers(-r) #exclude read-only calendars
-  --readers_bool(-R):bool = false #same as -r, but bool flag
-  --full(-f):bool = true  #if false, filter not wanted calendars
+  --readers_bool(-R) = false #same as -r, but bool flag
+  --full(-f) = true  #if false, filter not wanted calendars
 ] {
   gcalcli list
   | ansi strip

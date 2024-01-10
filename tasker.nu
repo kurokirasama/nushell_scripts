@@ -98,7 +98,7 @@ export def "tasker tts" [
 	text?:string
 	--device(-d):string = "note12"
 	--language(-l):string = "spa" #language of tts (spa, eng, etc)
-	--select_device(-s):bool = false
+	--select_device(-s) = false
 ] {
 	let text = if ($text | is-empty) {$in} else {$text}
 	let title = "tts sent from " + (sys | get host.hostname)
