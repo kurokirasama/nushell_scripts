@@ -880,3 +880,8 @@ export def "apps-update html2text" [] {
   cd ~/software/html2text; git pull 
   cp -f html2text.py ~/Yandex.Disk/Comandos_bash_for_nushell/html2text
 }
+
+#update rclone
+export def "apps-update rclone" [] {
+  bash -c "sudo -v ; curl -s# https://rclone.org/install.sh | sudo bash"
+}

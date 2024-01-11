@@ -165,10 +165,10 @@ export def "7z max" [
     return-error "no files to compress specified"
   }
   if ($delete | is-empty) or (not $delete) {
-    7z a -t7z -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" $rest
+    7z a -t7z -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" ...$rest
     return
   }
-  7z a -t7z -sdel -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" $rest
+  7z a -t7z -sdel -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" ...$rest
 }
 
 #rm trough pipe
@@ -386,7 +386,7 @@ export def join-pdfs [
     return-error "not enough pdfs provided"
   }
   
-  pdftk $rest cat output output.pdf
+  pdftk ...$rest cat output output.pdf
   print (echo-g "pdf merged in output.pdf")
 }
 

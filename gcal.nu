@@ -52,7 +52,7 @@ export def "gcal agenda" [
 
   let calendars = gcal list -R (not $full) -f $full| str join "|"
   
-  gcalcli --calendar $"($calendars)" agenda --military $rest
+  gcalcli --calendar $"($calendars)" agenda --military ...$rest
 }
 
 #show gcal week in selected calendards
@@ -68,7 +68,7 @@ export def "gcal semana" [
 ] {
   let calendars = gcal list -R (not $full) -f $full | str join "|"
 
-  gcalcli --calendar $"($calendars)" calw $rest --military --monday
+  gcalcli --calendar $"($calendars)" calw ...$rest --military --monday
 }
 
 #show gcal month in selected calendards
@@ -84,7 +84,7 @@ export def "gcal mes" [
 ] {
   let calendars = gcal list -R (not $full) -f $full | str join "|"
 
-  gcalcli --calendar $"($calendars)" calm $rest --military --monday
+  gcalcli --calendar $"($calendars)" calm ...$rest --military --monday
 }
 
 #list available calendars

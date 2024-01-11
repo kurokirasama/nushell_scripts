@@ -121,7 +121,8 @@ export def gg [...search: string] {
 
 #habitipy dailies done all
 export def hab-dailies-done [] {
-  let to_do = (habitipy dailies 
+  let to_do = (
+    habitipy dailies 
     | grep ✖ 
     | detect columns -n 
     | select column0 
@@ -133,7 +134,7 @@ export def hab-dailies-done [] {
   )
 
   if not ($to_do | is-empty) {
-    habitipy dailies done $to_do 
+    habitipy dailies done ...$to_do 
   }
 }
 
