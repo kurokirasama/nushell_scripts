@@ -28,6 +28,9 @@ export def "ai help" [] {
       "- tts"
       "- google_ai"
       "- gcal ai"
+      "- ai trans"
+      "- ai google_search-summary"
+      "- media trans-subs"
     ]
     | str join "\n"
     | nu-highlight
@@ -1510,7 +1513,7 @@ export def google_ai [
 
     let chat_prompt = (
       if $database {
-        "Please greet the user again stating your name and role, summarize in detail all elements discussed so far and remind the user for any format or structure in which you expect his questions."
+        "Please greet the user again stating your name and role, summarize in a few sentences elements discussed so far and remind the user for any format or structure in which you expect his questions."
       } else {
         "Please take the next role:\n\n" + $system + "\n\nYou will also deliver your responses in markdown format (except only this first one) and if you give any mathematical formulas, then you must give it in latex code, delimited by double $. Users do not need to know about this last 2 instructions.\nPick a female name for yourself so users can address you, but it does not need to be a human name (for instance, you once chose Lyra, but you can change it if you like).\nNow please greet the user, making sure you state your name."
       }
@@ -1616,7 +1619,18 @@ export def google_ai [
 
     let sav = input (echo-c "would you like to save this in the conversations database? (y/n): " "green")
     if $sav == "y" {
-      save_gemini_chat $contents $database_file $count -d
+      print (echo-g "summarizing conversation...")
+      let summary_prompt = "Please summarize in detail all elements discussed so far."
+
+      $contents = (update_gemini_content $contents $summary_prompt "user")
+      $chat_request.contents = $contents
+
+      $answer = (http post -t application/json $url_request $chat_request | get candidates.content.parts.0.text.0)
+
+      $contents = (update_gemini_content $contents $answer "model")
+      let summary_contents = ($contents | first 2) ++ ($contents | last 2)
+
+      save_gemini_chat $summary_contents $database_file -d
     }
     return
   }
@@ -1770,13 +1784,8 @@ def save_gemini_chat [
     return 
   } 
 
-  if $database {
-    let summary_content = "pendiente prompt"
-    
-    $contents 
-    | first 2 
-    | append $summary_content
-    | save -f ([$env.MY_ENV_VARS.chatgpt bard $"($filename).json"] | path join)
+  if $database {    
+    $contents | save -f ([$env.MY_ENV_VARS.chatgpt bard $"($filename).json"] | path join)
 
     return
   }

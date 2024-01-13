@@ -177,7 +177,6 @@ export def "rclone export" [] {
 #import rclone config
 export def "rclone import" [] {
   cd $env.MY_ENV_VARS.linux_backup
-  nu-crypt -d -n rclone.conf.asc
-  mv -f rclone.conf ~/.config/rclone  
+  nu-crypt -d -n rclone.conf.asc | save -f ~/.config/rclone/rclone.conf  
   rclone listremotes
 }
