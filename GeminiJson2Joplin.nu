@@ -3,13 +3,13 @@
 export def main [tags?:string = "AI,ai_notes,bard"] {
   joplin use "AI_GeminiVoiceChat"
 
-  let files = ls ~/Dropbox/Aplicaciones/Gmail/* | find joplin 
+  let files = ls ~/Dropbox/Aplicaciones/Gmail/* | find joplin
   
   if ($files | length) == 0 {return}
 
   $files
   | each {|file|
-      let json = open $file.name | ansi strip
+      let json = open ($file.name | ansi strip)
       let title = $json.title
       let content = $json.body
 

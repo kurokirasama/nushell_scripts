@@ -419,6 +419,6 @@ export def rmount [drive?:string] {
   )
 
   let remote = $drive | path parse | get stem
-  let option = if $drive =~ "photos|mega|onedrive" {"--vfs-cache-mode writes"} else {""}
+  let option = "--vfs-cache-mode writes"
   bash -c $"'rclone mount ($remote): ($drive) ($option) &'"
 }

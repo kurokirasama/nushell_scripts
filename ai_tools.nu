@@ -1976,7 +1976,7 @@ export def "media trans-sub" [
           return-error $"error while translating: ($translated)"
         } 
 
-        print (echo ($line.item + "\ntranslated to\n" + $translated))
+        # print (echo ($line.item + "\ntranslated to\n" + $translated))
 
         $translated | ansi strip | save --append $new_file
         "\n" | save --append $new_file
@@ -1984,7 +1984,7 @@ export def "media trans-sub" [
         $line.item | save --append $new_file
         "\n" | save --append $new_file
       }
-      # print -n (echo-g $"\r(($line.index + $start) / $lines * 100 | math round -p 3)%")
+      print -n (echo-g $"\r(($line.index + $start) / $lines * 100 | math round -p 3)%")
     }
 
   if $notify {"translation finished!" | tasker send-notification}

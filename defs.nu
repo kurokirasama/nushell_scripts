@@ -119,25 +119,6 @@ export def gg [...search: string] {
   ddgr -n 5 ($search | str join ' ')
 }
 
-#habitipy dailies done all
-export def hab-dailies-done [] {
-  let to_do = (
-    habitipy dailies 
-    | grep ✖ 
-    | detect columns -n 
-    | select column0 
-    | each {|row| 
-        $row.column0 
-        | str replace '.' ''
-      }  
-    | into int  
-  )
-
-  if not ($to_do | is-empty) {
-    habitipy dailies done ...$to_do 
-  }
-}
-
 #countdown alarm 
 export def countdown [
   n: int #time in seconds

@@ -885,3 +885,10 @@ export def "apps-update html2text" [] {
 export def "apps-update rclone" [] {
   bash -c "sudo -v ; curl -s# https://rclone.org/install.sh | sudo bash"
 }
+
+#update matlab lsp server
+export def "apps-update matlab-lsp" [] {
+  cd ~/software/MATLAB-language-server
+  git pull 
+  npm install; npm run compile; npm run package
+}

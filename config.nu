@@ -86,24 +86,24 @@ let my_config = ($my_config | upsert hooks $hooks)
 
 #restoring menus
 let alias_menu = {
-    name: alias_menu,
-    only_buffer_difference: false,
-    marker: "👀 ",
+    name: alias_menu
+    only_buffer_difference: false
+    marker: "👀 "
     type: {
-        layout: columnar,
-        columns: 1,
-        col_width: 20,
-        col_padding: 2
-    },
+      layout: columnar
+      columns: 1
+      col_width: 20
+      col_padding: 2
+    }
     style: {
-        text: green,
-        selected_text: green_reverse,
-        description_text: yellow
-    },
+      text: green
+      selected_text: green_reverse
+      description_text: yellow
+    }
     source: { |buffer, position|
-        $nu.scope.aliases
-        | where alias == $buffer
-        | each { |it| {value: $it.expansion }}
+      scope aliases
+      | where name == $buffer
+      | each { |it| {value: $it.expansion }}
     }
 }
 
@@ -133,15 +133,15 @@ let keybindings = ($my_config | get keybindings | indexify idx)
 mut new_indexes = []
 let new_keybinds = [
 	{
-  		name: "alias_menu",
-  		modifier: alt,
-  		keycode: char_a,
-  		mode: [emacs, vi_normal, vi_insert],
-  		event: { 
-  			send: menu,
-  			name: alias_menu 
-  		}
-  	},
+  		name: "alias_menu"
+        modifier: alt
+        keycode: char_a
+        mode: [emacs, vi_normal, vi_insert]
+        event: [
+            { send: menu name: alias_menu }
+            { edit: insertchar, value: ' '}
+        ]
+  	 },
   	{
         name: "reload_config",
         modifier: alt,
