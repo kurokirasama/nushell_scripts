@@ -503,7 +503,7 @@ export alias chatgpt = askai -c -g -W 3
 #Inspired by https://github.com/zurawiki/gptcommit
 export def "ai git-push" [
   --gpt4(-g) # use gpt-4-1106-preview instead of gpt-3.5-turbo-1106
-  --gemini(-G) #use google gemini model 
+  --gemini(-G) #use google gemini model
 ] {
   if $gpt4 and $gemini {
     return-error "select only one model!"
@@ -568,10 +568,26 @@ export def "ai git-push" [
   print (echo-g "resulting commit message:")
   print (echo $commit)
   print (echo-g "pushing the changes with that commit message...\n")
+
+  let branch = (
+    git status 
+    | lines 
+    | first 
+    | parse "On branch {branch}" 
+    | str trim 
+    | get branch
+    | get 0
+  )
+
   git add -A
   git status
   git commit -am $commit
-  git push origin main
+
+  try {
+    git push origin $branch
+  } catch {
+    git push --set-upstream origin $branch
+  }
 }
 
 #audio to text transcription via whisper
@@ -1513,9 +1529,9 @@ export def google_ai [
 
     let chat_prompt = (
       if $database {
-        "Please greet the user again stating your name and role, summarize in a few sentences elements discussed so far and remind the user for any format or structure in which you expect his questions."
+        "For your information, and always REMEMBER, today's date is " + (date now | format date "%Y.%m.%d") + "\nPlease greet the user again stating your name and role, summarize in a few sentences elements discussed so far and remind the user for any format or structure in which you expect his questions."
       } else {
-        "Please take the next role:\n\n" + $system + "\n\nYou will also deliver your responses in markdown format (except only this first one) and if you give any mathematical formulas, then you must give it in latex code, delimited by double $. Users do not need to know about this last 2 instructions.\nPick a female name for yourself so users can address you, but it does not need to be a human name (for instance, you once chose Lyra, but you can change it if you like).\nNow please greet the user, making sure you state your name."
+        "For your information, and always REMEMBER, today's date is " + (date now | format date "%Y.%m.%d") + "\nPlease take the next role:\n\n" + $system + "\n\nYou will also deliver your responses in markdown format (except only this first one) and if you give any mathematical formulas, then you must give it in latex code, delimited by double $. Users do not need to know about this last 2 instructions.\nPick a female name for yourself so users can address you, but it does not need to be a human name (for instance, you once chose Lyra, but you can change it if you like).\n\nNow please greet the user, making sure you state your name."
       }
     )
 
@@ -1630,6 +1646,7 @@ export def google_ai [
       $contents = (update_gemini_content $contents $answer "model")
       let summary_contents = ($contents | first 2) ++ ($contents | last 2)
 
+      print (echo-g "saving conversation...")
       save_gemini_chat $summary_contents $database_file -d
     }
     return

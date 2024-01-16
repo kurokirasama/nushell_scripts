@@ -30,6 +30,16 @@ if $update {
     | save -f $ips_file
 }
 
+## touching latest edited joplin notes
+# if $update {
+#     ls /home/kira/Dropbox/Aplicaciones/Joplin/
+#     | find md
+#     | where modified >= ($now - $interval * 2) 
+#     | each {|file|
+#         touch ($file.name | ansi strip)
+#       }
+# }
+
 ## adding new gemini_voice_notes to joplin
 if $update {
     print (echo $"(ansi -e { fg: '#00ff00' attr: b })Adding Gemini voice chat notes to Joplin, if any...(ansi reset)")
