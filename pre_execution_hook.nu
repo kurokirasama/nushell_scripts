@@ -23,7 +23,7 @@ if $update {
     print (echo $"(ansi -e { fg: '#00ff00' attr: b })getting device ips...(ansi reset)")
     let host = (sys | get host | get hostname)
     let ips_file = "/home/kira/Yandex.Disk/Android Devices/Apps/Termux/ips.json"
-    let ips = (nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/get-ips.nu)
+    let ips = (nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/get-ips.nu $env.MY_ENV_VARS.host_work)
 
     open $ips_file
     | upsert $host ($ips | from json)

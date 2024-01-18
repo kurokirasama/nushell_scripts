@@ -1,13 +1,14 @@
 #!/usr/bin/env nu
 
 export def main [
+  input_host:string
   device?  #wlo1 for wifi (export default), eno1 for lan
 ] {
   let host = (sys | get host | get hostname)
   
   let device = (
     if ($device | is-empty) {
-      if $host =~ $env.MY_ENV_VARS.host_work {
+      if $host =~ $input_host {
         "eno1"
       } else {
         "wlo1"

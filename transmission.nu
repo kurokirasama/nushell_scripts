@@ -102,14 +102,13 @@ export def "t remove" [
 #t-removedelete 2 3 6 9
 #t list | some filter | t-removedelete
 export def "t remove-delete" [
-  ...ids    #list of ids
+  ...ids    #list of ids or table
 ] {
+  let t = $in
   if ($ids | is-empty) {
-    $in
-    | where ID !~ "Sum:"
-    | get ID 
+    $t
     | each {|id| 
-        transmission-remote -t $id -n 'transmission:transmission' -rad
+        transmission-remote -t $id.ID -n 'transmission:transmission' -rad
       }
   } else {
     $ids 
