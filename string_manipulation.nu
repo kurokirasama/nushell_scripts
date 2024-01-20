@@ -4,8 +4,13 @@ export def "str prepend" [toprepend:string] {
 }
 
 #string append
-export def "str append" [toappend:string] { 
-  $in + $toappend
+export def "str append" [tail: string]: [string -> string, list<string> -> list<string>] {
+  let input = $in
+  match ($input | describe | str replace --regex '<.*' '') {
+    "string" => { $input ++ $tail },
+    "list" => { $input | each {|el| $el ++ $tail} },
+    _ => {return-error "only string or list allowed!"}
+  }
 }
 
 #string repeat 
