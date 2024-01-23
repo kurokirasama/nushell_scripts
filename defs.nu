@@ -27,6 +27,8 @@ export def grep-nu [
   | rename "source file" "line number"
 }
 
+export alias grp = grep-nu
+
 #copy pwd
 export def cpwd [] {
   $env.PWD | xclip -sel clip

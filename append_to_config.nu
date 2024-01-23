@@ -1,5 +1,6 @@
 
 use std *
+use /path/to/nushell_scripts/aliases.nu *
 use /path/to/nushell_scripts/string_manipulation.nu *
 use /path/to/nushell_scripts/table_manipulation.nu *
 use /path/to/nushell_scripts/files.nu *
@@ -8,7 +9,6 @@ use /path/to/nushell_scripts/crypt.nu *
 use /path/to/nushell_scripts/defs.nu *
 use /path/to/nushell_scripts/system.nu *
 use /path/to/nushell_scripts/gcal.nu *
-use /path/to/nushell_scripts/aliases.nu *
 use /path/to/nushell_scripts/media.nu *
 use /path/to/nushell_scripts/apis.nu *
 use /path/to/nushell_scripts/habitica.nu *
