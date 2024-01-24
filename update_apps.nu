@@ -892,3 +892,8 @@ export def "apps-update matlab-lsp" [] {
   git pull 
   npm install; npm run compile; npm run package
 }
+
+#update glow
+export def "apps-update glow" [] {
+  go install github.com/charmbracelet/glow@latest
+}

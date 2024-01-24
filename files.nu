@@ -40,14 +40,16 @@ export def typeof [--full(-f)] {
 }
 
 #open code
-export def open2 [file?,--raw] {
+export def op [file?,--raw] {
   let file = if ($file | is-empty) {$in | get name | get 0} else {$file}
   let extension = ($file | path parse | get extension)
 
-  if ($extension =~ "md|R|c|Rmd|m") or ($extension | is-empty) {
-    bat $file
+  if $extension =~ "md|Rmd" {
+    glow $file
   } else if $extension =~ "nu" {
     open $file | nu-highlight
+  } else if ($extension =~ "R|c|m|py|sh") or ($extension | is-empty) {
+    bat $file
   } else {
     if $raw {
       open --raw $file
@@ -460,7 +462,7 @@ export def lister [file] {
       } 
     | dfr into-df 
     | dfr drop extension 
-    | dfr rename [parent stem] [path name]
+    | dfr rename [parent stem] [path file]
   )
 
   $first | dfr append $second | dfr append $last | dfr into-nu | save -f $file

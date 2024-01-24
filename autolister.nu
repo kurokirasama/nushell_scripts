@@ -67,7 +67,7 @@ def lister [file] {
 		  } 
 		| dfr into-df 
 		| dfr drop extension 
-		| dfr rename [parent stem] [path name]
+		| dfr rename [parent stem] [path file]
 	)
 
 	$first | dfr append $second | dfr append $last | dfr into-nu | save -f $file
