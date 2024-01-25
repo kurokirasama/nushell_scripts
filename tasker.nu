@@ -172,3 +172,13 @@ export def "tasker sms" [
   	| http get $in
   	| ignore
 }
+
+#backup guake settings
+export def "guake backup" [] {
+	guake --save-preferences ([$env.MY_ENV_VARS.linux_backup guakesettings.txt] | path join)
+}
+
+#restore guake settings
+export def "guake restore" [] {
+	guake --restore-preferences ([$env.MY_ENV_VARS.linux_backup guakesettings.txt] | path join)
+}
