@@ -180,3 +180,13 @@ export def "rclone import" [] {
   nu-crypt -d -n rclone.conf.asc | save -f ~/.config/rclone/rclone.conf  
   rclone listremotes
 }
+
+#backup guake settings
+export def "guake backup" [] {
+  guake --save-preferences ([$env.MY_ENV_VARS.linux_backup guakesettings.txt] | path join)
+}
+
+#restore guake settings
+export def "guake restore" [] {
+  guake --restore-preferences ([$env.MY_ENV_VARS.linux_backup guakesettings.txt] | path join)
+}

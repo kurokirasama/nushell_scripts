@@ -1,9 +1,25 @@
-#help
-export def "tasker help" [] {
+#help join
+export def "tasker-join help" [] {
 	print (
 		[
 			"uses join app to interact with other devices:"
 			"    https://github.com/joaomgcd/JoinDesktop"
+			"METHODS:"
+			"- tasker-join send-notification"
+			"- tasker-join phone-call"
+			"- tasker-join tts"
+			"- tasker-join sms"
+	 	]
+	 	| str join "\n"
+	)
+}
+
+#help tasker
+export def "tasker help" [] {
+	print (
+		[
+			"uses tasker http server functionalityto interact with other devices:"
+			""
 			"METHODS:"
 			"- tasker send-notification"
 			"- tasker phone-call"
@@ -15,7 +31,7 @@ export def "tasker help" [] {
 }
 
 #send notificacion via join
-export def "tasker send-notification" [
+export def "tasker-join send-notification" [
 	text?:string
 	--device(-d):string = "note12"
 	--title(-t):string
@@ -55,7 +71,7 @@ export def "tasker send-notification" [
 }
 
 #phone call via join
-export def "tasker phone-call" [
+export def "tasker-join phone-call" [
 	phone?:string
 	--device(-d):string = "note12"
 	--select_device(-s)
@@ -94,7 +110,7 @@ export def "tasker phone-call" [
 }
 
 #tts via join
-export def "tasker tts" [
+export def "tasker-join tts" [
 	text?:string
 	--device(-d):string = "note12"
 	--language(-l):string = "spa" #language of tts (spa, eng, etc)
@@ -135,7 +151,7 @@ export def "tasker tts" [
 }
 
 #sms via join
-export def "tasker sms" [
+export def "tasker-join sms" [
 	phone:string
 	text?:string
 	--device(-d):string = "note12"
@@ -173,12 +189,103 @@ export def "tasker sms" [
   	| ignore
 }
 
-#backup guake settings
-export def "guake backup" [] {
-	guake --save-preferences ([$env.MY_ENV_VARS.linux_backup guakesettings.txt] | path join)
+#say via tasker http server
+export def "tasker tts" [
+	text?:string
+	--device(-d):string = "main"  #main, 
+	--language(-l):string = "spa" #language of tts (spa, eng)
+	--select_device(-s)
+] {
+	let text = if ($text | is-empty) {$in} else {$text}
+
+	let device = (
+		if not $select_device {
+			$device
+		} else {
+			$env.MY_ENV_VARS.tasker_server.devices
+			| columns
+			| input list -f (echo-g "select device:") 
+		} 
+	)
+	
+	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
+	let server = open ($env.MY_ENV_VARS.tasker_server.devices | get $device | get file ) | get $device_name
+
+	http get $"($server)/command?say=($text | url encode)&language=($language)" | ignore
 }
 
-#restore guake settings
-export def "guake restore" [] {
-	guake --restore-preferences ([$env.MY_ENV_VARS.linux_backup guakesettings.txt] | path join)
+#send notificacion via tasker http server
+export def "tasker send-notification" [
+	text?:string
+	--device(-d):string = "main"
+	--title(-t):string
+	--select_device(-s)
+] {
+	let text = if ($text | is-empty) {$in} else {$text}
+	let title = if ($title | is-empty) {"from " + (sys | get host.hostname)} else {$title}
+	
+	let device = (
+		if not $select_device {
+			$device
+		} else {
+			$env.MY_ENV_VARS.tasker_server.devices
+			| columns
+			| input list -f (echo-g "select device:") 
+		} 
+	)
+	
+	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
+	let server = open ($env.MY_ENV_VARS.tasker_server.devices | get $device | get file ) | get $device_name
+
+	http get $"($server)/command?notification=($text | url encode)&title=($title | url encode)" | ignore
+}
+
+#send ssm via tasker http server
+export def "tasker sms" [
+	phone:string
+	text?:string
+	--device(-d):string = "main"
+	--select_device(-s)
+] {
+	let sms = if ($text | is-empty) {$in} else {$text}
+
+	let device = (
+		if not $select_device {
+			$device
+		} else {
+			$env.MY_ENV_VARS.tasker_server.devices
+			| columns
+			| input list -f (echo-g "select device:") 
+		} 
+	)
+	
+	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
+	let server = open ($env.MY_ENV_VARS.tasker_server.devices | get $device | get file ) | get $device_name
+
+	http get $"($server)/command?sms=($text | url encode)&phone=($phone)" | ignore
+}
+
+#phone call via tasker http server
+export def "tasker phone-call" [
+	phone?:string
+	--device(-d):string = "main"
+	--select_device(-s)
+] {
+	let phone = if ($phone | is-empty) {$in} else {$phone}
+	let title = "phone call started from " + (sys | get host.hostname) + " to " + $phone
+
+	let device = (
+		if not $select_device {
+			$device
+		} else {
+			$env.MY_ENV_VARS.tasker_server.devices
+			| columns
+			| input list -f (echo-g "select device:") 
+		} 
+	)
+	
+	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
+	let server = open ($env.MY_ENV_VARS.tasker_server.devices | get $device | get file ) | get $device_name
+
+	http get $"($server)/command?call=($phone | url encode)&title=($title | url encode)" | ignore
 }
