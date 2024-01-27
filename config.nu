@@ -58,7 +58,7 @@ let hooks = {
                         _ => {"f7b5"}
                     }
                 } else {
-                    "f31b"
+                    if (sys | get host.name) =~ "Windows" {"f17a"} else {"f31b"}
                 } 
             )
         },
