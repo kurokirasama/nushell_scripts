@@ -46,6 +46,21 @@ let hooks = {
         			0
     			}
 			)
+            $env.CLOUD = (
+                if $env.PWD =~ "rclone/" {
+                    match ($env.PWD | split row "/rclone/" | get 1 | split row "/" | get 0) {
+                        "onedrive" => {"f8c9"},
+                        "gdrive" => {"e731"},
+                        "photos" => {"fbdb"}, 
+                        "yandex" => {"f662"}, 
+                        "box" => {"f5d3"}, 
+                        "mega" => {"e673"}, 
+                        _ => {"f7b5"}
+                    }
+                } else {
+                    "f31b"
+                } 
+            )
         },
         {||
             $env.NETWORK = (
