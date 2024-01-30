@@ -1947,7 +1947,7 @@ export def "media trans-sub" [
     | enumerate
     | each {|line|
         # print (echo $line.item)
-        if (not $line.item =~ "-->") and (not $line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
+        if not ($line.item =~ "-->") and not ($line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
           let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
           let translated = (
             if $ai and $gemini {
@@ -1984,7 +1984,7 @@ export def "media trans-sub" [
   | last ($lines - $start)
   | enumerate
   | each {|line|
-      if (not $line.item =~ "-->") and (not $line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
+      if not ($line.item =~ "-->") and not ($line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
         let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
         let translated = (
           if $ai and $gemini {
