@@ -246,7 +246,14 @@ export def reset-alpine-auth [] {
 export def matlab-cli [
   --background(-b)    #send process to the background
   --input(-i):string  #input m-file to run
+  --output(-o):string #output file for log without extension
+  --kill(-k)          #kill current matlab processes
 ] {
+  if $kill {
+    psn matlab | find local & MATLAB | find -v MATLAB-language-server & 'bin/nu' | killn
+    return
+  }
+
   if not $background {
     matlab -nosplash -nodesktop -softwareopengl -sd $"\"($env.PWD)\"" -logfile "/home/kira/Dropbox/matlab/log23.txt" -r "setenv('SHELL', '/bin/bash');"
     return
@@ -264,10 +271,10 @@ export def matlab-cli [
         $input
       }
     )
-    let output = input (echo-g "output file (without extension): ")
-    let output = if ($output | is-empty) {"output"} else {$output}
+  
+    let output = if ($output | is-empty) {$log} else {$output + ".txt"}
 
-    bash -c $"matlab -nodisplay -nodesktop -nosplash -sd ($env.PWD) -r ($input) > ($log) &"
+    bash -c $"matlab -nodisplay -nodesktop -nosplash -sd ($env.PWD) -r ($input) > ($output) &"
   }
 }
 

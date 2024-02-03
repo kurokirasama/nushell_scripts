@@ -158,7 +158,7 @@ export def psn [name?: string] {
 #kill specified process
 #
 #Receives a name or a list of processes
-export def killn [name?] {
+export def killn [name?:string] {
   if not ($name | is-empty) {
     ps -l
     | find -i $name 

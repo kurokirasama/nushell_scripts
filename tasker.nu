@@ -289,3 +289,5 @@ export def "tasker phone-call" [
 
 	http get $"($server)/command?call=($phone | url encode)&title=($title | url encode)" | ignore
 }
+
+export alias finished = tasker tts "copy finished" -l eng

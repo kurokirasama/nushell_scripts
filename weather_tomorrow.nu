@@ -490,7 +490,7 @@ def get_icon_description_from_code [
 ] {
     let day = (date now | format date '%H:%M:%S') < $sunset and (date now | format date '%H:%M:%S') > $sunrise
 
-    match ($code | into string) {
+    let icon = match ($code | into string) {
         "1000" => {if $day {"clear-day"} else {"clear-night"}},
         "1100" => {if $day {"mostly-clear-day"} else {"mostly-clear-night"}},
         "1101" => {if $day {"partly-cloudy-day"} else {"partly-cloudy-night"}},       
@@ -515,4 +515,6 @@ def get_icon_description_from_code [
         "7102" => {"sleet"},
         "8000" => {"thunderstorm"}
     }   
+
+    return $icon
 }
