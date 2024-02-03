@@ -434,7 +434,7 @@ def get_weather_for_prompt [loc] {
         | format date "%H:%M:%S"
     )
 
-    let icon_description = (get_icon_description_from_code $response.realtime.data.values.weatherCode $sunrise $sunset)
+    let icon_description = get_icon_description_from_code $response.realtime.data.values.weatherCode $sunrise $sunset
     let icon = (get_weather_icon $icon_description)
 
     let current = {
@@ -484,7 +484,7 @@ def get_weather_description_from_code [code: string] {
 }
 
 def get_icon_description_from_code [
-    code: string
+    code: int
     sunrise
     sunset
 ] {
