@@ -13,17 +13,14 @@ let update = ((open ~/.autolister.json | get updated | into datetime) + $interva
 
 if $update {
     nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/autolister.nu 
-    open ~/.autolister.json
-    | upsert updated $now
-    | save -f ~/.autolister.json
 }
 
 ## update ip
 if $update {
     print (echo $"(ansi -e { fg: '#00ff00' attr: b })getting device ips...(ansi reset)")
     let host = (sys | get host | get hostname)
-    let ips_file = "/home/kira/Yandex.Disk/Android Devices/Apps/Termux/ips.json"
-    let ips = (nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/get-ips.nu $env.MY_ENV_VARS.host_work)
+    let ips_file = "/home/kira/Yandex.Disk/Android_Devices/Apps/Termux/ips.json"
+    let ips = (nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/get-ips.nu (open ~/.host_work))
 
     open $ips_file
     | upsert $host ($ips | from json)
@@ -44,4 +41,8 @@ if $update {
 if $update {
     print (echo $"(ansi -e { fg: '#00ff00' attr: b })Adding Gemini voice chat notes to Joplin, if any...(ansi reset)")
     nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/GeminiJson2Joplin.nu
+
+    open ~/.autolister.json
+    | upsert updated $now
+    | save -f ~/.autolister.json
 }

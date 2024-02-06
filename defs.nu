@@ -250,7 +250,14 @@ export def matlab-cli [
   --kill(-k)          #kill current matlab processes
 ] {
   if $kill {
-    psn matlab | find local & MATLAB | find -v MATLAB-language-server & 'bin/nu' | killn
+    ps -l 
+    | find -i matlab 
+    | find local & MATLAB 
+    | find -v MATLAB-language-server & 'bin/nu' 
+    | each {|row|
+        kill -f $row.pid
+      }
+    
     return
   }
 
