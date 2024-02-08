@@ -98,6 +98,7 @@ let hooks = {
   }
 
 let my_config = ($my_config | upsert hooks $hooks)
+let my_config = ($my_config | upsert completions.use_ls_colors true)
 
 #restoring menus
 let alias_menu = {

@@ -1,11 +1,6 @@
 #update off-package manager apps
 export def apps-update [] {
   try {
-    apps-update zoom
-  } catch {
-    print (echo-r "Something went wrong with zoom instalation!")
-  }
-  try {
     apps-update sejda
   } catch {
     print (echo-r "Something went wrong with sejda instalation!")
@@ -35,11 +30,11 @@ export def apps-update [] {
   } catch {
     print (echo-r "Something went wrong with taskerpermissions instalation!")
   }
-  try {
-    apps-update join
-  } catch {
-    print (echo-r "Something went wrong with taskerpermissions instalation!")
-  }
+  # try {
+  #   apps-update join
+  # } catch {
+  #   print (echo-r "Something went wrong with taskerpermissions instalation!")
+  # }
   try {
     apps-update lutris #ignore if ppa works again
   } catch {
@@ -70,10 +65,15 @@ export def apps-update [] {
   } catch {
     print (echo-r "Something went wrong with vivaldi instalation!")
   }
+  # try {
+  #  apps-update chrome
+  # } catch {
+  #  print (echo-r "Something went wrong with chrome instalation!")
+  # }
   try {
-   apps-update chrome
+    apps-update zoom
   } catch {
-   print (echo-r "Something went wrong with chrome instalation!")
+    print (echo-r "Something went wrong with zoom instalation!")
   }
 }
 
@@ -240,7 +240,7 @@ export def "apps-update taskerpermissions" [] {
 
 #update join deb
 export def "apps-update join" [] {
-  github-app-update joaomgcd JoinDesktop -a taskerpermissions
+  github-app-update joaomgcd JoinDesktop -a join
 }
   
 #update lutris deb
@@ -290,43 +290,23 @@ export def "apps-update monocraft" [
 export def "apps-update zoom" [] {
   cd $env.MY_ENV_VARS.debs
   
-  let now = (date now)
+  let current_version = open zoom.json | get version
 
-  let release_url = (
-    "https://support.zoom.us/" | hakrawler  #https://support.zoom.us/hc/en-us
-    | lines 
-    | find articles 
-    | find release 
-    | find ($now | format date "%Y")
-    | uniq 
-    | first
-    | hakrawler 
-    | lines 
-    | find linux 
-    | first
-  )
+  print ("current version: " + $current_version)
 
-  if ($release_url | length) == 0 {
-    return-error "no releases found this year"
+  print (echo-g "go to https://us05web.zoom.us/support/down4j")
+
+  let release_url = input (echo-g "paste deb url here: ")
+
+  if ($release_url | is-empty) {
+    return
   }
 
   let last_version = (
-    lynx -source $release_url 
-    | split row "Current Release" 
-    | last 
-    | split row "Download" 
-    | first 
-    | lines 
-    | find version 
-    | get 0 
-    | split row version 
-    | last 
-    | split row "</h3>" 
-    | first 
-    | str trim
+    $release_url
+    | split row "/" 
+    | get 4
   )
-
-  let current_version = (open ([$env.MY_ENV_VARS.debs zoom.json] | path join) | get version)
 
   if $current_version == $last_version {
     print (echo-g "zoom is already in its latest version!")
@@ -336,31 +316,20 @@ export def "apps-update zoom" [] {
   ls | find zoom | find deb | rm-pipe | ignore
 
   print (echo-g "\ndownloading zoom...")
-  aria2c --download-result=hide https://zoom.us/client/latest/zoom_amd64.deb
+  aria2c --download-result=hide $release_url
   sudo gdebi -n (ls *.deb | find zoom | get 0 | get name | ansi strip)
 
   open ([$env.MY_ENV_VARS.debs zoom.json] | path join) 
   | upsert version $last_version 
-  | save -f ([$env.MY_ENV_VARS.debs zoom.json] | path join)  
+  | save -f ([$env.MY_ENV_VARS.debs zoom.json] | path join) 
+
+  apps-update chrome 
 }
 
 #update chrome deb
 export def "apps-update chrome" [] {
   cd $env.MY_ENV_VARS.debs
 
-  let html = (http get https://chromereleases.googleblog.com/ | query web -q 'script' | find extended | get 0)
-  let text = ($html | chat_gpt --select_system html_parser --select_preprompt parse_html)
-
-  let prompt = ("From the following text delimited by triple backquotes ('), extract only the linux version number of Chrome that is mentioned:\n'''\n" + $text + "\n'''\nReturn your response in json format with the unique key 'version'")
-  let new_version = ($prompt | askai -t 0.2 -g | from json | get version)
-
-  let current_version = (google-chrome-stable --version | split row "Google Chrome "  | str trim | last)
-
-  if $current_version == $new_version {
-    print (echo-g "chrome is already in its latest version!")
-    return
-  }
-  
   if (ls *.deb | find chrome | length) > 0 {
     ls *.deb | find chrome | rm-pipe | ignore
   }
@@ -378,6 +347,7 @@ export def "apps-update earth" [] {
     | query web -q a 
     | find version 
     | first
+    | ansi strip
   )
 
   let current_version = (open ([$env.MY_ENV_VARS.debs earth.json] | path join) | get version)
@@ -600,6 +570,7 @@ export def "apps-update vivaldi" [] {
     | find deb 
     | find amd64 
     | get 0
+    | ansi strip 
   )
 
   if ($release_url | length) == 0 {
@@ -611,6 +582,11 @@ export def "apps-update vivaldi" [] {
     | split row _ 
     | get 1
   )
+
+  if (ls | find vivaldi | length) == 0 {
+    aria2c --download-result=hide $release_url
+    return 
+  } 
 
   let current_version = (
     ls 
@@ -685,9 +661,9 @@ export def reg-plugins [] {
   | find nu_plugin 
   | find -v example
   | each {|file|
-      print (echo-g $"registering ($file)...")
+      print (echo-g $"registering ($file | ansi strip)...")
       try {
-        nu -c $'register ($file)'
+        nu -c $'register ($file | ansi strip)'
       } catch {
         print (echo-r "failed!")
       }
