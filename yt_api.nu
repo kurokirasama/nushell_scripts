@@ -1,37 +1,43 @@
 #help info for yt-api
 export def "yt-api help" [] {
-  echo "  CONFIGURE $env.MY_ENV_VARS.credentials\n
-    Add the path to your directory with the credential file or replace manually.\n
-  CREATE CREDENTIALS\n
-    1) Create an api key from google developers console.\n
-    2) Create oauth2 credentials. You should download a json file with at least the following fields:
-      - client_id
-      - client_secret
-      - redirect_uris\n
-    3) Add the api key to the previous file, from now on, the credentials file.\n
-    4) Run `yt-api get-token`. The token is automatically added to the credentials file.\n
-    5) Run `yt-api get-regresh-token`. The refresh token is automatically added to the credentials file.\n
-    6) When the token expires, it will run `yt-api get-token` again.
-    7) When `yt-api refresh-token` is finished, the refresh will be automatic.\n
-  METHODS\n
-    - `yt-api`
-    - `yt-api get-songs`
-    - `yt-api update-all`
-    - `yt-api download-music-playlists`\n
-  MORE HELP\n
-    Run `? yt-api`\n
-  RELATED\n
-    `ytm`\n"
-    | nu-highlight
+  print ([
+    "CONFIGURE $env.MY_ENV_VARS.credentials"
+    " Add the path to your directory with the credential file or replace manually."
+    ""
+    "CREATE CREDENTIALS"
+    " 1) Create an api key from google developers console"
+    " 2) Create oauth2 credentials. You should download a json file with at least the following fields:"
+    "   - client_id"
+    "   - client_secret"
+    "   - redirect_uris"
+    " 3) Add the api key to the previous file, from now on, the credentials file."
+    " 4) Run `yt-api get-token`. The token is automatically added to the credentials file."
+    " 5) Run `yt-api get-regresh-token`. The refresh token is automatically added to the credentials file."
+    " 6) When the token expires, it will run `yt-api get-token` again."
+    " 7) When `yt-api refresh-token` is finished, the refresh will be automatic."
+    ""
+    "METHODS:"
+    " - yt-api"
+    " - yt-api get-songs"
+    " - yt-api update-all"
+    " - yt-api download-music-playlists"
+    ""
+    "MORE HELP"
+    " Run `? yt-api`"
+    ""
+    "RELATED"
+    " ytm"
+    ] | str join "\n"
+  )
 }
 
 #play youtube music with playlist items pulled from local database
+#
+#First run `yt-api download-music-playlists`
 export def ytm [
   playlist? = "all_likes" #playlist name (default: all_likes)
   --list(-l)              #list available music playlists for selection
   --artist(-a):string     #search by artist from all_likes
-  #
-  #First run `yt-api download-music-playlists`
 ] {
   let mpv_input = ([$env.MY_ENV_VARS.linux_backup "scripts/mpv_input.conf"] | path join)
   let playlists = (ls $env.MY_ENV_VARS.youtube_database | get name)
@@ -177,12 +183,12 @@ export def yt-api [
 }
 
 #get youtube songs of playlist by id
+#
+#Output table: 
+#inPlaylistID | id | title | artist | thumbnail | url
 export def "yt-api get-songs" [
   pid:string      #playlist id
   --ptoken:string #nextpage token
-  #
-  #Output table: 
-  #inPlaylistID | id | title | artist | thumbnail | url
 ] {
   #verify and update token
   yt-api verify-token
@@ -386,10 +392,10 @@ export def "yt-api empty-playlist" [playlist?:string] {
 }
 
 #remove duplicated songs from a playlist
+#
+#Does not work if there are more than 50 duplicates, due to youtube api quota
 export def "yt-api remove-duplicated-songs" [
   playlist?:string #playlist id
-  #
-  #Does not work if there are more than 50 duplicates, due to youtube api quota
 ] {
   let response = (yt-api)
 
@@ -632,30 +638,3 @@ export def test-api [] {
   $response | save -f test.json 
 }
 
- # let response = (http post "https://accounts.google.com/o/oauth2/token/" $"client_id=($client)&client_secret=($secret)&refresh_token=($refresh_token)&grant_type=refresh_token&access_type=offline&prompt=consent&scope=https://www.googleapis.com/auth/youtube"2 -t "text/html"
-  # )
-# https://accounts.google.com/o/oauth2/auth?client_id=676765289577-ek34fcbppprtcvtt7sd98ioodvapojci.apps.googleusercontent.com&redirect_uri=http%3A%2F%2Flocalhost%2Foauth2callback&scope=https://www.googleapis.com/auth/youtube&response_type=token
-
-# http://localhost/oauth2callback
-# http://localhost:8080 
-
-# http://localhost/oauth2callback#access_token=&token_type=Bearer&expires_in=3599&scope=https://www.googleapis.com/auth/youtube
-
-# export def get-yt-playlist [
-#   pid         #playlist id
-#   nos? = 500  #number of song to http get
-#   --all       #http get all songs
-# ] {
-#   ls
-# # $playlists | flatten | where title == jp  | get id
-# }
-
-
-# auth_code
-# https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=https%3A%2F%2Fdevelopers.google.com%2Foauthplayground&prompt=consent&response_type=code&client_id=407408718192.apps.googleusercontent.com&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube&access_type=offline
-# https://accounts.google.com/o/oauth2/v2/auth?redirect_uri=https%3A%2F%2Fdevelopers.google.com%2Foauthplayground&prompt=consent&response_type=code&client_id=407408718192.apps.googleusercontent.com&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube&access_type=offline
-
-# 4/0AdQt8qiNECGYvH98mxe0xnd7dHhGahZb2Na9w2-Q0YTv3KvjCg7ULN6T4Z5jGrLvEfLtnw
-
-# refresh_token
-# 1//04fRaM1rCDgifCgYIARAAGAQSNwF-L9IrQQDg2DCQypNrG44ML4QwcMsEGI0X5i4n43B5E4ZmdLvTcaeDltC0aQDjeUjlCE89BcU
