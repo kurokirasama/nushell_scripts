@@ -54,23 +54,16 @@ export def plot-table [
   data?          #a table with only the y values of the plots
   --type = "l"   #type of plot (bars (b), steps (s), points (p), line (l))
   --title = ""   #title
-  --width:number
+  --width:number #width of the plot
 ] {
   let x = (if ($data | is-empty) {$in} else {$data} | reject index?)
   let n_cols = ($x | transpose | length)
   let name_cols = ($x | columns)
 
-  # print ($x | describe)
-  # print ($x)
-
-  # $x | save -f x.json
   mut list = []
   for col in ($x | columns) {
     $list = ($list | append [($x | get $col | into float)])
   }
-
-  # print ($list | describe)
-  # print ($list | flatten)
 
   if ($width | is-empty) {
     match $type {
@@ -81,7 +74,7 @@ export def plot-table [
     }
   } else {
     match $type {
-      "l" => {$list | flatten | plot -l -t $title --width $width},
+      "l" => {$list | plot -l -t $title --width $width},
       "b" => {$list | plot -bl -t $title --width $width},
       "s" => {$list | plot -sl -t $title --width $width},
       "p" => {$list | plot -pl -t $title --width $width},
