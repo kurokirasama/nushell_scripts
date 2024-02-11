@@ -201,6 +201,8 @@ export def cp-pipe [
   mut progress_bar = ""
 
   for i in 0..$number {
+    $progress_bar = (progress_bar $i $number $progress_bar)
+    
     let file = $files | get $i 
     
     if $force {
@@ -208,8 +210,6 @@ export def cp-pipe [
     } else {
       ^cp -ur $file ($to | path expand)
     }
-
-    $progress_bar = (progress_bar $i $number $progress_bar)
   } 
 }
 
