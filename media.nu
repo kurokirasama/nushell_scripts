@@ -953,9 +953,5 @@ export def "media crop-video" [
 
   let crop_command = "crop=" + $output_resolution + ":" + $left + ":" + $top
 
-  try {
-    myffmpeg -i $file -vf $crop_command $output
-  } catch {
-    ffmpeg -i $file -vf $crop_command $output
-  }
+  ffmpeg -i $file -vf $crop_command $output
 }
