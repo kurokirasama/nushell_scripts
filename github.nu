@@ -65,6 +65,7 @@ export def upload-debs-to-gdrive [] {
   if not $mounted {
     print (echo-g "mounting gdrive...")
     rmount $env.MY_ENV_VARS.gdrive_mount_point
+    sleep 4sec
   }
 
   let old_deb_date = ls ([$env.MY_ENV_VARS.gdrive_debs debs.7z] | path join) | get modified | get 0

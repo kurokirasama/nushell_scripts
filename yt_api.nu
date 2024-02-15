@@ -55,11 +55,7 @@ export def ytm [
   } 
 
   let songs = (open ([$env.MY_ENV_VARS.youtube_database $"($to_play).json"] | path join))
-  # let songs = (
-  #   open-df $to_play 
-  #   | drop-duplicates [id] 
-  #   | into nu
-  # )
+
   let songs = (
     if not ($artist | is-empty) {
       $songs 
@@ -221,7 +217,7 @@ export def "yt-api get-songs" [
       }
     | upsert title {|item| 
         $item.snippet.title
-      } #   | find -v "Deleted video"  | find -v "Private video"
+      }
     | where title !~ "Deleted video|Private video"
     | upsert artist {|item| 
         $item.snippet.videoOwnerChannelTitle 
@@ -427,13 +423,6 @@ export def "yt-api remove-duplicated-songs" [
 
   print (echo-g "geting songs and droping duplicates...")
   let songs = (yt-api get-songs $the_playlist.id)
-
-  # let unique_songs = (
-  #   $songs
-  #   | into df 
-  #   | drop-duplicates [id] 
-  #   | into nu
-  # )
 
   let unique_songs = $songs
 
