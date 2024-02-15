@@ -390,7 +390,15 @@ def get_weather [loc, --plot = true] {
     print ("Forecast for today:")
     print ($forecast | get 0) 
 
-    print ("Forecast for the next 5 days:")
+    let forecast_description = (
+        try {
+            google_ai ($forecast | to json) --select_system "meteorologist" --select_preprompt "5days_forecast" -d true
+        } catch {
+            ""
+        }
+    )
+    
+    print ("Forecast for the next 5 days: " + $forecast_description)
     print ($forecast)
 
     ## current
