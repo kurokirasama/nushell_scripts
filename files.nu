@@ -201,7 +201,7 @@ export def cp-pipe [
   mut progress_bar = ""
 
   for i in 0..$number {
-    $progress_bar = (progress_bar $i $number $progress_bar)
+    $progress_bar = (progress_bar ($i + 1) ($number + 1) $progress_bar)
     
     let file = $files | get $i 
     
@@ -226,6 +226,8 @@ export def mv-pipe [
   mut progress_bar = ""
 
   for i in 0..$number {
+    $progress_bar = (progress_bar ($i + 1) ($number + 1) $progress_bar)
+
     let file = $files | get $i 
 
     if $force {
@@ -233,8 +235,6 @@ export def mv-pipe [
     } else {
       ^mv -u $file ($to | path expand)
     }
-
-    $progress_bar = (progress_bar $i $number $progress_bar)
   }
 }
 
