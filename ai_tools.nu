@@ -1328,18 +1328,19 @@ export def "ai openai-tts" [
 #
 #Available formats are: mp3, opus, aac and flac
 export def "ai elevenlabs-tts" [
-  prompt?:string                  #text to convert to speech
-  --model(-m):string = "tts-1"    #model of the output
-  --voice(-v):string = "Bella"    #voice selection
-  --output(-o):string = "speech"  #output file name
-  --format(-f):string = "mp3"     #output file format
-  --endpoint(-e):string           #request endpoint  
-  --select_endpoint(-s)           #select endpoint from list    
+  prompt?:string                    #text to convert to speech
+  --model(-m):string = "Eleven English v1" #model of the output
+  --voice(-v):string = "Dorothy"      #voice selection
+  --output(-o):string = "speech"    #output file name
+  --endpoint(-e):string = "text-to-speech" #request endpoint  
+  --select_endpoint(-E)             #select endpoint from list  
+  --select_voice(-V)                #select voice from list 
+  --select_model(-M)                #select model from list
 ] {
-  let prompt = if ($prompt | is-empty) {$in} else {$prompt}
+  let prompt = if ($prompt | is-empty) {$in} else {$prompt} 
 
   let get_endpoints = ["models" "voices" "history" "user"]
-  let post_endpoints = ["text-to-speech" ]
+  let post_endpoints = ["text-to-speech"]
 
   let endpoint = (
     if $select_endpoint or ($endpoint | is-empty) {
@@ -1358,12 +1359,59 @@ export def "ai elevenlabs-tts" [
   let header = [xi-api-key $env.MY_ENV_VARS.api_keys.elevenlabs.api_key]
   let url = $site + $endpoint
 
+  ## get_endpoints
   if $endpoint in $get_endpoints {
     return (http get -H $header $url)
-  } else {
-    return (print ("work in progress!"))
   }
   
+  ## post_endpoints
+  let voices = ai elevenlabs-tts -e voices
+  let models = ai elevenlabs-tts -e models
+
+  let voice_name = (
+    if $select_voice {
+      $voices
+      | get voices
+      | get name
+      | input list -f (echo-g "select voice: ")
+    } else {
+      $voice
+    }
+  )
+
+  let model_name = (
+    if $select_model {
+      $models
+      | get name
+      | input list -f (echo-g "select model: ")
+    } else {
+      $model
+    }
+  )
+
+  let voice_id = $voices | get voices | find $voice_name | get voice_id.0
+  let model_id = $models | find $model_name | get model_id.0
+
+  let data = {
+    "model_id": $model_id,
+    "text": $prompt,
+    "voice_settings": {
+      "similarity_boost": 0.5,
+      "stability": 0.5
+    }
+  }
+
+  let url_request = {
+    scheme: "https",
+    host: "api.elevenlabs.io",
+    path: $"v1/text-to-speech/($voice_id)",
+  } | url join
+
+  let header2 = ["Accept" "audio/mpeg"]
+  
+  http post $url_request $data --content-type application/json -H $header -H header2 | save -f ($output + ".mp3")
+
+  print (echo-g $"saved into ($output).mp3")
 }
 
 #fast call to `ai tts`'s with most parameters as default
