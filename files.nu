@@ -178,13 +178,13 @@ export def "7z max" [
 #Example
 #ls *.txt | first 5 | rm-pipe
 export def rm-pipe [] {
-  if not ($in | is-empty) {
-    get name 
-    | ansi strip
-    | each {|file| 
-        rm -rf $file | ignore
-      } 
-    | flatten
+  let files = $in | get name | ansi strip-table
+  let number = ($files | length) - 1
+
+  for i in 0..$number {     
+    rm -rf ($files | get $i) | ignore
+
+    progress_bar ($i + 1) ($number + 1)
   }
 }
 
@@ -198,11 +198,8 @@ export def cp-pipe [
 ] {
   let files = $in | get name | ansi strip-table
   let number = ($files | length) - 1
-  mut progress_bar = ""
 
-  for i in 0..$number {
-    $progress_bar = (progress_bar ($i + 1) ($number + 1) $progress_bar)
-    
+  for i in 0..$number {    
     let file = $files | get $i 
     
     if $force {
@@ -210,6 +207,8 @@ export def cp-pipe [
     } else {
       ^cp -ur $file ($to | path expand)
     }
+
+    progress_bar ($i + 1) ($number + 1)
   } 
 }
 
@@ -223,11 +222,8 @@ export def mv-pipe [
 ] {
   let files = $in | get name | ansi strip-table
   let number = ($files | length) - 1
-  mut progress_bar = ""
 
   for i in 0..$number {
-    $progress_bar = (progress_bar ($i + 1) ($number + 1) $progress_bar)
-
     let file = $files | get $i 
 
     if $force {
@@ -235,6 +231,8 @@ export def mv-pipe [
     } else {
       ^mv -u $file ($to | path expand)
     }
+
+    progress_bar ($i + 1) ($number + 1)
   }
 }
 

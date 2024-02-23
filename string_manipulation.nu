@@ -132,7 +132,9 @@ export def progress_bar [
     --color(-c):string = "#FFFFFF"
     --background_symbol = "▒"
     --background_color(-B) = "#A0A0A0"
+    --legacy(-l)
 ] {
+  if $legacy {
     let max = if $max == 0 {1} else {$max}
     let term_length = (term size).columns
     let max_number_of_chars = $term_length / 2 | math ceil
@@ -200,4 +202,83 @@ export def progress_bar [
     }
     
     return $progress_bar
+  }
+
+  ## using bar
+  print -n (char cr) (bar {$"(($count / $max * 100) | into string -d 2 | fill -c 0 -a r -w 5)% ": ($count / $max)})
+}
+
+# Print a multi-sectional bar
+#
+# Examples:
+# `$ ui bar {foo: 0.5, bar: 0.5}`
+# `$ ui bar {foo: {fraction: 0.4, color: lur}, bar: {fraction: 0.6, color: cr}}`
+# `$ ui bar --width 10 {foo: 0.5, bar: 0.5}`
+# `$ ui bar --normalize {foo: 0.1, bar: 0.1}`
+# `$ ui bar {progress%: 0.4}`
+export def bar [
+  sections: record # A record containing bar components
+  --width: int # Width to display the bar (default: terminal width)
+  --normalize # Adjust bar to fit width exactly
+] {
+  let term_width = (term size).columns
+  let width = ([($width | default $term_width) $term_width] | math min | into float)
+
+  let normalize = if $normalize {
+    1.0 / (
+      $sections
+      | values 
+      | each {|entry|
+        match ($entry | describe --detailed).type {
+          "float" => $entry
+          "record" => $entry.fraction
+        }
+      }
+      | math sum
+    )
+  } else {
+    1.0
+  }
+
+  # order that default colors are selected in - adjust to liking
+  const COLORS = [
+    wr lgr lrr lur lyr pr yr lcr mr lpr lmr cr wr dgrr
+  ]
+  
+  let bar_sections = (
+    $sections
+    | transpose
+    | rename title data
+    | enumerate
+    | each {|entry|
+      let index = $entry.index
+      let data = $entry.item.data
+        let default_color = ($COLORS | get $index)
+        let data = match ($entry.item.data | describe --detailed).type {
+        "float" | "int" => {
+          fraction: $entry.item.data
+          color: $default_color
+        }
+        "record" => ($entry.item.data | default $default_color color)
+      }
+      
+      let percent_width = $data.fraction * $width * $normalize
+      let color = match ($data.color | describe --detailed).type {
+        "string" => {ansi $data.color},
+        "record" => {ansi --escape $data.color}
+      }
+
+      let title = ($entry.item.title | str substring 0..($percent_width | math ceil))
+      let title_width = ($title | str length)
+      let half_width = ([(($percent_width - $title_width) / 2) 0] | math max)
+
+      let lhs = (" " | repeat ($half_width | math floor) | str join)
+      let rhs = (" " | repeat ($half_width | math ceil) | str join)
+
+      $color + $lhs + $title + $rhs
+    }
+    | str join
+  )
+
+  $bar_sections + (ansi reset)
 }
