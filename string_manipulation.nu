@@ -205,7 +205,14 @@ export def progress_bar [
   }
 
   ## using bar
-  print -n (char cr) (bar {$"(($count / $max * 100) | into string -d 2 | fill -c 0 -a r -w 5)% ": ($count / $max)})
+  print -n (char cr) (
+    bar {
+      $"(($count / $max * 100) | into string -d 2 | fill -c 0 -a r -w 5)% ": {
+        fraction: ($count / $max),
+        color: {fg: "#000000", bg: "#FFFFFF"}
+      }
+    }
+  )
 }
 
 # Print a multi-sectional bar
