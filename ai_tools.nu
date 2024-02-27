@@ -924,7 +924,7 @@ export def "ai yt-summary" [
   
     bash -c $split_command
 
-    let files = (ls | find split | where name !~ summary | ansi strip-table)
+    let files = (ls | find split | where name !~ summary | ansi-strip-table)
 
     $files | each {|split_file|
       let t_input = (open ($split_file | get name))
@@ -1040,7 +1040,7 @@ export def "ai media-summary" [
   
     bash -c $split_command
 
-    let files = (ls | find split | where name !~ summary | ansi strip-table)
+    let files = (ls | find split | where name !~ summary | ansi-strip-table)
 
     $files | each {|split_file|
       let t_input = (open ($split_file | get name))

@@ -4,7 +4,7 @@ export def range2list [] {
 }
 
 #ansi strip table
-export def "ansi strip-table" [] {
+export def "ansi-strip-table" [] {
   update cells {|cell|
     if ($cell | describe) == string { 
       $cell | ansi strip
@@ -59,14 +59,14 @@ export def setdiff [a,b] {
 }
 
 #find index of a search term
-export def "find index" [name: string,default? = -1] {
+export def "find-index" [name: string,default? = -1] {
   $in
-  | upsert idx {|el,id| $id}
+  | indexify
   | find $name
   | try {
-      get idx
+      get index
     } catch {
-      -1
+      $default 
     }
 }
 

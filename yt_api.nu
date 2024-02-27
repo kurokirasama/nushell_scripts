@@ -107,7 +107,7 @@ export def "ytm online" [
 
   #--list|
   if not $list {
-    $playlists | find music & likes | ansi strip-table
+    $playlists | find music & likes | ansi-strip-table
   } else {
     let to_play = ($playlists | where title =~ $playlist | first | get id)
 

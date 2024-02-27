@@ -758,7 +758,7 @@ export def "media find" [
   } else {
     $results
   }
-  | ansi strip-table
+  | ansi-strip-table
 }
 
 #play first/last downloaded youtube video

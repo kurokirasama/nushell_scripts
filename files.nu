@@ -178,11 +178,11 @@ export def "7z max" [
 #Example
 #ls *.txt | first 5 | rm-pipe
 export def rm-pipe [] {
-  let files = $in | get name | ansi strip-table
+  let files = $in | get name | ansi-strip-table
   let number = ($files | length) - 1
 
   for i in 0..$number {     
-    rm -rf ($files | get $i) | ignore
+    ^rm -rf ($files | get $i) | ignore
 
     progress_bar ($i + 1) ($number + 1)
   }
@@ -196,7 +196,7 @@ export def cp-pipe [
   to: string  #target directory
   --force(-f) #force copy
 ] {
-  let files = $in | get name | ansi strip-table
+  let files = $in | get name | ansi-strip-table
   let number = ($files | length) - 1
 
   for i in 0..$number {    
@@ -220,7 +220,7 @@ export def mv-pipe [
   to: string  #target directory
   --force(-f) #force rewrite of file
 ] {
-  let files = $in | get name | ansi strip-table
+  let files = $in | get name | ansi-strip-table
   let number = ($files | length) - 1
 
   for i in 0..$number {
