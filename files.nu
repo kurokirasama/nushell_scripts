@@ -41,13 +41,13 @@ export def typeof [--full(-f)] {
 
 #open code
 export def op [file?,--raw] {
-  let file = if ($file | is-empty) {$in | get name | get 0} else {$file}
+  let file = if ($file | is-empty) {$in | get name} else {$file}
   let extension = ($file | path parse | get extension)
 
   if $extension =~ "md|Rmd" {
     glow $file
   } else if $extension =~ "nu" {
-    open $file | nu-highlight
+    open --raw $file | nu-highlight | bat
   } else if ($extension =~ "R|c|m|py|sh") or ($extension | is-empty) {
     bat $file
   } else {
