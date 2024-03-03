@@ -145,11 +145,11 @@ let menus = (
 let my_config = ($my_config | upsert menus $menus)
 
 #restoring keybinds
-let keybindings = ($my_config | get keybindings | indexify idx)
+let keybindings = ($my_config | get keybindings | find -v completion_menu | indexify idx)
 mut new_indexes = []
 let new_keybinds = [
 	{
-  		name: "alias_menu"
+  		name: alias_menu
         modifier: alt
         keycode: char_a
         mode: [emacs, vi_normal, vi_insert]
@@ -159,37 +159,37 @@ let new_keybinds = [
         ]
   	 },
   	{
-        name: "reload_config",
-        modifier: alt,
-        keycode: char_x,
-        mode: emacs,
+        name: reload_config
+        modifier: alt
+        keycode: char_x
+        mode: emacs
         event: {
           send: executehostcommand,
           cmd: $"source ($nu.config-path)"
       	}
     },
     {
-        name: "update_right_prompt",
-        modifier: alt,
-        keycode: char_p,
-        mode: emacs,
+        name: update_right_prompt
+        modifier: alt
+        keycode: char_p
+        mode: emacs
         event: {
           send: executehostcommand,
           cmd: $"source-env ([($env.MY_ENV_VARS.nu_scripts) update_right_prompt.nu] | path join)"
       	}        
     },
     {
-        name: "insert_newline",
-        modifier: alt,
-        keycode: enter,
-        mode: emacs,
+        name: insert_newline
+        modifier: alt
+        keycode: enter
+        mode: emacs
         event: { edit: insertnewline }
     },
     {
-        name: "insert_last_argument",
-        modifier: alt,
-        keycode: char_i,
-        mode: emacs,
+        name: insert_last_argument
+        modifier: alt
+        keycode: char_i
+        mode: emacs
         event: [{  
         			edit: InsertString,
             	  	value: "!$"
@@ -208,6 +208,32 @@ let new_keybinds = [
                 }
                 { edit: MoveToEnd }
                ]
+    },
+    {
+        name: completion_menu
+        modifier: control
+        keycode: char_n
+        mode: [emacs vi_normal vi_insert]
+        event: {
+            until: [
+                { send: menu name: completion_menu }
+                { send: menunext }
+                { edit: complete }
+            ]
+        }
+    },
+    {
+        name: ide_completion_menu
+        modifier: none
+        keycode: tab
+        mode: [emacs vi_normal vi_insert]
+        event: {
+            until: [
+                { send: menu name: ide_completion_menu }
+                { send: menunext }
+                { edit: complete }
+            ]
+        }
     }
 ]
 
