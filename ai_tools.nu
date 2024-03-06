@@ -1003,7 +1003,7 @@ export def "ai media-summary" [
   let file = if ($file | is-empty) {$in | get name} else {$file}
   let title = ($file | path parse | get stem) 
   let extension = ($file | path parse | get extension) 
-  let media_type = (askai $"does the extension file format ($extension) correspond to and audio, video or subtitle file? Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle or none." | from json | get answer)
+  let media_type = (askai $"does the extension file format ($extension) correspond to and audio, video or subtitle file? Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle or none. In plain text without any markdown formatting" | from json | get answer)
 
   match $media_type {
     "video" => {ai video2text $file -l $lang},

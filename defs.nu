@@ -247,6 +247,7 @@ export def matlab-cli [
   --background(-b)    #send process to the background
   --input(-i):string  #input m-file to run
   --output(-o):string #output file for log without extension
+  --log_file(-l):string = "log23" #log file in foreground mode
   --kill(-k)          #kill current matlab processes
 ] {
   if $kill {
@@ -262,7 +263,7 @@ export def matlab-cli [
   }
 
   if not $background {
-    matlab -nosplash -nodesktop -softwareopengl -sd $"\"($env.PWD)\"" -logfile "/home/kira/Dropbox/matlab/log23.txt" -r "setenv('SHELL', '/bin/bash');"
+    matlab -nosplash -nodesktop -softwareopengl -sd $"\"($env.PWD)\"" -logfile $"/home/kira/Dropbox/matlab/($log_file).txt" -r "setenv('SHELL', '/bin/bash');"
     return
   } else {
     let log = (date now | format date "%Y.%m.%d_%H.%M.%S") + "_log.txt"
@@ -281,7 +282,7 @@ export def matlab-cli [
   
     let output = if ($output | is-empty) {$log} else {$output + ".txt"}
 
-    bash -c $"matlab -nodisplay -nodesktop -nosplash -sd ($env.PWD) -r ($input) > ($output) &"
+    bash -c ($"matlab -nodisplay -nodesktop -nosplash -sd ($env.PWD) -r " + "\"setenv('SHELL', '/bin/bash');\"" + $" -r ($input) > ($output) &")
   }
 }
 

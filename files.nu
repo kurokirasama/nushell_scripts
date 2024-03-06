@@ -179,8 +179,10 @@ export def "7z max" [
 #ls *.txt | first 5 | rm-pipe
 export def rm-pipe [] {
   let files = $in | get name | ansi-strip-table
-  let number = ($files | length) - 1
+  
+  if ($files | is-empty) {return}
 
+  let number = ($files | length) - 1
   for i in 0..$number {     
     ^rm -rf ($files | get $i) | ignore
 
