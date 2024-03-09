@@ -5,8 +5,8 @@
 #ls **/* | some_filter | grep-nu search 
 #open file.txt | grep-nu search
 export def grep-nu [
-  search   #search term
-  entrada? #file or pipe
+  search:string   #search term
+  entrada?:string #file or pipe
 ] {
   if ($entrada | is-empty) {
     if ($in | is-column name) {

@@ -40,9 +40,9 @@ export def quick-ubuntu-and-tools-update-module [
   
   print (echo-g "updating private repository...")
   if $force {
-    cp -rfp ($env.MY_ENV_VARS.linux_backup + "/*") $destination
+    cp -rfp ($env.MY_ENV_VARS.linux_backup + "/*" | into glob) $destination
   } else {
-    cp -rup ($env.MY_ENV_VARS.linux_backup + "/*") $destination
+    cp -rup ($env.MY_ENV_VARS.linux_backup + "/*" | into glob) $destination
   }
   
   cd $destination

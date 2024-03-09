@@ -973,7 +973,7 @@ export def "ai yt-transcription-summary" [
   --notify(-n)          #notify to android via join/tasker
 ] {
   let output_file = $"($output)_summary.md"
-  let model = ig $gemini {"gemini"} else {"chatgpt"}
+  let model = if $gemini {"gemini"} else {"chatgpt"}
 
   print (echo-g $"asking ($model) for a summary of the file ($output)...")
   if $gpt4 {
@@ -999,6 +999,7 @@ export def "ai media-summary" [
   --gpt4(-g)             # to use gpt4 instead of gpt-3.5
   --gemini(-G)           # use google gemini
   --notify(-n)           # notify to android via join/tasker
+  --upload(-u) = true    # upload extracted audio to gdrive
 ] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
   let title = ($file | path parse | get stem) 
@@ -1016,6 +1017,11 @@ export def "ai media-summary" [
       }
     },
     _ => {return-error $"wrong media type: ($extension)"}
+  }
+
+  if $upload {
+    print (echo-g $"uploading audio file...")
+    cp $"($title)-clean.mp3" ($env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory)
   }
 
   print (echo-g $"transcription file saved as ($title)-clean.txt")

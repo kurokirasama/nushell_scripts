@@ -20,7 +20,7 @@ let not_gdrive = not ($env.PWD =~ rclone)
 #calculating pwd_size
 let pwd_size = (
     if ($last_record | length) == 0 and $not_gdrive {
-        du $env.PWD --exclude rclone/*
+        du $env.PWD --exclude ...(glob "rclone/*")
         | get apparent 
         | get 0 
         | into string 
@@ -29,7 +29,7 @@ let pwd_size = (
         if $not_update {
             $last_record | get size | get 0
         } else {
-            du $env.PWD --exclude rclone/*
+            du $env.PWD --exclude ...(glob "rclone/*")
             | get apparent 
             | get 0 
             | into string 
