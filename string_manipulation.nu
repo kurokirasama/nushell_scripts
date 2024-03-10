@@ -282,7 +282,7 @@ export def bar [
       let lhs = (" " | repeat ($half_width | math floor) | str join)
       let rhs = (" " | repeat ($half_width | math ceil) | str join)
 
-      $color + $lhs + $title + $rhs
+      $color + $title + $lhs + $rhs
     }
     | str join
   )
