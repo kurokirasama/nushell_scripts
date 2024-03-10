@@ -8,12 +8,19 @@ export def grep-nu [
   search:string   #search term
   entrada?:string #file or pipe
 ] {
-  if ($entrada | is-empty) {
-    if ($in | is-column name) {
-      grep -ihHn $search ($in | get name)
+  let input = $in
+  let entrada = if ($entrada | is-empty) {
+    if ($input | is-column name) {
+      $input | get name
     } else {
-      ($in | into string) | grep -ihHn $search
+      $input
     }
+  } else {
+    $entrada
+  }
+
+  if ('*' in $entrada) {
+      grep -ihHn $search ...(glob $entrada)
   } else {
       grep -ihHn $search $entrada
   }
