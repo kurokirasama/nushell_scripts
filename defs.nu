@@ -338,6 +338,27 @@ export def "http server" [root:string ="."] {
   simple-http-server $root
 }
 
+
+#export nushell.github documentation
+export def export-nushell-docs [] {
+  cd ~/software/nushell.github.io;git pull
+  rm -rf nushell
+  mkdir nushell 
+  cd blog;join-text-files md blog;mv blog.md ../nushell;cd ..
+  cd book;join-text-files md book;mv book.md ../nushell;cd ..
+  cd commands/categories;join-text-files md categories;mv categories.md ..;cd ..
+  cd docs;join-text-files md docs;mv docs.md ..;cd ..
+  join-text-files md commands;mv commands.md ../nushell;cd ..
+  cd cookbook;join-text-files md cookbook;mv cookbook.md ../nushell;cd ..
+  cd lang-guide;join-text-files md lang-guide;mv lang-guide.md ../nushell;cd ..
+
+  rm -rf ~/Yandex.Disk/ai_database/nushell
+  mv -f nushell/ ~/Yandex.Disk/ai_database/
+
+  cd ~/software/nushell
+  cp README.md ~/Yandex.Disk/ai_database/nushell
+}
+
 ## appimages
 
 #open balena-etche

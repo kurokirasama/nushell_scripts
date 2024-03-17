@@ -995,11 +995,12 @@ export def "ai yt-transcription-summary" [
 #fr: french
 export def "ai media-summary" [
   file:string            # video, audio or subtitle file (vtt, srt) file name with extension
-  --lang(-l) = "Spanish" # language of the summary
+  --lang(-l):string = "Spanish" # language of the summary
   --gpt4(-g)             # to use gpt4 instead of gpt-3.5
   --gemini(-G)           # use google gemini
   --notify(-n)           # notify to android via join/tasker
   --upload(-u) = true    # upload extracted audio to gdrive
+  --type(-t): string = "meeting" # meeting or class
 ] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
   let title = ($file | path parse | get stem) 
