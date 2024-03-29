@@ -725,7 +725,7 @@ export def pip3-upgrade [] {
 export def update-nu-config [] {
   #config
   let default = (
-    ls ($env.MY_ENV_VARS.nushell_dir + "/**/*") 
+    ls ($env.MY_ENV_VARS.nushell_dir + "/**/*" | into glob) 
       | find -i default_config 
       | update name {|n| 
           $n.name | ansi strip
@@ -739,7 +739,7 @@ export def update-nu-config [] {
 
   #env
   let default = (
-    ls ($env.MY_ENV_VARS.nushell_dir + "/**/*") 
+    ls ($env.MY_ENV_VARS.nushell_dir + "/**/*" | into glob) 
       | find -i default_env 
       | update name {|n| 
           $n.name | ansi strip

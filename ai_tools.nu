@@ -960,28 +960,42 @@ export def "ai yt-summary" [
     return
   }
   
-  ai yt-transcription-summary (open $the_subtitle) $output -g $gpt4 -G $gemini
+  ai yt-transcription-summary (open $the_subtitle) $output -g $gpt4 -G $gemini -t "youtube"
   if $notify {"summary finished!" | tasker send-notification}
 }
 
-#resume youtube video transcription text via gpt
+#resume video transcription text via gpt
 export def "ai yt-transcription-summary" [
   prompt                #transcription text
   output                #output name without extension
   --gpt4(-g) = false    #whether to use gpt-4 
   --gemini(-G) = false  #use google gemini
+  --type(-t): string = "meeting" # meeting, youtube or class
   --notify(-n)          #notify to android via join/tasker
 ] {
-  let output_file = $"($output)_summary.md"
+  let output_file = $"($output | path parse | get stem).md"
   let model = if $gemini {"gemini"} else {"chatgpt"}
+
+  let system_prompt = match $type {
+    "meeting" => {"meeting_summarizer"},
+    "youtube" => {"ytvideo_summarizer"},
+    "class" => {"class_transcriptor"},
+    _ => {return-error "not a valid type!"}
+  }
+
+  let pre_prompt = match $type {
+    "meeting" => {"summarize_transcription"},
+    "youtube" => {"summarize_ytvideo"},
+    "class" => {"process_class"}
+  }
 
   print (echo-g $"asking ($model) for a summary of the file ($output)...")
   if $gpt4 {
-    chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt summarize_ytvideo -d -m "gpt-4-turbo"
+    chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m "gpt-4-turbo"
   } else if (not $gemini) {
-    chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt summarize_ytvideo -d
+    chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d
   } else {
-    google_ai $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt summarize_ytvideo -d true
+    google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true
   }
   | save -f $output_file
 
@@ -1000,12 +1014,15 @@ export def "ai media-summary" [
   --gemini(-G)           # use google gemini
   --notify(-n)           # notify to android via join/tasker
   --upload(-u) = true    # upload extracted audio to gdrive
-  --type(-t): string = "meeting" # meeting or class
+  --type(-t): string = "meeting" # meeting, youtube or class
 ] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
+
+  if ($file | is-empty) {return-error "no file provided"}
+
   let title = ($file | path parse | get stem) 
   let extension = ($file | path parse | get extension) 
-  let media_type = (askai $"does the extension file format ($extension) correspond to and audio, video or subtitle file? Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle or none. In plain text without any markdown formatting" | from json | get answer)
+  let media_type = (askai -G $"does the extension file format ($extension) correspond to and audio, video or subtitle file?. Include as subtitle type files with txt extension. Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle or none. In plain text without any markdown formatting, ie, without ```" | from json | get answer)
 
   match $media_type {
     "video" => {ai video2text $file -l $lang},
@@ -1014,15 +1031,29 @@ export def "ai media-summary" [
       match $extension {
         "vtt" => {ffmpeg -i $file -f srt $"($title)-clean.txt"},
         "srt" => {mv -f $file $"($title)-clean.txt"},
+        "txt" => {mv -f $file $"($title)-clean.txt"},
         _ => {return-error "subtitle file extension not supported!"}
       }
     },
     _ => {return-error $"wrong media type: ($extension)"}
   }
 
-  if $upload {
+  let system_prompt = match $type {
+    "meeting" => {"meeting_summarizer"},
+    "youtube" => {"ytvideo_summarizer"},
+    "class" => {"class_transcriptor"},
+    _ => {return-error "not a valid type!"}
+  }
+
+  let pre_prompt = match $type {
+    "meeting" => {"consolidate_transcription"},
+    "youtube" => {"consolidate_ytvideo"},
+    "class" => {"consolidate_class"}
+  }
+
+  if $upload and $media_type in ["video" "audio"] {
     print (echo-g $"uploading audio file...")
-    cp $"($title)-clean.mp3" ($env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory)
+    cp $"($title)-clean.mp3" $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory
   }
 
   print (echo-g $"transcription file saved as ($title)-clean.txt")
@@ -1052,7 +1083,7 @@ export def "ai media-summary" [
     $files | each {|split_file|
       let t_input = (open ($split_file | get name))
       let t_output = ($split_file | get name | path parse | get stem)
-      ai yt-transcription-summary $t_input $t_output -g $gpt4
+      ai yt-transcription-summary $t_input $t_output -g $gpt4 -t $type -G $gemini
     }
 
     let temp_output = $"($title)_summaries.md"
@@ -1072,19 +1103,22 @@ export def "ai media-summary" [
 
     print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
     if $gpt4 {
-      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d -m "gpt-4-turbo"
+      chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m "gpt-4-turbo"
     } else if (not $gemini) {
-      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d
+      chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d
     } else {
-      google_ai $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d true
+      google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true
     }
     | save -f $output
 
     if $notify {"summary finished!" | tasker send-notification}
+
+    if $upload {cp $output $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory}
     return
   }
   
-  ai yt-transcription-summary (open $the_subtitle) $output -g $gpt4
+  ai yt-transcription-summary (open $the_subtitle) $output -g $gpt4 -t $type -G $gemini
+  if $upload {cp $output $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory}
   if $notify {"summary finished!" | tasker send-notification}
 }
 
@@ -1951,15 +1985,16 @@ export alias g = gcal ai -G
 
 #ai translation via gpt or gemini apis
 export def "ai trans" [
-  to_translate?:string
+  ...to_translate
   --destination(-d):string = "spanish"
   --gpt4(-g)    #use gpt4-turbo instead of gpt-3.5-turbo
   --gemini(-G)  #use gemini instead of gpt
+  --copy(-c)    #copy output to clipboard
 ] {
-  let to_translate = if ($to_translate | is-empty) {$in} else {$to_translate}
+  let to_translate = if ($to_translate | is-empty) {$in} else {$to_translate | str join ' '}
 
   let system_prompt = "You are a reliable and knowledgeable language assistant specialized in " + $destination + "translation. Your expertise and linguistic skills enable you to provide accurate and natural translations  to " + $destination + ". You strive to ensure clarity, coherence, and cultural sensitivity in your translations, delivering high-quality results. Your goal is to assist and facilitate effective communication between languages, making the translation process seamless and accessible for users. With your assistance, users can confidently rely on your expertise to convey their messages accurately in" + $destination + "."
-  let prompt = "Please translate the following text to " + $destination + ", and return only the translated text as the output, without any additional comments or formatting. Keep the same capitalization in every word the same as the original text and keep the same punctuation too. Do not add periods at the end of the sentence if they are not present in the original text. The text to translate is: " + $to_translate
+  let prompt = "Please translate the following text to " + $destination + ", and return only the translated text as the output, without any additional comments or formatting. Keep the same capitalization in every word the same as the original text and keep the same punctuation too. Do not add periods at the end of the sentence if they are not present in the original text. Keep any markdown formatting characters intact. The text to translate is: " + $to_translate
 
   let translated = (
     if $gemini {
@@ -1971,8 +2006,11 @@ export def "ai trans" [
     }
   )
 
+  if $copy {$translated | xclip -sel clip}
   return $translated
 }
+
+export alias aitg = ai trans -cG
 
 #translate subtitle to Spanish via mymemmory, openai or gemini apis
 #
@@ -2130,3 +2168,29 @@ export def "ai google_search-summary" [
     return $updated_content
   }
 } 
+
+#translation with deepL
+export def deepl-trans [
+  text?:string
+  source:string = "EN"
+  target:string = "ES"
+] {
+  let text = if ($text | is-empty) {$in} else {$text}
+
+  let apikey = $env.MY_ENV_VARS.api_keys.deepl
+  let header = [Authorization $"DeepL-Auth-Key ($apikey)"]
+  let data = { 
+    text: ([] | append $text),
+    source_lang: ($source),
+    target_lang: ($target)
+  }
+
+  {
+    scheme: "https",
+    host: "api-free.deepl.com",
+    path: $"v2/translate",
+  } 
+  | url join
+  | http post -t application/json -H $header $in $data
+  | get translations.text.0
+}

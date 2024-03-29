@@ -276,6 +276,7 @@ let my_config = (
     | upsert table.trim $tableTrim
     | upsert use_kitty_protocol true
     | upsert completions.algorithm prefix #fuzzy
+    | upsert recursion_limit 100
 )
 
 #updating $env.config

@@ -602,3 +602,23 @@ export def join-text-files [
 ] {
   open ("*." + $extension) | save -f ($output + "." + $extension)
 }
+
+#manually rename files in a directory
+export def rename-all [] {
+    let files = (ls -s | where type == file | get name)
+    let temp_file = mktemp -t --suffix .txt
+    $files | to text | save -f $temp_file
+
+    ^$env.VISUAL $temp_file
+
+    let new_files = (open $temp_file | str trim | lines)
+    rm --permanent $temp_file
+
+    if $new_files != $files and ($new_files | length) == ($files | length) {
+        let file_table = ($files | wrap old_name | merge ($new_files | wrap new_name) | where {$in.old_name != $in.new_name})
+        $file_table | each { mv $in.old_name $in.new_name }
+        $file_table
+    } else {
+        echo-g "No files renamed"
+    }
+}

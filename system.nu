@@ -396,7 +396,6 @@ export def um [
   fusermount -u $drive
 }
 
-
 #mount fuse drive via rclone
 #
 #possible drives:
@@ -404,6 +403,7 @@ export def um [
 #- gdrive
 #- onedrive
 #- yandex
+#- mega
 export def rmount [drive?:string] {
   let drive = (
     if ($drive | is-empty) {
@@ -422,3 +422,22 @@ export def rmount [drive?:string] {
   let option = "--vfs-cache-mode writes"
   bash -c $"'rclone mount ($remote): ($drive) ($option) &'"
 }
+
+# Monitor the output of a command
+export def monitor [
+    cmd: closure, # command to execute
+    until?: closure, # condition to stop monitoring
+    --time(-t): duration = 5sec # time interval
+] {
+    let cnd = if ($until == null) {{$in | true}} else {$until}
+    loop {
+        let $res = do $cmd
+        clear
+        print $res
+        sleep $time
+        if not ($res | do $cnd) {
+            break
+        }
+    }
+}
+

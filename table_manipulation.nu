@@ -137,3 +137,28 @@ export def append-table [tab2:table,tab1?:table] {
   | dfr append ($tab2 | dfr into-df) 
   | dfr into-nu
 }
+
+# table diff
+export def table-diff [
+  $left: list<any>,
+  $right: list<any>,
+  --keys (-k): list<string> = [],
+] {
+  let left = if ($left | describe) !~ '^table' { $left | wrap value } else { $left }
+  let right = if ($right | describe) !~ '^table' { $right | wrap value } else { $right }
+  let left_selected = ($left | select ...$keys)
+  let right_selected = ($right | select ...$keys)
+  let left_not_in_right = (
+    $left |
+    filter { |row| not (($row | select ...$keys) in $right_selected) }
+  )
+  let right_not_in_left = (
+    $right |
+    filter { |row| not (($row | select ...$keys) in $left_selected) }
+  )
+  (
+    $left_not_in_right | insert side '<='
+  ) ++ (
+    $right_not_in_left | insert side '=>'
+  )
+}
