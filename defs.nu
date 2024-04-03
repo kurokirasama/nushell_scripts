@@ -28,10 +28,13 @@ export def grep-nu [
   | parse "{file}:{line}:{match}"
   | str trim
   | update match {|f| 
-      $f.match 
-      | nu-highlight
+      $f.match | nu-highlight
     }
-  | rename "source file" "line number"
+  | update file {|f| 
+      let info = $f.file | path parse
+      $info.stem + "." + $info.extension
+    }
+  # | rename "source file" "line number"
 }
 
 export alias grp = grep-nu

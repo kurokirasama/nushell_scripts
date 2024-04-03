@@ -3,13 +3,10 @@ export def "habitica mark-dailies-done" [] {
   let to_do = (
     habitipy dailies 
     | grep ✖ 
-    | detect columns -n 
-    | select column0 
-    | each {|row| 
-        $row.column0 
-        | str replace '.' ''
-      }  
-    | into int  
+    | lines 
+    | parse "{n}. ✖{rest}" 
+    | get n 
+    | into int
   )
 
   if not ($to_do | is-empty) {
