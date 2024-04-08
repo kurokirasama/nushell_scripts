@@ -61,7 +61,7 @@ export def xls2csv [
 
 #check if drive is mounted
 export def is-mounted [drive:string] {
-  (ls "~/media" | find $"($drive)" | length) > 0
+  (ls ~/media | find $"($drive)" | length) > 0
 }
 
 #get phone number from google contacts
