@@ -308,40 +308,45 @@ export def le [] {
 
 #get list of files recursively
 export def get-files [
-  --full(-f)      #recursuve
+  --full(-f)      #recursive
   --dir(-d):string
   --full_path(-F)
   --sort_by_date(-t)
 ] {
-  if $full {
-    if not ($dir | is-empty) {
-      if $full_path {
-        ls -f $"($dir)/**/*"
+
+  let files = (
+    if $full {
+      if not ($dir | is-empty) {
+        if $full_path {
+          ls -f ($"($dir)/**/*" | into glob)
+          } else {
+            ls ($"($dir)/**/*" | into glob)
+          }
+      } else {
+        if $full_path {
+          ls -f **/*
         } else {
-          ls $"($dir)/**/*"
+          ls **/*
         }
-    } else {
-      if $full_path {
-        ls -f **/*
-      } else {
-        ls **/*
-      }
-    }
-  } else {
-    if not ($dir | is-empty) {
-      if $full_path {
-        ls -f $"($dir)"
-      } else {
-        ls $"($dir)"
       }
     } else {
-      if $full_path {
-        ls -f
+      if not ($dir | is-empty) {
+        if $full_path {
+          ls -f $"($dir)"
+        } else {
+          ls $"($dir)"
+        }
       } else {
-        ls
+        if $full_path {
+          ls -f
+        } else {
+          ls
+        }
       }
     }
-  } 
+  ) 
+
+  $files 
   | where type == file 
   | if $sort_by_date {
     sort-by -i modified
@@ -406,6 +411,7 @@ export def autolister [user?] {
     | from json 
     | find $"/media/($user)" 
     | get mount_point
+    | ansi strip
   } catch {
     []
   })
@@ -413,9 +419,9 @@ export def autolister [user?] {
   if ($drives | length) > 0 {
     $drives
     | each { |drive|
-        print (echo-g $"listing ($drive | ansi strip)...")
-        cd ($drive | ansi strip)
-        lister ($drive | ansi strip | path parse | get stem | split row " " | get 0)
+        print (echo-g $"listing ($drive)...")
+        cd $drive
+        lister ($drive | path parse | get stem | split row " " | get 0)
       }
   }
 }

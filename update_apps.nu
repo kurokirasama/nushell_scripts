@@ -172,7 +172,7 @@ export def github-app-update [
         | from json
         | get version
       } else {
-        ls $"*.($file_type)"
+        ls ($"*.($file_type)" | into glob)
         | find $app
         | get 0 
         | get name 
@@ -190,7 +190,7 @@ export def github-app-update [
     }
 
     print (echo-g $"\nupdating ($repo)...")
-    rm $"*($app)*.($file_type)" | ignore
+    rm ($"*($app)*.($file_type)" | into glob) | ignore
     aria2c --download-result=hide $url
     
     if $version_from_json {
@@ -280,7 +280,7 @@ export def "apps-update monocraft" [
     print (echo-g "New version of Monocraft downloaded, now patching nerd fonts...")
     nu ([$env.MY_ENV_VARS.linux_backup "software/appimages/patch-font.nu"] | path join)
   } else {
-    let font = ([$env.MY_ENV_VARS.linux_backup (ls $"($env.MY_ENV_VARS.linux_backup)/*.($type)" | sort-by modified | last | get name | ansi strip)] | path join)
+    let font = ([$env.MY_ENV_VARS.linux_backup (ls ($"($env.MY_ENV_VARS.linux_backup)/*.($type)" | into glob) | sort-by modified | last | get name | ansi strip)] | path join)
     print (echo-g $"New version of Monocraft downloaded, now installing ($font | path parse | get stem)...")
     install-font $font
   }
