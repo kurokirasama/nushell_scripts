@@ -162,3 +162,21 @@ export def table-diff [
     $right_not_in_left | insert side '=>'
   )
 }
+
+# filter by multiple where conditions simultaneous
+# Example:
+#
+# ls | multiwhere { name: .txt, type: file }
+export def main [maps: record]: table -> table {
+    let inp = $in
+
+    if ($inp | is-empty) {
+        return $inp
+    }
+
+    $maps
+    | items {|key, val| { col: $key, val: $val } }
+    | reduce --fold $inp {|map, acc|
+        $acc | filter {|x| ($x | get $map.col) =~ $map.val}
+    }
+}

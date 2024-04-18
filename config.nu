@@ -234,6 +234,16 @@ let new_keybinds = [
                 { edit: complete }
             ]
         }
+    },
+    {
+        name: fuzzy_select_fs
+        modifier: alt
+        keycode: char_z
+        mode: [emacs, vi_normal, vi_insert]
+        event: {
+            send: executehostcommand
+            cmd: "commandline edit --insert (fuzzy-dispatcher)"
+        }
     }
 ]
 

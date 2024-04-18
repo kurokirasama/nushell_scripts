@@ -441,3 +441,32 @@ export def monitor [
     }
 }
 
+# select files and dirs
+export def fuzzy-select-fs [type: string = "file"] {
+    let candidates = (
+        ls **/*
+        | where type == $type
+        | get name
+        | sort --ignore-case
+    )
+    if ($candidates | is-empty) {
+        return ""
+    }
+    let choice = $candidates | input list --fuzzy '?'
+    if ($choice | is-empty) {
+        return ""
+    }
+    if $type == "dir" {
+        $"`($choice)(char path_sep)`"
+    } else {
+        $"`($choice)`"
+    }
+}
+
+export def fuzzy-dispatcher [] {
+    match (input --numchar 1 --suppress-output) {
+        f => (fuzzy-select-fs file)
+        d => (fuzzy-select-fs dir)
+        _ => ''
+    }
+}
