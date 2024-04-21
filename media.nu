@@ -663,6 +663,16 @@ export def "media compress-video" [
         ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
       }
     },
+    "h264" => {
+      try {
+        print (echo-g "trying myffmpeg...")
+        myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+      } catch {
+        print (echo-r "failed myffmpeg...")
+        print (echo-g "trying ffmpeg...")
+        ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+      }
+    },
     "webm" => {
       try {
         print (echo-g "trying myffmpeg...")

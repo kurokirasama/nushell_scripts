@@ -159,7 +159,7 @@ export def askpdf [
     if not $fast {
       if ($prompt | is-empty) {$in} else {$prompt}
     } else {
-      open ~/Yandex.Disk/ChatGpt/prompt.md
+      open ([$env.MY_ENV_VARS.chatgpt prompt.md] | path join)
     }
   )
 
@@ -173,7 +173,7 @@ export def askpdf [
   )
 
   if $fast {
-    $answer | save -f ~/Yandex.Disk/ChatGpt/answer.md
+    $answer | save -f ([$env.MY_ENV_VARS.chatgpt answer.md] | path join)
   } else {
     return $answer  
   } 
@@ -455,7 +455,7 @@ export def askai [
     )
 
     if $fast {
-      $answer | save -f ~/Yandex.Disk/ChatGpt/answer.md
+      $answer | save -f ([$env.MY_ENV_VARS.chatgpt answer.md] | path join)
       return
     } else {
       return $answer  
@@ -486,7 +486,7 @@ export def askai [
   )
 
   if $fast {
-    $answer | save -f ~/Yandex.Disk/ChatGpt/answer.md
+    $answer | save -f ([$env.MY_ENV_VARS.chatgpt answer.md] | path join)
     return
   } else {
     return $answer  
@@ -1302,7 +1302,7 @@ export def askdalle [
     if not $fast {
       if ($prompt | is-empty) {$in} else {$prompt}
     } else {
-      open ~/Yandex.Disk/ChatGpt/prompt.md
+      open ([$env.MY_ENV_VARS.chatgpt prompt.md] | path join)
     }
   )
 
@@ -1990,8 +1990,15 @@ export def "ai trans" [
   --gpt4(-g)    #use gpt4-turbo instead of gpt-3.5-turbo
   --gemini(-G)  #use gemini instead of gpt
   --copy(-c)    #copy output to clipboard
+  --fast(-f)   #use prompt.md and answer.md to read question and write answer
 ] {
-  let to_translate = if ($to_translate | is-empty) {$in} else {$to_translate | str join ' '}
+  let to_translate = (
+    if $fast {
+      open ([$env.MY_ENV_VARS.chatgpt prompt.md] | path join)
+    } else {
+      if ($to_translate | is-empty) {$in} else {$to_translate | str join ' '}
+    }
+  )
 
   let system_prompt = "You are a reliable and knowledgeable language assistant specialized in " + $destination + "translation. Your expertise and linguistic skills enable you to provide accurate and natural translations  to " + $destination + ". You strive to ensure clarity, coherence, and cultural sensitivity in your translations, delivering high-quality results. Your goal is to assist and facilitate effective communication between languages, making the translation process seamless and accessible for users. With your assistance, users can confidently rely on your expertise to convey their messages accurately in" + $destination + "."
   let prompt = "Please translate the following text to " + $destination + ", and return only the translated text as the output, without any additional comments or formatting. Keep the same capitalization in every word the same as the original text and keep the same punctuation too. Do not add periods at the end of the sentence if they are not present in the original text. Keep any markdown formatting characters intact. The text to translate is: " + $to_translate
@@ -2007,7 +2014,11 @@ export def "ai trans" [
   )
 
   if $copy {$translated | xclip -sel clip}
-  return $translated
+  if $fast {
+    $translated | save -f ([$env.MY_ENV_VARS.chatgpt answer.md] | path join)
+  } else {
+    return $translated
+  }
 }
 
 export alias aitg = ai trans -cG
