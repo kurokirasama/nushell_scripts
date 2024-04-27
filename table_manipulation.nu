@@ -180,3 +180,35 @@ export def main [maps: record]: table -> table {
         $acc | filter {|x| ($x | get $map.col) =~ $map.val}
     }
 }
+
+# sum lists of numbers
+# Example:
+# let a = [1 2 3]
+#
+# list-sum $a $a
+# list-sum $a $a $a
+export def list-sum [
+  ...rest # list of lists of numbers
+] {
+  let n = ($rest | length) - 1
+  mut sum = $rest.0 | zip $rest.1 | each {$in.0 + $in.1} 
+  
+  if $n < 2 {return $sum}
+
+  for i in 2..$n {
+    $sum = ($sum | (zip ($rest | get $i)) | each {$in.0 + $in.1} )
+  }
+
+  return $sum
+}
+
+# difference between 2 lists of numbers
+# Example:
+# let a = [1 2 3]
+#
+# list-sum $a $a
+export def list-diff [
+  ...rest # list of lists of numbers
+] {
+$rest.0 | zip $rest.1 | each {$in.0 - $in.1} 
+}
