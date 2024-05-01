@@ -398,8 +398,13 @@ export def "apps-update yandex" [] {
     ls *.deb | find yandex | rm-pipe | ignore
   }
   
+  if (ls *.rpm | find yandex | length) > 0 {
+    ls *.rpm | find yandex | rm-pipe | ignore
+  }
+
   print (echo-g "\ndownloading yandex...")
   aria2c --download-result=hide http://repo.yandex.ru/yandex-disk/yandex-disk_latest_amd64.deb
+  aria2c --download-result=hide https://repo.yandex.ru/yandex-disk/yandex-disk-latest.x86_64.rpm
 
   sudo gdebi -n yandex-disk_latest_amd64.deb 
 
@@ -425,7 +430,7 @@ export def "apps-update sejda" [] {
 
   let new_version = ($new_file | split row _ | get 1)
 
-  let url = $"https://sejda-cdn.com/downloads/($new_file)"
+  let url = $"https://downloads.sejda-cdn.com/($new_file)"
 
   let sedja = ((ls *.deb | find sejda | length) > 0)
 

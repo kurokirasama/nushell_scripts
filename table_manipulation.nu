@@ -212,3 +212,23 @@ export def list-diff [
 ] {
 $rest.0 | zip $rest.1 | each {$in.0 - $in.1} 
 }
+
+# group list
+# Example:
+# [1 1 2 2 3 4] | group list {$in mod 2 == 0}
+export def group-list [cond: closure] {
+  zip ($in | each $cond)
+  | prepend [null]
+  | window 2
+  | each {|i|
+      let prev = ($i.0 | default $i.1)
+      let next = $i.1
+      if $prev.1 != $next.1 {
+        [null $next.0]
+      } else {
+        $next.0
+      }
+    }
+  | flatten
+  | split list null
+}

@@ -8,7 +8,7 @@ export def main [
   
   let device = (
     if ($device | is-empty) {
-      if $host =~ $input_host {
+      if $host in ["lgomez-desktop" "lgomez-server"] {
         "eno1"
       } else {
         "wlo1"
