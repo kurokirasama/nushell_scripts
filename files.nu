@@ -628,3 +628,12 @@ export def rename-all [] {
         echo-g "No files renamed"
     }
 }
+
+#convert svg image into a pdf file
+export def svg2pdf [
+  svg_file    #include extension  
+  pdf_output? #include extension
+] {
+  let pdf_output = if ($pdf_output | is-empty) {($svg_file | path parse | get stem) + ".pdf"} else {$pdf_output}
+  rsvg-convert -f pdf -o $pdf_output $svg_file
+}

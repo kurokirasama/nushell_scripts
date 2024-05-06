@@ -58,3 +58,9 @@ export def adbtasker [] {
   adb -s ojprnfson7izpjkv tcpip 5555
   # adb shell pm grant com.fb.fluid android.permission.WRITE_SECURE_SETTINGS
 }
+
+#open gmail client (cmdg)
+export def --env gmail [] {
+  cd $env.MY_ENV_VARS.download_dir
+  cmdg -shell "/home/kira/.cargo/bin/nu"
+}
