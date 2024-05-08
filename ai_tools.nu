@@ -1011,7 +1011,7 @@ export def "ai media-summary" [
   file:string            # video, audio or subtitle file (vtt, srt) file name with extension
   --lang(-l):string = "Spanish" # language of the summary
   --gpt4(-g)             # to use gpt4 instead of gpt-3.5
-  --gemini(-G)           # use google gemini
+  --gemini(-G)           # use google gemini instead of gpt
   --notify(-n)           # notify to android via join/tasker
   --upload(-u) = true    # upload extracted audio to gdrive
   --type(-t): string = "meeting" # meeting, youtube or class
@@ -1025,7 +1025,7 @@ export def "ai media-summary" [
   let media_type = (askai -G $"does the extension file format ($extension) correspond to and audio, video or subtitle file?. Include as subtitle type files with txt extension. Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle or none. In plain text without any markdown formatting, ie, without ```" | from json | get answer)
 
   match $media_type {
-    "video" => {ai video2text $file -l $lang},
+    "video" => {ai video2text $file -l $lang -s false},
     "audio" => {ai audio2text $file -l $lang},
     "subtitle" => {
       match $extension {
