@@ -657,7 +657,7 @@ export def "ai screen2text" [
 export def "ai video2text" [
   file?:string                #video file name with extension
   --language(-l):string = "Spanish"  #language of audio file
-  --summary(-s) = true   #whether to transcribe or not. False means it just extracts audio
+  --summary(-s)   #whether to transcribe or not. False means it just extracts audio
   --notify(-n)                #notify to android via join/tasker
 ] {
   let file = if ($file | is-empty) {$in} else {$file}
@@ -989,7 +989,7 @@ export def "ai yt-transcription-summary" [
     "class" => {"process_class"}
   }
 
-  print (echo-g $"asking ($model) for a summary of the file ($output)...")
+  print (echo-g $"asking ($model) for a summary of the file transcription...")
   if $gpt4 {
     chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m "gpt-4-turbo"
   } else if (not $gemini) {
@@ -1005,8 +1005,6 @@ export def "ai yt-transcription-summary" [
 #get a summary of a video or audio via chatgpt
 #
 #Two characters words for languages
-#es: spanish
-#fr: french
 export def "ai media-summary" [
   file:string            # video, audio or subtitle file (vtt, srt) file name with extension
   --lang(-l):string = "Spanish" # language of the summary
@@ -1025,7 +1023,7 @@ export def "ai media-summary" [
   let media_type = (askai -G $"does the extension file format ($extension) correspond to and audio, video or subtitle file?. Include as subtitle type files with txt extension. Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle or none. In plain text without any markdown formatting, ie, without ```" | from json | get answer)
 
   match $media_type {
-    "video" => {ai video2text $file -l $lang -s false},
+    "video" => {ai video2text $file -l $lang},
     "audio" => {ai audio2text $file -l $lang},
     "subtitle" => {
       match $extension {
