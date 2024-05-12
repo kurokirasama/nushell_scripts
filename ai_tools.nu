@@ -1011,7 +1011,7 @@ export def "ai media-summary" [
   --gpt4(-g)             # to use gpt4 instead of gpt-3.5
   --gemini(-G)           # use google gemini instead of gpt
   --notify(-n)           # notify to android via join/tasker
-  --upload(-u) = true    # upload extracted audio to gdrive
+  --upload(-u)           # upload extracted audio to gdrive
   --type(-t): string = "meeting" # meeting, youtube or class
 ] {
   let file = if ($file | is-empty) {$in | get name} else {$file}

@@ -6,11 +6,6 @@ export def apps-update [] {
     print (echo-r "Something went wrong with sejda instalation!")
   }
   try {
-    apps-update nmap
-  } catch {
-    print (echo-r "Something went wrong with nmap instalation!")
-  }
-  try {
     apps-update ttyplot
   } catch {
     print (echo-r "Something went wrong with ttyplot instalation!")
@@ -30,11 +25,6 @@ export def apps-update [] {
   } catch {
     print (echo-r "Something went wrong with taskerpermissions instalation!")
   }
-  # try {
-  #   apps-update join
-  # } catch {
-  #   print (echo-r "Something went wrong with taskerpermissions instalation!")
-  # }
   try {
     apps-update lutris #ignore if ppa works again
   } catch {
@@ -65,16 +55,26 @@ export def apps-update [] {
   } catch {
     print (echo-r "Something went wrong with vivaldi instalation!")
   }
-  # try {
-  #  apps-update chrome
-  # } catch {
-  #  print (echo-r "Something went wrong with chrome instalation!")
-  # }
   try {
     apps-update zoom
   } catch {
     print (echo-r "Something went wrong with zoom instalation!")
   }
+  # try {
+  #  apps-update chrome
+  # } catch {
+  #  print (echo-r "Something went wrong with chrome instalation!")
+  # }
+  # try {
+  #   apps-update nmap
+  # } catch {
+  #   print (echo-r "Something went wrong with nmap instalation!")
+  # }
+  # try {
+  #   apps-update join
+  # } catch {
+  #   print (echo-r "Something went wrong with taskerpermissions instalation!")
+  # }
 }
 
 #get latest release info in github repo
