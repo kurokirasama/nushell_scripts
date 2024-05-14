@@ -83,11 +83,13 @@ export def mcx [file?] {
 #jdownloader downloads info
 export def jd [
   --ubb(-b) #check ubb jdownloader
+  --desktop(-d) #check ubb desktop
 ] {
-  if (not $ubb) {
-    jdown
-  } else {
-    jdown -b 1
+  match [$ubb,$desktop] {
+    [true,false] => {jdown -b 1},
+    [false,true] => {jdown -b 2},
+    [false,false] => {jdown},
+    [true,true] => {return-error "please specify only one option"}
   }
   | from json
 }

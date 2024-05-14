@@ -207,7 +207,7 @@ export def "chatpdf list" [] {
 # - --select_preprompt > --pre_prompt
 export def chat_gpt [
     prompt?: string                               # the query to Chat GPT
-    --model(-m):string = "gpt-3.5-turbo-1106"     # the model gpt-3.5-turbo, gpt-4, etc
+    --model(-m):string = "gpt-3.5-turbo"     # the model gpt-3.5-turbo, gpt-4, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9                       # the temperature of the model
     --image(-i):string                        # filepath of image file for gpt-4-vision-preview
@@ -286,7 +286,7 @@ export def chat_gpt [
   )
 
   # call to api
-  let model = if $model == "gpt-4-turbo" {"gpt-4-1106-preview"} else {$model}
+  let model = if $model == "gpt-4" {"gpt-4o"} else {$model}
   let header = [Authorization $"Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"]
   let site = "https://api.openai.com/v1/chat/completions"
   let image_url = ("data:image/" + $extension + ";base64," + $image)
@@ -473,12 +473,12 @@ export def askai [
       }
     } else {
       match [$gpt4,$list_system,$list_preprompt] {
-        [true,true,false] => {chat_gpt $prompt -t $temp -l -m gpt-4-1106-preview},
-        [true,false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4-1106-preview},
+        [true,true,false] => {chat_gpt $prompt -t $temp -l -m gpt-4},
+        [true,false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4},
         [false,true,false] => {chat_gpt $prompt -t $temp -l},
         [false,false,false] => {chat_gpt $prompt -t $temp --select_system $system},
-        [true,true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4-1106-preview -p -d},
-        [true,false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4-1106-preview -p -d},
+        [true,true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4 -p -d},
+        [true,false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4 -p -d},
         [false,true,true] => {chat_gpt $prompt -t $temp -l -p -d},
         [false,false,true] => {chat_gpt $prompt -t $temp --select_system $system -p -d}
       }
@@ -524,12 +524,12 @@ export def "ai git-push" [
       match [$gpt4,$gemini] {
         [true,false] => {
           try {
-            chat_gpt $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m "gpt-4-turbo"
+            chat_gpt $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m gpt-4
           } catch {
             try {
-              chat_gpt $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m "gpt-4-turbo"
+              chat_gpt $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m gpt-4
             } catch {
-            chat_gpt $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d -m "gpt-4-turbo"
+            chat_gpt $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d -m gpt-4
             }
           }
         },
@@ -731,7 +731,7 @@ export def "ai transcription-summary" [
 
     print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
     if $gpt4 {
-      chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d -m "gpt-4-turbo" 
+      chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d -m gpt-4 
     } else if (not $gemini) {
       chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d 
     } else {
@@ -778,7 +778,7 @@ export def "ai transcription-summary-single" [
 
   print (echo-g $"asking ($model) for a summary of the file ($file)...")
   if $gpt4 {
-    chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d -m "gpt-4-turbo"
+    chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d -m gpt-4
   } else if (not $gemini) {
     chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d
   } else {
@@ -948,7 +948,7 @@ export def "ai yt-summary" [
 
     print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
     if $gpt4 {
-      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d -m "gpt-4-turbo" 
+      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d -m gpt-4 
     } else if (not $gemini) {
       chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d
     } else {
@@ -991,7 +991,7 @@ export def "ai yt-transcription-summary" [
 
   print (echo-g $"asking ($model) for a summary of the file transcription...")
   if $gpt4 {
-    chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m "gpt-4-turbo"
+    chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-4
   } else if (not $gemini) {
     chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d
   } else {
@@ -1101,7 +1101,7 @@ export def "ai media-summary" [
 
     print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
     if $gpt4 {
-      chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m "gpt-4-turbo"
+      chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-4
     } else if (not $gemini) {
       chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d
     } else {
@@ -1926,7 +1926,7 @@ export def "gcal ai" [
     if $gemini {
       google_ai $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d true
     } else if $gpt4 {
-      chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d -m "gpt-4-turbo"
+      chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d -m gpt-4
     } else {
       chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d
     }
@@ -1956,7 +1956,7 @@ export def "gcal ai" [
         if $gemini {
           google_ai $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -d false
         } else if $gpt4 {
-          chat_gpt $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -m "gpt-4-turbo"
+          chat_gpt $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -m gpt-4
         } else {
           chat_gpt $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl
         }
@@ -2151,7 +2151,7 @@ export def "ai google_search-summary" [
       if $gemini {
         google_ai $complete_prompt --select_system html2text_summarizer
       } else {
-        chat_gpt $complete_prompt --select_system html2text_summarizer -m gpt-4-turbo
+        chat_gpt $complete_prompt --select_system html2text_summarizer -m gpt-4
       } 
     )
 
