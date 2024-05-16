@@ -187,13 +187,11 @@ export def "chatpdf list" [] {
 #single call chatgpt wrapper
 #
 #Available models at https://platform.openai.com/docs/models, but some of them are:
-# - gpt-4 (8192 tokens)
-# - gpt-4-1106-preview (128000 tokens), gpt-4-turbo for short
-# - gpt-4-vision-preview (128000 tokens) 
+# - gpt-4o (128000 tokens)
+# - gpt-4-turbo (128000 tokens)
+# - gpt-4-vision (128000 tokens), points to gpt-4-turbo. 
 # - gpt-4-32k (32768 tokens)
-# - gpt-3.5-turbo (4096 tokens)
-# - gpt-3.5-turbo-1106 (16385 tokens)
-# - gpt-3.5-turbo-16k (16384 tokens)
+# - gpt-3.5-turbo (16385 tokens)
 # - text-davinci-003 (4097 tokens)
 #
 #system messages are available in:
@@ -210,7 +208,7 @@ export def chat_gpt [
     --model(-m):string = "gpt-3.5-turbo"     # the model gpt-3.5-turbo, gpt-4, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9                       # the temperature of the model
-    --image(-i):string                        # filepath of image file for gpt-4-vision-preview
+    --image(-i):string                        # filepath of image file for gpt-4-vision
     --list_system(-l)                             # select system message from list
     --pre_prompt(-p)                              # select pre-prompt from list
     --delim_with_backquotes(-d)   # to delimit prompt (not pre-prompt) with triple backquotes (')
@@ -222,16 +220,16 @@ export def chat_gpt [
     return-error "Empty prompt!!!"
   }
   
-  if ($model == "gpt-4-vision-preview") and ($image | is-empty) {
+  if ($model == "gpt-4-vision") and ($image | is-empty) {
     return-error "gpt-4-vision needs and image file!"
   }
 
-  if ($model == "gpt-4-vision-preview") and (not ($image | path expand | path exists)) {
+  if ($model == "gpt-4-vision") and (not ($image | path expand | path exists)) {
     return-error "image file not found!" 
   }
 
   let extension = (
-    if $model == "gpt-4-vision-preview" {
+    if $model == "gpt-4-vision" {
       $image | path parse | get extension
     } else {
       ""
@@ -239,7 +237,7 @@ export def chat_gpt [
   )
 
   let image = (
-    if $model == "gpt-4-vision-preview" {
+    if $model == "gpt-4-vision" {
       open ($image | path expand) | encode base64
     } else {
       ""
@@ -287,12 +285,13 @@ export def chat_gpt [
 
   # call to api
   let model = if $model == "gpt-4" {"gpt-4o"} else {$model}
+  let model = if $model == "gpt-4-vision" {"gpt-4-turbo"} else {$model}
   let header = [Authorization $"Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"]
   let site = "https://api.openai.com/v1/chat/completions"
   let image_url = ("data:image/" + $extension + ";base64," + $image)
   
   let request = (
-    if $model == "gpt-4-vision-preview" {
+    if $model == "gpt-4-vision" {
       {
         model: $model,
         messages: [
@@ -365,7 +364,7 @@ export def askai [
   --delimit_with_quotes(-d) #add '''  before and after prompt
   --temperature(-t):float # takes precedence over the 0.7 and 0.9
   --gpt4(-g)              # use gpt-4-1106-preview instead of gpt-3.5-turbo-1106 (default)
-  --vision(-v)            # use gpt-4-vision-preview/gemini-pro-vision
+  --vision(-v)            # use gpt-4-vision/gemini-pro-vision
   --image(-i):string      # filepath of the image to prompt to vision models
   --fast(-f) # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
   --gemini(-G) #use google gemini instead of chatgpt
@@ -466,10 +465,10 @@ export def askai [
   let answer = (
     if $vision {
       match [$list_system,$list_preprompt] {
-        [true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4-vision-preview -p -d -i $image},
-        [true,false] => {chat_gpt $prompt -t $temp -l -m gpt-4-vision-preview -i $image},
-        [false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4-vision-preview -p -d -i $image},
-        [false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4-vision-preview -i $image},
+        [true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4-vision -p -d -i $image},
+        [true,false] => {chat_gpt $prompt -t $temp -l -m gpt-4-vision -i $image},
+        [false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4-vision -p -d -i $image},
+        [false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4-vision -i $image},
       }
     } else {
       match [$gpt4,$list_system,$list_preprompt] {
