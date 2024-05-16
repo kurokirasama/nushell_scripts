@@ -5,7 +5,6 @@ export def "media help" [] {
       "METHODS:"
       "- media video-info"
       "- media mpv-info"
-      "- media trans-sub"
       "- media sub-sync"
       "- media remove-noise"
       "- media remove-audio-noise"

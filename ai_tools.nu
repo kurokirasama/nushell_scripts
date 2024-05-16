@@ -30,7 +30,7 @@ export def "ai help" [] {
       "- gcal ai"
       "- ai trans"
       "- ai google_search-summary"
-      "- media trans-subs"
+      "- ai trans-subs"
     ]
     | str join "\n"
     | nu-highlight
@@ -283,9 +283,11 @@ export def chat_gpt [
     } 
   )
 
-  # call to api
+  # default models
   let model = if $model == "gpt-4" {"gpt-4o"} else {$model}
   let model = if $model == "gpt-4-vision" {"gpt-4-turbo"} else {$model}
+
+  # call to api
   let header = [Authorization $"Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"]
   let site = "https://api.openai.com/v1/chat/completions"
   let image_url = ("data:image/" + $extension + ";base64," + $image)
@@ -363,7 +365,7 @@ export def askai [
   --list_preprompt(-p)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
   --delimit_with_quotes(-d) #add '''  before and after prompt
   --temperature(-t):float # takes precedence over the 0.7 and 0.9
-  --gpt4(-g)              # use gpt-4-1106-preview instead of gpt-3.5-turbo-1106 (default)
+  --gpt4(-g)              # use gpt-4o instead of gpt-3.5-turbo-1106 (default)
   --vision(-v)            # use gpt-4-vision/gemini-pro-vision
   --image(-i):string      # filepath of the image to prompt to vision models
   --fast(-f) # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
@@ -501,15 +503,15 @@ export alias chatgpt = askai -c -g -W 3
 #
 #Inspired by https://github.com/zurawiki/gptcommit
 export def "ai git-push" [
-  --gpt4(-g) # use gpt-4-1106-preview instead of gpt-3.5-turbo-1106
-  --gemini(-G) #use google gemini model
+  --gpt4(-g) # use gpt-4o instead of gpt-3.5-turbo
+  --gemini(-G) #use google gemini-1.5-pro-latest model
 ] {
   if $gpt4 and $gemini {
     return-error "select only one model!"
   }
 
-  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {19000}
-  let max_words_short = if $gpt4 {85000} else if (not $gemini) {10000} else {19000}
+  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {650000}
+  let max_words_short = if $gpt4 {85000} else if (not $gemini) {10000} else {650000}
 
   let model = if $gemini {"gemini"} else {"chatgpt"}
 
@@ -545,12 +547,12 @@ export def "ai git-push" [
         },
         [false,true] => {
           try {
-            google_ai $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true
+            google_ai $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true -m gemini-1.5-pro-latest
           } catch {
             try {
-              google_ai $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true
+              google_ai $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true -m gemini-1.5-pro-latest
             } catch {
-              google_ai $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d true
+              google_ai $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d true -m gemini-1.5-pro-latest
             }
           }
         }
@@ -623,40 +625,10 @@ export def "ai audio2text" [
   if $notify {"transcription finished!" | tasker send-notification}
 }
 
-#screen record to text transcription 
-export def "ai screen2text" [
-  --summary(-s) = true #whether to summarize the transcription. false means it just extracts audio
-  --notify(-n)         #notify to android via join/tasker
-] {
-  let file = (date now | format date "%Y%m%d_%H%M%S")
-
-  if not ("~/Documents/Transcriptions" | path exists) {
-    ^mkdir -p ~/Documents/Transcriptions 
-  }
-
-  cd ~/Documents/Transcriptions
-  
-  try {
-    media screen-record $file
-  }
-
-  media extract-audio $"($file).mp4"
-
-  ai audio2text $"($file).mp3"
-
-  if $notify {"audio extracted!" | tasker send-notification}
-
-  if $summary {
-    ai transcription-summary $"($file | path parse | get stem)-clean.txt"
-    if $notify {"summary finished!" | tasker send-notification}
-  }
-}
-
 #video to text transcription 
 export def "ai video2text" [
   file?:string                #video file name with extension
   --language(-l):string = "Spanish"  #language of audio file
-  --summary(-s)   #whether to transcribe or not. False means it just extracts audio
   --notify(-n)                #notify to android via join/tasker
 ] {
   let file = if ($file | is-empty) {$in} else {$file}
@@ -666,190 +638,165 @@ export def "ai video2text" [
   ai audio2text $"($file | path parse | get stem).mp3" -l $language
 
   if $notify {"audio extracted!" | tasker send-notification}
-
-  if $summary {
-    ai transcription-summary $"($file | path parse | get stem)-clean.txt"
-    if $notify {"summary finished!" | tasker send-notification}
-  }
 }
 
-#resume transcription text via gpt 
-export def "ai transcription-summary" [
-  file                 #text file name with transcription text
-  --gpt4(-g) = false   #use gpt-4-turbo
-  --gemini(-G) = false #use google gemini
-  --upload(-u) = true  #whether to upload to gdrive
-  --notify(-n)         #notify to android via join/tasker
+#get a summary of a video, audio or subtitle via ai
+#
+#Two characters words for languages
+export def "ai media-summary" [
+  file:string            # video, audio or subtitle file (vtt, srt, txt) file name with extension
+  --lang(-l):string = "Spanish" # language of the summary
+  --gpt4(-g)             # to use gpt-4o instead of gpt-3.5
+  --gemini(-G)           # use google gemini-1.5-pro-latest instead of gpt
+  --notify(-n)           # notify to android via join/tasker
+  --upload(-u)           # upload extracted audio to gdrive
+  --type(-t): string = "meeting" # meeting, youtube or class
 ] {
-  if $gpt4 and $gemini {
-    return-error "please choose only one model!"
+  let file = if ($file | is-empty) {$in | get name} else {$file}
+
+  if ($file | is-empty) {return-error "no file provided"}
+
+  let title = ($file | path parse | get stem) 
+  let extension = ($file | path parse | get extension) 
+  let media_type = (askai -G $"does the extension file format ($extension) correspond to and audio, video or subtitle file?. IMPORTANT: include as subtitle type files with txt extension. Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle or none. In plain text without any markdown formatting, ie, without ```" | from json | get answer)
+
+  match $media_type {
+    "video" => {ai video2text $file -l $lang},
+    "audio" => {ai audio2text $file -l $lang},
+    "subtitle" => {
+      match $extension {
+        "vtt" => {ffmpeg -i $file -f srt $"($title)-clean.txt"},
+        "srt" => {mv -f $file $"($title)-clean.txt"},
+        "txt" => {mv -f $file $"($title)-clean.txt"},
+        _ => {return-error "subtitle file extension not supported!"}
+      }
+    },
+    _ => {return-error $"wrong media type: ($extension)"}
   }
 
-  let model = if $gemini {"gemini"} else {"chatgpt"}
+  let system_prompt = match $type {
+    "meeting" => {"meeting_summarizer"},
+    "youtube" => {"ytvideo_summarizer"},
+    "class" => {"class_transcriptor"},
+    _ => {return-error "not a valid type!"}
+  }
+
+  let pre_prompt = match $type {
+    "meeting" => {"consolidate_transcription"},
+    "youtube" => {"consolidate_ytvideo"},
+    "class" => {"consolidate_class"}
+  }
+
+  if $upload and $media_type in ["video" "audio"] {
+    print (echo-g $"uploading audio file...")
+    cp $"($title)-clean.mp3" $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory
+  }
+
+  print (echo-g $"transcription file saved as ($title)-clean.txt")
+  let the_subtitle = $"($title)-clean.txt"
 
   #removing existing temp files
   ls | where name =~ "split|summaries" | rm-pipe
 
   #definitions
-  let up_folder = $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory
-  let mounted = ($up_folder | path expand | path exists)
-  let output = $"($file | path parse | get stem)_summary.md"
+  let output = $"($title)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {19000}
-  let n_words = (wc -w $file | awk '{print $1}' | into int)
+  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {650000}
+  let n_words = (wc -w $the_subtitle | awk '{print $1}' | into int)
 
   if $n_words > $max_words {
-    print (echo-g $"splitting input file ($file)...")
+    print (echo-g $"splitting transcription of ($title)...")
 
-    let filenames = $"($file | path parse | get stem)_split_"
+    let filenames = $"($title)_split_"
 
-    let split_command = ("awk '{total+=NF; print > " + $"\"($filenames)\"" + "sprintf(\"%03d\",int(total/" + $"($max_words)" + "))" + "\".txt\"}'" + $" \"($file)\"")
+    let split_command = ("awk '{total+=NF; print > " + $"\"($filenames)\"" + "sprintf(\"%03d\",int(total/" + $"($max_words)" + "))" + "\".txt\"}'" + $" \"($the_subtitle)\"")
   
     bash -c $split_command
 
-    let files = (ls | find split | where name !~ summary)
+    let files = (ls | find split | where name !~ summary | ansi-strip-table)
 
     $files | each {|split_file|
-      ai transcription-summary-single ($split_file | get name | ansi strip) -u false -g $gpt4 -G $gemini
+      let t_input = (open ($split_file | get name))
+      let t_output = ($split_file | get name | path parse | get stem)
+      ai transcription-summary $t_input $t_output -g $gpt4 -t $type -G $gemini
     }
 
-    let temp_output = $"($file | path parse | get stem)_summaries.md"
+    let temp_output = $"($title)_summaries.md"
     print (echo-g $"combining the results into ($temp_output)...")
     touch $temp_output
 
     let files = (ls | find split | find summary | enumerate)
 
     $files | each {|split_file|
-      echo $"\n\nParte ($split_file.index):\n\n" | save --append $temp_output
+      echo $"\n\nResumen de la parte ($split_file.index):\n\n" | save --append $temp_output
       open ($split_file.item.name | ansi strip) | save --append $temp_output
       echo "\n" | save --append $temp_output
     }
 
     let prompt = (open $temp_output)
+    let model = if $gemini {"gemini"} else {"chatgpt"}
 
     print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
     if $gpt4 {
-      chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d -m gpt-4 
+      chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-4
     } else if (not $gemini) {
-      chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d 
+      chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d
     } else {
-      google_ai $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt consolidate_transcription -d true
+      google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m gemini-1.5-pro-latest
     }
     | save -f $output
 
-    if $upload {
-      if not $mounted {
-        print (echo-g "mounting gdrive...")
-        rmount $env.MY_ENV_VARS.gdrive_mount_point
-      }
-
-      print (echo-g "uploading summary to gdrive...")
-      cp $output $up_folder
-    }
-
     if $notify {"summary finished!" | tasker send-notification}
+
+    if $upload {cp $output $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory}
     return
   }
   
-  ai transcription-summary-single $file -u $upload -g $gpt4 -G $gemini
+  ai transcription-summary (open $the_subtitle) $output -g $gpt4 -t $type -G $gemini
+  if $upload {cp $output $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory}
   if $notify {"summary finished!" | tasker send-notification}
 }
 
-#resume transcription via gpt in one go
-export def "ai transcription-summary-single" [
-  file                 #text file name with transcription text
-  --gpt4(-g) = false   #whether to use gpt-4
-  --gemini(-G) = false #whether to use google gemini
-  --upload(-u) = true  #whether to upload to gdrive 
+#resume video transcription text via gpt
+export def "ai transcription-summary" [
+  prompt                #transcription text
+  output                #output name without extension
+  --gpt4(-g) = false    #whether to use gpt-4o
+  --gemini(-G) = false  #use google gemini-1.5-pro-latest
+  --type(-t): string = "meeting" # meeting, youtube or class
+  --notify(-n)          #notify to android via join/tasker
 ] {
-  if $gpt4 and $gemini {
-    return-error "choose only one model!"
-  }
-
+  let output_file = $"($output | path parse | get stem).md"
   let model = if $gemini {"gemini"} else {"chatgpt"}
 
-  let up_folder = $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory
-  let mounted = ($up_folder | path expand | path exists)
-  let output = $"($file | path parse | get stem)_summary.md"
+  let system_prompt = match $type {
+    "meeting" => {"meeting_summarizer"},
+    "youtube" => {"ytvideo_summarizer"},
+    "class" => {"class_transcriptor"},
+    _ => {return-error "not a valid type!"}
+  }
 
-  let prompt = (open $file)
+  let pre_prompt = match $type {
+    "meeting" => {"summarize_transcription"},
+    "youtube" => {"summarize_ytvideo"},
+    "class" => {"process_class"}
+  }
 
-  print (echo-g $"asking ($model) for a summary of the file ($file)...")
+  print (echo-g $"asking ($model) for a summary of the file transcription...")
   if $gpt4 {
-    chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d -m gpt-4
+    chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-4
   } else if (not $gemini) {
-    chat_gpt $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d
+    chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d
   } else {
-    google_ai $prompt -t 0.5 --select_system meeting_summarizer --select_preprompt summarize_transcription -d true
+    google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m gemini-1.5-pro-latest
   }
-  | save -f $output
+  | save -f $output_file
 
-  if $upload {
-    if not $mounted {
-      print (echo-g "mounting gdrive...")
-      rmount $env.MY_ENV_VARS.gdrive_mount_point
-    }
-
-    print (echo-g "uploading summary to gdrive...")
-    cp $output $up_folder
-  }
-}
-
-#audio 2 transcription summary via chatgpt
-export def "ai audio2summary" [
-  file
-  --gpt4(-g)          #whether to use gpt-4 
-  --gemini(-G)        #use google gemini model
-  --upload(-u) = true #whether to upload the summary and audio to gdrive 
-  --notify(-n)        #notify to android via join/tasker
-] {
-  ai audio2text $file
-  ai transcription-summary $"($file | path parse | get stem)-clean.txt" -u $upload -g $gpt4 -G $gemini
-  if $upload {
-    print (echo-g $"uploading ($file)...")
-    cp $"($file | path parse | get stem)-clean.mp3" ($env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory)
-  }
   if $notify {"summary finished!" | tasker send-notification}
 }
 
-#generate subtitles of video file via whisper and mymemmory/openai api
-#
-#`? trans` and `whisper --help` for more info on languages
-export def "ai generate-subtitles" [
-  file                               #input video file
-  --language(-l) = "en-US/English"   #language of input video file, mymmemory/whisper
-  --translate(-t) = false            #to translate to spanish
-  --notify(-n)                       #notify to android via join/tasker
-] {
-  let filename = ($file | path parse | get stem)
-
-  media extract-audio $file 
-  ai audio2text $"($filename).mp3" -o srt -l ($language | split row "/" | get 1)
-
-  if $notify {"subtitle generated!" | tasker send-notification}
-
-  if $translate {
-    media trans-sub $"($filename).srt" --from ($language | split row "/" | get 0)
-    if $notify {"subtitle translated!" | tasker send-notification}
-  }
-}
-
-#generate subtitles of video file via whisper and mymemmory api for piping
-#
-#`? trans` and `whisper --help` for more info on languages
-export def "ai generate-subtitles-pipe" [
-  --language(-l) = "en-US/English"   #language of input video file, mymmemory/whisper
-  --translate(-t)                    #to translate to spanish
-] {
-  $in
-  | get name 
-  | each {|file| 
-      ai generate-subtitles ($file | ansi strip) -l $language -t $translate
-    }
-}
-
-#get a summary of a youtube video via chatgpt
+#get a summary of a youtube video url via ai
 #
 #Two characters words for languages
 #es: spanish
@@ -857,8 +804,8 @@ export def "ai generate-subtitles-pipe" [
 export def "ai yt-summary" [
   url?:string       # video url
   --lang = "en"     # language of the summary (default english)
-  --gpt4(-g)        # to use gpt4-turbo instead of gpt-3.5
-  --gemini(-G)      #use google gemini model
+  --gpt4(-g)        # to use gpt-4o instead of gpt-3.5
+  --gemini(-G)      # use google gemini-1.5-pro-latest
   --notify(-n)      # notify to android via join/tasker
 ] {
   if $gemini and $gpt4 {
@@ -903,220 +850,51 @@ export def "ai yt-summary" [
   print (echo-g $"transcription file saved as ($title).srt")
   let the_subtitle = $"($title).srt"
 
-  #removing existing temp files
-  ls | where name =~ "split|summaries" | rm-pipe
-
-  #definitions
-  let output = $"($title)_summary.md"
-
-  # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {19000}
-  let n_words = (wc -w $the_subtitle | awk '{print $1}' | into int)
-  let model = if $gemini {"gemini"} else {"chatgpt"}
-
-  if $n_words > $max_words {
-    print (echo-g $"splitting transcription of ($title)...")
-
-    let filenames = $"($title)_split_"
-
-    let split_command = ("awk '{total+=NF; print > " + $"\"($filenames)\"" + "sprintf(\"%03d\",int(total/" + $"($max_words)" + "))" + "\".txt\"}'" + $" \"($the_subtitle)\"")
-  
-    bash -c $split_command
-
-    let files = (ls | find split | where name !~ summary | ansi-strip-table)
-
-    $files | each {|split_file|
-      let t_input = (open ($split_file | get name))
-      let t_output = ($split_file | get name | path parse | get stem)
-      ai yt-transcription-summary $t_input $t_output -g $gpt4 -G $gemini
-    }
-
-    let temp_output = $"($title)_summaries.md"
-    print (echo-g $"combining the results into ($temp_output)...")
-    touch $temp_output
-
-    let files = (ls | find split | find summary | enumerate)
-
-    $files | each {|split_file|
-      echo $"\n\nResumen de la parte ($split_file.index):\n\n" | save --append $temp_output
-      open ($split_file.item.name | ansi strip) | save --append $temp_output
-      echo "\n" | save --append $temp_output
-    }
-
-    let prompt = (open $temp_output)
-
-    print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
-    if $gpt4 {
-      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d -m gpt-4 
-    } else if (not $gemini) {
-      chat_gpt $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d
-    } else {
-      google_ai $prompt -t 0.5 --select_system ytvideo_summarizer --select_preprompt consolidate_ytvideo -d true
-    }
-    | save -f $output
-
-    if $notify {"summary finished!" | tasker send-notification}
-    return
-  }
-  
-  ai yt-transcription-summary (open $the_subtitle) $output -g $gpt4 -G $gemini -t "youtube"
-  if $notify {"summary finished!" | tasker send-notification}
-}
-
-#resume video transcription text via gpt
-export def "ai yt-transcription-summary" [
-  prompt                #transcription text
-  output                #output name without extension
-  --gpt4(-g) = false    #whether to use gpt-4 
-  --gemini(-G) = false  #use google gemini
-  --type(-t): string = "meeting" # meeting, youtube or class
-  --notify(-n)          #notify to android via join/tasker
-] {
-  let output_file = $"($output | path parse | get stem).md"
-  let model = if $gemini {"gemini"} else {"chatgpt"}
-
-  let system_prompt = match $type {
-    "meeting" => {"meeting_summarizer"},
-    "youtube" => {"ytvideo_summarizer"},
-    "class" => {"class_transcriptor"},
-    _ => {return-error "not a valid type!"}
-  }
-
-  let pre_prompt = match $type {
-    "meeting" => {"summarize_transcription"},
-    "youtube" => {"summarize_ytvideo"},
-    "class" => {"process_class"}
-  }
-
-  print (echo-g $"asking ($model) for a summary of the file transcription...")
-  if $gpt4 {
-    chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-4
-  } else if (not $gemini) {
-    chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d
+  if $gemini {
+    ai media-summary $the_subtitle -l $the_language -t "youtube" -G
+  } else if $gpt4 {
+    ai media-summary $the_subtitle -l $the_language -t "youtube" -g
   } else {
-    google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true
+    ai media-summary $the_subtitle -l $the_language -t "youtube"
   }
-  | save -f $output_file
 
   if $notify {"summary finished!" | tasker send-notification}
 }
 
-#get a summary of a video or audio via chatgpt
+#generate subtitles of video file via whisper and mymemmory/openai api
 #
-#Two characters words for languages
-export def "ai media-summary" [
-  file:string            # video, audio or subtitle file (vtt, srt) file name with extension
-  --lang(-l):string = "Spanish" # language of the summary
-  --gpt4(-g)             # to use gpt4 instead of gpt-3.5
-  --gemini(-G)           # use google gemini instead of gpt
-  --notify(-n)           # notify to android via join/tasker
-  --upload(-u)           # upload extracted audio to gdrive
-  --type(-t): string = "meeting" # meeting, youtube or class
+#`? trans` and `whisper --help` for more info on languages
+export def "ai generate-subtitles" [
+  file                               #input video file
+  --language(-l) = "en-US/English"   #language of input video file, mymmemory/whisper
+  --translate(-t) = false            #to translate to spanish
+  --notify(-n)                       #notify to android via join/tasker
 ] {
-  let file = if ($file | is-empty) {$in | get name} else {$file}
+  let filename = ($file | path parse | get stem)
 
-  if ($file | is-empty) {return-error "no file provided"}
+  media extract-audio $file 
+  ai audio2text $"($filename).mp3" -o srt -l ($language | split row "/" | get 1)
 
-  let title = ($file | path parse | get stem) 
-  let extension = ($file | path parse | get extension) 
-  let media_type = (askai -G $"does the extension file format ($extension) correspond to and audio, video or subtitle file?. Include as subtitle type files with txt extension. Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle or none. In plain text without any markdown formatting, ie, without ```" | from json | get answer)
+  if $notify {"subtitle generated!" | tasker send-notification}
 
-  match $media_type {
-    "video" => {ai video2text $file -l $lang},
-    "audio" => {ai audio2text $file -l $lang},
-    "subtitle" => {
-      match $extension {
-        "vtt" => {ffmpeg -i $file -f srt $"($title)-clean.txt"},
-        "srt" => {mv -f $file $"($title)-clean.txt"},
-        "txt" => {mv -f $file $"($title)-clean.txt"},
-        _ => {return-error "subtitle file extension not supported!"}
-      }
-    },
-    _ => {return-error $"wrong media type: ($extension)"}
+  if $translate {
+    ai trans-sub $"($filename).srt" --from ($language | split row "/" | get 0)
+    if $notify {"subtitle translated!" | tasker send-notification}
   }
+}
 
-  let system_prompt = match $type {
-    "meeting" => {"meeting_summarizer"},
-    "youtube" => {"ytvideo_summarizer"},
-    "class" => {"class_transcriptor"},
-    _ => {return-error "not a valid type!"}
-  }
-
-  let pre_prompt = match $type {
-    "meeting" => {"consolidate_transcription"},
-    "youtube" => {"consolidate_ytvideo"},
-    "class" => {"consolidate_class"}
-  }
-
-  if $upload and $media_type in ["video" "audio"] {
-    print (echo-g $"uploading audio file...")
-    cp $"($title)-clean.mp3" $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory
-  }
-
-  print (echo-g $"transcription file saved as ($title)-clean.txt")
-  let the_subtitle = $"($title)-clean.txt"
-
-  #removing existing temp files
-  ls | where name =~ "split|summaries" | rm-pipe
-
-  #definitions
-  let output = $"($title)_summary.md"
-
-  # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {19000}
-  let n_words = (wc -w $the_subtitle | awk '{print $1}' | into int)
-
-  if $n_words > $max_words {
-    print (echo-g $"splitting transcription of ($title)...")
-
-    let filenames = $"($title)_split_"
-
-    let split_command = ("awk '{total+=NF; print > " + $"\"($filenames)\"" + "sprintf(\"%03d\",int(total/" + $"($max_words)" + "))" + "\".txt\"}'" + $" \"($the_subtitle)\"")
-  
-    bash -c $split_command
-
-    let files = (ls | find split | where name !~ summary | ansi-strip-table)
-
-    $files | each {|split_file|
-      let t_input = (open ($split_file | get name))
-      let t_output = ($split_file | get name | path parse | get stem)
-      ai yt-transcription-summary $t_input $t_output -g $gpt4 -t $type -G $gemini
+#generate subtitles of video file via whisper and mymemmory api for piping
+#
+#`? trans` and `whisper --help` for more info on languages
+export def "ai generate-subtitles-pipe" [
+  --language(-l) = "en-US/English"   #language of input video file, mymmemory/whisper
+  --translate(-t)                    #to translate to spanish
+] {
+  $in
+  | get name 
+  | each {|file| 
+      ai generate-subtitles ($file | ansi strip) -l $language -t $translate
     }
-
-    let temp_output = $"($title)_summaries.md"
-    print (echo-g $"combining the results into ($temp_output)...")
-    touch $temp_output
-
-    let files = (ls | find split | find summary | enumerate)
-
-    $files | each {|split_file|
-      echo $"\n\nResumen de la parte ($split_file.index):\n\n" | save --append $temp_output
-      open ($split_file.item.name | ansi strip) | save --append $temp_output
-      echo "\n" | save --append $temp_output
-    }
-
-    let prompt = (open $temp_output)
-    let model = if $gemini {"gemini"} else {"chatgpt"}
-
-    print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
-    if $gpt4 {
-      chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-4
-    } else if (not $gemini) {
-      chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d
-    } else {
-      google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true
-    }
-    | save -f $output
-
-    if $notify {"summary finished!" | tasker send-notification}
-
-    if $upload {cp $output $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory}
-    return
-  }
-  
-  ai yt-transcription-summary (open $the_subtitle) $output -g $gpt4 -t $type -G $gemini
-  if $upload {cp $output $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory}
-  if $notify {"summary finished!" | tasker send-notification}
 }
 
 #single call to openai dall-e models
@@ -1473,8 +1251,9 @@ export def tts [
 #single call to google ai LLM api wrapper
 #
 #Available models at https://ai.google.dev/models:
-# - Gemini Pro (gemini-pro): text -> text
-# - Gemini Pro Vision (gemini-pro-vision): text & images -> text
+# - gemini-1.5-pro-latest: text & images & audio -> text, 1048576 (tokens), 2 RPM
+# - Gemini Pro (gemini-pro): text -> text, 15 RPM
+# - Gemini Pro Vision (gemini-pro-vision): text & images -> text, 12288 (tokens), 60 RP 
 # - PaLM2 Bison (text-bison-001): text -> text
 # - Embedding (embedding-001): text -> text
 # - Retrieval (aqa): text -> text
@@ -1505,7 +1284,7 @@ export def tts [
 # - --select_preprompt > --pre_prompt
 export def google_ai [
     query?: string                               # the query to Gemini
-    --model(-m):string = "gemini-pro"     # the model gemini-pro, gemini-pro-vision, etc
+    --model(-m):string = "gemini-pro" # the model gemini-pro, gemini-pro-vision, gemini-1.5-pro-latest, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9                       # the temperature of the model
     --image(-i):string                        # filepath of image file for gemini-pro-vision
@@ -1767,6 +1546,7 @@ export def google_ai [
     }
   )
 
+  #prompts
   let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part. The question:\'''" + $prompt + "\n'''"
   let search = if $web_search {google_ai $search_prompt -t 0.2} else {""}
   let web_content = if $web_search {google_search $search -n $web_results -v} else {""}
@@ -1912,7 +1692,7 @@ def save_gemini_chat [
 #- tell me my available times for a meeting next week
 export def "gcal ai" [
   ...request:string #query to gcal
-  --gpt4(-g)        #uses gpt-4-turbo
+  --gpt4(-g)        #uses gpt-4o
   --gemini(-G)      #uses gemini
 ] {
   let request = if ($request | is-empty) {$in} else {$request | str join}
@@ -1984,7 +1764,7 @@ export alias g = gcal ai -G
 export def "ai trans" [
   ...to_translate
   --destination(-d):string = "spanish"
-  --gpt4(-g)    #use gpt4-turbo instead of gpt-3.5-turbo
+  --gpt4(-g)    #use gpt-4o instead of gpt-3.5-turbo
   --gemini(-G)  #use gemini instead of gpt
   --copy(-c)    #copy output to clipboard
   --fast(-f)   #use prompt.md and answer.md to read question and write answer
@@ -2018,12 +1798,10 @@ export def "ai trans" [
   }
 }
 
-export alias aitg = ai trans -cG
-
 #translate subtitle to Spanish via mymemmory, openai or gemini apis
 #
 #`? trans` for more info on languages (only if not using ai)
-export def "media trans-sub" [
+export def "ai trans-sub" [
   file?
   --from:string = "en-US" #from which language you are translating
   --ai(-a)        #use ai to make the translations
@@ -2122,9 +1900,9 @@ export def "ai google_search-summary" [
   question:string     #the question made to google
   web_content?: table #table output of google_search
   --md(-m)            #return concatenated md instead of table
-  --gemini(-G)        #uses gemini instead of gpt-4-turbo
+  --gemini(-G)        #uses gemini instead of gpt-4o
 ] {
-  let max_words = if $gemini {18000} else {85000}
+  let max_words = if $gemini {19000} else {85000}
   let web_content = if ($web_content | is-empty) {$in} else {$web_content}
   let n_webs = $web_content | length
 

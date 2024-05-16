@@ -31,7 +31,7 @@ export def quick-ubuntu-and-tools-update-module [
   --update_scripts(-s)  #also update nushell scripts public repo
   --upload_debs(-d)     #also upload debs files to gdrive
   --force(-f)           #force the copy
-  --gemini(-G)          #use google gemini instead of gpt-4-turbo
+  --gemini(-G)          #use google gemini-1.5-pro-latest instead of gpt-4o
 ] {
   let destination = "~/software/ubuntu_semiautomatic_install/" | path expand
   if not ($destination | path exists) {
