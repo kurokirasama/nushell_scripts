@@ -632,47 +632,50 @@ export def "apps-update nushell" [] {
   print (echo-g "updating config file...")
   update-nu-config
 
-  print (echo-g "installing plugins...")
-  cd ~/software/nu_plugin_plot
-  git pull
-  cargo build --release
-  cp -f target/release/nu_plugin_plot ~/.cargo/bin
-  cargo clean
+  print (echo-g "updating plugins...")
+  cargo install-update nu_plugin_plot nu_plugin_net nu_plugin_port_scan nu_plugin_polars
 
-  cd ~/software/nu_plugin_net
-  git pull
-  cargo install --path .
-  cargo clean
+  mut success = true
 
-  cd ~/software/nu_plugin_port_scan
-  git pull
-  cargo build
-  cargo install --path .
-  cargo clean
-
-  print (echo-g "registering plugins...")
-  reg-plugins
-}
-
-#register nu plugins
-export def reg-plugins [] {
-  rm $nu.plugin-path -f
-  touch $nu.plugin-path
-
-  ls ~/.cargo/bin
-  | where type == file 
-  | sort-by -i name
-  | get name 
-  | find nu_plugin 
-  | find -v example
-  | each {|file|
-      print (echo-g $"registering ($file | ansi strip)...")
-      try {
-        nu -c $'register ($file | ansi strip)'
-      } catch {
-        print (echo-r "failed!")
-      }
+  $success = (
+    try {
+      plugin add ~/.cargo/bin/nu_plugin_polars
+      true
+    } catch {
+      false
     }
+  )
+  if $success {plugin use ~/.cargo/bin/nu_plugin_polars}
+
+  $success = (
+    try {
+      plugin add ~/.cargo/bin/nu_plugin_net
+      true
+    } catch {
+      false
+    }
+  )
+  if $success {plugin use ~/.cargo/bin/nu_plugin_net}
+
+  # $success = (
+  #   try {
+  #     plugin add ~/.cargo/bin/nu_plugin_plot
+  #     true
+  #   } catch {
+  #     false
+  #   }
+  # )
+  # if $success {plugin use ~/.cargo/bin/nu_plugin_plot}
+
+  # $success = (
+  #   try {
+  #     plugin add ~/.cargo/bin/nu_plugin_port_scan
+  #     true
+  #   } catch {
+  #     false
+  #   }
+  # )
+  # if $success {plugin use ~/.cargo/bin/nu_plugin_port_scan}
 }
 
 #update maestral
@@ -732,10 +735,8 @@ export def update-nu-config [] {
   let default = (
     ls ($env.MY_ENV_VARS.nushell_dir + "/**/*" | into glob) 
       | find -i default_config 
-      | update name {|n| 
-          $n.name | ansi strip
-        }
       | get name
+      | ansi strip
       | get 0
   )
 

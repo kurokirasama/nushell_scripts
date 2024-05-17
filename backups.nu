@@ -156,7 +156,7 @@ export def "nushell-syntax-2-sublime" [
 
   if $push {
     cd ~/Dropbox/Development/linux/sublime/nushell_sublime_syntax/
-    ai git-push -g
+    ai git-push -G
   }
 }
 
