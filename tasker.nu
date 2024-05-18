@@ -38,7 +38,7 @@ export def "tasker-join send-notification" [
 	--select_device(-s)
 ] {
 	let text = if ($text | is-empty) {$in} else {$text}
-	let title = if ($title | is-empty) {"from " + (sys | get host.hostname)} else {$title}
+	let title = if ($title | is-empty) {"from " + (sys host | get hostname)} else {$title}
 	
 	let apikey = $env.MY_ENV_VARS.api_keys.join.apikey
 	let deviceId = (
@@ -77,7 +77,7 @@ export def "tasker-join phone-call" [
 	--select_device(-s)
 ] {
 	let phone = if ($phone | is-empty) {$in} else {$phone}
-	let title = "phone call started from " + (sys | get host.hostname)
+	let title = "phone call started from " + (sys host | get hostname)
 
 	let apikey = $env.MY_ENV_VARS.api_keys.join.apikey
 	let deviceId = (
@@ -117,7 +117,7 @@ export def "tasker-join tts" [
 	--select_device(-s) = false
 ] {
 	let text = if ($text | is-empty) {$in} else {$text}
-	let title = "tts sent from " + (sys | get host.hostname)
+	let title = "tts sent from " + (sys host | get hostname)
 
 	let apikey = $env.MY_ENV_VARS.api_keys.join.apikey
 	let deviceId = (
@@ -222,7 +222,7 @@ export def "tasker send-notification" [
 	--select_device(-s)
 ] {
 	let text = if ($text | is-empty) {$in} else {$text}
-	let title = if ($title | is-empty) {"from " + (sys | get host.hostname)} else {$title}
+	let title = if ($title | is-empty) {"from " + (sys host | get hostname)} else {$title}
 	
 	let device = (
 		if not $select_device {
@@ -272,7 +272,7 @@ export def "tasker phone-call" [
 	--select_device(-s)
 ] {
 	let phone = if ($phone | is-empty) {$in} else {$phone}
-	let title = "phone call started from " + (sys | get host.hostname) + " to " + $phone
+	let title = "phone call started from " + (sys host | get hostname) + " to " + $phone
 
 	let device = (
 		if not $select_device {
