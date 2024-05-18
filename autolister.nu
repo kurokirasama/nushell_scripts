@@ -1,7 +1,7 @@
 #!/usr/bin/env nu
 
 def main [user:string = "kira"] {
-	let host = (sys | get host | get hostname)
+	let host = (sys host | get hostname)
 
 	print (echo-g "listing Downloads...")
 	cd ~/Downloads

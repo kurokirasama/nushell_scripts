@@ -4,7 +4,7 @@ export def main [
   input_host:string
   device?  #wlo1 for wifi (export default), eno1 for lan
 ] {
-  let host = (sys | get host | get hostname)
+  let host = (sys host | get hostname)
   
   let device = (
     if ($device | is-empty) {
