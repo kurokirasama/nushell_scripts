@@ -2,13 +2,8 @@
 export def "ai help" [] {
   print (
     echo ["This set of tools need a few dependencies installed:"
-      "ffmpeg"
-      "whisper:"
-      "  pip install git+https://github.com/openai/whisper.git"
-      "yt-dlp:" 
-      "  python3 -m pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz"
-      "gcalcli:"
-      "  sudo apt-get install gcalcli"
+      "ffmpeg, whisper, yt-dlp, gcalcli."
+      ""
       "METHODS"
       "- chat_gpt"
       "- askai"
@@ -1955,28 +1950,3 @@ export def "ai google_search-summary" [
   }
 } 
 
-#translation with deepL
-export def deepl-trans [
-  text?:string
-  source:string = "EN"
-  target:string = "ES"
-] {
-  let text = if ($text | is-empty) {$in} else {$text}
-
-  let apikey = $env.MY_ENV_VARS.api_keys.deepl
-  let header = [Authorization $"DeepL-Auth-Key ($apikey)"]
-  let data = { 
-    text: ([] | append $text),
-    source_lang: ($source),
-    target_lang: ($target)
-  }
-
-  {
-    scheme: "https",
-    host: "api-free.deepl.com",
-    path: $"v2/translate",
-  } 
-  | url join
-  | http post -t application/json -H $header $in $data
-  | get translations.text.0
-}
