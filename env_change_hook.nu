@@ -45,7 +45,7 @@ $env.PWD_SIZE = $pwd_size
 let pwd_file = open ~/.pwd_sizes.json
 #updating data file
 if ($last_record | length) == 0 and $not_gdrive {    
-    open ~/.pwd_sizes.json  
+    $pwd_file  
     | append {directory: $env.PWD,size: $pwd_size, updated: $now} 
     | save -f ~/.pwd_sizes.json    
 } else if (not $not_update) and $not_gdrive {

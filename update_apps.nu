@@ -633,7 +633,7 @@ export def "apps-update nushell" [] {
   update-nu-config
 
   print (echo-g "updating plugins...")
-  cargo install-update nu_plugin_plot nu_plugin_net nu_plugin_port_scan nu_plugin_polars
+  cargo install-update nu_plugin_plot nu_plugin_net nu_plugin_port_scan nu_plugin_polars nu_plugin_highlight nu_plugin_units
 
   mut success = true
 

@@ -292,6 +292,8 @@ let my_config = (
 #updating $env.config
 $env.config = $my_config  
 
+$env.config.float_precision = 4;
+
 try {
     if (random bool) {
         print (http get -H ["Accept" "text/plain"] https://icanhazdadjoke.com)
