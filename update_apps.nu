@@ -647,15 +647,15 @@ export def "apps-update nushell" [] {
   )
   if $success {plugin use ~/.cargo/bin/nu_plugin_polars}
 
-  $success = (
-    try {
-      plugin add ~/.cargo/bin/nu_plugin_net
-      true
-    } catch {
-      false
-    }
-  )
-  if $success {plugin use ~/.cargo/bin/nu_plugin_net}
+  # $success = (
+  #   try {
+  #     plugin add ~/.cargo/bin/nu_plugin_net
+  #     true
+  #   } catch {
+  #     false
+  #   }
+  # )
+  # if $success {plugin use ~/.cargo/bin/nu_plugin_net}
 
   # $success = (
   #   try {
