@@ -116,9 +116,9 @@ export def ls-ports [] {
     }
   | rename -c {name: connection}
   | reject 'command'
-  | dfr into-df
-  | dfr join (ps -l | dfr into-df) 'pid' 'pid'
-  | dfr into-nu
+  | polars into-df
+  | polars join (ps -l | polars into-df) 'pid' 'pid'
+  | polars into-nu
 }
 
 #get ips
@@ -129,7 +129,7 @@ export def get-ips [
   
   let device = (
     if ($device | is-empty) {
-      if $host =~ $env.MY_ENV_VARS.host_work.1 {
+      if $host =~ $env.MY_ENV_VARS.host_work.0 {
         "eno1"
       } else {
         "wlo1"

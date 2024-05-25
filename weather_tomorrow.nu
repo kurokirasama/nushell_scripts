@@ -326,7 +326,7 @@ def get_weather [loc, --plot = true] {
         $data = ($data | append ($response.forecast.timelines.daily | get values | get $i | select weatherCodeMax temperatureMin temperatureMax windSpeedAvg humidityAvg precipitationProbabilityAvg rainIntensityAvg uvIndexAvg? | transpose | transpose -r))
     }
 
-    mut forecast = ($days | dfr into-df | dfr append ($data | dfr into-df) | dfr into-nu)
+    mut forecast = ($days | polars into-df | polars append ($data | polars into-df) | polars into-nu)
     
     let windSpeedAvg = (
         $forecast 

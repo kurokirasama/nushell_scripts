@@ -203,9 +203,9 @@ export def "maps eta" [
       | chat_gpt --select_system html_parser --select_preprompt parse_html 
       | lines 
       | wrap directions 
-      | dfr into-df 
-      | dfr append ($steps.0.duration.text | wrap duration | dfr into-df) 
-      | dfr into-nu
+      | polars into-df 
+      | polars append ($steps.0.duration.text | wrap duration | polars into-df) 
+      | polars into-nu
   )
 
   let info = { 
@@ -365,7 +365,7 @@ export def "joplin search" [
   let host = (sys | get host | get hostname)
   let port = $env.MY_ENV_VARS.api_keys.joplin.port
   let token = (
-    if ($host == $env.MY_ENV_VARS.host_work) {
+    if ($host == $env.MY_ENV_VARS.host_work.0) {
       $env.MY_ENV_VARS.api_keys.joplin.token.work
     } else if ($host == deathnote) {
       $env.MY_ENV_VARS.api_keys.joplin.token.deathnote

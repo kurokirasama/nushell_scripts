@@ -364,7 +364,7 @@ export def askai [
   --vision(-v)            # use gpt-4-vision/gemini-pro-vision
   --image(-i):string      # filepath of the image to prompt to vision models
   --fast(-f) # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
-  --gemini(-G) #use google gemini instead of chatgpt
+  --gemini(-G) #use google gemini instead of chatgpt. gemini-pro for chat, gemini-1.5-pro-latest otherwise
   --bison(-B)  #use google bison instead of chatgpt (needs --gemini)
   --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt4
   --database(-D) #load chat conversation from database
@@ -445,7 +445,7 @@ export def askai [
       } else {
           match $bison {
           true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d true -w $web_search -W $web_results},
-          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -d true -w $web_search -W $web_results},
+          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m gemini-1.5-pro-latest -d true -w $web_search -W $web_results},
         }
       }
     )

@@ -133,9 +133,9 @@ export def append-table [tab2:table,tab1?:table] {
   }
 
   $tab1
-  | dfr into-df 
-  | dfr append ($tab2 | dfr into-df) 
-  | dfr into-nu
+  | polars into-df 
+  | polars append ($tab2 | polars into-df) 
+  | polars into-nu
 }
 
 # table diff
