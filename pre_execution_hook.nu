@@ -2,7 +2,7 @@
 
 #checking existence of data file
 if not ("~/.autolister.json" | path expand | path exists) {
-    cp /home/kira/Yandex.Disk/Backups/linux/autolister.json ~/.autolister.json
+    cp ("~/Yandex.Disk/Backups/linux/autolister.json" | path expand) ~/.autolister.json
 }
 
 #checking conditions
@@ -13,20 +13,20 @@ let autolister_file = open ~/.autolister.json
 
 if $update {
     ## list mounted drives and download directory
-    nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/autolister.nu 
-
-    ## update ip
-    print (echo $"(ansi -e { fg: '#00ff00' attr: b })getting device ips...(ansi reset)")
-    let host = (sys host | get hostname)
-    let ips_file = "/home/kira/Yandex.Disk/Android_Devices/Apps/Termux/ips.json"
-    let ips_content = open $ips_file
-    let ips = (nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/get-ips.nu (open ~/.host_work))
-
-    $ips_content
-    | upsert $host ($ips | from json)
-    | save -f $ips_file
+    nu ("~/Yandex.Disk/Backups/linux/nu_scripts/autolister.nu" | path expand)
 
     $autolister_file
     | upsert updated $now
     | save -f ~/.autolister.json
+
+    ## update ip
+    print (echo $"(ansi -e { fg: '#00ff00' attr: b })getting device ips...(ansi reset)")
+    let host = (sys host | get hostname)
+    let ips_file = "~/Yandex.Disk/Android_Devices/Apps/Termux/ips.json" | path expand
+    let ips_content = open $ips_file
+    let ips = (nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/get-ips.nu)
+
+    $ips_content
+    | upsert $host ($ips | from json)
+    | save -f $ips_file
 }

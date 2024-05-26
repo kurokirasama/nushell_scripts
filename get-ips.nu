@@ -1,7 +1,6 @@
 #!/usr/bin/env nu
 
 export def main [
-  input_host:string
   device?  #wlo1 for wifi (export default), eno1 for lan
 ] {
   let host = (sys host | get hostname)
