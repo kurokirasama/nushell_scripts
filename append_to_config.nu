@@ -1,5 +1,6 @@
 
 use std *
+use /path/to/nushell_scripts/python.nu *
 use /path/to/nushell_scripts/aliases.nu *
 use /path/to/nushell_scripts/string_manipulation.nu *
 use /path/to/nushell_scripts/table_manipulation.nu *

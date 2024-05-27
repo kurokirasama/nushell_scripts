@@ -860,7 +860,7 @@ export def "apps-update ddgr" [] {
 #update html2text
 export def "apps-update html2text" [] {
   cd ~/software/html2text; git pull 
-  cp -f html2text.py ~/Yandex.Disk/Comandos_bash_for_nushell/html2text
+  cp -f html2text.py $env.MY_ENV_VARS.python_scripts
 }
 
 #update rclone

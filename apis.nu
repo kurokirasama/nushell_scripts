@@ -506,7 +506,7 @@ export def google_search [
     let processed_content = (
       try {
         $raw_content
-        | html2text --ignore-links --ignore-images --dash-unordered-list 
+        | html2text -e
         | lines 
         | uniq
         | to text
