@@ -58,7 +58,12 @@ let hooks = {
                         _ => {"f7b5"}
                     }
                 } else {
-                    if (sys host | get name) =~ "Windows" {"f17a"} else {"f31b"}
+                    match (sys host | get name) {
+                        "Windows" => {"f17a"},
+                        "Ubuntu"  => {if (sys host | get os_version) == "20.04" {"f31b"} else {"f32e"}},
+                        "Centos" => {"f304"},
+                        _ => {"e712"}
+                    } 
                 } 
             )
         },

@@ -364,6 +364,19 @@ export def export-nushell-docs [] {
   cp README.md ~/Yandex.Disk/ai_database/nushell
 }
 
+#enable ssh without password
+export def ssh-sin-pass [
+  user:string 
+  ip:string 
+  --port(-p):int = 22
+] {
+  if not ("~/.ssh/id_rsa.pub" | path expand | path exists) {
+    ssh-keygen -t rsa
+  }
+
+  ssh-copy-id -i ~/.ssh/id_rsa.pub -p $port $"($user)@($ip)"
+}
+
 ## appimages
 
 #open balena-etche
