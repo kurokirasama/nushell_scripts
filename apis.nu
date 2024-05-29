@@ -362,7 +362,7 @@ export def "joplin search" [
   --tag(-g)   #search in tag
   --edit(-e)  #edit selected note
 ] {
-  let host = (sys | get host | get hostname)
+  let host = (sys host | get hostname)
   let port = $env.MY_ENV_VARS.api_keys.joplin.port
   let token = (
     if ($host == $env.MY_ENV_VARS.host_work.0) {

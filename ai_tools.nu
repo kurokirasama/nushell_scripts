@@ -649,11 +649,11 @@ export def "ai media-summary" [
 ] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
 
-  if ($file | is-empty) {return-error "no file provided"}
+  if ($file | is-empty) {return-error "no input provided"}
 
-  let title = ($file | path parse | get stem) 
-  let extension = ($file | path parse | get extension) 
-  let media_type = (askai -G $"does the extension file format ($extension) correspond to and audio, video or subtitle file?. IMPORTANT: include as subtitle type files with txt extension. Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle or none. In plain text without any markdown formatting, ie, without ```" | from json | get answer)
+  mut title = ($file | path parse | get stem) 
+  let extension = ($file | path parse | get extension)
+  let media_type = (askai -G $"does the extension file format ($file) correspond to and audio, video or subtitle file; or an url?. IMPORTANT: include as subtitle type files with txt extension. Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle, url or none. In plain text without any markdown formatting, ie, without ```" | from json | get answer)
 
   match $media_type {
     "video" => {ai video2text $file -l $lang},
@@ -663,10 +663,15 @@ export def "ai media-summary" [
         "vtt" => {ffmpeg -i $file -f srt $"($title)-clean.txt"},
         "srt" => {mv -f $file $"($title)-clean.txt"},
         "txt" => {mv -f $file $"($title)-clean.txt"},
-        _ => {return-error "subtitle file extension not supported!"}
+        _ => {return-error "input not supported!"}
       }
     },
-    _ => {return-error $"wrong media type: ($extension)"}
+    "url" =>  {
+                let subtitle_file = ai yt-get-transcription $file
+                $title = ($subtitle_file | path parse | get stem)
+                mv -f $subtitle_file $"($title)-clean.txt"
+              }
+    _ => {return-error $"wrong media type: ($file)"}
   }
 
   let system_prompt = match $type {
@@ -682,7 +687,7 @@ export def "ai media-summary" [
     "class" => {"consolidate_class"}
   }
 
-  if $upload and $media_type in ["video" "audio"] {
+  if $upload and $media_type in ["video" "audio" "url"] {
     print (echo-g $"uploading audio file...")
     cp $"($title)-clean.mp3" $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory
   }
@@ -791,69 +796,60 @@ export def "ai transcription-summary" [
   if $notify {"summary finished!" | tasker send-notification}
 }
 
-#get a summary of a youtube video url via ai
+#get transcription of youtube video url
+#
+#First it tries to download the transcription. If it doens't success, it downloads audio and trancribe it using whisper.
 #
 #Two characters words for languages
 #es: spanish
 #fr: french
-export def "ai yt-summary" [
+export def "ai yt-get-transcription" [
   url?:string       # video url
   --lang = "en"     # language of the summary (default english)
-  --gpt4(-g)        # to use gpt-4o instead of gpt-3.5
-  --gemini(-G)      # use google gemini-1.5-pro-latest
-  --notify(-n)      # notify to android via join/tasker
 ] {
-  if $gemini and $gpt4 {
-    return-error "please choose only one model!"
-  }
-
   #deleting previous temp file
   if ((ls | find yt_temp | length) > 0) {rm yt_temp* | ignore}
   
   #getting the subtitle
-  yt-dlp -N 10 --write-info-json $url --output yt_temp
+  yt-dlp -N 10 --write-info-json $url --output yt_temp --skip-download
 
   let video_info = (open yt_temp.info.json)
   let title = ($video_info | get title)
   let subtitles_info = ($video_info | get subtitles?)
   let languages = ($subtitles_info | columns)
   let the_language = ($languages | find $lang)
+  let the_subtitle = $"($title).txt"
 
   if ($the_language | is-empty) {
     #first try auto-subs then whisper
-    yt-dlp -N 10 --write-auto-subs $url --output yt_temp
+    yt-dlp -N 10 --write-auto-subs $url --output yt_temp --skip-download
 
     if ((ls | find yt_temp | find vtt | length) > 0) {
-      ffmpeg -i (ls yt_temp*.vtt | get 0 | get name) $"($title).srt"
+      ffmpeg -i (ls yt_temp*.vtt | get 0 | get name) -f srt $the_subtitle
     } else {
       print (echo-g "downloading audio...")
       yt-dlp --extract-audio --audio-format mp3 --audio-quality 0 $url -o $"($title).mp3"
 
       print (echo-g "transcribing audio...")
       whisper $"($title).mp3" --output_format srt --verbose False --fp16 False
+      mv -f $"($title).mp3" $the_subtitle
     }
   } else {
     let sub_url = (
       $subtitles_info 
       | get ($the_language | get 0) 
-      | where ext =~ "srt|vtt" 
+      | where ext =~ "vtt" 
       | get url 
       | get 0
     )
-    http get $sub_url | save -f $"($title).srt"
-  }
-  print (echo-g $"transcription file saved as ($title).srt")
-  let the_subtitle = $"($title).srt"
+    http get $sub_url | save -f $the_subtitle
 
-  if $gemini {
-    ai media-summary $the_subtitle -l $the_language -t "youtube" -G
-  } else if $gpt4 {
-    ai media-summary $the_subtitle -l $the_language -t "youtube" -g
-  } else {
-    ai media-summary $the_subtitle -l $the_language -t "youtube"
+    ffmpeg -i $"($title).vtt" -f srt $the_subtitle
   }
+  print (echo-g $"transcription file saved as ($the_subtitle)")
 
-  if $notify {"summary finished!" | tasker send-notification}
+  ls | find yt_temp | rm-pipe
+  return $the_subtitle
 }
 
 #generate subtitles of video file via whisper and mymemmory/openai api

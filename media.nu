@@ -182,18 +182,28 @@ export def "media screen-record" [
   file:string = "video"  #output filename without extension
   --audio = true  #whether to record with audio or not
 ] {
+  let os_version = sys host | get os_version
   if $audio {
     print (echo-g "recording screen with audio...")
     let devices = (
-      pacmd list-sources 
-      | lines 
-      | find "name:" 
-      | ansi strip 
-      | parse "{name}: <{device}>" 
-      | where device =~ "alsa_input|blue"
+      if $os_version == "24.04" {
+        pw-dump 
+        | lines 
+        | find '"node.name"' 
+        | ansi strip 
+        | str trim 
+        | parse "\"{name}\": \"{device}\"," 
+      } else {
+        pacmd list-sources 
+        | lines 
+        | find "name:" 
+        | ansi strip 
+        | str trim
+        | parse "{name}: <{device}>"
+      }
+      | where device =~ "alsa_input|bluez_" 
       | get device
-      | ansi strip
-      )
+    )
 
     let bluetooth_not_connected = ($devices | find blue | is-empty)
 

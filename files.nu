@@ -39,22 +39,26 @@ export def typeof [--full(-f)] {
     }
 }
 
-#open code
-export def op [file?,--raw] {
+#open text file
+export def op [file?,--raw(-r),--open(-o)] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
   let extension = ($file | path parse | get extension)
 
-  if $extension =~ "md|Rmd" {
-    glow $file
-  } else if $extension =~ "nu" {
-    open --raw $file | nu-highlight | bat
-  } else if ($extension =~ "R|c|m|py|sh") or ($extension | is-empty) {
-    bat $file
+  if $open {
+    open $file
   } else {
-    if $raw {
-      open --raw $file
-    } else {
-      open $file
+    match $extension {
+      "md"|"Rmd" => {glow $file},
+      "nu" => {open --raw $file | nu-highlight | bat},
+      "R"|"c"|"m"|"py"|"sh" => {bat $file},
+      "" => {bat $file},
+      _ => {
+        if $raw {
+          open --raw $file
+        } else {
+          open $file
+        }
+      }
     }
   }
 }
