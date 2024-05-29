@@ -289,3 +289,14 @@ export def bar [
 
   $bar_sections + (ansi reset)
 }
+
+#truncate a string by a max number of words
+export def "str truncate" [
+  text?:string 
+  --max_words(-m):int
+] {
+  let text = if ($text | is-empty) {$in} else {$text}
+
+  let max_words = $max_words | into string
+  $text | ^awk ("BEGIN{total=0} {total+=NF; if(total<=" + $max_words + ") print; else exit}")
+}
