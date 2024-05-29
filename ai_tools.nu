@@ -515,8 +515,8 @@ export def "ai git-push" [
 
   print (echo-g $"asking ($model) to summarize the differences in the repository...")
   let question = (git diff | str replace "\"" "'" -a)
-  let prompt = ($question | ^awk ("'BEGIN{total=0} {total+=NF; if(total<=(" + $"($max_words)" + ")) print; else exit}'"))
-  let prompt_short = ($question | ^awk ("'BEGIN{total=0} {total+=NF; if(total<=(" + $"($max_words_short)" + ")) print; else exit}'"))
+  let prompt = ($question | ^awk ("'BEGIN{total=0} {total+=NF; if(total<=(" + ($max_words | into string) + ")) print; else exit}'"))
+  let prompt_short = ($question | ^awk ("'BEGIN{total=0} {total+=NF; if(total<=(" + ($max_words_short | into string ) + ")) print; else exit}'"))
 
   let commit = (
     try {
@@ -1918,7 +1918,7 @@ export def "ai google_search-summary" [
 
     print (echo-c $"summarizing the results of ($web.displayLink)..." "green")
 
-    let truncated_content = $web.content | ^awk ("'BEGIN{total=0} {total+=NF; if(total<=(" + $"($max_words)" + ")) print; else exit}'")
+    let truncated_content = $web.content | ^awk ("'BEGIN{total=0} {total+=NF; if(total<=(" + ($max_words | into string) + ")) print; else exit}'")
 
     let complete_prompt = $prompt + "\n'''\n" + $truncated_content + "\n'''"
 
