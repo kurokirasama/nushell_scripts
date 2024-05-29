@@ -239,33 +239,36 @@ export def chat_gpt [
     }
   )
 
-  #select system message
-  let system_messages = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_systemmessages.json] | path join))
+  #select system message from database
+  let system_messages_files = ls ([$env.MY_ENV_VARS.chatgpt_config system] | path join) | sort-by name | get name
+  let system_messages = $system_messages_files | path parse | get stem
 
   mut ssystem = ""
   if ($list_system and ($select_system | is-empty)) {
-    let selection = ($system_messages | columns | input list -f (echo-g "Select system message: "))
-    $ssystem = ($system_messages | get $selection)
+    let selection = ($system_messages | input list -f (echo-g "Select system message: "))
+    $ssystem = (open ($system_messages_files | find $selection | get 0 | ansi strip))
   } else if (not ($select_system | is-empty)) {
     try {
-      $ssystem = ($system_messages | get $select_system)
+      $ssystem = (open ($system_messages_files | find $select_system | get 0 | ansi strip))
     } 
   }
   let system = if ($ssystem | is-empty) {$system} else {$ssystem}
 
-  #select pre-prompt
-  let pre_prompts = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join))
+  #select pre-prompt from database
+  let pre_prompt_files = ls ([$env.MY_ENV_VARS.chatgpt_config prompt] | path join) | sort-by name | get name
+  let pre_prompts = $pre_prompt_files | path parse | get stem
 
   mut preprompt = ""
   if ($pre_prompt and ($select_preprompt | is-empty)) {
-    let selection = ($pre_prompts | columns | input list -f (echo-g "Select pre-prompt: "))
-    $preprompt = ($pre_prompts | get $selection)
+    let selection = ($pre_prompts | input list -f (echo-g "Select pre-prompt: "))
+    $preprompt = (open ($pre_prompt_files | find $selection | get 0 | ansi strip))
   } else if (not ($select_preprompt | is-empty)) {
     try {
-      $preprompt = ($pre_prompts | get $select_preprompt)
+      $preprompt = (open ($pre_prompt_files | find $select_preprompt | get 0 | ansi strip))
     }
   }
 
+  #build prompt
   let prompt = (
     if ($preprompt | is-empty) and $delim_with_backquotes {
       "'''" + "\n" + $prompt + "\n" + "'''"
@@ -635,11 +638,10 @@ export def "ai video2text" [
   if $notify {"audio extracted!" | tasker send-notification}
 }
 
-#get a summary of a video, audio or subtitle via ai
+#get a summary of a video, audio, subtitle file or youtube video url via ai
 #
-#Two characters words for languages
 export def "ai media-summary" [
-  file:string            # video, audio or subtitle file (vtt, srt, txt) file name with extension
+  file:string            # video, audio or subtitle file (vtt, srt, txt, url) file name with extension
   --lang(-l):string = "Spanish" # language of the summary
   --gpt4(-g)             # to use gpt-4o instead of gpt-3.5
   --gemini(-G)           # use google gemini-1.5-pro-latest instead of gpt
@@ -1330,31 +1332,36 @@ export def google_ai [
       }
     } | url join
 
-  #select system message
-  let system_messages = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_systemmessages.json] | path join))
+  #select system message from database
+  let system_messages_files = ls ([$env.MY_ENV_VARS.chatgpt_config system] | path join) | sort-by name | get name
+  let system_messages = $system_messages_files | path parse | get stem
 
   mut ssystem = ""
   if ($list_system and ($select_system | is-empty)) {
-    let selection = ($system_messages | columns | input list -f (echo-g "Select system message: "))
-    $ssystem = ($system_messages | get $selection)
+    let selection = ($system_messages | input list -f (echo-g "Select system message: "))
+    $ssystem = (open ($system_messages_files | find $selection | get 0 | ansi strip))
   } else if (not ($select_system | is-empty)) {
-    $ssystem = ($system_messages | get $select_system)
+    try {
+      $ssystem = (open ($system_messages_files | find $select_system | get 0 | ansi strip))
+    } 
   }
   let system = if ($ssystem | is-empty) {$system} else {$ssystem}
 
-  #select pre-prompt
-  let pre_prompts = (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join))
+  #select pre-prompt from database
+  let pre_prompt_files = ls ([$env.MY_ENV_VARS.chatgpt_config prompt] | path join) | sort-by name | get name
+  let pre_prompts = $pre_prompt_files | path parse | get stem
 
   mut preprompt = ""
   if ($pre_prompt and ($select_preprompt | is-empty)) {
-    let selection = ($pre_prompts | columns | input list -f (echo-g "Select pre-prompt: "))
-    $preprompt = ($pre_prompts | get $selection)
+    let selection = ($pre_prompts | input list -f (echo-g "Select pre-prompt: "))
+    $preprompt = (open ($pre_prompt_files | find $selection | get 0 | ansi strip))
   } else if (not ($select_preprompt | is-empty)) {
     try {
-      $preprompt = ($pre_prompts | get $select_preprompt)
+      $preprompt = (open ($pre_prompt_files | find $select_preprompt | get 0 | ansi strip))
     }
   }
 
+  #build prompt
   let prompt = (
     if ($preprompt | is-empty) and $delim_with_backquotes {
       "'''" + "\n" + $query + "\n" + "'''"

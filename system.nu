@@ -416,11 +416,12 @@ export def rmount [drive?:string] {
     } else {
       "~/rclone/" + $drive
     }
+    | path expand
   )
 
   let remote = $drive | path parse | get stem
   let option = "--vfs-cache-mode writes"
-  bash -c $"'rclone mount ($remote): ($drive) ($option) &'"
+  bash -c ('rclone mount ' + $remote + ': ' + $drive + ' ' +  $option + ' &')
 }
 
 # Monitor the output of a command
