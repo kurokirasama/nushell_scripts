@@ -67,20 +67,6 @@ let hooks = {
                     } 
                 } 
             )
-
-            $env.HOST_GLYPH = (
-                if $env.HOST == $env.MY_ENV_VARS.hosts.0 {
-                    "eb06"
-                } else if $env.HOST == $env.MY_ENV_VARS.hosts.1 {
-                    "f109"
-                } else if $env.HOST == $env.MY_ENV_VARS.hosts.2 {
-                    "f4a9"
-                } else if $env.HOST == $env.MY_ENV_VARS.hosts.3 {
-                    "f233"
-                } else {
-                    "f007"
-                }
-            )
         },
         {||
             $env.NETWORK = (
