@@ -46,6 +46,7 @@ let hooks = {
         			0
     			}
 			)
+
             $env.CLOUD = (
                 if $env.PWD =~ "rclone/" {
                     match ($env.PWD | split row "/rclone/" | get 1 | split row "/" | get 0) {
@@ -60,11 +61,25 @@ let hooks = {
                 } else {
                     match (sys host | get name) {
                         "Windows" => {"f17a"},
-                        "Ubuntu"  => {if (sys host | get os_version) == "20.04" {"f31b"} else {"f32e"}},
+                        "Ubuntu"  => {"f31b"},
                         "Centos" => {"f304"},
                         _ => {"e712"}
                     } 
                 } 
+            )
+
+            $env.HOST_GLYPH = (
+                if $env.HOST == $env.MY_ENV_VARS.hosts.0 {
+                    "eb06"
+                } else if $env.HOST == $env.MY_ENV_VARS.hosts.1 {
+                    "f109"
+                } else if $env.HOST == $env.MY_ENV_VARS.hosts.2 {
+                    "f4a9"
+                } else if $env.HOST == $env.MY_ENV_VARS.hosts.3 {
+                    "f233"
+                } else {
+                    "f007"
+                }
             )
         },
         {||

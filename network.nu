@@ -129,7 +129,7 @@ export def get-ips [
   
   let device = (
     if ($device | is-empty) {
-      if $host =~ $env.MY_ENV_VARS.host_work.0 {
+      if $host =~ $env.MY_ENV_VARS.hosts.2 {
         "eno1"
       } else {
         "wlo1"

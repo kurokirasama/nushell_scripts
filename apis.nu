@@ -362,12 +362,12 @@ export def "joplin search" [
   --tag(-g)   #search in tag
   --edit(-e)  #edit selected note
 ] {
-  let host = (sys host | get hostname)
+  let host = $env.HOST
   let port = $env.MY_ENV_VARS.api_keys.joplin.port
   let token = (
-    if ($host == $env.MY_ENV_VARS.host_work.0) {
+    if ($host == $env.MY_ENV_VARS.hosts.2) {
       $env.MY_ENV_VARS.api_keys.joplin.token.work
-    } else if ($host == deathnote) {
+    } else if ($host == $env.MY_ENV_VARS.hosts.0) {
       $env.MY_ENV_VARS.api_keys.joplin.token.deathnote
     } else {
         return-error "host not found!"
