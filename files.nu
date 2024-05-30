@@ -610,7 +610,7 @@ export def join-text-files [
   extension:string #extension of files to concatenate
   output:string    #output filename (without extension)
 ] {
-  open ("*." + $extension) | save -f ($output + "." + $extension)
+  open ("*." + $extension | into glob) | save -f ($output + "." + $extension)
 }
 
 #manually rename files in a directory

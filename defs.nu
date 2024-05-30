@@ -346,8 +346,15 @@ export def "http server" [root:string ="."] {
 
 #export nushell.github documentation
 export def export-nushell-docs [] {
-  cd ~/software/nushell.github.io;git pull
-  rm -rf nushell
+  if ("~/software/nushell.github.io" | path expand | path exists) {
+    cd ~/software/nushell.github.io;git pull
+    rm -rf nushell
+  } else {
+    cd ~/software
+    git clone https://github.com/nushell/nushell.github.io.git
+    cd nushell.github.io
+  }  
+
   mkdir nushell 
   cd blog;join-text-files md blog;mv blog.md ../nushell;cd ..
   cd book;join-text-files md book;mv book.md ../nushell;cd ..
@@ -357,11 +364,17 @@ export def export-nushell-docs [] {
   cd cookbook;join-text-files md cookbook;mv cookbook.md ../nushell;cd ..
   cd lang-guide;join-text-files md lang-guide;mv lang-guide.md ../nushell;cd ..
 
-  rm -rf ~/Yandex.Disk/ai_database/nushell
-  mv -f nushell/ ~/Yandex.Disk/ai_database/
+  rm -rf ([$env.MY_ENV_VARS.ai_database nushell] | path join)
+  mv -f nushell/ $env.MY_ENV_VARS.ai_database
 
   cd ~/software/nushell
-  cp README.md ~/Yandex.Disk/ai_database/nushell
+  cp README.md ([$env.MY_ENV_VARS.ai_database nushell] | path join)
+  cd ([$env.MY_ENV_VARS.ai_database nushell] | path join)
+  
+  join-text-files md all_nushell
+  let system_message = (open ([$env.MY_ENV_VARS.chatgpt_config system bash_nushell_programmer.md] | path join)) ++ "\n\nPlease consider the following nushell documentation to elaborate your answer.\n\n"
+
+  $system_message ++ (open all_nushell.md) | save -f ([$env.MY_ENV_VARS.chatgpt_config system bash_nushell_programmer_with_nushell_docs.md] | path join)
 }
 
 #enable ssh without password
