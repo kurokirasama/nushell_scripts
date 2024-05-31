@@ -299,4 +299,5 @@ export def "str truncate" [
 
   let max_words = $max_words | into string
   $text | ^awk ("BEGIN{total=0} {total+=NF; if(total<=" + $max_words + ") print; else exit}")
+  # $text | split row " " | take $max_words | str join " "
 }

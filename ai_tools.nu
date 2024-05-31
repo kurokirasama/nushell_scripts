@@ -508,8 +508,8 @@ export def "ai git-push" [
     return-error "select only one model!"
   }
 
-  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {650000}
-  let max_words_short = if $gpt4 {85000} else if (not $gemini) {10000} else {650000}
+  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {700000}
+  let max_words_short = if $gpt4 {85000} else if (not $gemini) {10000} else {700000}
 
   let model = if $gemini {"gemini"} else {"chatgpt"}
 
@@ -704,7 +704,7 @@ export def "ai media-summary" [
   let output = $"($title)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {650000}
+  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {700000}
   let n_words = (wc -w $the_subtitle | awk '{print $1}' | into int)
 
   if $n_words > $max_words {
