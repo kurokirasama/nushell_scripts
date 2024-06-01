@@ -50,13 +50,13 @@ let hooks = {
             $env.CLOUD = (
                 if $env.PWD =~ "rclone/" {
                     match ($env.PWD | split row "/rclone/" | get 1 | split row "/" | get 0) {
+                        $s if ($s | str starts-with "g") => {"f2df"},
                         "onedrive" => {"f8c9"},
-                        "gdrive" => {"e731"},
                         "photos" => {"fbdb"}, 
                         "yandex" => {"f662"}, 
                         "box" => {"f5d3"}, 
                         "mega" => {"e673"}, 
-                        _ => {"f7b5"}
+                        _ => {"f4ac"}
                     }
                 } else {
                     match (sys host | get name) {

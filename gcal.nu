@@ -49,7 +49,6 @@ export def "gcal agenda" [
   --full(-f)  #show all calendars
   ...rest     #extra flags for gcalcli between quotes (specified full needed)
 ] {
-
   let calendars = gcal list -R (not $full) -f $full| str join "|"
   
   gcalcli --calendar $"($calendars)" agenda --military ...$rest
