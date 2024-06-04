@@ -106,3 +106,9 @@ export def "gcal list" [
   | str replace "   " "" 
   | str trim
 }
+
+#re-authenticate gcalcli
+export def "gcal reauth" [] {
+  rm ~/.gcalcli*
+  gcalcli --client-id $env.MY_ENV_VARS.api_keys.google.calendar.client_id --client-secret $env.MY_ENV_VARS.api_keys.google.calendar.client_secret --noauth_local_webserver list
+}

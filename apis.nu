@@ -354,186 +354,83 @@ export def gg-trans [
   | get 0.0.0
 }
 
-#search notes in joplin
-export def "joplin search" [
-  query?      #search query
-  --title(-t) #search in title
-  --body(-b)  #search in body
-  --tag(-g)   #search in tag
-  --edit(-e)  #edit selected note
-] {
-  let host = $env.HOST
-  let port = $env.MY_ENV_VARS.api_keys.joplin.port
-  let token = (
-    if ($host == $env.MY_ENV_VARS.hosts.2) {
-      $env.MY_ENV_VARS.api_keys.joplin.token.work
-    } else if ($host == $env.MY_ENV_VARS.hosts.0) {
-      $env.MY_ENV_VARS.api_keys.joplin.token.deathnote
-    } else {
-        return-error "host not found!"
-    }
-  )
-
-  let query = if ($query | is-empty) {$in} else {$query}
-  let query = (
-    match [$title,$body,$tag] {
-      [true,false,false] => {"title:" + $query},
-      [false,true,false] => {"body:" + $query},
-      [false,false,true] => {"tag:" + $query},
-      _ => {$query}
-    }
-  )
+#check obsidian server
+export def "obs check" [] {
+  let apikey = $env.MY_ENV_VARS.api_keys.obsidian.local_rest_apikey
+  let host = $env.MY_ENV_VARS.api_keys.obsidian.host
+  let port = $env.MY_ENV_VARS.api_keys.obsidian.port
+  let certificate = $env.MY_ENV_VARS.api_keys.obsidian.certificate
 
   let url = {
-              "scheme": "http",
-              "host": "localhost",
-              "port": $port ,
-              "path": "search",
-              "query": ("query=" + $query + "&token=" + $token),
-            } | url join 
-    
-  let response = http get $url
+              "scheme": "https",
+              "host": $host,
+              "port": $port
+            } | url join
 
-  let selection = (
-    $response.items 
-    | get title 
-    | input list -f (echo-g "Select note to display:")
-  )
+  let status = curl -s -X 'GET' $url -H 'accept: application/json' -H $'Authorization: Bearer ($apikey)' --cacert $certificate | from json | get status 
 
-  let id = (
-    $response.items 
-    | where title == $selection 
-    | get id
-  )
-
-  if $edit {
-    joplin edit $id 
-  } else {
-    print (echo-g $"node id: ($id)")
-    joplin cat $id | nu-highlight
-  }
+  return {status: $status, apikey: $apikey, host: $host, port: $port, certificate: $certificate}
 }
 
-#create joplin note
-export def "joplin create" [ 
-  title:string            #title of the note
-  content?:string         #body of the note (can be piped)
-  --tags(-t):string       #comma separated list of tags
-  --notebook(-n):string   #specify notebook instead of list
+#obsidian search on body of notes
+#
+# mv to http get/post when ready
+# let response = https post $url {} --content-type "application/json" -H ["Authorization:", $"Bearer ($apikey)"] --certificate
+export def "obs search" [
+  ...query    #search query (in title and body)
+  --tag(-t):string   #search in tag (use search, in progress)
+  --edit(-e)  #edit selected note (??)
+  --raw(-r)   #don't use syntax highlight
 ] {
-  let content = if ($content | is-empty) {$in} else {$content}
-
-  let notebooks = joplin ls / | lines | str trim 
-  let notebook = (
-    if ($notebook | is-empty) {
-      $notebooks
-      | input list -f (echo-g "select notebook for the note: ")
-    } else {
-      $notebook
-    }
-  )
-
-  if $notebook not-in $notebooks {
-    return-error "notebook doesn't exists!"
-  }
-  
-  joplin use $notebook
-  joplin mknote $title
-
-  if not ($tags | is-empty) {
-    $tags
-    | split row ","
-    | each {|tag|
-        joplin tag add $tag $title
-        sleep 0.1sec
-      }    
-  }
-
-  joplin set $title body $"'($content)'"
-  joplin sync
-} 
-
-#alias for joplin 
-export alias j = joplin
-#alias for joplin create
-export alias "j create" = joplin create
-#alias for joplin search
-export alias "j search" = joplin search
-
-#google search
-export def google_search [
-  ...query:string
-  --number_of_results(-n):int = 5 #number of results to use
-  --verbose(-v) #show some debug messages
-  --md(-m) #md output instead of table
-] {
-  let query = if ($query | is-empty) {$in} else {$query} | str join " "
-
   if ($query | is-empty) {
-    return-error "empty query!"
+    return-error "empty search query!"
   }
 
-  let apikey = $env.MY_ENV_VARS.api_keys.google.search.apikey
-  let cx = $env.MY_ENV_VARS.api_keys.google.search.cx
+  let check = obs check
 
-  if $verbose {print (echo-g $"querying to google search...")}
-  let search_result = {
-      scheme: "https",
-      host: "www.googleapis.com",
-      path: "/customsearch/v1",
-      params: {
-          key: $apikey,
-          cx: $cx
-          q: ($query | url encode)
-      }
-    } 
-    | url join
-    | http get $in 
-    | get items 
-    | first $number_of_results 
-    | select title link displayLink
-
-  let n_result = $search_result | length
-
-  mut content = []
-
-  for i in 0..($n_result - 1) {
-    let web = $search_result | get $i
-    if $verbose {print (echo-c $"retrieving data from: ($web.displayLink)" "green")}
-      
-    let raw_content = try {http get $web.link} catch {""}
-
-    let processed_content = (
-      try {
-        $raw_content
-        | html2text --ignore-links --ignore-images --dash-unordered-list
-        | lines 
-        | uniq
-        | to text
-      } catch {
-        $raw_content
-      }
-    )
-
-    $content = $content ++ $processed_content
+  if $check.status != "OK" {
+    return-error "something went wrong with the server!"
   }
 
-  let final_content = $content | wrap "content"
-  let results = $search_result | append-table $final_content
+  let apikey = $check.apikey
+  let host = $check.host
+  let port = $check.port
+  let certificate = $check.certificate
+  let auth_header = $'Authorization: Bearer ($apikey)'
+  let query = $query | str join " "
+  mut note = ""
 
-  if $md {
-      mut md_output = ""
+  # search
+  if ($tag | is-not-empty) {
+    return-error "work in progress!"
+  } else {
+    let url = {
+                "scheme": "https",
+                "host": $host,
+                "port": $port ,
+                "path": "search/simple",
+                "query": ("query=" + ($query | url encode) + "&contextLength=100"),
+              } | url join
 
-      for i in 0..(($results | length) - 1) {
-        let web = $results | get $i
-        
-        $md_output = $md_output + "# " + $web.title + "\n"
-        $md_output = $md_output + "link: " + $web.link + "\n\n"
-        $md_output = $md_output + $web.content + "\n\n"
-      }
+    let response = curl -sX 'POST' $url -H 'accept: application/json' -H $auth_header --cacert $certificate -d '' | from json
 
-      return $md_output
-  } 
+    $note = ($response | get filename | input list -f (echo-g "Select note:"))
+  }
 
-  return $results
+  if not $edit {
+    # show
+    let note_url = {
+                "scheme": "https",
+                "host": $host,
+                "port": $port ,
+                "path": ("vault/" + ($note | url encode)),
+              } | url join
+  
+    let content = curl -sX 'GET' $note_url -H 'accept: text/markdown' -H $auth_header --cacert $certificate
+  
+    if $raw {$content} else {$content | glow}
+  } else {
+    # edit
+    return-error "work in progress!"
+  }
 }
