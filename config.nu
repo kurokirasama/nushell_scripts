@@ -62,7 +62,7 @@ let hooks = {
                     match (sys host | get name) {
                         "Windows" => {"f17a"},
                         "Ubuntu"  => {"f31b"},
-                        "Centos" => {"f304"},
+                        "Rocky Linux" => {"f304"},
                         _ => {"e712"}
                     } 
                 } 
