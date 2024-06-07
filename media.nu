@@ -974,3 +974,48 @@ export def "media crop-video" [
 
   ffmpeg -i $file -vf $crop_command $output
 }
+
+# #images to video
+# export def "media images-2-video" [
+#   ...files               # list of images to include in the video  
+#   --duration(-v):int = 3 # total duration of each image within video in seconds
+#   --vcodec(-v):string = "libx264" # video codec to use (libx264, libx265, etc)
+#   --output(-o):string = "output"  # file name of the output video
+# ] {
+#   #images to video
+# export def "media images-2-video" [
+#   ...files               # list of images to include in the video  
+#   --duration(-v):int = 3 # total duration of each image within video in seconds
+#   --vcodec(-v):string = "libx264" # video codec to use (libx264, libx265, etc)
+#   --output(-o):string = "output"  # file name of the output video
+# ] {
+#   let files = if ($files | is-empty) {$in | get name} else {$files}
+#   if ($files | is-empty) {
+#     return-error "no images provided!"
+#   }
+
+#   let n = $files | length
+#   mut command = "ffmpeg"
+
+#   # Resizing all images to 1280x720 before concatenation
+#   mut i = 0
+#   for file in $files {
+#     $command = $command + " -loop 1 -t " + ($duration | into string) + " -i \"" + $file + "\"";
+#     $command = $command + " [" + ($i | into string) + ":v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1/1 [v" + ($i | into string) + "];"
+#     $i = $i + 1
+#   }
+
+#   # Concatenating the resized streams
+#   $command = $command + " -filter_complex \""
+#   for i in 0..($n - 1) {
+#     $command = $command + "[v" + ($i | into string) + "]"
+#   }
+
+#   $command = $command + "concat=n=" + ($n | into string) + ":v=1:a=0,format=yuv420p[out]\" -map \"[out]\""
+
+#   $command = $command + " -c:v " + $vcodec + " " + $output + ".mp4"
+
+#   print ($command)
+#   bash -c $command
+# }
+# }

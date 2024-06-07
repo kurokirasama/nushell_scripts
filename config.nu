@@ -82,13 +82,13 @@ let hooks = {
     ]
     pre_execution: [
     	{||
-    		nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/pre_execution_hook.nu		
+    		nu ("~/Yandex.Disk/Backups/linux/nu_scripts/pre_execution_hook.nu" | path expand)
     	}
     ]
     env_change: {
       PWD: [
       	{|before, after|
-			source-env /home/kira/Yandex.Disk/Backups/linux/nu_scripts/env_change_hook.nu
+			source-env ("~/Yandex.Disk/Backups/linux/nu_scripts/env_change_hook.nu" | path expand)
       	}
       	{|before, after| 
       		try {print (ls | sort-by -i type name | grid -c)}      		

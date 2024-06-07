@@ -20,9 +20,9 @@ def main [] {
 	  } 
 	| format pattern "{NAME}:{UP}:{DOWN}" 
 	| str join "\n"
-	| save -f /home/kira/.nethogs
+	| save -f ("~/.nethogs" | path expand)
 	
-	echo "\n" | save --append /home/kira/.nethogs
+	echo "\n" | save --append ("~/.nethogs" | path expand)
 }
 
 def indexify [

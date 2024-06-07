@@ -24,7 +24,7 @@ if $update {
     let host = (sys host | get hostname)
     let ips_file = "~/Yandex.Disk/Android_Devices/Apps/Termux/ips.json" | path expand
     let ips_content = open $ips_file
-    let ips = (nu /home/kira/Yandex.Disk/Backups/linux/nu_scripts/get-ips.nu)
+    let ips = (nu ("~/Yandex.Disk/Backups/linux/nu_scripts/get-ips.nu" | path expand))
 
     $ips_content
     | upsert $host ($ips | from json)

@@ -7,6 +7,6 @@ export def activate [] {
 export def jdown [
   --ubb(-b):string = "0"
 ] {
-  overlay use /home/kira/Yandex.Disk/Comandos_python/venv/bin/activate.nu
+  overlay use ("~/Yandex.Disk/Comandos_python/venv/bin/activate.nu" | path expand)
   python3 ([$env.MY_ENV_VARS.python_scripts jdown.py] | path join) -b $ubb
 }

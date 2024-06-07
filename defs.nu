@@ -275,7 +275,7 @@ export def matlab-cli [
   }
 
   if not $background {
-    matlab -nosplash -nodesktop -softwareopengl -sd ($env.PWD) -logfile $"/home/kira/Dropbox/matlab/($log_file).txt" -r "setenv('SHELL', '/bin/bash');"
+    matlab -nosplash -nodesktop -softwareopengl -sd ($env.PWD) -logfile ([~/Dropbox/matlab $"($log_file).txt"] | path join | path expand) -r "setenv('SHELL', '/bin/bash');"
     return
   } 
   let log = (date now | format date "%Y.%m.%d_%H.%M.%S") + "_log.txt"
