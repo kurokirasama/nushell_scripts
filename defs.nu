@@ -259,7 +259,7 @@ export def matlab-cli [
   --background(-b)    #send process to the background
   --input(-i):string  #input m-file to run
   --output(-o):string #output file for log without extension
-  --log_file(-l):string = "log23" #log file in foreground mode
+  --log_file(-l):string = "log24" #log file in foreground mode
   --kill(-k)          #kill current matlab processes
 ] {
   if $kill {
