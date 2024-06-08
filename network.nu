@@ -59,7 +59,7 @@ export def network-switcher [] {
 }
 
 #wifi info
-export def wifi-info [] {
+export def wifi-info [--in_use(-i)] {
   nmcli -t dev wifi 
   | lines 
   | str replace -a '\:' '|' 
@@ -79,7 +79,7 @@ export def wifi-info [] {
       }
     }
   | flatten
-  | reject in-use
+  | if not $in_use {reject in-use} else {$in}
 }
 
 #list used network sockets
