@@ -30,7 +30,7 @@ export def main [
     | get 0
   )
 
-  let external = (dig +short myip.opendns.com @resolver1.opendns.com)
+  let external = try {dig +short myip.opendns.com @resolver1.opendns.com} catch {""}
   
   return ({internal: $internal, external: $external} | to json)
 }
