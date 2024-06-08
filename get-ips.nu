@@ -7,8 +7,10 @@ export def main [
   
   let device = (
     if ($device | is-empty) {
-      if $host in ["lgomez-desktop" "rayen"] {
+      if $host == "lgomez-desktop" {
         "eno1"
+      } else if $host == "rayen" {
+        "enp75s0f0"
       } else {
         "wlo1"
       }
