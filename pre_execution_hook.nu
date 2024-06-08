@@ -15,11 +15,11 @@ if $update {
     if (sys host | get hostname) != "rayen" {
         ## list mounted drives and download directory
         nu ("~/Yandex.Disk/Backups/linux/nu_scripts/autolister.nu" | path expand)
-
-        $autolister_file
-        | upsert updated $now
-        | save -f ~/.autolister.json
     }
+
+    $autolister_file
+    | upsert updated $now
+    | save -f ~/.autolister.json
 
     ## update ip
     print (echo $"(ansi -e { fg: '#00ff00' attr: b })getting device ips...(ansi reset)")
