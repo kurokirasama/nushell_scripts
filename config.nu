@@ -63,7 +63,8 @@ let hooks = {
                         "Windows" => {"f17a"},
                         "Ubuntu"  => {"f31b"},
                         "CentOs" => {"f304"},
-                        "Rocky Linux" => {"ef5d"},
+                        "RedHat" => {"ef5d"},
+                        "Rocky Linux" => {"f32b"},
                         _ => {"e712"}
                     } 
                 } 
