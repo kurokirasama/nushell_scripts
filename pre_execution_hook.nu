@@ -12,7 +12,7 @@ let update = ((open ~/.autolister.json | get updated | into datetime) + $interva
 let autolister_file = open ~/.autolister.json
 
 if $update {
-    if (sys host | get hostame) != "rayen" {
+    if (sys host | get hostname) != "rayen" {
         ## list mounted drives and download directory
         nu ("~/Yandex.Disk/Backups/linux/nu_scripts/autolister.nu" | path expand)
 
