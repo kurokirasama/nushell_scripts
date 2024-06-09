@@ -7,14 +7,7 @@ def main [user:string = "kira"] {
 	cd ~/Downloads
 	lister ("Downloads" + "_" + $host)
 
-	let drives = (try {
-		duf -json 
-  	| from json 
-  	| find $"/media/($user)" 
-  	| get mount_point
-	} catch {
-		[]
-	})
+	let drives = sys disks | find $"/media/($user)" | get mount | ansi strip
 
 	if ($drives | length) > 0 {
 		$drives

@@ -43,6 +43,7 @@ let pwd_size = (
 #seting up env var
 $env.PWD_SIZE = $pwd_size
 let pwd_file = open ~/.pwd_sizes.json
+
 #updating data file
 if ($last_record | length) == 0 and $not_gdrive {    
     $pwd_file  

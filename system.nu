@@ -262,22 +262,20 @@ export def set-screen [
 }
 
 #umount all drives 
-#
-#needs duf installed
 export def umall [user?] {
   let user = if ($user | is-empty) {$env.USER} else {$user}
 
   try {
-    duf -json 
-    | from json 
+    sys disks 
     | find $"/media/($user)" 
-    | get mount_point
+    | get mount
+    | ansi strip
     | each {|drive| 
-        print (echo-g $"umounting ($drive  | ansi strip)...")
+        print (echo-g $"umounting ($drive)...")
         try {
-          umount -q ($drive | ansi strip)
+          umount -q $drive
         } catch {
-          sudo umount -q ($drive | ansi strip)
+          sudo umount -q $drive
         }
       }
   } catch {
