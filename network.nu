@@ -12,7 +12,7 @@ export def network-switcher [] {
     | wrap known_networks
   )
 
-  let current_network_name = (iwgetid -r)
+  let current_network_name = (wifi-info -w)
   let current_network_strength = (
     nmcli -t -f ssid,signal,rate,in-use dev wifi list 
     | lines 
@@ -59,27 +59,35 @@ export def network-switcher [] {
 }
 
 #wifi info
-export def wifi-info [--in_use(-i)] {
-  nmcli -t dev wifi 
-  | lines 
-  | str replace -a '\:' '|' 
-  | str replace -a ':' '#' 
-  | str replace -a '|' ':' 
-  | str replace "*" "❱" 
-  | split column '#' 
-  | rename in-use mac ssid mode channel rate signal bars security
-  | each {|row|
-      if ($row | get in-use) == "❱" {
-        $row 
-        | update cells {|value| 
-            [(ansi -e { fg: '#00ff00' attr: b }) $value] | str join 
-          }
-      } else {
-        $row
+export def wifi-info [
+  --wifi_id(-w)
+] {
+  let info = (
+    nmcli -t dev wifi 
+    | lines 
+    | str replace -a '\:' '|' 
+    | str replace -a ':' '#' 
+    | str replace -a '|' ':' 
+    | str replace "*" "❱" 
+    | split column '#' 
+    | rename in-use mac ssid mode channel rate signal bars security
+    | each {|row|
+        if ($row | get in-use) == "❱" {
+          $row 
+          | update cells {|value| 
+              [(ansi -e { fg: '#00ff00' attr: b }) $value] | str join 
+            }
+        } else {
+          $row
+        }
       }
-    }
-  | flatten
-  | if not $in_use {reject in-use} else {$in}
+    | flatten
+  )
+
+  if $wifi_id {
+    return ($info | where in-use =~ "❱" | get ssid.0 | ansi strip)
+  } 
+  return ($info | reject in-use)
 }
 
 #list used network sockets

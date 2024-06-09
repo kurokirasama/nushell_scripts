@@ -72,7 +72,7 @@ def locations [] {
 }
 
 def get_location [--home(-h),--ubb(-b)] {
-    let wifi = try {iwgetid -r} catch {""}
+    let wifi = wifi-info -w
     let online = ( 
         locations 
         | each {|url| 
