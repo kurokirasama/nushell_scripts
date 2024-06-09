@@ -85,7 +85,7 @@ export def wifi-info [
   )
 
   if $wifi_id {
-    return ($info | where in-use =~ "❱" | get ssid.0 | ansi strip)
+    return ($info | where in-use =~ "❱" | get ssid.0? | ansi strip)
   } 
   return ($info | reject in-use)
 }

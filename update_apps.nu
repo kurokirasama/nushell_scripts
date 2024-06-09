@@ -739,9 +739,13 @@ export def update-nu-config [] {
       | ansi strip
       | get 0
   )
+  
 
-  cp $default $nu.config-path
-  open ([$env.MY_ENV_VARS.linux_backup "append_to_config.nu"] | path join) | save --append $nu.config-path
+  cp -f $default $nu.config-path
+
+  open ([$env.MY_ENV_VARS.linux_backup "append_to_config.nu"] | path join)
+  | str replace kira $env.USER -a
+  | save --append $nu.config-path
 
   #env
   let default = (
