@@ -390,15 +390,28 @@ export def get-dirs [dir?, --full(-f)] {
 }
 
 #join multiple pdfs
-export def join-pdfs [
+export def "pdf join" [
   ...rest: #list of pdf files to concatenate
 ] {
+  let rest = if ($rest | is-empty) {$in | get name} else {$rest}
   if ($rest | is-empty) {
-    return-error "not enough pdfs provided"
+    return-error "no pdf provided!"
   }
   
   pdftk ...$rest cat output output.pdf
   print (echo-g "pdf merged in output.pdf")
+}
+
+#split a pdf by page
+export def "pdf split" [
+  file?: #pdf file name
+] {
+  let file = if ($file | is-empty) {$in | get name} else {$file}
+  if ($file | is-empty) {
+    return-error "no pdf provided!"
+  }
+  
+  pdftk $file burst
 }
 
 #create media database for downloads and all mounted disks
