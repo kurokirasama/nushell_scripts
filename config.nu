@@ -301,7 +301,6 @@ let my_config = (
 $env.config = $my_config  
 
 $env.config.float_precision = 4;
-$env.config.completions.algorithm = "fuzzy"
 $env.config.filesize.metric = true
 $env.config.cursor_shape.emacs = "blink_line"
 
