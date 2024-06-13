@@ -1,4 +1,4 @@
-t## pwd size
+## pwd size
 #checking existence of data file
 if not ("~/.pwd_sizes.json" | path expand | path exists) {
     cp ([$env.MY_ENV_VARS.linux_backup pwd_sizes.json] | path join) ~/.pwd_sizes.json

@@ -321,3 +321,42 @@ export def "math kurt" [x?:number] {
 
 	return ($sum / ($n * $std ** 4))
 }
+
+#multiplication of two lists element wise
+export def "math prod-list" [
+	list1:list 
+	list2:list
+] {
+	let n1 = $list1 | length
+	let n2 = $list2 | length	
+
+	if ($n1 != $n2) {
+		return-error "lists doesn't have the same size!"
+	}
+
+	mut prod = []
+	for i in 0..($n1 - 1) {
+		$prod = $prod ++ (($list1 | get $i) * ($list2 | get $i))
+	}
+
+	return $prod
+}
+
+#weighted mean
+export def "math mean-w" [
+	numbers:list 
+	weigths:list
+] {
+	let n1 = $numbers | length
+	let n2 = $weigths | length
+
+	if ($n1 != $n2) {
+		return-error "lists doesn't have the same size!"
+	}
+
+	if ($weigths | math sum) != 1 {
+		return-error "weigths don't add to 1"
+	}
+
+	math prod-list $numbers $weigths | math sum
+}
