@@ -555,7 +555,7 @@ export def "obs create" [
 
   let check_path = obs check-path $v_path
 
-  if ($check_path | get errorCode? | in-not-empty) {
+  if ($check_path | get errorCode? | is-not-empty) {
     return-error "path doesn't exists!"
   }
 
@@ -569,7 +569,7 @@ export def "obs create" [
               "scheme": "https",
               "host": $host,
               "port": $port ,
-              "path": (["vault" $v_path $"($name).md"] | path join)
+              "path": (["vault" $v_path $"($name | url encode).md"] | path join)
             } | url join
 
   let response = curl -sX 'PUT' $url -H 'accept: text/markdown' -H $auth_header --cacert $certificate -d $content | from json

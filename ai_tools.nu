@@ -1493,7 +1493,7 @@ export def google_ai [
       while ($filename | is-empty) {
         $filename = (input (echo-g "enter note title: "))
       }
-      save_gemini_chat $contents $filename $count -j
+      save_gemini_chat $contents $filename $count -o
     }
 
     let sav = input (echo-c "would you like to save this in the conversations database? (y/n): " "green")
@@ -1658,8 +1658,9 @@ def save_gemini_chat [
           "> **" + $row.text + "**\n"
         }
       }
+    | to text
   )
-
+  
   if $obsidian {
     obs create $filename "AI/AI_Bard" $plain_text
     return 
