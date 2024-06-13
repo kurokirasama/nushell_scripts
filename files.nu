@@ -40,12 +40,19 @@ export def typeof [--full(-f)] {
 }
 
 #open text file
-export def op [file?,--raw(-r),--open(-o)] {
+export def op [
+  file?         # filename
+  --raw(-r)     # open in raw mode if using defaul open
+  --open(-o)    # use default open
+  --sublime(-s) # use sublime text
+] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
   let extension = ($file | path parse | get extension)
 
   if $open {
     open $file
+  } else if $sublime {
+    subl $file
   } else {
     match $extension {
       "md"|"Rmd" => {glow $file},
@@ -90,22 +97,6 @@ export def openf [file?] {
 #open last file
 export def openl [] {
   lt | last | openf
-}
-
-#open google drive file 
-export def openg [file?,--copy(-c)] {
-  let file = if ($file | is-empty) {$in | get name} else {$file}
-   
-  let url = (open $file 
-    | lines 
-    | drop nth 0 
-    | parse "{field}={value}" 
-    | table2record 
-    | get url
-  )
-
-  if $copy {$url | xclip -sel clip}
-  print (echo-g $"($url)")
 }
 
 #accumulate a list of files into the same table
