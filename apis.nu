@@ -513,6 +513,8 @@ export def "obs search" [
   }
 }
 
+
+# curl -X 'PUT' 'https://127.0.0.1:27124/vault/AI/AI_GeminiVoiceChat/creation_test.md' -H 'accept: text/markdown' -H 'Authorization: Bearer cf32804c5e2066aafdecfa16b3bc39456d84e12d88671f97b5ee8a38f2cc0964' -H 'Content-Type: text/markdown' -d '# test\ncaca' --cacert $env.MY_ENV_VARS.api_keys.obsidian.certificate
 # {
 #   "and": [
 #     {

@@ -367,7 +367,7 @@ export def askai [
   --vision(-v)            # use gpt-4-vision/gemini-pro-vision
   --image(-i):string      # filepath of the image to prompt to vision models
   --fast(-f) # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
-  --gemini(-G) #use google gemini instead of chatgpt. gemini-pro for chat, gemini-1.5-pro-latest otherwise
+  --gemini(-G) #use google gemini instead of chatgpt. gemini-1.5-flash-latest for chat, gemini-1.5-pro-latest otherwise
   --bison(-B)  #use google bison instead of chatgpt (needs --gemini)
   --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt4
   --database(-D) #load chat conversation from database
@@ -1277,7 +1277,7 @@ export def tts [
 # - --select_preprompt > --pre_prompt
 export def google_ai [
     query?: string                               # the query to Gemini
-    --model(-m):string = "gemini-pro" # the model gemini-pro, gemini-pro-vision, gemini-1.5-pro-latest, etc
+    --model(-m):string = "gemini-1.5-flash-latest" # the model gemini-1.5-flash-latest, gemini-pro-vision, gemini-1.5-pro-latest, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9                       # the temperature of the model
     --image(-i):string                        # filepath of image file for gemini-pro-vision
