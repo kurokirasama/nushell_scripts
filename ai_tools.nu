@@ -1900,7 +1900,7 @@ export def "ai google_search-summary" [
   --md(-m)            #return concatenated md instead of table
   --gemini(-G)        #uses gemini instead of gpt-4o
 ] {
-  let max_words = if $gemini {19000} else {85000}
+  let max_words = if $gemini {700000} else {85000}
   let web_content = if ($web_content | is-empty) {$in} else {$web_content}
   let n_webs = $web_content | length
 
