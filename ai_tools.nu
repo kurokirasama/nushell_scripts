@@ -1487,7 +1487,7 @@ export def google_ai [
       save_gemini_chat $contents $filename $count
     }
 
-    let sav = input (echo-c "would you like to save the conversation in joplin? (y/n): " "green")
+    let sav = input (echo-c "would you like to save the conversation in obsidian? (y/n): " "green")
     if $sav == "y" {
       mut filename = input (echo-g "enter note title: ")
       while ($filename | is-empty) {
@@ -1638,10 +1638,10 @@ def save_gemini_chat [
   contents
   filename
   count?:int = 1  
-  --joplin(-j)    #save note to joplin instead of local
-  --database(-d)  #save database instead
+  --obsidian(-o)  #save note to obsidian
+  --database(-d)  #save to local database
 ] {
-  if $joplin and $database {
+  if $obsidian and $database {
     return-error "only one of these flags allowed"
   }
   let filename = if ($filename | is-empty) {input (echo-g "enter filename: ")} else {$filename}
@@ -1660,8 +1660,8 @@ def save_gemini_chat [
       }
   )
 
-  if $joplin {
-    $plain_text | joplin create $filename -n "AI_Bard" -t "ai,bard,ai_conversations"
+  if $obsidian {
+    obs create $filename "AI/AI_Bard" $plain_text
     return 
   } 
 
@@ -1952,4 +1952,3 @@ export def "ai google_search-summary" [
     return $updated_content
   }
 } 
-
