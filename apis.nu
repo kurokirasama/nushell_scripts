@@ -450,6 +450,34 @@ export def "obs check" [] {
   return {status: $status, apikey: $apikey, host: $host, port: $port, certificate: $certificate}
 }
 
+#check obsidian path
+export def "obs check-path" [
+  v_path:string # path in vault
+] {
+  let check = obs check
+
+  if $check.status != "OK" {
+    return-error "something went wrong with the server!"
+  }
+
+  let apikey = $check.apikey
+  let host = $check.host
+  let port = $check.port
+  let certificate = $check.certificate
+  let auth_header = $'Authorization: Bearer ($apikey)'
+
+  let url = {
+              "scheme": "https",
+              "host": $host,
+              "port": $port ,
+              "path": (["vault" $v_path] | path join)
+            } | url join
+
+  let response = curl -sX 'GET' $"($url)/" -H 'accept: application/json' -H $auth_header --cacert $certificate | from json 
+
+  return ($response)
+}
+
 #obsidian search on body of notes
 #
 # mv to http get/post when ready
@@ -513,25 +541,40 @@ export def "obs search" [
   }
 }
 
+#obsidian create new note
+export def "obs create" [
+  name:string   # name of the note
+  v_path:string # path for the note in vault
+  content:string   # content of the note
+] {
+  let check = obs check
 
-# curl -X 'PUT' 'https://127.0.0.1:27124/vault/AI/AI_GeminiVoiceChat/creation_test.md' -H 'accept: text/markdown' -H 'Authorization: Bearer cf32804c5e2066aafdecfa16b3bc39456d84e12d88671f97b5ee8a38f2cc0964' -H 'Content-Type: text/markdown' -d '# test\ncaca' --cacert $env.MY_ENV_VARS.api_keys.obsidian.certificate
-# {
-#   "and": [
-#     {
-#       "in": [
-#         {
-#           "var": "tags"
-#         },
-#         "linux"
-#       ]
-#     },
-#     {
-#       "in": [
-#         {
-#           "var": "note"
-#         },
-#         "ubuntu"
-#       ]
-#     }
-#   ]
-# }
+  if $check.status != "OK" {
+    return-error "something went wrong with the server!"
+  }
+
+  let check_path = obs check-path $v_path
+
+  if ($check_path | get errorCode? | in-not-empty) {
+    return-error "path doesn't exists!"
+  }
+
+  let apikey = $check.apikey
+  let host = $check.host
+  let port = $check.port
+  let certificate = $check.certificate
+  let auth_header = $'Authorization: Bearer ($apikey)'
+
+  let url = {
+              "scheme": "https",
+              "host": $host,
+              "port": $port ,
+              "path": (["vault" $v_path $"($name).md"] | path join)
+            } | url join
+
+  let response = curl -sX 'PUT' $url -H 'accept: text/markdown' -H $auth_header --cacert $certificate -d $content | from json
+
+  if ($response.message? | is-not-empty) {
+    return ($response.message)
+  }
+}
