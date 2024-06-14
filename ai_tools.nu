@@ -595,13 +595,19 @@ export def "ai audio2text" [
   --language(-l) = "Spanish"  #language of audio file
   --output_format(-o) = "txt" #output format: txt, vtt, srt, tsv, json, all
   --translate(-t)             #translate audio to english
+  --filter_noise(-f) = false  #filter noise
   --notify(-n)                #notify to android via join/tasker
 ] {
   let file = ($filename | path parse | get stem)
 
-  print (echo-g $"reproduce ($filename) and select start and end time for noise segment, leave empty if no noise..." )
-  let start = (input "start? (hh:mm:ss): ")
-  let end = (input "end? (hh:mm:ss): ")
+  mut start = ""
+  mut end = ""
+
+  if $filter_noise {
+    print (echo-g $"reproduce ($filename) and select start and end time for noise segment, leave empty if no noise..." )
+    $start = (input "start? (hh:mm:ss): ")
+    $end = (input "end? (hh:mm:ss): ")
+  }
 
   if ($start | is-empty) or ($end | is-empty) {
     print (echo-g "generating temp file...")
@@ -627,13 +633,14 @@ export def "ai audio2text" [
 export def "ai video2text" [
   file?:string                #video file name with extension
   --language(-l):string = "Spanish"  #language of audio file
+  --filter_noise(-f) = false  #filter audio noise
   --notify(-n)                #notify to android via join/tasker
 ] {
   let file = if ($file | is-empty) {$in} else {$file}
   
   media extract-audio $file
 
-  ai audio2text $"($file | path parse | get stem).mp3" -l $language
+  ai audio2text $"($file | path parse | get stem).mp3" -l $language -f $filter_noise
 
   if $notify {"audio extracted!" | tasker send-notification}
 }
@@ -648,6 +655,7 @@ export def "ai media-summary" [
   --notify(-n)           # notify to android via join/tasker
   --upload(-u)           # upload extracted audio to gdrive
   --type(-t): string = "meeting" # meeting, youtube or class
+  --filter_noise(-f)     # filter audio noise
 ] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
 
@@ -658,8 +666,8 @@ export def "ai media-summary" [
   let media_type = (askai -G $"does the extension file format ($file) correspond to and audio, video or subtitle file; or an url?. IMPORTANT: include as subtitle type files with txt extension. Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle, url or none. In plain text without any markdown formatting, ie, without ```" | from json | get answer)
 
   match $media_type {
-    "video" => {ai video2text $file -l $lang},
-    "audio" => {ai audio2text $file -l $lang},
+    "video" => {ai video2text $file -l $lang -f $filter_noise},
+    "audio" => {ai audio2text $file -l $lang -f $filter_noise},
     "subtitle" => {
       match $extension {
         "vtt" => {ffmpeg -i $file -f srt $"($title)-clean.txt"},
