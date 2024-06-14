@@ -629,9 +629,6 @@ export def "apps-update nushell" [] {
   bash scripts/install-all.sh
   cargo clean
 
-  print (echo-g "updating config file...")
-  update-nu-config
-
   print (echo-g "updating plugins...")
   cargo install-update nu_plugin_plot nu_plugin_net nu_plugin_port_scan nu_plugin_polars nu_plugin_highlight nu_plugin_units
 
@@ -676,6 +673,23 @@ export def "apps-update nushell" [] {
   #   }
   # )
   # if $success {plugin use ~/.cargo/bin/nu_plugin_port_scan}
+
+  #polars aliases
+  let polares = scope commands | select name | find polars | ansi-strip-table | find -v melt & replace
+  let p_aliases = (
+    $polares 
+    | skip 
+    | each {|n| 
+        'export alias "p ' + ($n.name | split row " " | get 1) + '" = ' + $n.name
+      }
+  )
+
+  let p_aliases = $p_aliases ++ 'export alias p = polars'
+
+  $p_aliases | save -f ([$env.MY_ENV_VARS.nu_scripts polars_aliases.nu] | path join)
+
+  print (echo-g "updating config file...")
+  update-nu-config
 }
 
 #update maestral

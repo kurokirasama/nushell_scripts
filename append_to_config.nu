@@ -28,5 +28,6 @@ use /path/to/nushell_scripts/defs_private.nu *
 use /path/to/nushell_scripts/zoxide.nu *
 use /path/to/nushell_scripts/weather_tomorrow.nu [weather,get_weather_by_interval]
 use /path/to/nushell_scripts/alias_defs.nu *
+use /path/to/nushell_scripts/polars_aliases.nu *
 source-env /path/to/nushell_scripts/env_vars.nu
 source-env /path/to/nushell_scripts/config.nu
