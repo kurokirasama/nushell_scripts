@@ -861,12 +861,6 @@ export def "apps-update ddgr" [] {
   sudo make install
 }
 
-#update html2text
-export def "apps-update html2text" [] {
-  cd ~/software/html2text; git pull 
-  cp -f html2text.py $env.MY_ENV_VARS.python_scripts
-}
-
 #update rclone
 export def "apps-update rclone" [] {
   bash -c "sudo -v ; curl -s# https://rclone.org/install.sh | sudo bash"
@@ -882,4 +876,9 @@ export def "apps-update matlab-lsp" [] {
 #update glow
 export def "apps-update glow" [] {
   go install github.com/charmbracelet/glow@latest
+}
+
+#update obsidian
+export def "apps-update obsidian" [] {
+  github-app-update obsidianmd obsidian-releases -a obsidian
 }
