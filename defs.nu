@@ -396,5 +396,5 @@ export def ssh-sin-pass [
 
 #open balena-etche
 export def balena [] {
-  bash -c $"([$env.MY_ENV_VARS.appImages 'balenaEtcher.AppImage'] | path join) 2>/dev/null &"
+  bash -c $"([$env.MY_ENV_VARS.backup appimages 'balenaEtcher.AppImage'] | path join) 2>/dev/null &"
 }

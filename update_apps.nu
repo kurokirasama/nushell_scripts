@@ -278,7 +278,7 @@ export def "apps-update monocraft" [
 
   if $to_patch {
     print (echo-g "New version of Monocraft downloaded, now patching nerd fonts...")
-    nu ([$env.MY_ENV_VARS.linux_backup "software/appimages/patch-font.nu"] | path join)
+    nu ([$env.MY_ENV_VARS.nu_scripts "patch-font.nu"] | path join)
   } else {
     let font = ([$env.MY_ENV_VARS.linux_backup (ls ($"($env.MY_ENV_VARS.linux_backup)/*.($type)" | into glob) | sort-by modified | last | get name | ansi strip)] | path join)
     print (echo-g $"New version of Monocraft downloaded, now installing ($font | path parse | get stem)...")

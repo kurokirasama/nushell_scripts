@@ -64,3 +64,15 @@ export def --env gmail [] {
   cd $env.MY_ENV_VARS.download_dir
   cmdg -shell "/home/kira/.cargo/bin/nu"
 }
+
+#wrapper for mermaid diagrams
+export def --wrapped m [
+  ...rest #arguments for mmcd
+  --output_format(-o):string = "png" #png, svg or pdf
+] {
+  let output = ($rest | str join "::" | split row '-i::' | get 1 | split row '::' | first | path parse | get stem) + "." + $output_format
+
+  let pdfit = if $output_format == "pdf" {"--pdfFit"} else {[]}
+  let rest = $rest ++ $pdfit
+  mmdc -p $env.MY_ENV_VARS.mermaid_puppetter_config ...$rest -o $output -b transparent
+}

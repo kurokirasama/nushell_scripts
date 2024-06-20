@@ -418,7 +418,7 @@ export def rmount [drive?:string] {
   )
 
   let remote = $drive | path parse | get stem
-  let option = "--vfs-cache-mode writes"
+  let option = "--vfs-cache-mode full"
   bash -c ('rclone mount ' + $remote + ': ' + $drive + ' ' +  $option + ' &')
 }
 
