@@ -266,7 +266,7 @@ export def matlab-cli [
     ps -l 
     | find -i matlab 
     | find local & MATLAB 
-    | find -v MATLAB-language-server & 'bin/nu' 
+    | find -v 'MATLAB-language-server' & 'bin/nu'  & 'yandex-disk'
     | each {|row|
         kill -f $row.pid
       }
