@@ -294,7 +294,7 @@ export def matlab-cli [
   
   let output = if ($output | is-empty) {$log} else {$output + ".txt"}
 
-  bash -c ($"matlab -nodisplay -nodesktop -nosplash -sd ($env.PWD) -r " + "\"setenv('SHELL', '/bin/bash');\"" + $" -r ($input) > ($output) &")
+  bash -c ($"matlab -nodisplay -nodesktop -nosplash -sd ($env.PWD)" + $" -r ($input) > ($output) &")
 }
 
 #get files all at once from webpage using wget
