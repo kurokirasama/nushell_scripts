@@ -1458,8 +1458,8 @@ export def google_ai [
 
     mut count = ($contents | length) - 1
     while not ($chat_prompt | is-empty) {
-      let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriate for a google search. Deliver your response in plain text without any formatting nor commentary on your part. The question:\'''" + $chat_prompt + "\n'''"
-      let search = if $web_search {google_ai $search_prompt -t 0.2} else {""}
+      let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriate for a google search. Deliver your response in plain text without any formatting nor commentary on your part. The question:\n'''" + $chat_prompt + "\n'''"
+      let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
       let web_content = if $web_search {google_search $search -n $web_results -v} else {""}
       let web_content = if $web_search {ai google_search-summary $chat_prompt $web_content -G -m} else {""}
 
@@ -1553,8 +1553,8 @@ export def google_ai [
   )
 
   #prompts
-  let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part. The question:\'''" + $prompt + "\n'''"
-  let search = if $web_search {google_ai $search_prompt -t 0.2} else {""}
+  let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part. The question:\n'''" + $prompt + "\n'''"
+  let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
   let web_content = if $web_search {google_search $search -n $web_results -v} else {""}
   let web_content = if $web_search {ai google_search-summary $prompt $web_content -G -m} else {""}
   

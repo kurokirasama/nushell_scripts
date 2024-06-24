@@ -370,8 +370,8 @@ export def google_search [
   let apikey = $env.MY_ENV_VARS.api_keys.google.search.apikey
   let cx = $env.MY_ENV_VARS.api_keys.google.search.cx
 
-  if $verbose {print (echo-g $"querying to google search...")}
-  let search_result = {
+  if $verbose {print (echo-g $"asking to google search: ($query)")}
+  let response = {
       scheme: "https",
       host: "www.googleapis.com",
       path: "/customsearch/v1",
@@ -382,10 +382,18 @@ export def google_search [
       }
     } 
     | url join
-    | http get $in 
-    | get items 
-    | first $number_of_results 
-    | select title link displayLink
+    | http get $in
+
+    if "items" not-in ($response | columns) {
+      return-error "empty search result!"
+    }
+
+    let search_result = (
+      $response
+      | get items 
+      | first $number_of_results 
+      | select title link displayLink
+    )
 
   let n_result = $search_result | length
 
