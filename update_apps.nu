@@ -233,6 +233,13 @@ export def "apps-update pandoc" [] {
   github-app-update jgm pandoc
 }
 
+#update pandoc cross-ref
+export def "apps-update pandoc-cross-ref" [] {
+  cd ~/software/pandoc-crossref
+  git pull
+  stack install
+}
+
 #update tasker helper deb
 export def "apps-update taskerpermissions" [] {
   github-app-update joaomgcd Tasker-Permissions -a taskerpermissions
