@@ -975,6 +975,20 @@ export def "media crop-video" [
   ffmpeg -i $file -vf $crop_command $output
 }
 
+#get first frame of video
+export def "media get-frame" [
+  file? #file or list of files
+] {
+
+  let files = if ($file | is-empty) {$in} else {$file}
+
+  $files 
+  | get name 
+  | par-each -t ([(sys cpu  | length) / 2 ($files | length)] | math min) {|f| 
+      ffmpeg -ss 00:00:00 -i ($f) -vframes 1 $"($f | path parse | get stem).jpg"
+    }
+}
+
 # #images to video
 # export def "media images-2-video" [
 #   ...files               # list of images to include in the video  
