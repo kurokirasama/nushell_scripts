@@ -1299,6 +1299,7 @@ export def google_ai [
     --database(-D) = false #continue a chat mode conversation from database
     --web_search(-w) = false #include $web_results web search results in the prompt
     --web_results(-W):int = 5     #number of web results to include
+    --max_retries(-r):int = 5 #max number of retries in case of server-side errors 
 ] {
   #api parameters
   let apikey = $env.MY_ENV_VARS.api_keys.google.gemini
@@ -1621,7 +1622,14 @@ export def google_ai [
     } 
   )
 
-  let answer = http post -t application/json $url_request $request
+  mut retry_counter = 0
+  mut answer = []
+
+  while $retry_counter <= $max_retries {
+    $answer = (http post -t application/json $url_request $request)
+    $retry_counter = $retry_counter + 1
+    sleep 1sec
+  }
 
   if ($model =~ "gemini") {
     return $answer.candidates.content.parts.0.text.0
