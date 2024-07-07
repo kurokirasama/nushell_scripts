@@ -2080,7 +2080,15 @@ export def analyze_paper [
       try {
         google_ai $data --select_system text_cleaner --select_preprompt clean_text -d true -m gemini-1.5-pro-latest
       } catch {
-        google_ai $data --select_system text_cleaner --select_preprompt clean_text -d true
+        try {
+          google_ai $data --select_system text_cleaner --select_preprompt clean_text -d true
+        } catch {
+          try {
+            chat_gpt $data --select_system text_cleaner --select_preprompt clean_text -d -m gpt-4
+          } catch {
+            $data
+          }
+        }
       }
     }
   $data | save -f ($name + ".txt")
@@ -2092,7 +2100,11 @@ export def analyze_paper [
       try {
         google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -m gemini-1.5-pro-latest
       } catch {
-        google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true
+        try {
+          google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true
+        } catch {
+          chat_gpt $data --select_system paper_analyzer --select_preprompt analyze_paper -d -m gpt-4
+        }
       }
     }
 
@@ -2103,7 +2115,11 @@ export def analyze_paper [
       try {
         google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -m gemini-1.5-pro-latest
       } catch {
-        google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true
+        try {
+          google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true
+        } catch {
+          chat_gpt $data --select_system paper_summarizer --select_preprompt summarize_paper -d -m gpt-4
+        }
       }
     }
 
