@@ -2077,7 +2077,11 @@ export def analyze_paper [
   let data = if $gpt4 {
       chat_gpt $data --select_system text_cleaner --select_preprompt clean_text -d -m gpt-4
     } else {
-      google_ai $data --select_system text_cleaner --select_preprompt clean_text -d true
+      try {
+        google_ai $data --select_system text_cleaner --select_preprompt clean_text -d true -m gemini-1.5-pro-latest
+      } catch {
+        google_ai $data --select_system text_cleaner --select_preprompt clean_text -d true
+      }
     }
   $data | save -f ($name + ".txt")
 
@@ -2085,14 +2089,22 @@ export def analyze_paper [
   let analysis = if $gpt4 {
       chat_gpt $data --select_system paper_analyzer --select_preprompt analyze_paper -d -m gpt-4
     } else {
-      google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -m gemini-1.5-pro-latest
+      try {
+        google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -m gemini-1.5-pro-latest
+      } catch {
+        google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true
+      }
     }
 
   print (echo-g "summarizing paper...")
   let summary = if $gpt4 {
       chat_gpt $data --select_system paper_summarizer --select_preprompt summarize_paper -d -m gpt-4
     } else {
-      google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -m gemini-1.5-pro-latest
+      try {
+        google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -m gemini-1.5-pro-latest
+      } catch {
+        google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true
+      }
     }
 
   let paper_wisdom = $analysis + "\n\n" + $summary
@@ -2101,7 +2113,11 @@ export def analyze_paper [
   let consolidated_summary = if $gpt4 {
       chat_gpt $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d -m gpt-4
     } else {
-      google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -m gemini-1.5-pro-latest
+      try {
+        google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -m gemini-1.5-pro-latest
+      } catch {
+        google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true
+      }
     }
 
   $paper_wisdom + "\n\n# CONSOLIDATED SUMMARY\n\n" + $consolidated_summary | save -f $output
