@@ -51,6 +51,8 @@ export def op [
 
   if $open {
     open $file
+  } else if $raw {
+    open --raw $file
   } else if $sublime {
     subl $file
   } else {
@@ -58,14 +60,7 @@ export def op [
       "md"|"Rmd" => {glow $file},
       "nu" => {open --raw $file | nu-highlight | bat},
       "R"|"c"|"m"|"py"|"sh" => {bat $file},
-      "" => {bat $file},
-      _ => {
-        if $raw {
-          open --raw $file
-        } else {
-          open $file
-        }
-      }
+      "" => {bat $file}
     }
   }
 }

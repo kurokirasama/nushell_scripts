@@ -1624,9 +1624,14 @@ export def google_ai [
 
   mut retry_counter = 0
   mut answer = []
+  mut error = true
 
-  while $retry_counter <= $max_retries {
-    $answer = (http post -t application/json $url_request $request)
+  while ($retry_counter <= $max_retries) and $error {
+    print ($"attempt #($retry_counter)...")
+    try {
+      $answer = (http post -t application/json $url_request $request)
+      $error = false
+    }
     $retry_counter = $retry_counter + 1
     sleep 1sec
   }
@@ -1778,7 +1783,7 @@ export alias g = gcal ai -G
 #ai translation via gpt or gemini apis
 export def "ai trans" [
   ...to_translate
-  --destination(-d):string = "spanish"
+  --destination(-d):string = "Spanish"
   --gpt4(-g)    #use gpt-4o instead of gpt-3.5-turbo
   --gemini(-G)  #use gemini instead of gpt
   --copy(-c)    #copy output to clipboard
@@ -1793,11 +1798,11 @@ export def "ai trans" [
   )
 
   let system_prompt = "You are a reliable and knowledgeable language assistant specialized in " + $destination + "translation. Your expertise and linguistic skills enable you to provide accurate and natural translations  to " + $destination + ". You strive to ensure clarity, coherence, and cultural sensitivity in your translations, delivering high-quality results. Your goal is to assist and facilitate effective communication between languages, making the translation process seamless and accessible for users. With your assistance, users can confidently rely on your expertise to convey their messages accurately in" + $destination + "."
-  let prompt = "Please translate the following text to " + $destination + ", and return only the translated text as the output, without any additional comments or formatting. Keep the same capitalization in every word the same as the original text and keep the same punctuation too. Do not add periods at the end of the sentence if they are not present in the original text. Keep any markdown formatting characters intact. The text to translate is: " + $to_translate
+  let prompt = "Please translate the following text to " + $destination + ", and return only the translated text as the output, without any additional comments or formatting. Keep the same capitalization in every word the same as the original text and keep the same punctuation too. Do not add periods at the end of the sentence if they are not present in the original text. Keep any markdown formatting characters intact. The text to translate is:\n" + $to_translate
 
   let translated = (
     if $gemini {
-      google_ai $prompt -t 0.5 -s $system_prompt
+      google_ai $prompt -t 0.5 -s $system_prompt -m gemini-1.5-pro-latest
     } else if $gpt4 {
       chat_gpt $prompt -t 0.5 -s $system_prompt -m gpt-4
     } else {
@@ -1969,3 +1974,137 @@ export def "ai google_search-summary" [
     return $updated_content
   }
 } 
+
+# debunk input using ai
+export def debunk [
+  data? #file record with name field or plain text
+  --gpt4(-g) #use gpt-4o to consolidate the debunk instead of gemini-1.5-pro-latest
+  --web_results(-w) #use web search results as input for the refutations
+] {
+  let data = if ($data | is-empty) {$in} else {$data}
+  let data = (
+    if ($data | typeof) == "table" {
+      open ($data | get name.0)
+    } else if ($data | typeof) == "record" {
+      open ($data | get name)
+    } else {
+      $data
+    }
+  )
+
+  # logical fallacies
+  print (echo-g "finding logical fallacies...")
+  let log_fallacies = google_ai $data -t 0.2 --select_system logical_falacies_finder --select_preprompt find_fallacies -d true | from json
+
+  print (echo-g "debunking found logical fallacies...")
+  let log_fallacies = debunk-table $log_fallacies -w $web_results
+
+  # false claims
+  print (echo-g "finding false claims...")
+  let false_claims = google_ai $data -t 0.2 --select_system false_claims_extracter --select_preprompt extract_false_claims -d true | from json
+
+  print (echo-g "debunking found false claims...")
+  let false_claims = debunk-table $false_claims -w $web_results
+
+  #consolidation
+  print (echo-g "consolidating arguments...")
+  let all_arguments = {fallacies: $log_fallacies, false_claims: $false_claims} | to json
+  let consolidation = google_ai $all_arguments --select_system debunker --select_preprompt consolidate_refutation -d true -m gemini-1.5-pro-latest
+
+  return $consolidation
+}
+
+#debug data given in table form
+export def debunk-table [
+  data
+  --web_results(-w) = true #use web search results to write the refutation
+] {
+  let data = (
+    if ($data | typeof) == table {
+      $data
+    } else {
+      $data | transpose | transpose -r
+    }
+  )
+
+  let n_data = ($data | length) - 1
+  mut data_refutal = []
+
+  for $i in 0..($n_data) {
+    let refutal = google_ai ($data | get $i | to json) --select_system debunker --select_preprompt debunk_argument -d true -w $web_results
+    $data_refutal = $data_refutal ++ $refutal
+  }
+
+  return ($data | append-table ($data_refutal | wrap refutation))
+}
+
+#analyze and summarize paper using ai
+export def analyze_paper [
+  paper? # filename of the input paper
+  --gpt4(-g) # use gpt-4o instead of gemini
+  --output(-o):string #output filename without extension
+] {
+  let paper = if ($paper | is-empty) {$in} else {$paper}
+
+  let file = (
+    if ($paper | typeof) == "table" {
+      $paper | get name.0 
+    } else if ($paper | typeof) == "record" {
+      $paper | get name
+    } else {
+      $paper
+    }
+    | ansi strip
+  )
+
+  let name = $file | path parse | get stem 
+  let exte = $file | path parse | get extension
+
+  print (echo-g $"starting analysis of ($file)...")
+
+  if $exte == "pdf" {
+    print (echo-g "converting pdf to text...")
+    pdftotext $file 
+  } else {
+    mv $file ($name + ".txt")
+  }
+
+  let data = open ($name + ".txt")
+
+  let output = if ($output | is-empty) {$name + ".md"} else {$output + ".md"}
+
+  print (echo-g "cleaning text...")
+  let data = if $gpt4 {
+      chat_gpt $data --select_system text_cleaner --select_preprompt clean_text -d -m gpt-4
+    } else {
+      google_ai $data --select_system text_cleaner --select_preprompt clean_text -d true
+    }
+  $data | save -f ($name + ".txt")
+
+  print (echo-g "analyzing paper...")
+  let analysis = if $gpt4 {
+      chat_gpt $data --select_system paper_analyzer --select_preprompt analyze_paper -d -m gpt-4
+    } else {
+      google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -m gemini-1.5-pro-latest
+    }
+
+  print (echo-g "summarizing paper...")
+  let summary = if $gpt4 {
+      chat_gpt $data --select_system paper_summarizer --select_preprompt summarize_paper -d -m gpt-4
+    } else {
+      google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -m gemini-1.5-pro-latest
+    }
+
+  let paper_wisdom = $analysis + "\n\n" + $summary
+
+  print (echo-g "consolidating paper information...")
+  let consolidated_summary = if $gpt4 {
+      chat_gpt $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d -m gpt-4
+    } else {
+      google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -m gemini-1.5-pro-latest
+    }
+
+  $paper_wisdom + "\n\n# CONSOLIDATED SUMMARY\n\n" + $consolidated_summary | save -f $output
+
+  print (echo-g $"analysis saved in: ($output)")
+}
