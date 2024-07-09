@@ -416,7 +416,7 @@ export def askai [
       } else if $programmer {
         "programmer"
       } else if $teacher {
-        "teacher"
+        "school_teacher"
       } else if $engineer {
         "prompt_engineer"
       } else if $rubb {
@@ -1348,10 +1348,10 @@ export def google_ai [
   mut ssystem = ""
   if ($list_system and ($select_system | is-empty)) {
     let selection = ($system_messages | input list -f (echo-g "Select system message: "))
-    $ssystem = (open ($system_messages_files | find $selection | get 0 | ansi strip))
+    $ssystem = (open ($system_messages_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
   } else if (not ($select_system | is-empty)) {
     try {
-      $ssystem = (open ($system_messages_files | find $select_system | get 0 | ansi strip))
+      $ssystem = (open ($system_messages_files | find ("/" + $select_system + ".md") | get 0 | ansi strip))
     } 
   }
   let system = if ($ssystem | is-empty) {$system} else {$ssystem}
@@ -1363,10 +1363,10 @@ export def google_ai [
   mut preprompt = ""
   if ($pre_prompt and ($select_preprompt | is-empty)) {
     let selection = ($pre_prompts | input list -f (echo-g "Select pre-prompt: "))
-    $preprompt = (open ($pre_prompt_files | find $selection | get 0 | ansi strip))
+    $preprompt = (open ($pre_prompt_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
   } else if (not ($select_preprompt | is-empty)) {
     try {
-      $preprompt = (open ($pre_prompt_files | find $select_preprompt | get 0 | ansi strip))
+      $preprompt = (open ($pre_prompt_files | find ("/" + $select_preprompt + ".md") | get 0 | ansi strip))
     }
   }
 
@@ -2069,76 +2069,137 @@ export def analyze_paper [
     mv $file ($name + ".txt")
   }
 
-  let data = open ($name + ".txt")
+  let raw_data = open ($name + ".txt")
 
   let output = if ($output | is-empty) {$name + ".md"} else {$output + ".md"}
 
   print (echo-g "cleaning text...")
-  let data = if $gpt4 {
-      chat_gpt $data --select_system text_cleaner --select_preprompt clean_text -d -m gpt-4
-    } else {
+  mut $data = ""
+  mut failed = true
+
+  if $gpt4 {
+    $data = (chat_gpt $raw_data --select_system text_cleaner --select_preprompt clean_text -d -m gpt-4)
+  } else {
+    try {
+      $data = (google_ai $raw_data --select_system text_cleaner --select_preprompt clean_text -d true -m gemini-1.5-pro-latest)
+      $failed = false
+    }
+
+    if $failed {
       try {
-        google_ai $data --select_system text_cleaner --select_preprompt clean_text -d true -m gemini-1.5-pro-latest
-      } catch {
-        try {
-          google_ai $data --select_system text_cleaner --select_preprompt clean_text -d true
-        } catch {
-          try {
-            chat_gpt $data --select_system text_cleaner --select_preprompt clean_text -d -m gpt-4
-          } catch {
-            $data
-          }
-        }
+        $data = (google_ai $raw_data --select_system text_cleaner --select_preprompt clean_text -d true)
+        $failed = false
       }
     }
+
+    if $failed {
+      try {
+        $data = (chat_gpt $raw_data --select_system text_cleaner --select_preprompt clean_text -d -m gpt-4)
+        $failed = false
+      }
+    }
+
+    if $failed {
+      $data = $raw_data
+    }
+  }
+
   $data | save -f ($name + ".txt")
 
   print (echo-g "analyzing paper...")
-  let analysis = if $gpt4 {
-      chat_gpt $data --select_system paper_analyzer --select_preprompt analyze_paper -d -m gpt-4
-    } else {
+  mut analysis = ""
+  mut failed = true
+
+  if $gpt4 {
+    $analysis = (chat_gpt $data --select_system paper_analyzer --select_preprompt analyze_paper -d -m gpt-4)
+  } else {
+    try {
+      $analysis = (google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -m gemini-1.5-pro-latest)
+      $failed = false
+    }
+
+    if $failed {
       try {
-        google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -m gemini-1.5-pro-latest
-      } catch {
-        try {
-          google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true
-        } catch {
-          chat_gpt $data --select_system paper_analyzer --select_preprompt analyze_paper -d -m gpt-4
-        }
+        $analysis = (google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true)
+        $failed = false
       }
     }
 
-  print (echo-g "summarizing paper...")
-  let summary = if $gpt4 {
-      chat_gpt $data --select_system paper_summarizer --select_preprompt summarize_paper -d -m gpt-4
-    } else {
+    if $failed {
       try {
-        google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -m gemini-1.5-pro-latest
-      } catch {
-        try {
-          google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true
-        } catch {
-          chat_gpt $data --select_system paper_summarizer --select_preprompt summarize_paper -d -m gpt-4
-        }
+        $analysis = (chat_gpt $data --select_system paper_analyzer --select_preprompt analyze_paper -d -m gpt-4)
+        $failed = false
       }
     }
+
+    if $failed {
+      return-error "something went wrong with all llms!"
+    }
+  }
+
+  print (echo-g "summarizing paper...")
+  mut summary = ""
+  mut failed = true
+
+  if $gpt4 {
+    $summary = (chat_gpt $data --select_system paper_summarizer --select_preprompt summarize_paper -d -m gpt-4)
+  } else {
+    try {
+      $summary = (google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -m gemini-1.5-pro-latest)
+      $failed = false
+    }
+
+    if $failed {
+      try {
+        $summary = (google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true)
+        $failed = false
+      }
+    }
+
+    if $failed {
+      try {
+        $summary = (chat_gpt $data --select_system paper_summarizer --select_preprompt summarize_paper -d -m gpt-4)
+        $failed = false
+      }
+    }
+
+    if $failed {
+      return-error "something went wrong with all llms!"
+    }    
+  }
 
   let paper_wisdom = $analysis + "\n\n" + $summary
 
   print (echo-g "consolidating paper information...")
-  let consolidated_summary = if $gpt4 {
-      chat_gpt $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d -m gpt-4
-    } else {
+  mut consolidated_summary = ""
+  mut failed = true
+
+  if $gpt4 {
+    $consolidated_summary = (chat_gpt $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d -m gpt-4)
+  } else {
+    try {
+      $consolidated_summary = (google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -m gemini-1.5-pro-latest)
+      $failed = false
+    }
+
+    if $failed {
       try {
-        google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -m gemini-1.5-pro-latest
-      } catch {
-        try { 
-          google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true
-        } catch {
-          chat_gpt $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d -m gpt-4
-        }
+        $consolidated_summary = (google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true)
+        $failed = false
       }
     }
+
+    if $failed {
+      try {
+        $consolidated_summary = (chat_gpt $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d -m gpt-4)
+        $failed = false
+      }
+    }
+
+    if $failed {
+      return-error "something went wrong with all llms!"
+    }    
+  }
 
   $paper_wisdom + "\n\n# CONSOLIDATED SUMMARY\n\n" + $consolidated_summary | save -f $output
 

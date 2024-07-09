@@ -311,6 +311,16 @@ export def my-pdflatex [file?] {
   texfot pdflatex -interaction=nonstopmode -synctex=1 ($tex | path parse | get stem)
 }
 
+#pandoc md compiler
+export def my-pandoc [
+  file?
+] {
+  let file_name = if ($file | is-empty) {$in | get name} else {$file}
+  let file_base_name = $file_name | path parse | get stem
+
+  pandoc --quiet $file_name -o $"($file_base_name).pdf" --pdf-engine=xelatex -F mermaid-filter -F pandoc-crossref --number-sections --highlight-style $env.MY_ENV_VARS.pandoc_theme
+}
+
 #maestral status
 export def "dpx status" [] {
   maestral status | lines | parse "{item}  {status}" | str trim | drop nth 0
