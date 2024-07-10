@@ -61,6 +61,7 @@ export def op [
       "nu" => {open --raw $file | nu-highlight | bat},
       "R"|"c"|"m"|"py"|"sh" => {bat $file},
       "" => {bat $file}
+      _ => {bat $file}
     }
   }
 }
