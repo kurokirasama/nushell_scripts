@@ -95,6 +95,30 @@ export def union [a: list, b: list] {
   | uniq
 }
 
+#intersection between two lists
+export def intersect [a:list, b:list] {
+  let a = $a | uniq | sort 
+  let b = $b | uniq | sort
+  let n_a = $a | length 
+  let n_b = $b | length 
+  mut i = 0
+  mut j = 0
+  mut c = []
+
+  while ($i < $n_a and $j < $n_b) {
+    if ($a | get $i) < ($b | get $j) {
+      $i = $i + 1
+    } else if ($b | get $j) < ($a | get $i) {
+      $j = $j + 1
+    } else {
+      $c = $c ++ ($b | get $j)
+      $i = $i + 1
+      $j = $j + 1
+    }
+  }
+  return $c
+}
+
 #select rows in a table from list of ints
 export def get-rows [rows:list] {
   $in
