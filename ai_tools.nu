@@ -1810,7 +1810,7 @@ export def "ai trans" [
     }
   )
 
-  if $copy {$translated | xclip -sel clip}
+  if $copy {$translated | xsel --input --clipboard}
   if $fast {
     $translated | save -f ([$env.MY_ENV_VARS.chatgpt answer.md] | path join)
   } else {
