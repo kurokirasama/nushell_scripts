@@ -1998,14 +1998,16 @@ export def debunk [
 
   # logical fallacies
   print (echo-g "finding logical fallacies...")
-  let log_fallacies = google_ai $data -t 0.2 --select_system logical_falacies_finder --select_preprompt find_fallacies -d true | from json
+  let log_fallacies = google_ai $data -t 0.2 --select_system logical_falacies_finder --select_preprompt find_fallacies -d true
+  let log_fallacies = google_ai $log_fallacies -t 0.2 --select_system json_fixer --select_preprompt fix_json -d true | from json
 
   print (echo-g "debunking found logical fallacies...")
   let log_fallacies = debunk-table $log_fallacies -w $web_results
 
   # false claims
   print (echo-g "finding false claims...")
-  let false_claims = google_ai $data -t 0.2 --select_system false_claims_extracter --select_preprompt extract_false_claims -d true | from json
+  let false_claims = google_ai $data -t 0.2 --select_system false_claims_extracter --select_preprompt extract_false_claims -d true
+  let false_claims = google_ai $false_claims -t 0.2 --select_system json_fixer --select_preprompt fix_json -d true | from json
 
   print (echo-g "debunking found false claims...")
   let false_claims = debunk-table $false_claims -w $web_results
