@@ -1980,6 +1980,7 @@ export def debunk [
   data? #file record with name field or plain text
   --gpt4(-g) #use gpt-4o to consolidate the debunk instead of gemini-1.5-pro-latest
   --web_results(-w) #use web search results as input for the refutations
+  --no_clean(-n)    #do not clean text
 ] {
   let data = if ($data | is-empty) {$in} else {$data}
   let data = (
@@ -1991,6 +1992,9 @@ export def debunk [
       $data
     }
   )
+
+  print (echo-g "cleaning text...")
+  let data = if $no_clean {$data} else {ai clean-text $data -g $gpt4}
 
   # logical fallacies
   print (echo-g "finding logical fallacies...")
@@ -2043,6 +2047,7 @@ export def analyze_paper [
   paper? # filename of the input paper
   --gpt4(-g) # use gpt-4o instead of gemini
   --output(-o):string #output filename without extension
+  --no_clean(-n)  #do not clean text
 ] {
   let paper = if ($paper | is-empty) {$in} else {$paper}
 
@@ -2074,36 +2079,7 @@ export def analyze_paper [
   let output = if ($output | is-empty) {$name + ".md"} else {$output + ".md"}
 
   print (echo-g "cleaning text...")
-  mut $data = ""
-  mut failed = true
-
-  if $gpt4 {
-    $data = (chat_gpt $raw_data --select_system text_cleaner --select_preprompt clean_text -d -m gpt-4)
-  } else {
-    try {
-      $data = (google_ai $raw_data --select_system text_cleaner --select_preprompt clean_text -d true -m gemini-1.5-pro-latest)
-      $failed = false
-    }
-
-    if $failed {
-      try {
-        $data = (google_ai $raw_data --select_system text_cleaner --select_preprompt clean_text -d true)
-        $failed = false
-      }
-    }
-
-    if $failed {
-      try {
-        $data = (chat_gpt $raw_data --select_system text_cleaner --select_preprompt clean_text -d -m gpt-4)
-        $failed = false
-      }
-    }
-
-    if $failed {
-      $data = $raw_data
-    }
-  }
-
+  let data = if $no_clean {$raw_data} else {ai clean-text $raw_data -g $gpt4}
   $data | save -f ($name + ".txt")
 
   print (echo-g "analyzing paper...")
@@ -2204,4 +2180,43 @@ export def analyze_paper [
   $paper_wisdom + "\n\n# CONSOLIDATED SUMMARY\n\n" + $consolidated_summary | save -f $output
 
   print (echo-g $"analysis saved in: ($output)")
+}
+
+#clean text using ai
+export def "ai clean-text" [
+  text? #raw text to clean
+  --gpt4(-g) = false #use gpt4 instead of gemini
+] {
+  let raw_data = if ($text | is-empty) {$in} else {$text}
+
+  mut $data = ""
+  mut failed = true
+
+  if $gpt4 {
+    $data = (chat_gpt $raw_data --select_system text_cleaner --select_preprompt clean_text -d -m gpt-4)
+  } else {
+    try {
+      $data = (google_ai $raw_data --select_system text_cleaner --select_preprompt clean_text -d true -m gemini-1.5-pro-latest)
+      $failed = false
+    }
+
+    if $failed {
+      try {
+        $data = (google_ai $raw_data --select_system text_cleaner --select_preprompt clean_text -d true)
+        $failed = false
+      }
+    }
+
+    if $failed {
+      try {
+        $data = (chat_gpt $raw_data --select_system text_cleaner --select_preprompt clean_text -d -m gpt-4)
+        $failed = false
+      }
+    }
+
+    if $failed {
+      $data = $raw_data
+    }
+  }
+  return $data
 }
