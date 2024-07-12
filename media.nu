@@ -824,7 +824,10 @@ export def "media delete-mps" [] {
 }
 
 #mpv
-export def mpv [video?, --puya(-p)] {
+export def mpv [
+  video?, 
+  --ontop(-o)
+] {
   let video = if ($video | is-empty) {$in} else {$video}
   let type = ($video | typeof)
 
@@ -840,10 +843,10 @@ export def mpv [video?, --puya(-p)] {
         }
       )
 
-      if not $puya {
-        ^mpv --save-position-on-quit --no-border $file
+      if $ontop {
+        ^mpv --save-position-on-quit --no-border --ontop $file
       } else {
-        ^mpv --save-position-on-quit --no-border --sid=2 $file
+        ^mpv --save-position-on-quit --no-border $file
       } 
     }
   }
