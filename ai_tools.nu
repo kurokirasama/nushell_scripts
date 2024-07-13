@@ -359,6 +359,7 @@ export def askai [
   --teacher(-T) # use teacher (sensei) s.m with temp 0.95, else use assistant with temp 0.9
   --engineer(-E) # use prompt_engineer s.m. with temp 0.8, else use assistant with temp 0.9
   --rubb(-R)     # use rubb s.m. with temperature 0.5, else use assistant with temp 0.9
+  --academic(-A) # use academic writer improver with temp 0.75
   --list_system(-l)       # select s.m from list (takes precedence over flags)
   --list_preprompt(-p)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
   --delimit_with_quotes(-d) #add '''  before and after prompt
@@ -396,12 +397,13 @@ export def askai [
     
   let temp = (
     if ($temperature | is-empty) {
-      match [$programmer, $teacher, $engineer, $rubb] {
-        [true,false,false,false] => 0.7,
-        [false,true,false,false] => 0.95,
-        [false,false,false,true] => 0.5,
-        [false,false,true,false] => 0.8,
-        [false,false,false,false] => 0.9
+      match [$programmer, $teacher, $engineer, $rubb, $academic] {
+        [true,false,false,false,false] => 0.7,
+        [false,true,false,false,false] => 0.95,
+        [false,false,false,true,false] => 0.5,
+        [false,false,true,false,false] => 0.8,
+        [false,false,false,false,true] => 0.75,
+        [false,false,false,false,false] => 0.9
         _ => {return-error "only one system message flag allowed"},
       }
    } else {
@@ -421,6 +423,8 @@ export def askai [
         "prompt_engineer"
       } else if $rubb {
         "rubb"
+      } else if $academic {
+        "academic_writer_improver"
       } else {
         "assistant"
       }
@@ -429,10 +433,18 @@ export def askai [
     }
   )
 
+  let pre_prompt = (
+    if $academic {
+      "improve_academic_writing"
+    } else {
+      "empty"
+    }
+  )
+
   #chat mode
   if $chat {
     if $gemini {
-      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt  -l $list_system -d $delimit_with_quotes -w $web_search -W $web_results
+      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt  -l $list_system -d $delimit_with_quotes -w $web_search -W $web_results --select_preprompt $pre_prompt
     } else {
       # chat_gpt $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d $delimit_with_quotes
       print (echo-g "in progress")
@@ -444,11 +456,11 @@ export def askai [
   if $gemini {
     let answer = (
       if $vision {
-        google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -p $list_preprompt -d true -i $image
+        google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -p $list_preprompt -d true -i $image --select_preprompt $pre_prompt
       } else {
           match $bison {
-          true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d true -w $web_search -W $web_results},
-          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m gemini-1.5-pro-latest -d true -w $web_search -W $web_results},
+          true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d true -w $web_search -W $web_results --select_preprompt $pre_prompt},
+          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m gemini-1.5-pro-latest -d true -w $web_search -W $web_results --select_preprompt $pre_prompt},
         }
       }
     )
@@ -472,10 +484,10 @@ export def askai [
       }
     } else {
       match [$gpt4,$list_system,$list_preprompt] {
-        [true,true,false] => {chat_gpt $prompt -t $temp -l -m gpt-4},
-        [true,false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4},
-        [false,true,false] => {chat_gpt $prompt -t $temp -l},
-        [false,false,false] => {chat_gpt $prompt -t $temp --select_system $system},
+        [true,true,false] => {chat_gpt $prompt -t $temp -l -m gpt-4 --select_preprompt $pre_prompt},
+        [true,false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4 --select_preprompt $pre_prompt},
+        [false,true,false] => {chat_gpt $prompt -t $temp -l --select_preprompt $pre_prompt},
+        [false,false,false] => {chat_gpt $prompt -t $temp --select_system $system --select_preprompt $pre_prompt},
         [true,true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4 -p -d},
         [true,false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4 -p -d},
         [false,true,true] => {chat_gpt $prompt -t $temp -l -p -d},

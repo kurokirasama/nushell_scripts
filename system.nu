@@ -359,22 +359,18 @@ export def um [
   --all(-a)
 ] {
   if $all {
-    mount 
-    | lines 
+    sys disks
     | find rclone 
-    | parse "{storage}:{rest}" 
-    | get storage
+    | get mount
+    | ansi strip
     | each {|drive|
-        $drive
-        | str prepend "~/rclone/"
-        | path expand
-        | 
-        | fusermount -u $in
+        print (echo-g $"unmounting ($drive | path parse | get stem)...")
+        fusermount -u $drive
       }
     return
   }
 
-  let mounted = mount | lines | find rclone
+  let mounted = sys disks | find rclone | get mount | ansi strip
   if ($mounted | length) == 0 {
     return-error "no mounted storages!"
   }
@@ -382,8 +378,8 @@ export def um [
   let drive = (
     if ($drive | is-empty) {
       $mounted
-      | parse "{storage}:{rest}" 
-      | get storage 
+      | path parse
+      | get stem
       | input list -f (echo-g "Select drive to umount: ")
       | str prepend "~/rclone/"
       | path expand
