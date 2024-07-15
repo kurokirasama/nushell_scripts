@@ -10,6 +10,7 @@ export def main [
 		| split column ':' 
 		| str trim 
 		| rename item status
+		| find -v file
 	)
 
 	if ($output == "Status") {

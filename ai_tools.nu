@@ -1312,6 +1312,7 @@ export def google_ai [
     --web_search(-w) = false #include $web_results web search results in the prompt
     --web_results(-W):int = 5     #number of web results to include
     --max_retries(-r):int = 5 #max number of retries in case of server-side errors 
+    --verbose(-v) = false     #show the attempts to call the gemini api
 ] {
   #api parameters
   let apikey = $env.MY_ENV_VARS.api_keys.google.gemini
@@ -1639,7 +1640,7 @@ export def google_ai [
   mut error = true
 
   while ($retry_counter <= $max_retries) and $error {
-    print ($"attempt #($retry_counter)...")
+    if $verbose {print ($"attempt #($retry_counter)...")}
     try {
       $answer = (http post -t application/json $url_request $request)
       $error = false
@@ -1799,7 +1800,8 @@ export def "ai trans" [
   --gpt4(-g)    #use gpt-4o instead of gpt-3.5-turbo
   --gemini(-G)  #use gemini instead of gpt
   --copy(-c)    #copy output to clipboard
-  --fast(-f)   #use prompt.md and answer.md to read question and write answer
+  --fast(-f)    #use prompt.md and answer.md to read question and write answer
+  --verbose(-v) #show gemini api attempts
 ] {
   let to_translate = (
     if $fast {
@@ -1812,6 +1814,7 @@ export def "ai trans" [
   let system_prompt = "You are a reliable and knowledgeable language assistant specialized in " + $destination + "translation. Your expertise and linguistic skills enable you to provide accurate and natural translations  to " + $destination + ". You strive to ensure clarity, coherence, and cultural sensitivity in your translations, delivering high-quality results. Your goal is to assist and facilitate effective communication between languages, making the translation process seamless and accessible for users. With your assistance, users can confidently rely on your expertise to convey their messages accurately in" + $destination + "."
   let prompt = "Please translate the following text to " + $destination + ", and return only the translated text as the output, without any additional comments or formatting. Keep the same capitalization in every word the same as the original text and keep the same punctuation too. Do not add periods at the end of the sentence if they are not present in the original text. Keep any markdown formatting characters intact. The text to translate is:\n" + $to_translate
 
+  print (echo-g $"translating to ($destination)...")
   let translated = (
     if $gemini {
       google_ai $prompt -t 0.5 -s $system_prompt -m gemini-1.5-pro-latest
@@ -1988,7 +1991,7 @@ export def "ai google_search-summary" [
 } 
 
 # debunk input using ai
-export def debunk [
+export def "ai debunk" [
   data? #file record with name field or plain text
   --gpt4(-g) #use gpt-4o to consolidate the debunk instead of gemini-1.5-pro-latest
   --web_results(-w) #use web search results as input for the refutations
@@ -2010,16 +2013,14 @@ export def debunk [
 
   # logical fallacies
   print (echo-g "finding logical fallacies...")
-  let log_fallacies = google_ai $data -t 0.2 --select_system logical_falacies_finder --select_preprompt find_fallacies -d true
-  let log_fallacies = google_ai $log_fallacies -t 0.2 --select_system json_fixer --select_preprompt fix_json -d true | from json
+  let log_fallacies = google_ai $data -t 0.2 --select_system logical_falacies_finder --select_preprompt find_fallacies -d true | ai fix-json 
 
   print (echo-g "debunking found logical fallacies...")
   let log_fallacies = debunk-table $log_fallacies -w $web_results
 
   # false claims
   print (echo-g "finding false claims...")
-  let false_claims = google_ai $data -t 0.2 --select_system false_claims_extracter --select_preprompt extract_false_claims -d true
-  let false_claims = google_ai $false_claims -t 0.2 --select_system json_fixer --select_preprompt fix_json -d true | from json
+  let false_claims = google_ai $data -t 0.2 --select_system false_claims_extracter --select_preprompt extract_false_claims -d true | ai fix-json
 
   print (echo-g "debunking found false claims...")
   let false_claims = debunk-table $false_claims -w $web_results
@@ -2035,6 +2036,7 @@ export def debunk [
 #debug data given in table form
 export def debunk-table [
   data
+  --system_message(-s): string = "debunker"
   --web_results(-w) = true #use web search results to write the refutation
 ] {
   let data = (
@@ -2049,7 +2051,7 @@ export def debunk-table [
   mut data_refutal = []
 
   for $i in 0..($n_data) {
-    let refutal = google_ai ($data | get $i | to json) --select_system debunker --select_preprompt debunk_argument -d true -w $web_results
+    let refutal = google_ai ($data | get $i | to json) --select_system $system_message --select_preprompt debunk_argument -d true -w $web_results
     $data_refutal = $data_refutal ++ $refutal
   }
 
@@ -2057,11 +2059,12 @@ export def debunk-table [
 }
 
 #analyze and summarize paper using ai
-export def analyze_paper [
+export def "ai analyze_paper" [
   paper? # filename of the input paper
   --gpt4(-g) # use gpt-4o instead of gemini
   --output(-o):string #output filename without extension
   --no_clean(-n)  #do not clean text
+  --verbose(-v)   #show gemini attempts
 ] {
   let paper = if ($paper | is-empty) {$in} else {$paper}
 
@@ -2104,13 +2107,13 @@ export def analyze_paper [
     $analysis = (chat_gpt $data --select_system paper_analyzer --select_preprompt analyze_paper -d -m gpt-4)
   } else {
     try {
-      $analysis = (google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -m gemini-1.5-pro-latest)
+      $analysis = (google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -m gemini-1.5-pro-latest -v $verbose)
       $failed = false
     }
 
     if $failed {
       try {
-        $analysis = (google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true)
+        $analysis = (google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -v $verbose)
         $failed = false
       }
     }
@@ -2135,13 +2138,13 @@ export def analyze_paper [
     $summary = (chat_gpt $data --select_system paper_summarizer --select_preprompt summarize_paper -d -m gpt-4)
   } else {
     try {
-      $summary = (google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -m gemini-1.5-pro-latest)
+      $summary = (google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -m gemini-1.5-pro-latest -v $verbose)
       $failed = false
     }
 
     if $failed {
       try {
-        $summary = (google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true)
+        $summary = (google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -v $verbose)
         $failed = false
       }
     }
@@ -2168,13 +2171,13 @@ export def analyze_paper [
     $consolidated_summary = (chat_gpt $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d -m gpt-4)
   } else {
     try {
-      $consolidated_summary = (google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -m gemini-1.5-pro-latest)
+      $consolidated_summary = (google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -m gemini-1.5-pro-latest -v $verbose )
       $failed = false
     }
 
     if $failed {
       try {
-        $consolidated_summary = (google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true)
+        $consolidated_summary = (google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -v $verbose )
         $failed = false
       }
     }
@@ -2233,4 +2236,88 @@ export def "ai clean-text" [
     }
   }
   return $data
+}
+
+# analyze religious text using ai
+export def "ai analyze_religious_text" [
+  data? #file record with name field or plain text
+  --gpt4(-g) #use gpt-4o to consolidate the debunk instead of gemini-1.5-pro-latest
+  --web_results(-w) #use web search results as input for the refutations
+  --no_clean(-n)    #do not clean text
+  --copy(-c)        #copy response to clipboard
+  --verbose(-v)     #show gemini attempts
+] {
+  let data = if ($data | is-empty) {$in} else {$data}
+  let data = (
+    if ($data | typeof) == "table" {
+      open ($data | get name.0)
+    } else if ($data | typeof) == "record" {
+      open ($data | get name)
+    } else {
+      $data
+    }
+  )
+
+  print (echo-g "cleaning text...")
+  let data = if $no_clean {$data} else {ai clean-text $data -g $gpt4}
+
+  # false claims
+  print (echo-g "finding false claims...")
+  let false_claims = google_ai $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_false_bible_claims -d true -v $verbose | ai fix-json 
+
+  print (echo-g "debunking found false claims...")
+  let false_claims = if ($false_claims | is-not-empty) {debunk-table $false_claims -w $web_results -s biblical_assistant} else {$false_claims}
+
+  # extract biblical references
+  print (echo-g "finding biblical references within the text...")
+  let biblical_references = google_ai $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_biblical_references -d true -v $verbose | ai fix-json 
+
+  # search for new biblical references
+  print (echo-g "finding new biblical references...")
+  let new_biblical_references = google_ai $data -t 0.2 --select_system biblical_assistant --select_preprompt find_biblical_references -d true -v $verbose | ai fix-json 
+
+  # extract main message
+  print (echo-g "finding main message...")
+  let main_message = google_ai $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_main_idea -d true -v $verbose 
+
+  # consolidation and compatibility test
+  print (echo-g "consolidating and analyzing all extracted information...")
+  let all_info = {
+    full_text: $data,
+    main_message: $new_biblical_references,
+    internal_biblical_references: $biblical_references,
+    new_biblical_references: $new_biblical_references,
+    false_claims: $false_claims, 
+    } | to json
+
+  let consolidation = google_ai $all_info --select_system biblical_assistant --select_preprompt consolidate_religious_text_analysus -d true -m gemini-1.5-pro-latest -v $verbose 
+
+  if $copy {$consolidation | xsel --input --clipboard}
+  return $consolidation
+}
+
+#fix json input
+export def "ai fix-json" [
+  json?:string
+  --copy(-c) #copy response to clipboeard
+] {
+  let json = if ($json | is-empty) {$in} else {$json}
+  if ($json | is-empty) {return $json}
+
+  mut response = []
+  mut errors = true
+  let max_retries = 5
+  mut iter = 0
+
+  while $errors and $iter <= $max_retries {
+    try {
+      $response = (google_ai $json -t 0.2 --select_system json_fixer --select_preprompt fix_json -d true | from json)
+      $errors = false   
+    }
+    $iter = $iter + 1
+    sleep 1sec
+  }
+
+  if $copy {$response | to json | xsel --input --clipboard}
+  return $response
 }
