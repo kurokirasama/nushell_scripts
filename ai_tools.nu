@@ -360,6 +360,7 @@ export def askai [
   --engineer(-E) # use prompt_engineer s.m. with temp 0.8, else use assistant with temp 0.9
   --rubb(-R)     # use rubb s.m. with temperature 0.5, else use assistant with temp 0.9
   --academic(-A) # use academic writer improver with temp 0.75
+  --biblical(-B) #use biblical assistant with temp 0.85
   --list_system(-l)       # select s.m from list (takes precedence over flags)
   --list_preprompt(-p)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
   --delimit_with_quotes(-d) #add '''  before and after prompt
@@ -369,7 +370,7 @@ export def askai [
   --image(-i):string      # filepath of the image to prompt to vision models
   --fast(-f) # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
   --gemini(-G) #use google gemini instead of chatgpt. gemini-1.5-flash-latest for chat, gemini-1.5-pro-latest otherwise
-  --bison(-B)  #use google bison instead of chatgpt (needs --gemini)
+  --bison(-b)  #use google bison instead of chatgpt (needs --gemini)
   --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt4
   --database(-D) #load chat conversation from database
   --web_search(-w) #include web search results into the prompt
@@ -397,13 +398,14 @@ export def askai [
     
   let temp = (
     if ($temperature | is-empty) {
-      match [$programmer, $teacher, $engineer, $rubb, $academic] {
-        [true,false,false,false,false] => 0.7,
-        [false,true,false,false,false] => 0.95,
-        [false,false,false,true,false] => 0.5,
-        [false,false,true,false,false] => 0.8,
-        [false,false,false,false,true] => 0.75,
-        [false,false,false,false,false] => 0.9
+      match [$programmer, $teacher, $engineer, $rubb, $academic,$biblical] {
+        [true,false,false,false,false,false] => 0.7,
+        [false,true,false,false,false,false] => 0.95,
+        [false,false,false,true,false,false] => 0.5,
+        [false,false,true,false,false,false] => 0.8,
+        [false,false,false,false,true,false] => 0.75,
+        [false,false,false,false,false,true] => 0.85,
+        [false,false,false,false,false,false] => 0.9
         _ => {return-error "only one system message flag allowed"},
       }
    } else {
@@ -425,6 +427,8 @@ export def askai [
         "rubb"
       } else if $academic {
         "academic_writer_improver"
+      } else if $biblical {
+        "biblical_assistant"
       } else {
         "assistant"
       }
