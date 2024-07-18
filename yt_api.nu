@@ -81,7 +81,7 @@ export def ytm [
       notify-send $"($song.item.title)" $"($song.item.artist)" -t 5000 --icon=/tmp/thumbnail.ico 
       tiv /tmp/thumbnail.ico        
       print (echo-g $"now playing ($song.item.title) by ($song.item.artist) [($song.index)/($len)]...")
-      ^mpv --msg-level=all=status --no-resume-playback --no-video --input-conf=($mpv_input) $song.item.url
+      ^mpv --msg-level=all=no --no-resume-playback --no-video --input-conf=($mpv_input) $song.item.url
       sleep 1ns
     }
 }
@@ -138,7 +138,7 @@ export def "ytm online" [
           tiv /tmp/thumbnail.ico 
           print (echo-g $"now playing ($song.item.title) by ($song.item.artist) [($song.index)/($len)]...")
 
-          bash -c $"mpv --msg-level=all=status --no-resume-playback --no-video --input-conf=($mpv_input) ($song.item.url)"
+          ^mpv --msg-level=all=no --no-resume-playback --no-video --input-conf=($mpv_input) $song.item.url
         }    
     } else {
       return-error "playlist not found!"

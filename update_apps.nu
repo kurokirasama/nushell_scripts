@@ -903,3 +903,8 @@ export def "apps-update glow" [] {
 export def "apps-update obsidian" [] {
   github-app-update obsidianmd obsidian-releases -a obsidian
 }
+
+#update ox
+export def "apps-update ox" [] {
+  cargo install --git https://github.com/curlpipe/ox
+}
