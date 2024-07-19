@@ -185,6 +185,7 @@ export def "chatpdf list" [] {
 # - gpt-4o (128000 tokens)
 # - gpt-4-turbo (128000 tokens)
 # - gpt-4-vision (128000 tokens), points to gpt-4-turbo. 
+# - gpt-4o-mini (128000 tokens)
 # - gpt-4-32k (32768 tokens)
 # - gpt-3.5-turbo (16385 tokens)
 # - text-davinci-003 (4097 tokens)
@@ -200,7 +201,7 @@ export def "chatpdf list" [] {
 # - --select_preprompt > --pre_prompt
 export def chat_gpt [
     prompt?: string                               # the query to Chat GPT
-    --model(-m):string = "gpt-3.5-turbo"     # the model gpt-3.5-turbo, gpt-4, etc
+    --model(-m):string = "gpt-4o-mini"     # the model gpt-4o-mini, gpt-4, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9                       # the temperature of the model
     --image(-i):string                        # filepath of image file for gpt-4-vision
@@ -365,7 +366,7 @@ export def askai [
   --list_preprompt(-p)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
   --delimit_with_quotes(-d) #add '''  before and after prompt
   --temperature(-t):float # takes precedence over the 0.7 and 0.9
-  --gpt4(-g)              # use gpt-4o instead of gpt-3.5-turbo-1106 (default)
+  --gpt4(-g)              # use gpt-4o instead of gpt-4o-mini (default)
   --vision(-v)            # use gpt-4-vision/gemini-pro-vision
   --image(-i):string      # filepath of the image to prompt to vision models
   --fast(-f) # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
@@ -517,7 +518,7 @@ export alias chatgpt = askai -c -g -W 3
 #
 #Inspired by https://github.com/zurawiki/gptcommit
 export def "ai git-push" [
-  --gpt4(-g) # use gpt-4o instead of gpt-3.5-turbo
+  --gpt4(-g) # use gpt-4o instead of gpt-4o-mini
   --gemini(-G) #use google gemini-1.5-pro-latest model
 ] {
   if $gpt4 and $gemini {
@@ -666,7 +667,7 @@ export def "ai video2text" [
 export def "ai media-summary" [
   file:string            # video, audio or subtitle file (vtt, srt, txt, url) file name with extension
   --lang(-l):string = "Spanish" # language of the summary
-  --gpt4(-g)             # to use gpt-4o instead of gpt-3.5
+  --gpt4(-g)             # to use gpt-4o instead of gpt-4o-mini
   --gemini(-G)           # use google gemini-1.5-pro-latest instead of gpt
   --notify(-n)           # notify to android via join/tasker
   --upload(-u)           # upload extracted audio to gdrive
@@ -1801,7 +1802,7 @@ export alias g = gcal ai -G
 export def "ai trans" [
   ...to_translate
   --destination(-d):string = "Spanish"
-  --gpt4(-g)    #use gpt-4o instead of gpt-3.5-turbo
+  --gpt4(-g)    #use gpt-4o instead of gpt-4o-mini
   --gemini(-G)  #use gemini instead of gpt
   --copy(-c)    #copy output to clipboard
   --fast(-f)    #use prompt.md and answer.md to read question and write answer

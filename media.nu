@@ -832,7 +832,7 @@ export def mpv [
   let type = ($video | typeof)
 
   match $type {
-    "table" => {
+    "table" | "list" => {
       $video | each {|f| $f | mpv}
     },
     _ => {
