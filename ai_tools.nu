@@ -2251,8 +2251,10 @@ export def "ai analyze_religious_text" [
   --no_clean(-n)    #do not clean text
   --copy(-c)        #copy response to clipboard
   --verbose(-v)     #show gemini attempts
+  --fast(-f)
 ] {
-  let data = if ($data | is-empty) {$in} else {$data}
+  let data = if ($data | is-empty) and not $fast {$in} else if $fast {open ([$env.MY_ENV_VARS.chatgpt prompt.md] | path join)} else {$data}
+
   let data = (
     if ($data | typeof) == "table" {
       open ($data | get name.0)
@@ -2298,7 +2300,11 @@ export def "ai analyze_religious_text" [
   let consolidation = google_ai $all_info --select_system biblical_assistant --select_preprompt consolidate_religious_text_analysus -d true -m gemini-1.5-pro-latest -v $verbose 
 
   if $copy {$consolidation | xsel --input --clipboard}
-  return $consolidation
+  if $fast {
+    $consolidation | save -f ([$env.MY_ENV_VARS.chatgpt answer.md] | path join)
+  } else {
+    return $consolidation  
+  } 
 }
 
 #fix json input
