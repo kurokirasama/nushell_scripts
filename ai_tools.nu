@@ -364,7 +364,7 @@ export def askai [
   --biblical(-B) #use biblical assistant with temp 0.85
   --list_system(-l)       # select s.m from list (takes precedence over flags)
   --list_preprompt(-p)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
-  --delimit_with_quotes(-d) #add '''  before and after prompt
+  --delimit_with_quotes(-d) = true #add '''  before and after prompt
   --temperature(-t):float # takes precedence over the 0.7 and 0.9
   --gpt4(-g)              # use gpt-4o instead of gpt-4o-mini (default)
   --vision(-v)            # use gpt-4-vision/gemini-pro-vision
@@ -402,8 +402,8 @@ export def askai [
       match [$programmer, $teacher, $engineer, $rubb, $academic,$biblical] {
         [true,false,false,false,false,false] => 0.7,
         [false,true,false,false,false,false] => 0.95,
-        [false,false,false,true,false,false] => 0.5,
         [false,false,true,false,false,false] => 0.8,
+        [false,false,false,true,false,false] => 0.5,
         [false,false,false,false,true,false] => 0.75,
         [false,false,false,false,false,true] => 0.85,
         [false,false,false,false,false,false] => 0.9
@@ -425,7 +425,7 @@ export def askai [
       } else if $engineer {
         "prompt_engineer"
       } else if $rubb {
-        "rubb"
+        "rubb_2024"
       } else if $academic {
         "academic_writer_improver"
       } else if $biblical {
@@ -449,7 +449,7 @@ export def askai [
   #chat mode
   if $chat {
     if $gemini {
-      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt  -l $list_system -d $delimit_with_quotes -w $web_search -W $web_results --select_preprompt $pre_prompt
+      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d $delimit_with_quotes -w $web_search -W $web_results --select_preprompt $pre_prompt
     } else {
       # chat_gpt $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d $delimit_with_quotes
       print (echo-g "in progress")
@@ -457,15 +457,16 @@ export def askai [
     return
   }
 
+  #question mode
   #use google
   if $gemini {
     let answer = (
       if $vision {
-        google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -p $list_preprompt -d true -i $image --select_preprompt $pre_prompt
+        google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -p $list_preprompt -d true -i $image --select_preprompt $pre_prompt --select_system $system
       } else {
           match $bison {
-          true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d true -w $web_search -W $web_results --select_preprompt $pre_prompt},
-          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m gemini-1.5-pro-latest -d true -w $web_search -W $web_results --select_preprompt $pre_prompt},
+          true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d true -w $web_search -W $web_results --select_preprompt $pre_prompt --select_system $system},
+          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m gemini-1.5-pro-latest -d true -w $web_search -W $web_results --select_preprompt $pre_prompt --select_system $system},
         }
       }
     )
