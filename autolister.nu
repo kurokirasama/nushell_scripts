@@ -7,21 +7,21 @@ def main [user:string = "kira"] {
 	cd ~/Downloads
 	lister ("Downloads" + "_" + $host)
 
-	let drives = sys disks | find $"/media/($user)" | get mount | ansi strip
+	let drives = sys disks | where mount =~ $"/media/($user)" | get mount
 
 	if ($drives | length) > 0 {
 		$drives
 		| each { |drive|
 				print (echo-g $"listing ($drive | ansi strip)...")
 				cd ($drive | ansi strip)
-				lister ($drive | ansi strip | path parse | get stem | split row " " | get 0)
+				lister ($drive | path parse | get stem | split row " " | get 0)
 			}
 	}
 }
 
 #list all files and save it to json in Dropbox/Directorios
 def lister [file] {
-	let file = (["~/Dropbox/Directorios" $"($file).json"] | path join | path expand)
+	let file = ["~/Dropbox/Directorios" $"($file).json"] | path join | path expand
 
 	let df = (try {
 				get-files -f -F 
@@ -36,19 +36,19 @@ def lister [file] {
 		return
 	}
 
-	let last = ($df | polars into-df | polars drop name) 
+	let last = $df | polars into-df | polars drop name
 
 	let df = (
 		$df
 		| each {|file| 
-			$file
-			| get name 
-			| parse $"{origin}/($env.USER)/{location}/{rest}"
+				$file
+				| get name 
+				| parse $"{origin}/($env.USER)/{location}/{rest}"
 		  }
 		| flatten
 	) 
 
-	let first = ($df | select origin location | polars into-df) 
+	let first = $df | select origin location | polars into-df
 
 	let second = (
 		$df 
@@ -63,7 +63,11 @@ def lister [file] {
 		| polars rename [parent stem] [path file]
 	)
 
-	$first | polars append $second | polars append $last | polars into-nu | save -f $file
+	$first 
+	| polars append $second 
+	| polars append $last 
+	| polars into-nu 
+	| save -f $file
 }
 
 #get list of files recursively

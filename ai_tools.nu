@@ -2033,7 +2033,7 @@ export def "ai debunk" [
 
   #consolidation
   print (echo-g "consolidating arguments...")
-  let all_arguments = {fallacies: $log_fallacies, false_claims: $false_claims} | to json
+  let all_arguments = {text: $data, fallacies: $log_fallacies, false_claims: $false_claims} | to json
   let consolidation = google_ai $all_arguments --select_system debunker --select_preprompt consolidate_refutation -d true -m gemini-1.5-pro-latest
 
   return $consolidation

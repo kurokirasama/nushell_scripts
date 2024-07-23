@@ -410,7 +410,7 @@ export def autolister [user?] {
   cd ~/Downloads
   lister ("Downloads" + "_" + $host)
 
-  let drives = sys disks | find $"/media/($user)" | get mount | ansi strip
+  let drives = sys disks | where mount =~ $"/media/($user)" | get mount
 
   if ($drives | length) > 0 {
     $drives
