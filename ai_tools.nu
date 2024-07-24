@@ -682,7 +682,7 @@ export def "ai media-summary" [
 
   mut title = ($file | path parse | get stem) 
   let extension = ($file | path parse | get extension)
-  let media_type = (askai -G $"does the extension file format ($file) correspond to and audio, video or subtitle file; or an url?. IMPORTANT: include as subtitle type files with txt extension. Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle, url or none. In plain text without any markdown formatting, ie, without ```" | ai fix-json | from json | get answer)
+  let media_type = (askai -G $"does the extension file format ($file) correspond to and audio, video or subtitle file; or an url?. IMPORTANT: include as subtitle type files with txt extension. Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle, url or none. In plain text without any markdown formatting, ie, without ```" | ai fix-json | get answer)
 
   match $media_type {
     "video" => {ai video2text $file -l $lang -f $filter_noise},
