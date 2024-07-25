@@ -270,9 +270,13 @@ export def lg [
 }
 
 #ls sorted by name
-export def ln [--du(-d)] {
+export def ln [--du(-d),--sort_by_size(-s)] {
   if $du {
-    ls --du | sort-by -i type name 
+    if $sort_by_size {
+      ls --du | sort-by -i type name | sort-by size
+    } else {
+      ls --du | sort-by -i type name
+    }
   } else {
     ls | sort-by -i type name 
   }
