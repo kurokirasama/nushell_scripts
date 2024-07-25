@@ -319,6 +319,8 @@ export def my-pandoc [
   let file_base_name = $file_name | path parse | get stem
 
   pandoc --quiet $file_name -o $"($file_base_name).pdf" --pdf-engine=xelatex -F mermaid-filter -F pandoc-crossref --number-sections --highlight-style $env.MY_ENV_VARS.pandoc_theme
+
+  openf $"($file_base_name).pdf"
 }
 
 #maestral status
