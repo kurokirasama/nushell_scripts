@@ -2070,8 +2070,9 @@ export def "ai analyze_paper" [
   paper? # filename of the input paper
   --gpt4(-g) # use gpt-4o instead of gemini
   --output(-o):string #output filename without extension
-  --no_clean(-n)  #do not clean text
+  --no_clean(is-not-empty)  #do not clean text
   --verbose(-v)   #show gemini attempts
+  --notify(-n)    #send notification when finished
 ] {
   let paper = if ($paper | is-empty) {$in} else {$paper}
 
@@ -2203,6 +2204,7 @@ export def "ai analyze_paper" [
 
   $paper_wisdom + "\n\n# CONSOLIDATED SUMMARY\n\n" + $consolidated_summary | save -f $output
 
+  if $notify {"analysis finished!" | tasker send-notification}
   print (echo-g $"analysis saved in: ($output)")
 }
 
@@ -2250,10 +2252,11 @@ export def "ai analyze_religious_text" [
   data? #file record with name field or plain text
   --gpt4(-g) #use gpt-4o to consolidate the debunk instead of gemini-1.5-pro-latest
   --web_results(-w) #use web search results as input for the refutations
-  --no_clean(-n)    #do not clean text
+  --no_clean(-N)    #do not clean text
   --copy(-c)        #copy response to clipboard
   --verbose(-v)     #show gemini attempts
   --fast(-f)
+  --notify(-n)      #send notification when finished
 ] {
   let data = if ($data | is-empty) and not $fast {$in} else if $fast {open ([$env.MY_ENV_VARS.chatgpt prompt.md] | path join)} else {$data}
 
@@ -2301,6 +2304,7 @@ export def "ai analyze_religious_text" [
 
   let consolidation = google_ai $all_info --select_system biblical_assistant --select_preprompt consolidate_religious_text_analysus -d true -m gemini-1.5-pro-latest -v $verbose 
 
+  if $notify {"analysis finished!" | tasker send-notification}
   if $copy {$consolidation | xsel --input --clipboard}
   if $fast {
     $consolidation | save -f ([$env.MY_ENV_VARS.chatgpt answer.md] | path join)
