@@ -299,19 +299,18 @@ export def le [] {
 
 #get list of files recursively
 export def get-files [
+  dir?
   --full(-f)      #recursive
-  --dir(-d):string
   --full_path(-F)
   --sort_by_date(-t)
 ] {
-
   let files = (
     if $full {
-      if not ($dir | is-empty) {
+      if ($dir | is-not-empty) {
         if $full_path {
-          ls -f ($"($dir)/**/*" | into glob)
+          ls -f ($"($dir | path expand)/**/*" | into glob)
           } else {
-            ls ($"($dir)/**/*" | into glob)
+            ls ($"($dir | path expand)/**/*" | into glob)
           }
       } else {
         if $full_path {
@@ -321,11 +320,11 @@ export def get-files [
         }
       }
     } else {
-      if not ($dir | is-empty) {
+      if ($dir | is-not-empty) {
         if $full_path {
-          ls -f $"($dir)"
+          ls -f $"($dir | path expand)"
         } else {
-          ls $"($dir)"
+          ls $"($dir | path expand)"
         }
       } else {
         if $full_path {
@@ -351,7 +350,7 @@ export def find-file [search,--directory(-d):string] {
   if ($directory | is-empty) {
     get-files -f | find =~ $search
   } else {
-    get-files -f -d $directory | find =~ $search
+    get-files $directory -f | find =~ $search
   }
 }
 
