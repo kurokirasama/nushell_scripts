@@ -259,7 +259,7 @@ export def "math perm-coeff" [n:int, r:int] {
 
 #fibonacci sequence
 export def "math fibonacci" [n:int] {
-	generate [0, 1] {|fib| 
+	generate {|fib=[0, 1]| 
 		{
 			out: $fib.0, 
 			next: [$fib.1, ($fib.0 + $fib.1)]

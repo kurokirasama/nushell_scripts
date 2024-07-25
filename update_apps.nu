@@ -701,8 +701,7 @@ export def "apps-update nushell" [] {
 
 #update maestral
 export def "apps-update maestral" [] {
-  pip3 install --upgrade maestral
-  pip3 install --upgrade maestral[gui]
+  pipx upgrade maestral
 }
 
 #update-upgrade system
