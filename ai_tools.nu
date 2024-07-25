@@ -2070,7 +2070,7 @@ export def "ai analyze_paper" [
   paper? # filename of the input paper
   --gpt4(-g) # use gpt-4o instead of gemini
   --output(-o):string #output filename without extension
-  --no_clean(is-not-empty)  #do not clean text
+  --no_clean(-N)  #do not clean text
   --verbose(-v)   #show gemini attempts
   --notify(-n)    #send notification when finished
 ] {
