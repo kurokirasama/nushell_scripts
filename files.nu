@@ -196,9 +196,9 @@ export def cp-pipe [
     let file = $files | get $i 
     
     if $force {
-      ^cp -fr $file ($to | path expand)
+      cp -fr $file ($to | path expand)
     } else {
-      ^cp -ur $file ($to | path expand)
+      cp -ur $file ($to | path expand)
     }
 
     progress_bar ($i + 1) ($number + 1)
