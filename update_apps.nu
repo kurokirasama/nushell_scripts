@@ -628,15 +628,8 @@ export def "apps-update gmail" [] {
   sudo cp cmdg /usr/local/bin
 }
 
-#update nushell
-export def "apps-update nushell" [] {
-  print (echo-g "updating nushell...")
-  cd ~/software/nushell
-  git pull
-  bash scripts/install-all.sh
-  cargo clean
-
-  print (echo-g "updating plugins...")
+#update nushell plugins
+export def "apps-update nushell-plugins" [] {
   cargo install-update nu_plugin_plot nu_plugin_net nu_plugin_port_scan nu_plugin_polars nu_plugin_highlight nu_plugin_units
 
   mut success = true
@@ -680,6 +673,18 @@ export def "apps-update nushell" [] {
   #   }
   # )
   # if $success {plugin use ~/.cargo/bin/nu_plugin_port_scan}
+}
+
+#update nushell
+export def "apps-update nushell" [] {
+  print (echo-g "updating nushell...")
+  cd ~/software/nushell
+  git pull
+  bash scripts/install-all.sh
+  cargo clean
+
+  print (echo-g "updating plugins...")
+  apps-update nushell-plugins
 
   #polars aliases
   let polares = scope commands | select name | find polars | ansi-strip-table | find -v melt & replace

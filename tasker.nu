@@ -291,3 +291,37 @@ export def "tasker phone-call" [
 }
 
 export alias finished = tasker tts "copy finished" -l eng
+
+#get phone info
+#
+#hp: battery %
+#mp: free ram %
+#sp: free sd card %
+#area: location area
+#profile: sound profile
+#network: network connection
+#ip: phone ip
+#port: http server port
+export def "tasker phone-info" [
+	phone?:string
+	--device(-d):string = "main"
+	--select_device(-s)
+	--conky(-c) #return output for conky display
+] {
+	let phone = if ($phone | is-empty) {$in} else {$phone}
+
+	let device = (
+		if not $select_device {
+			$device
+		} else {
+			$env.MY_ENV_VARS.tasker_server.devices
+			| columns
+			| input list -f (echo-g "select device:") 
+		} 
+	)
+	
+	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
+	let server = open ($env.MY_ENV_VARS.tasker_server.devices | get $device | get file ) | get $device_name
+	
+	return (http get $"($server)/command?info=info" | from json)
+}
