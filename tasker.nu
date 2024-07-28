@@ -322,6 +322,9 @@ export def "tasker phone-info" [
 	
 	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
 	let server = open ($env.MY_ENV_VARS.tasker_server.devices | get $device | get file ) | get $device_name
-	
-	return (http get $"($server)/command?info=info" | from json)
+	let response = http get $"($server)/command?info=info" -f
+
+	if $response.status == 200 {
+		$response.body | from json
+	}
 }
