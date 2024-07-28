@@ -1,9 +1,6 @@
 #!/usr/bin/env nu
 
-export def main [
-	output:string #Usage or Status
-] {
-	let index = if ($output == "Usage") {0} else {1}
+export def main [] {
 	let dpx_output = (
 		maestral status 
 		| lines 
@@ -11,19 +8,19 @@ export def main [
 		| str trim 
 		| drop nth 0 
 		| get status 
-		| get $index
+		| get 0 1
 	)
 
-	if ($output == "Usage") {
-		$dpx_output
+	let output = $dpx_output | get 1
+	let output_2 = $dpx_output
+		| get 0
 		| str replace '%' ''
 		| split row ' ' 
 		| drop nth 1 3 4
 		| str join ' GB / '
 		| str append ' GB'
-	} else {
-		return $dpx_output
-	} 
+
+	return ("Status: " + $output + "\nUsage: " + $output_2)
 }
 
 def "str append" [tail:string] {

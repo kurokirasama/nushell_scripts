@@ -1,30 +1,27 @@
 #!/usr/bin/env nu
 
-def main [] {
+def main [how_many: int = 2] {
 	let nethogs = do -i {nethogs -c 2 -t -d 5} | complete | get stdout | lines 
-	let ref_index = $nethogs | find-index refreshing | get 1
+	let ref_index = $nethogs | find-index Refreshing | get 1
 	
 	$nethogs
 	| skip ($ref_index + 1) 
 	| drop 
 	| parse "{NAME}\t{UP}\t{DOWN}" 
-	| where NAME !~ '^[0-9]'
 	| update NAME {|it| 
 			extract-name $it.NAME
 	  } 
 	| update UP {|up| 
-			$up.UP | fill -a l -c "0" -w 7
+			$up.UP | split chars | first 5 | str join
 	  } 
 	| update DOWN {|up| 
-			$up.DOWN | fill -a l -c "0" -w 7
+			$up.DOWN | split chars | first 5 | str join
 	  } 
 	| format pattern "{NAME}:{UP}:{DOWN}" 
+	| first $how_many
 	| str join "\n"
 	| to text
 	| awk -F: '{printf "%-30s %15s %15s\n", $1, $2, $3}'
-	# | save -f ("~/.nethogs" | path expand)
-	
-	# echo "\n" | save --append ("~/.nethogs" | path expand)
 }
 
 def indexify [
@@ -49,10 +46,16 @@ def find-index [name: string,default? = -1] {
 }
 
 def extract-name [path] {
-	if $path =~ 'jd2' {
+	if $path =~ '^[0-9]' {
+		"transmission"
+	}	else if $path =~ 'jd2' {
 		"jd"
-	} else if $path =~ 'jd2' {
+	} else if $path =~ 'maestral' {
 		"maestral"
+	} else if $path =~ 'cmdg' {
+		"cmdg"
+	} else if $path =~ 'ssh' {
+		"ssh"
 	} else if $path =~ '^/usr/bin' {
 		$path | split row '/' | get 3
 	} else if $path !~ '^/' {
