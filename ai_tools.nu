@@ -386,6 +386,10 @@ export def askai [
     }
   )
 
+  if ($prompt | is-empty) {
+    return-error "no prompt provided!"
+  }
+  
   if $gpt4 and $gemini {
     return-error "Please select only one ai system!"
   }

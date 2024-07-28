@@ -630,7 +630,8 @@ export def "apps-update gmail" [] {
 
 #update nushell plugins
 export def "apps-update nushell-plugins" [] {
-  cargo install-update nu_plugin_plot nu_plugin_net nu_plugin_port_scan nu_plugin_polars nu_plugin_highlight nu_plugin_units
+  cargo install-update nu_plugin_polars nu_plugin_net nu_plugin_plot nu_plugin_highlight nu_plugin_units
+  cargo install --git https://github.com/FMotalleb/nu_plugin_port_scan
 
   mut success = true
 
@@ -654,6 +655,16 @@ export def "apps-update nushell-plugins" [] {
   )
   if $success {plugin use ~/.cargo/bin/nu_plugin_net}
 
+  $success = (
+    try {
+      plugin add ~/.cargo/bin/nu_plugin_port_scan
+      true
+    } catch {
+      false
+    }
+  )
+  if $success {plugin use ~/.cargo/bin/nu_plugin_port_scan}
+
   # $success = (
   #   try {
   #     plugin add ~/.cargo/bin/nu_plugin_plot
@@ -663,16 +674,6 @@ export def "apps-update nushell-plugins" [] {
   #   }
   # )
   # if $success {plugin use ~/.cargo/bin/nu_plugin_plot}
-
-  # $success = (
-  #   try {
-  #     plugin add ~/.cargo/bin/nu_plugin_port_scan
-  #     true
-  #   } catch {
-  #     false
-  #   }
-  # )
-  # if $success {plugin use ~/.cargo/bin/nu_plugin_port_scan}
 }
 
 #update nushell

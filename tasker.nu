@@ -23,6 +23,7 @@ export def "tasker help" [] {
 			"METHODS:"
 			"- tasker send-notification"
 			"- tasker phone-call"
+			"- tasker phone-info"
 			"- tasker tts"
 			"- tasker sms"
 	 	]

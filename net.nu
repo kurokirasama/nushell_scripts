@@ -10,19 +10,21 @@ def main [] {
 	| parse "{NAME}\t{UP}\t{DOWN}" 
 	| where NAME !~ '^[0-9]'
 	| update NAME {|it| 
-		extract-name $it.NAME
+			extract-name $it.NAME
 	  } 
 	| update UP {|up| 
-		$up.UP | fill -a l -c "0" -w 7
+			$up.UP | fill -a l -c "0" -w 7
 	  } 
 	| update DOWN {|up| 
-		$up.DOWN | fill -a l -c "0" -w 7
+			$up.DOWN | fill -a l -c "0" -w 7
 	  } 
 	| format pattern "{NAME}:{UP}:{DOWN}" 
 	| str join "\n"
-	| save -f ("~/.nethogs" | path expand)
+	| to text
+	| awk -F: '{printf "%-30s %15s %15s\n", $1, $2, $3}'
+	# | save -f ("~/.nethogs" | path expand)
 	
-	echo "\n" | save --append ("~/.nethogs" | path expand)
+	# echo "\n" | save --append ("~/.nethogs" | path expand)
 }
 
 def indexify [
@@ -47,7 +49,11 @@ def find-index [name: string,default? = -1] {
 }
 
 def extract-name [path] {
-	if $path =~ '^/usr/bin' {
+	if $path =~ 'jd2' {
+		"jd"
+	} else if $path =~ 'jd2' {
+		"maestral"
+	} else if $path =~ '^/usr/bin' {
 		$path | split row '/' | get 3
 	} else if $path !~ '^/' {
 		$path | split row '/' | get 0
