@@ -122,20 +122,21 @@ export def left_prompt [] {
 
 #short help
 export def ? [...search] {
+  let search = $search | str join " "
   if ($search | is-empty) {
     return (help commands)
   } 
 
-  if ($search | str join " ") =~ "commands" {
-   if ($search | first) =~ "my" {
-     help commands | where command_type == custom | reject command_type
+  if $search =~ "commands" {
+   if $search =~ "my" {
+     help commands | where category == default
    } else {
      help commands 
    }
-  } else if (which ($search | str join " ") | get type | get 0) =~ "external" {
-   tldr (which ($search | str join " ") | get command | get 0)
+  } else if (which $search | get type | get 0) =~ "external" {
+    tldr (which search | get command | get 0)
   } else {
-   help (which ($search | str join " ") | get command | get 0)
+    help (which search | get command | get 0)
   }
 }
 
@@ -205,7 +206,8 @@ export def get-aliases [] {
 }
 
 #get code of custom command
-export def code [command,--raw] {
+export def code [...command,--raw(-r)] {
+  let command = $command | str join " "
   if not $raw {
     view source $command | nu-highlight
   } else {
