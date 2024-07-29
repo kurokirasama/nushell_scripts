@@ -1,3 +1,37 @@
+#update-upgrade system
+export def supgrade [--old(-o),--apps(-a)] {
+  if not $old {
+    print (echo-g "updating and upgrading...")
+    sudo nala upgrade -y
+
+    print (echo-g "autoremoving...")
+    sudo nala autoremove -y
+  } else {
+    print (echo-g "updating...")
+    sudo apt update -y
+
+    print (echo-g "upgrading...")
+    sudo apt upgrade -y
+
+    print (echo-g "autoremoving...")
+    sudo apt autoremove -y
+  }
+
+  print (echo-g "updating rust...")
+  rustup update
+
+  print (echo-g "updating cargo apps...")
+  cargo install-update -a
+
+  if $apps {
+    print (echo-g "updating off apt apps...")
+    apps-update
+  }
+
+  # echo-g "upgrading pip3 packages..."
+  # pip3-upgrade
+}
+
 #update off-package manager apps
 export def apps-update [] {
   try {
@@ -705,45 +739,6 @@ export def "apps-update nushell" [] {
   update-nu-config
 }
 
-#update maestral
-export def "apps-update maestral" [] {
-  pipx upgrade maestral
-}
-
-#update-upgrade system
-export def supgrade [--old(-o),--apps(-a)] {
-  if not $old {
-    print (echo-g "updating and upgrading...")
-    sudo nala upgrade -y
-
-    print (echo-g "autoremoving...")
-    sudo nala autoremove -y
-  } else {
-    print (echo-g "updating...")
-    sudo apt update -y
-
-    print (echo-g "upgrading...")
-    sudo apt upgrade -y
-
-    print (echo-g "autoremoving...")
-    sudo apt autoremove -y
-  }
-
-  print (echo-g "updating rust...")
-  rustup update
-
-  print (echo-g "updating cargo apps...")
-  cargo install-update -a
-
-  if $apps {
-    print (echo-g "updating off apt apps...")
-    apps-update
-  }
-
-  # echo-g "upgrading pip3 packages..."
-  # pip3-upgrade
-}
-
 #upgrade pip3 packages
 export def pip3-upgrade [] {
   pip3 list --outdated --format=freeze 
@@ -795,9 +790,18 @@ export def install-font [file] {
   fc-cache -fv
 }
 
+#update maestral
+export def "apps-update maestral" [] {
+  pipx upgrade maestral
+}
+
 #update whisper
 export def "apps-update whisper" [] {
-  pip install --upgrade --no-deps --force-reinstall git+https://github.com/openai/whisper.git
+  if (sys host | get os_version) == 20.04 {
+    pip install --upgrade --no-deps --force-reinstall git+https://github.com/openai/whisper.git
+  } else {
+    pipx install git+https://github.com/openai/whisper.git
+  }
 }
 
 #update manim
@@ -807,12 +811,20 @@ export def "apps-update manim" [] {
 
 #update yewtube
 export def "apps-update yewtube" [] {
-  pip3 install --user yewtube --upgrade
+  if (sys host | get os_version) == 20.04 {
+    pip3 install --user yewtube --upgrade
+  } else {
+    pipx upgrade yewtube
+  }
 }
 
 #update yt-dlp (youtube-dl fork)
 export def "apps-update yt-dlp" [] {
-  python3 -m pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz
+  if (sys host | get os_version) == 20.04 {
+    python3 -m pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz
+  } else {
+    return-error "only available in Ubuntu 20.04"
+  }
 }
 
 #update nchat (wsp)
