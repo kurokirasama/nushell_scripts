@@ -46,8 +46,8 @@ export def "chatpdf add" [
   }
 
   let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
-  let database_file = ([$env.MY_ENV_VARS.chatgpt_config chatpdf_ids.json] | path join)
-  let database = (open $database_file)
+  let database_file = $env.MY_ENV_VARS.chatgpt_config | path join chatpdf_ids.json
+  let database = open $database_file
 
   let url = "https://api.chatpdf.com/v1/sources/add-file"
 
@@ -83,10 +83,10 @@ export def "chatpdf add" [
 export def "chatpdf del" [
 ] {
   let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
-  let database_file = ([$env.MY_ENV_VARS.chatgpt_config chatpdf_ids.json] | path join)
-  let database = (open $database_file)
+  let database_file = $env.MY_ENV_VARS.chatgpt_config | path join chatpdf_ids.json
+  let database = open $database_file
 
-  let selection = ($database | columns | sort | input list -f (echo-g "Select file to delete:"))
+  let selection = $database | columns | sort | input list -f (echo-g "Select file to delete:")
 
   let url = "https://api.chatpdf.com/v1/sources/delete"
   let data = {"sources": [($database | get $selection)]}
@@ -105,8 +105,8 @@ export def "chatpdf ask" [
   let prompt = if ($prompt | is-empty) {$in} else {$prompt}
 
   let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
-  let database_file = ([$env.MY_ENV_VARS.chatgpt_config chatpdf_ids.json] | path join)
-  let database = (open $database_file)
+  let database_file = $env.MY_ENV_VARS.chatgpt_config  | path join chatpdf_ids.json
+  let database = open $database_file
 
   let selection = (
     if ($select_pdf | is-empty) {
@@ -151,25 +151,25 @@ export def askpdf [
   --btx(-b)   #use btx file, otherwhise select from list
   --fast(-f)  #get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
 ] {
-  let prompt = (
-    if not $fast {
-      if ($prompt | is-empty) {$in} else {$prompt}
-    } else {
-      open ([$env.MY_ENV_VARS.chatgpt prompt.md] | path join)
-    }
-  )
+  let prompt = if $fast {
+    open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
+  } else if ($prompt | is-empty) {
+    $in
+  } else {
+    $prompt
+  }
 
   let answer = (
     match [$rubb,$btx] {
       [true,true] => {return-error "only one of these flags allowed!"},
       [true,false] => {chatpdf ask $prompt -s rubb},
-      [false,true] => {chatpdf ask ($prompt + (open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join) | get chatpdf_btx)) -s btx},
+      [false,true] => {chatpdf ask ((open ([$env.MY_ENV_VARS.chatgpt_config prompt chatpdf_btx.md] | path join)) + "\n"  + $prompt) -s btx},
       [false,false] => {chatpdf ask $prompt}
     }
   )
 
   if $fast {
-    $answer | save -f ([$env.MY_ENV_VARS.chatgpt answer.md] | path join)
+    $answer | save -f ($env.MY_ENV_VARS.chatgpt | path join answer.md)
   } else {
     return $answer  
   } 
@@ -177,7 +177,7 @@ export def askpdf [
 
 #list uploaded documents
 export def "chatpdf list" [] {
-  open ([$env.MY_ENV_VARS.chatgpt_config chatpdf_ids.json] | path join) | columns
+  open ($env.MY_ENV_VARS.chatgpt_config | path join chatpdf_ids.json) | columns
 }
 
 #single call chatgpt wrapper
@@ -192,10 +192,10 @@ export def "chatpdf list" [] {
 # - text-davinci-003 (4097 tokens)
 #
 #system messages are available in:
-#   [$env.MY_ENV_VARS.chatgpt_config chagpt_systemmessages.json] | path join
+#   [$env.MY_ENV_VARS.chatgpt_config system] | path join
 #
 #pre_prompts are available in:
-#   [$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join
+#   [$env.MY_ENV_VARS.chatgpt_config prompt] | path join
 #
 #Note that:
 # - --select_system > --list_system > --system
@@ -242,7 +242,7 @@ export def chat_gpt [
   )
 
   #select system message from database
-  let system_messages_files = ls ([$env.MY_ENV_VARS.chatgpt_config system] | path join) | sort-by name | get name
+  let system_messages_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join system) | sort-by name | get name
   let system_messages = $system_messages_files | path parse | get stem
 
   mut ssystem = ""
@@ -257,7 +257,7 @@ export def chat_gpt [
   let system = if ($ssystem | is-empty) {$system} else {$ssystem}
 
   #select pre-prompt from database
-  let pre_prompt_files = ls ([$env.MY_ENV_VARS.chatgpt_config prompt] | path join) | sort-by name | get name
+  let pre_prompt_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join prompt) | sort-by name | get name
   let pre_prompts = $pre_prompt_files | path parse | get stem
 
   mut preprompt = ""
@@ -378,13 +378,13 @@ export def askai [
   --web_search(-w) #include web search results into the prompt
   --web_results(-W):int = 5 #how many web results to include
 ] {
-  let prompt = (
-    if not $fast {
-      if ($prompt | is-empty) {$in} else {$prompt}
-    } else {
-      open ~/Yandex.Disk/ChatGpt/prompt.md
-    }
-  )
+  let prompt = if $fast {
+    open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
+  } else if ($prompt | is-empty) {
+    $in
+  } else {
+    $prompt
+  }
 
   if ($prompt | is-empty) {
     return-error "no prompt provided!"
@@ -477,7 +477,7 @@ export def askai [
     )
 
     if $fast {
-      $answer | save -f ([$env.MY_ENV_VARS.chatgpt answer.md] | path join)
+      $answer | save -f ($env.MY_ENV_VARS.chatgpt | path join answer.md)
       return
     } else {
       return $answer  
@@ -508,7 +508,7 @@ export def askai [
   )
 
   if $fast {
-    $answer | save -f ([$env.MY_ENV_VARS.chatgpt answer.md] | path join)
+    $answer | save -f ($env.MY_ENV_VARS.chatgpt | path join answer.md)
     return
   } else {
     return $answer  
@@ -1097,13 +1097,13 @@ export def askdalle [
   --size(-s):string = "1792x1024" #size of the output image
   --quality(-q):string = "standard" #quality of the output image: standard or hd
 ] {
-  let prompt = (
-    if not $fast {
-      if ($prompt | is-empty) {$in} else {$prompt}
-    } else {
-      open ([$env.MY_ENV_VARS.chatgpt prompt.md] | path join)
-    }
-  )
+  let prompt = if $fast {
+    open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
+  } else if ($prompt | is-empty) {
+    $in
+  } else {
+    $prompt
+  }
 
   match [$dalle3,$edit,$variation] {
     [true,false,false]  => {
@@ -1283,10 +1283,10 @@ export def tts [
 # - Retrieval (aqa): text -> text
 #
 #system messages are available in:
-#   [$env.MY_ENV_VARS.chatgpt_config chagpt_systemmessages.json] | path join
+#   [$env.MY_ENV_VARS.chatgpt_config system] | path join
 #
 #pre_prompts are available in:
-#   [$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join
+#   [$env.MY_ENV_VARS.chatgpt_config prompt] | path join
 #
 #You can adjust the following safety settings categories:
 # - HARM_CATEGORY_HARASSMENT
@@ -1366,7 +1366,7 @@ export def google_ai [
     } | url join
 
   #select system message from database
-  let system_messages_files = ls ([$env.MY_ENV_VARS.chatgpt_config system] | path join) | sort-by name | get name
+  let system_messages_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join system) | sort-by name | get name
   let system_messages = $system_messages_files | path parse | get stem
 
   mut ssystem = ""
@@ -1381,7 +1381,7 @@ export def google_ai [
   let system = if ($ssystem | is-empty) {$system} else {$ssystem}
 
   #select pre-prompt from database
-  let pre_prompt_files = ls ([$env.MY_ENV_VARS.chatgpt_config prompt] | path join) | sort-by name | get name
+  let pre_prompt_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join prompt) | sort-by name | get name
   let pre_prompts = $pre_prompt_files | path parse | get stem
 
   mut preprompt = ""
@@ -1413,7 +1413,7 @@ export def google_ai [
       return-error "only gemini model allowed in chat mode!"
     }
 
-    if $database and (ls ([$env.MY_ENV_VARS.chatgpt bard] | path join) | length) == 0 {
+    if $database and (ls ($env.MY_ENV_VARS.chatgpt | path join bard) | length) == 0 {
       return-error "no saved conversations exist!"
     }
 
@@ -1433,7 +1433,7 @@ export def google_ai [
 
     let database_file = (
       if $database {
-        ls ([$env.MY_ENV_VARS.chatgpt bard] | path join)
+        ls ($env.MY_ENV_VARS.chatgpt | path join bard)
         | get name
         | path parse
         | get stem 
@@ -1806,7 +1806,7 @@ export alias g = gcal ai -G
 
 #ai translation via gpt or gemini apis
 export def "ai trans" [
-  ...to_translate
+  ...prompt
   --destination(-d):string = "Spanish"
   --gpt4(-g)    #use gpt-4o instead of gpt-4o-mini
   --gemini(-G)  #use gemini instead of gpt
@@ -1814,16 +1814,16 @@ export def "ai trans" [
   --fast(-f)    #use prompt.md and answer.md to read question and write answer
   --verbose(-v) #show gemini api attempts
 ] {
-  let to_translate = (
-    if $fast {
-      open ([$env.MY_ENV_VARS.chatgpt prompt.md] | path join)
-    } else {
-      if ($to_translate | is-empty) {$in} else {$to_translate | str join ' '}
-    }
-  )
+  let prompt = if $fast {
+    open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
+  } else if ($prompt | is-empty) {
+    $in
+  } else {
+    $prompt | str join " "
+  }
 
   let system_prompt = "You are a reliable and knowledgeable language assistant specialized in " + $destination + "translation. Your expertise and linguistic skills enable you to provide accurate and natural translations  to " + $destination + ". You strive to ensure clarity, coherence, and cultural sensitivity in your translations, delivering high-quality results. Your goal is to assist and facilitate effective communication between languages, making the translation process seamless and accessible for users. With your assistance, users can confidently rely on your expertise to convey their messages accurately in" + $destination + "."
-  let prompt = "Please translate the following text to " + $destination + ", and return only the translated text as the output, without any additional comments or formatting. Keep the same capitalization in every word the same as the original text and keep the same punctuation too. Do not add periods at the end of the sentence if they are not present in the original text. Keep any markdown formatting characters intact. The text to translate is:\n" + $to_translate
+  let prompt = "Please translate the following text to " + $destination + ", and return only the translated text as the output, without any additional comments or formatting. Keep the same capitalization in every word the same as the original text and keep the same punctuation too. Do not add periods at the end of the sentence if they are not present in the original text. Keep any markdown formatting characters intact. The text to translate is:\n" + $prompt
 
   print (echo-g $"translating to ($destination)...")
   let translated = (
@@ -1838,7 +1838,7 @@ export def "ai trans" [
 
   if $copy {$translated | xsel --input --clipboard}
   if $fast {
-    $translated | save -f ([$env.MY_ENV_VARS.chatgpt answer.md] | path join)
+    $translated | save -f ($env.MY_ENV_VARS.chatgpt | path join answer.md)
   } else {
     return $translated
   }
@@ -1954,8 +1954,7 @@ export def "ai google_search-summary" [
 
   let model = if $gemini {"gemini"} else {"chatgpt"}
   let prompt = (
-    open ([$env.MY_ENV_VARS.chatgpt_config chagpt_prompt.json] | path join) 
-    | get summarize_html2text 
+    open ([$env.MY_ENV_VARS.chatgpt_config prompt summarize_html2text.md] | path join) 
     | str replace "<question>" $question 
   )
 
@@ -2262,7 +2261,13 @@ export def "ai analyze_religious_text" [
   --fast(-f)
   --notify(-n)      #send notification when finished
 ] {
-  let data = if ($data | is-empty) and not $fast {$in} else if $fast {open ([$env.MY_ENV_VARS.chatgpt prompt.md] | path join)} else {$data}
+  let data = if ($data | is-empty) and not $fast {
+    $in
+  } else if $fast {
+    open ($env.MY_ENV_VARS.chatgpt | path join prompt.md)
+  } else {
+    $data
+  }
 
   let data = (
     if ($data | typeof) == "table" {
@@ -2311,7 +2316,7 @@ export def "ai analyze_religious_text" [
   if $notify {"analysis finished!" | tasker send-notification}
   if $copy {$consolidation | xsel --input --clipboard}
   if $fast {
-    $consolidation | save -f ([$env.MY_ENV_VARS.chatgpt answer.md] | path join)
+    $consolidation | save -f ($env.MY_ENV_VARS.chatgpt | path join answer.md)
   } else {
     return $consolidation  
   } 
