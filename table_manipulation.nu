@@ -256,3 +256,42 @@ export def group-list [cond: closure] {
   | flatten
   | split list null
 }
+
+#simple pivoting of a table without aggregation
+#It's a process of summarizing data from a table into a new table by grouping values from one or more columns into new columns and then applying an aggregation function to the values in other columns.
+#
+#For instance:
+#
+#table_1:
+#YEAR,ITEM,VALUE
+#2000,case1,10
+#2000,case2,20
+#2000,case3,20
+#2001,case1,20
+#2001,case2,10
+#2001,case3,50
+#2003,case2,30
+#2003,case1,50
+#2004,case3,10
+#2004,case2,39
+#
+#converts to table_2:
+#ITEM,2000,2001,2003,2004
+#case1,10,20,50,
+#case2,20,10,30,39
+#case3,20,50,,10
+#
+#via:
+#
+#$table_1 | pivot-table --columns [YEAR] --index [ITEM] --values [VALUE]
+export def pivot-table [
+  table_1? #table to pivot
+  --columns(-c):list #column names for pivoting (new columns)
+  --index(-i):list   #index names for pivoting (first new column)
+  --values(-v):list  #values for pivoting (values in the new columns)
+] {
+  let table_1 = if ($table_1 | is-empty) {$in} else {$table_1}
+
+  $table_1 | polars into-df | polars pivot -o $columns -i $index -v $values
+}
+

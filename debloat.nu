@@ -1,6 +1,6 @@
 #!/usr/bin/env nu
 
-#xiaomi poco x3 pro
+#xiaomi
 ##remove
 adb shell pm uninstall -k --user 0 com.facebook.appmanager
 adb shell pm uninstall -k --user 0 com.facebook.services
