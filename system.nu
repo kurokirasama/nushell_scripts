@@ -359,7 +359,17 @@ def history-stats [
 export def um [
   drive?:string
   --all(-a)
+  --list(-l)
 ] {
+  let mounted = sys disks | find rclone | get mount | ansi strip
+  if ($mounted | length) == 0 {
+    return-error "no mounted storages!"
+  }
+
+  if $list {
+    return ($mounted | path parse | get stem)
+  }
+
   if $all {
     sys disks
     | find rclone 
@@ -370,11 +380,6 @@ export def um [
         fusermount -u $drive
       }
     return
-  }
-
-  let mounted = sys disks | find rclone | get mount | ansi strip
-  if ($mounted | length) == 0 {
-    return-error "no mounted storages!"
   }
 
   let drive = (

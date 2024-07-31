@@ -148,20 +148,6 @@ export def default-table [value: any = null] {
     $input
 }
 
-#append table to table
-export def append-table [tab2:table,tab1?:table] {
-  let tab1 = if ($tab1 | is-empty) {$in} else {$tab1}
-
-  if ($tab1 | length) != ($tab2 | length) {
-    return-error "tables must have the same length!"
-  }
-
-  $tab1
-  | polars into-df 
-  | polars append ($tab2 | polars into-df) 
-  | polars into-nu
-}
-
 # table diff
 export def table-diff [
   $left: list<any>,

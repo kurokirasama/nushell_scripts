@@ -56,6 +56,8 @@ def extract-name [path] {
 		"cmdg"
 	} else if $path =~ 'ssh' {
 		"ssh"
+	} else if $path =~ 'ssh' {
+		"nchat"
 	} else if $path =~ '^/usr/bin' {
 		$path | split row '/' | get 3
 	} else if $path !~ '^/' {
