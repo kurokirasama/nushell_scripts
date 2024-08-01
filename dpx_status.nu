@@ -17,6 +17,13 @@ export def main [] {
 		| str replace '%' ''
 		| split row ' ' 
 		| drop nth 1 3 4
+		
+	mut ou2_f = $output_2 | into float 
+	$ou2_f.0 = $ou2_f.1 * $ou2_f.0 / 100
+
+	let output_2 = $ou2_f
+		| math round -p 1 
+		| into string
 		| str join ' GB / '
 		| str append ' GB'
 

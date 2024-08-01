@@ -15,7 +15,11 @@ export def --env goto-nuconfigdir [] {
 
 #cores temp
 export def coretemp [] {
-  sensors | grep Core
+  sensors 
+  | grep Core
+  | detect columns --no-headers  
+  | reject column0 column3 
+  | rename core temp
 }
 
 #battery stats
@@ -68,7 +72,7 @@ export def --env gmail [] {
 #wrapper for mermaid diagrams
 export def --wrapped m [
   ...rest #arguments for mmcd
-  --output_format(-o):string = "png" #png, svg or pdf
+  --output_format(-o):string = "pdf" #png, svg or pdf
 ] {
   let output = ($rest | str join "::" | split row '-i::' | get 1 | split row '::' | first | path parse | get stem) + "." + $output_format
 
