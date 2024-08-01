@@ -53,10 +53,11 @@ export def quick-ubuntu-and-tools-update-module [
   }
 
   if $update_scripts {copy-scripts-and-commit -G $gemini}
-  if $upload_debs {upload-debs-to-gdrive}
-
+  
   print (echo-g "updating Yandex.Disk repository...")
   copy-yandex-and-commit
+
+  if $upload_debs {upload-debs-to-gdrive}
 }
 
 #alias for short call
@@ -90,6 +91,7 @@ export def copy-yandex-and-commit [] {
   cp -rpu ~/Yandex.Disk/Comandos_* ~/software/Yandex.Disk/
   cp -rpu $env.MY_ENV_VARS.ai_database ~/software/Yandex.Disk/
   cp -rpu $env.MY_ENV_VARS.chatgpt ~/software/Yandex.Disk/
+  cp -rpu $env.MY_ENV_VARS.linux_backup ~/software/Yandex.Disk/Backups
 
   cd ~/software/Yandex.Disk/
   get-dirs -fa | find .git | find Comandos_ | rm-pipe
