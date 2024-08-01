@@ -181,11 +181,11 @@ def get_address [loc] {
 
 # wind description (adjust to your liking)
 def desc_wind [wind] {
-    if $wind < 30 { 
+    if $wind < 25 { 
         "Normal" 
-    } else if $wind < 50 { 
+    } else if $wind < 40 { 
         "Moderate" 
-    } else if $wind < 60 { 
+    } else if $wind < 50 { 
         "Strong" 
     } else { 
         "Very Strong" 
