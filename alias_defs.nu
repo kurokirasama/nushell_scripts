@@ -1,6 +1,6 @@
 #tokei wrapper
 export def tokei [] {
-  ^tokei | grep -v = | from tsv
+  ^tokei | grep -v '=' | from tsv
 }
 
 #keybindings

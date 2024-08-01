@@ -1,3 +1,23 @@
+#short help
+export def ? [...search] {
+  let search = $search | str join " "
+  if ($search | is-empty) {
+    return (help commands)
+  } 
+
+  if $search =~ "commands" {
+   if $search =~ "my" {
+     help commands | where category == default
+   } else {
+     help commands 
+   }
+  } else if (which $search | get type | get 0) =~ "external" {
+    tldr (which $search | get command | get 0)
+  } else {
+    help (which $search | get command | get 0)
+  }
+}
+
 #nushell banner
 export def show_banner [] {
     let ellie = [
@@ -74,7 +94,7 @@ export def nufetch [--table(-t)] {
   )
   let terminal = (
     xdotool getactivewindow | xargs -I {} xprop -id {} WM_CLASS 
-    | split row = 
+    | split row '='
     | get 1 
     | str trim 
     | split row , 
@@ -117,26 +137,6 @@ export def left_prompt [] {
       $env.PWD | path parse | get stem
   } else {
       $env.PWD | str replace $nu.home-path '~'
-  }
-}
-
-#short help
-export def ? [...search] {
-  let search = $search | str join " "
-  if ($search | is-empty) {
-    return (help commands)
-  } 
-
-  if $search =~ "commands" {
-   if $search =~ "my" {
-     help commands | where category == default
-   } else {
-     help commands 
-   }
-  } else if (which $search | get type | get 0) =~ "external" {
-    tldr (which search | get command | get 0)
-  } else {
-    help (which search | get command | get 0)
   }
 }
 
