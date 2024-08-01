@@ -820,7 +820,7 @@ export def "apps-update yewtube" [] {
 
 #update yt-dlp (youtube-dl fork)
 export def "apps-update yt-dlp" [] {
-  if (sys host | get os_version) == 20.04 {
+  if (sys host | get os_version) == "20.04" {
     python3 -m pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz
   } else {
     return-error "only available in Ubuntu 20.04"
