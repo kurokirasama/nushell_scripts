@@ -82,17 +82,3 @@ export def upload-debs-to-gdrive [] {
     mv -f debs.7z $env.MY_ENV_VARS.gdrive_debs
   }
 }
-
-#update yandex.disk repository
-export def copy-yandex-and-commit [] {
-  cp -rpu $env.MY_ENV_VARS.ips ~/software/Yandex.Disk/Android_Devices/Apps/Termux/
-  cp -rpu ($env.MY_ENV_VARS.tasker_server.devices.main.file | path parse | get parent | path join "*.json" | into glob) ~/software/Yandex.Disk/Android_Devices/Common/Download/
-  cp -rpu ~/Yandex.Disk/Comandos_* ~/software/Yandex.Disk/
-  cp -rpu $env.MY_ENV_VARS.ai_database ~/software/Yandex.Disk/
-  cp -rpu $env.MY_ENV_VARS.chatgpt ~/software/Yandex.Disk/
-
-  cd ~/software/Yandex.Disk/
-  get-dirs -f | find .git | rm-pipe
-
-  ai git-push -G
-}

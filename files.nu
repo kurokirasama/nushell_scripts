@@ -360,20 +360,36 @@ export def find-file [search,--directory(-d):string] {
 }
 
 #get list of directories in current path
-export def get-dirs [dir?, --full(-f)] {
+export def get-dirs [dir?, --full(-f),--all(-a)] {
   try {
-    if ($dir | is-empty) {
-      if $full {
-        ls **/*
+    if $all {
+      if ($dir | is-empty) {
+        if $full {
+          ls -a **/*
+        } else {
+          ls -a 
+        } 
+        | where type == dir 
+        | sort-by -i name
       } else {
-        ls
-      } 
-      | where type == dir 
-      | sort-by -i name
+        ls -a $dir
+        | where type == dir 
+        | sort-by -i name
+      }
     } else {
-      ls $dir
-      | where type == dir 
-      | sort-by -i name
+      if ($dir | is-empty) {
+        if $full {
+          ls **/*
+        } else {
+          ls
+        } 
+        | where type == dir 
+        | sort-by -i name
+      } else {
+        ls $dir
+        | where type == dir 
+        | sort-by -i name
+      }
     }
   } catch {
     {name: ""}
