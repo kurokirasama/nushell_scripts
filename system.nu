@@ -18,6 +18,20 @@ export def ? [...search] {
   }
 }
 
+# get the version information formatting the plugins differently
+export def ver [] { 
+    let plugin_modified = plugin list | insert last_modified { |plug| ls $plug.filename | get 0?.modified? } | select name last_modified
+
+    let ver = version | upsert installed_plugins {|v| $v | 
+        get installed_plugins | 
+        split row ', ' |
+        parse '{name} {version}' | 
+        join $plugin_modified name
+    }
+
+    $ver | table -e
+}
+
 #nushell banner
 export def show_banner [] {
     let ellie = [
@@ -163,12 +177,12 @@ export def killn [name?:string] {
   if not ($name | is-empty) {
     ps -l
     | find -i $name 
-    | par-each {||
-        kill -f $in.pid
+    | each {|p|
+        kill -f $p.pid
       }
   } else {
     $in
-    | par-each {|row|
+    | each {|row|
         kill -f $row.pid
       }
   }
@@ -221,6 +235,8 @@ export def stop-net-apps [] {
   yandex-disk stop
   maestral stop
   killn jdown
+  killn math
+  sudo systemctl stop mysql
 }
 
 #create dir and cd into it

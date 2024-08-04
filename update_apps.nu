@@ -666,6 +666,7 @@ export def "apps-update gmail" [] {
 export def "apps-update nushell-plugins" [] {
   cargo install-update nu_plugin_polars nu_plugin_net nu_plugin_plot nu_plugin_highlight nu_plugin_units
   cargo install --git https://github.com/FMotalleb/nu_plugin_port_scan
+  cargo install --git https://github.com/FMotalleb/nu_plugin_image.git
 
   mut success = true
 
@@ -699,6 +700,18 @@ export def "apps-update nushell-plugins" [] {
   )
   if $success {plugin use ~/.cargo/bin/nu_plugin_port_scan}
 
+  mut success = true
+
+  $success = (
+    try {
+      plugin add ~/.cargo/bin/nu_plugin_image
+      true
+    } catch {
+      false
+    }
+  )
+  if $success {plugin use ~/.cargo/bin/nu_plugin_image}
+
   # $success = (
   #   try {
   #     plugin add ~/.cargo/bin/nu_plugin_plot
@@ -716,6 +729,19 @@ export def "apps-update nushell" [] {
   cd ~/software/nushell
   git pull
   bash scripts/install-all.sh
+
+  plugin add ~/.cargo/bin/nu_plugin_inc
+  plugin add ~/.cargo/bin/nu_plugin_gstat
+  plugin add ~/.cargo/bin/nu_plugin_query
+  plugin add ~/.cargo/bin/nu_plugin_custom_values
+  plugin add ~/.cargo/bin/nu_plugin_formats
+
+  plugin use ~/.cargo/bin/nu_plugin_inc
+  plugin use ~/.cargo/bin/nu_plugin_gstat
+  plugin use ~/.cargo/bin/nu_plugin_query
+  plugin use ~/.cargo/bin/nu_plugin_custom_values
+  plugin use ~/.cargo/bin/nu_plugin_formats
+
   cargo clean
 
   print (echo-g "updating plugins...")
@@ -934,4 +960,12 @@ export def "apps-update ox" [] {
   let p_system = open $p_system_file | lines | first $r_line | to text
 
   $p_system ++ "\n" ++ $ox_config | save -f $p_system_file
+}
+
+#update rustc
+export def "apps-update rustc" [] {
+  rustup default stable-x86_64-unknown-linux-gnu
+  rustup override set stable-x86_64-unknown-linux-gnu
+  rustup update
+  # rustup self uninstall
 }

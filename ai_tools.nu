@@ -1707,7 +1707,7 @@ def save_gemini_chat [
   )
   
   if $obsidian {
-    obs create $filename "AI/AI_Bard" $plain_text
+    obs create $filename $plain_text "AI/AI_Bard"
     return 
   } 
 

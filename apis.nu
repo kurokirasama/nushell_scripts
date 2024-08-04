@@ -552,9 +552,21 @@ export def "obs search" [
 #obsidian create new note
 export def "obs create" [
   name:string   # name of the note
-  v_path:string # path for the note in vault
   content:string   # content of the note
+  v_path?:string # path for the note in vault, otherwise select from list
 ] {
+  let v_path = if ($v_path | is-empty) {
+    ls $env.MY_ENV_VARS.api_keys.obsidian.vault 
+    | get name 
+    | find -v "_resources"
+    | path parse
+    | get stem
+    | sort
+    | input list -f (echo-g "Select path for the note: ")
+    } else {
+      $v_path
+    }
+
   let check = obs check
 
   if $check.status != "OK" {
