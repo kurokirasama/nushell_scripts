@@ -1,33 +1,33 @@
 
 use std *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/python.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/aliases.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/string_manipulation.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/table_manipulation.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/files.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/tasker.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/crypt.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/defs.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/system.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/gcal.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/media.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/apis.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/habitica.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/ai_tools.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/github.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/backups.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/update_apps.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/network.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/transmission.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/yandex.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/geek.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/yt_api.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/maths.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/plots.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/defs_private.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/zoxide.nu *
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/weather_tomorrow.nu [weather,get_weather_by_interval]
-use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/alias_defs.nu *
-# use /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/polars_aliases.nu *
-source-env /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/env_vars.nu
-source-env /home/kira/Yandex.Disk/Backups/linux/my_scripts/nushell/config.nu
+use /path/to/nushell_scripts/python.nu *
+use /path/to/nushell_scripts/aliases.nu *
+use /path/to/nushell_scripts/string_manipulation.nu *
+use /path/to/nushell_scripts/table_manipulation.nu *
+use /path/to/nushell_scripts/files.nu *
+use /path/to/nushell_scripts/tasker.nu *
+use /path/to/nushell_scripts/crypt.nu *
+use /path/to/nushell_scripts/defs.nu *
+use /path/to/nushell_scripts/system.nu *
+use /path/to/nushell_scripts/gcal.nu *
+use /path/to/nushell_scripts/media.nu *
+use /path/to/nushell_scripts/apis.nu *
+use /path/to/nushell_scripts/habitica.nu *
+use /path/to/nushell_scripts/ai_tools.nu *
+use /path/to/nushell_scripts/github.nu *
+use /path/to/nushell_scripts/backups.nu *
+use /path/to/nushell_scripts/update_apps.nu *
+use /path/to/nushell_scripts/network.nu *
+use /path/to/nushell_scripts/transmission.nu *
+use /path/to/nushell_scripts/yandex.nu *
+use /path/to/nushell_scripts/geek.nu *
+use /path/to/nushell_scripts/yt_api.nu *
+use /path/to/nushell_scripts/maths.nu *
+use /path/to/nushell_scripts/plots.nu *
+use /path/to/nushell_scripts/defs_private.nu *
+use /path/to/nushell_scripts/zoxide.nu *
+use /path/to/nushell_scripts/weather_tomorrow.nu [weather,get_weather_by_interval]
+use /path/to/nushell_scripts/alias_defs.nu *
+# use /path/to/nushell_scripts/polars_aliases.nu *
+source-env /path/to/nushell_scripts/env_vars.nu
+source-env /path/to/nushell_scripts/config.nu

@@ -14,7 +14,7 @@ let autolister_file = open ~/.autolister.json
 if $update {
     if (sys host | get hostname) != "rayen" {
         ## list mounted drives and download directory
-        nu ("~/Yandex.Disk/Backups/linux/nu_scripts/autolister.nu" | path expand)
+        nu ("~/Yandex.Disk/Backups/linux/my_scripts/nushell/autolister.nu" | path expand)
     }
 
     $autolister_file
@@ -26,7 +26,7 @@ if $update {
     let host = (sys host | get hostname)
     let ips_file = "~/Yandex.Disk/Android_Devices/Apps/Termux/ips.json" | path expand
     let ips_content = open $ips_file
-    let ips = (nu ("~/Yandex.Disk/Backups/linux/nu_scripts/get-ips.nu" | path expand))
+    let ips = (nu ("~/Yandex.Disk/Backups/linux/my_scripts/nushell/get-ips.nu" | path expand))
 
     $ips_content
     | upsert $host ($ips | from json)

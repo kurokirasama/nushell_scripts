@@ -951,15 +951,17 @@ export def "apps-update obsidian" [] {
 export def "apps-update ox" [] {
   cargo install --git https://github.com/curlpipe/ox
 
-  cd /home/kira/software/ox.wiki
-  git pull
-  let ox_config = open Configuration.md
+  if (sys host | get hostname) == "deathnote" {
+    cd /home/kira/software/ox.wiki
+    git pull
+    let ox_config = open Configuration.md
 
-  let p_system_file = [/home/kira/Yandex.Disk/Backups/linux/chatgptConfigs system programmer.md] | path join
-  let r_line = grp "ox editor lua scripting reference" $p_system_file | get line.0 | into int
-  let p_system = open $p_system_file | lines | first $r_line | to text
+    let p_system_file = [/home/kira/Yandex.Disk/Backups/linux/chatgptConfigs system programmer.md] | path join
+    let r_line = grp "ox editor lua scripting reference" $p_system_file | get line.0 | into int
+    let p_system = open $p_system_file | lines | first $r_line | to text
 
-  $p_system ++ "\n" ++ $ox_config | save -f $p_system_file
+    $p_system ++ "\n" ++ $ox_config | save -f $p_system_file
+  }
 }
 
 #update rustc
