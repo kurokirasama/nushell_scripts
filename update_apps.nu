@@ -664,21 +664,11 @@ export def "apps-update gmail" [] {
 
 #update nushell plugins
 export def "apps-update nushell-plugins" [] {
-  cargo install-update nu_plugin_polars nu_plugin_net nu_plugin_plot nu_plugin_highlight nu_plugin_units
+  cargo install-update nu_plugin_net nu_plugin_plot nu_plugin_highlight nu_plugin_units 
   cargo install --git https://github.com/FMotalleb/nu_plugin_port_scan
   cargo install --git https://github.com/FMotalleb/nu_plugin_image.git
 
   mut success = true
-
-  $success = (
-    try {
-      plugin add ~/.cargo/bin/nu_plugin_polars
-      true
-    } catch {
-      false
-    }
-  )
-  if $success {plugin use ~/.cargo/bin/nu_plugin_polars}
 
   $success = (
     try {
@@ -735,12 +725,14 @@ export def "apps-update nushell" [] {
   plugin add ~/.cargo/bin/nu_plugin_query
   plugin add ~/.cargo/bin/nu_plugin_custom_values
   plugin add ~/.cargo/bin/nu_plugin_formats
+  plugin add ~/.cargo/bin/nu_plugin_polars
 
   plugin use ~/.cargo/bin/nu_plugin_inc
   plugin use ~/.cargo/bin/nu_plugin_gstat
   plugin use ~/.cargo/bin/nu_plugin_query
   plugin use ~/.cargo/bin/nu_plugin_custom_values
   plugin use ~/.cargo/bin/nu_plugin_formats
+  plugin use ~/.cargo/bin/nu_plugin_polars
 
   cargo clean
 
@@ -951,12 +943,28 @@ export def "apps-update obsidian" [] {
 export def "apps-update ox" [] {
   cargo install --git https://github.com/curlpipe/ox
 
+  #download plugins
+  let git_token = $env.MY_ENV_VARS.api_keys.github.api_key
+
+  cd $env.MY_ENV_VARS.ox_plugins
+  
+  {
+    scheme: "https",
+    host: "api.github.com",
+    path: $"/repos/curlpipe/ox/contents/plugins",
+  } 
+  | url join
+  | http get $in -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
+  | get download_url 
+  | each {|url| aria2c --allow-overwrite=true $url}
+
+  #updating help in programmer system message
   if (sys host | get hostname) == "deathnote" {
     cd /home/kira/software/ox.wiki
     git pull
     let ox_config = open Configuration.md
 
-    let p_system_file = [/home/kira/Yandex.Disk/Backups/linux/chatgptConfigs system programmer.md] | path join
+    let p_system_file = [$env.MY_ENV_VARS.chatgpt_config system programmer.md] | path join
     let r_line = grp "ox editor lua scripting reference" $p_system_file | get line.0 | into int
     let p_system = open $p_system_file | lines | first $r_line | to text
 

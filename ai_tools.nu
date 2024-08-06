@@ -357,12 +357,13 @@ export def chat_gpt [
 export def askai [
   prompt?:string  # string with the prompt, can be piped
   system?:string  # string with the system message. It has precedence over the s.m. flags
-  --programmer(-P) # use programmer s.m with temp 0.7, else use assistant with temp 0.9
-  --teacher(-T) # use teacher (sensei) s.m with temp 0.95, else use assistant with temp 0.9
-  --engineer(-E) # use prompt_engineer s.m. with temp 0.8, else use assistant with temp 0.9
-  --rubb(-R)     # use rubb s.m. with temperature 0.5, else use assistant with temp 0.9
-  --academic(-A) # use academic writer improver with temp 0.75
-  --biblical(-B) #use biblical assistant with temp 0.85
+  --programmer(-P) # use programmer s.m with temp 0.75, else use assistant with temp 0.9
+  --teacher(-T)    # use teacher s.m with temp 0.95, else use assistant with temp 0.9
+  --engineer(-E)   # use prompt_engineer s.m. with temp 0.8, else use assistant with temp 0.9
+  --rubb(-R)       # use rubb s.m. with temperature 0.65, else use assistant with temp 0.9
+  --academic(-A)   # use academic writer improver s.m with temp 0.78
+  --biblical(-B)   #use biblical assistant s.m with temp 0.85
+  --summarizer(-S) #use simple summarizer s.m with temp 0.70
   --list_system(-l)       # select s.m from list (takes precedence over flags)
   --list_preprompt(-p)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
   --delimit_with_quotes(-d) = true #add '''  before and after prompt
@@ -370,7 +371,7 @@ export def askai [
   --gpt4(-g)              # use gpt-4o instead of gpt-4o-mini (default)
   --vision(-v)            # use gpt-4-vision/gemini-pro-vision
   --image(-i):string      # filepath of the image to prompt to vision models
-  --fast(-f) # get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
+  --fast(-f) # get prompt from prompt.md file and save response to answer.md
   --gemini(-G) #use google gemini instead of chatgpt. gemini-1.5-flash-latest for chat, gemini-1.5-pro-latest otherwise
   --bison(-b)  #use google bison instead of chatgpt (needs --gemini)
   --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt4
@@ -404,14 +405,15 @@ export def askai [
     
   let temp = (
     if ($temperature | is-empty) {
-      match [$programmer, $teacher, $engineer, $rubb, $academic,$biblical] {
-        [true,false,false,false,false,false] => 0.7,
-        [false,true,false,false,false,false] => 0.95,
-        [false,false,true,false,false,false] => 0.8,
-        [false,false,false,true,false,false] => 0.5,
-        [false,false,false,false,true,false] => 0.75,
-        [false,false,false,false,false,true] => 0.85,
-        [false,false,false,false,false,false] => 0.9
+      match [$programmer,$teacher,$engineer,$rubb,$academic,$biblical,$summarizer] {
+        [true,false,false,false,false,false,false] => 0.75,
+        [false,true,false,false,false,false,false] => 0.95,
+        [false,false,true,false,false,false,false] => 0.8,
+        [false,false,false,true,false,false,false] => 0.65,
+        [false,false,false,false,true,false,false] => 0.78,
+        [false,false,false,false,false,true,false] => 0.85,
+        [false,false,false,false,false,false,true] => 0.7,
+        [false,false,false,false,false,false,false] => 0.9
         _ => {return-error "only one system message flag allowed"},
       }
    } else {
@@ -435,6 +437,8 @@ export def askai [
         "academic_writer_improver"
       } else if $biblical {
         "biblical_assistant"
+      } else if $summarizer {
+        "simple_summarizer"
       } else {
         "assistant"
       }
@@ -446,6 +450,8 @@ export def askai [
   let pre_prompt = (
     if $academic {
       "improve_academic_writing"
+    } else if $summarizer {
+      "simple_summary"
     } else {
       "empty"
     }

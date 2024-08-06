@@ -7,10 +7,11 @@ def main [user:string = "kira"] {
 	cd ~/Downloads
 	lister ("Downloads" + "_" + $host)
 
-	let drives = sys disks | where mount =~ $"/media/($user)" | get mount
+	let drives = sys disks | where mount =~ $"/media/($user)"
 
 	if ($drives | length) > 0 {
 		$drives
+		| get mount
 		| each { |drive|
 				print (echo-g $"listing ($drive | ansi strip)...")
 				cd ($drive | ansi strip)
@@ -36,7 +37,7 @@ def lister [file] {
 		return
 	}
 
-	let last = $df | polars into-df | polars drop name
+	let last = $df | reject name | polars into-df
 
 	let df = (
 		$df
