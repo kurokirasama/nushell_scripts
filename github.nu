@@ -11,7 +11,7 @@ export def copy-scripts-and-commit [--gemini(-G) = false] {
   $files | cp-pipe $env.MY_ENV_VARS.nu_scripts_public
 
   cd $env.MY_ENV_VARS.nu_scripts_public
-  sed -i 's/\/home\/kira\/Yandex.Disk\/Backups\/linux\/nu_scripts/\/path\/to\/nushell_scripts/g' append_to_config.nu
+  sed -i 's/\/home\/kira\/Yandex.Disk\/Backups\/linux\/my_scripts\/nushell/\/path\/to\/nushell_scripts/g' append_to_config.nu
   
   if $gemini {
     ai git-push -G
@@ -91,6 +91,7 @@ export def copy-yandex-and-commit [] {
   cp -rpu $env.MY_ENV_VARS.ai_database ~/software/Yandex.Disk/
   cp -rpu $env.MY_ENV_VARS.chatgpt ~/software/Yandex.Disk/
   cp -rpu $env.MY_ENV_VARS.linux_backup ~/software/Yandex.Disk/Backups
+  cp -rpu $env.MY_ENV_VARS.appImages ~/software/Yandex.Disk/Backups
 
   cd ~/software/Yandex.Disk/
   ai git-push -G
