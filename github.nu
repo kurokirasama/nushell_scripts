@@ -54,7 +54,6 @@ export def quick-ubuntu-and-tools-update-module [
 
   if $update_scripts {copy-scripts-and-commit -G $gemini}
   
-  print (echo-g "updating Yandex.Disk repository...")
   copy-yandex-and-commit
 
   if $upload_debs {upload-debs-to-gdrive}
@@ -86,6 +85,7 @@ export def upload-debs-to-gdrive [] {
 
 #update yandex.disk repository
 export def copy-yandex-and-commit [] {
+  print (echo-g "updating Yandex.Disk repository...")
   cp -pu $env.MY_ENV_VARS.ips ~/software/Yandex.Disk/Android_Devices/Apps/Termux/
   cp -pu ($env.MY_ENV_VARS.tasker_server.devices.main.file | path parse | get parent | path join "*.json" | into glob) ~/software/Yandex.Disk/Android_Devices/Common/Download/
   cp -rpu $env.MY_ENV_VARS.ai_database ~/software/Yandex.Disk/
