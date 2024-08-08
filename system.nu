@@ -488,3 +488,13 @@ export def fuzzy-dispatcher [] {
         _ => ''
     }
 }
+
+#generate autouse file
+export def autouse-file [] {
+  ls -f nu_modules/*.nu
+  | get name
+  | each {|file|
+      "use " + $file + " *"
+    }
+  | save -f .autouse.nu
+}
