@@ -91,7 +91,7 @@ export def copy-yandex-and-commit [] {
   cp -rpu $env.MY_ENV_VARS.ai_database ~/software/Yandex.Disk/
   cp -rpu $env.MY_ENV_VARS.chatgpt ~/software/Yandex.Disk/
   cp -rpu $env.MY_ENV_VARS.linux_backup ~/software/Yandex.Disk/Backups
-  cp -rpu $env.MY_ENV_VARS.appImages ~/software/Yandex.Disk/Backups
+  cp -rpu ($env.MY_ENV_VARS.appImages | path join "fontforge.AppImage") ~/software/Yandex.Disk/Backups/appimages
 
   cd ~/software/Yandex.Disk/
   ai git-push -G
