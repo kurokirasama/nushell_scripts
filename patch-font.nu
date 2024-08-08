@@ -8,13 +8,13 @@ def main [file? = "Monocraft.otf"] {
 	
 	cd $folder
 
-	cp ([$font_folder Monocraft.otf] | path join) .
+	cp ($font_folder | path join "Monocraft.otf" | path expand) .
 
 	./fontforge.AppImage -script ([$nerd_font font-patcher] | path join | path expand) ([$env.PWD $file] | path join) --complete --careful --output "Monocraft_updated.otf" --outputdir $env.PWD
 
-	mv -f (ls *.otf | sort-by modified | last | get name) $"($file | path parse | get stem)-nerd-fonts-patched.otf"
-  	cp -f $"($file | path parse | get stem)-nerd-fonts-patched.otf" $font_folder
-  	mv -f $"($file | path parse | get stem)-nerd-fonts-patched.otf" $file
+	mv -f (ls *.otf | sort-by modified | last | get name) $"($file)-nerd-fonts-patched.otf"
+  	cp -f $"($file)-nerd-fonts-patched.otf" ($font_folder | path expand)
+  	mv -f $"($file)-nerd-fonts-patched.otf" $file
 
 	sudo mv -f $file /usr/local/share/fonts
 	fc-cache -fv;sudo fc-cache -fv
