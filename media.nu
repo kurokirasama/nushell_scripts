@@ -176,13 +176,13 @@ export def "media remove-audio-noise" [
 }
 
 #screen record
-#
-#TODO: making sure it works in a video call
 export def "media screen-record" [
   file:string = "video"  #output filename without extension
   --audio = true  #whether to record with audio or not
 ] {
   let os_version = sys host | get os_version
+  let resolution = xrandr | grep '*' | awk '{print $1}'
+
   if $audio {
     print (echo-g "recording screen with audio...")
     let devices = (
@@ -212,10 +212,10 @@ export def "media screen-record" [
     
       try {
         print (echo-g "trying myffmpeg...")
-        myffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -acodec aac -strict experimental $"($file).mp4"
+        myffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -acodec aac -strict experimental $"($file).mp4"
       } catch {
         print (echo-r "myffmpeg failed...")
-        ffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -acodec aac -strict experimental $"($file).mp4"
+        ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -acodec aac -strict experimental $"($file).mp4"
       }
     } else {
       let alsa = ($devices | find alsa_input | get 0 | ansi strip)
@@ -223,15 +223,15 @@ export def "media screen-record" [
 
       try {
         print (echo-g "trying myffmpeg...")
-        myffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $blue -f pulse -ac 2 -i $alsa -filter_complex amerge=inputs=2 -acodec aac -strict experimental $"($file).mp4"
+        myffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $blue -f pulse -ac 2 -i $alsa -filter_complex amerge=inputs=2 -acodec aac -strict experimental $"($file).mp4"
       } catch {
         print (echo-r "myffmpeg failed...")
-        ffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $blue -f pulse -ac 2 -i $alsa -filter_complex amerge=inputs=2 -acodec aac -strict experimental $"($file).mp4"
+        ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $blue -f pulse -ac 2 -i $alsa -filter_complex amerge=inputs=2 -acodec aac -strict experimental $"($file).mp4"
       }
     }
   } else {
     print (echo-g "recording screen without audio...")
-    ffmpeg -video_size 1920x1080 -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" $"($file).mp4"
+    ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" $"($file).mp4"
   }
   print (echo-g "recording finished...")
 }

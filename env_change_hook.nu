@@ -1,11 +1,3 @@
-##autouse nu_modules
-if (".autouse.nu" | path exists) {
-    nu .autouse.nu
-    $env.nu_modules = true
-} else {
-    $env.nu_modules = false
-}
-
 ## pwd size
 #checking existence of data file
 if not ("~/.pwd_sizes.json" | path expand | path exists) {

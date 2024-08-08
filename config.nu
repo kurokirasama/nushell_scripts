@@ -98,6 +98,10 @@ let hooks = {
       	{|before, after|
       		zoxide add -- $env.PWD
       	}
+        {
+            condition: {".autouse.nu" | path exists},
+            code: "source .autouse.nu"
+        }
       ]
     }
     display_output: {||

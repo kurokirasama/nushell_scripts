@@ -387,7 +387,7 @@ export def askai [
     $prompt
   }
 
-  if ($prompt | is-empty) {
+  if ($prompt | is-empty) and not $chat {
     return-error "no prompt provided!"
   }
   
@@ -460,7 +460,7 @@ export def askai [
   #chat mode
   if $chat {
     if $gemini {
-      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d $delimit_with_quotes -w $web_search -W $web_results --select_preprompt $pre_prompt
+      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -W $web_results --select_preprompt $pre_prompt
     } else {
       # chat_gpt $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d $delimit_with_quotes
       print (echo-g "in progress")
