@@ -181,7 +181,7 @@ export def "media screen-record" [
   --audio = true  #whether to record with audio or not
 ] {
   let os_version = sys host | get os_version
-  let resolution = xrandr | grep '*' | awk '{print $1}'
+  let resolution = xrandr | grep '*' | awk '{print $1}' | lines | first
 
   if $audio {
     print (echo-g "recording screen with audio...")
