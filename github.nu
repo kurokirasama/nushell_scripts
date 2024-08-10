@@ -38,6 +38,8 @@ export def quick-ubuntu-and-tools-update-module [
     return-error "destination path doesn't exists!!"
   }
   
+  copy-yandex-and-commit
+  
   print (echo-g "updating private repository...")
   if $force {
     cp -rfp ($env.MY_ENV_VARS.linux_backup + "/*" | into glob) $destination
@@ -53,9 +55,6 @@ export def quick-ubuntu-and-tools-update-module [
   }
 
   if $update_scripts {copy-scripts-and-commit -G $gemini}
-  
-  copy-yandex-and-commit
-
   if $upload_debs {upload-debs-to-gdrive}
 }
 
