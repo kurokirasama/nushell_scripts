@@ -308,6 +308,7 @@ $env.config.float_precision = 4;
 $env.config.filesize.metric = true
 $env.config.cursor_shape.emacs = "blink_line"
 
+#for fun
 # try {
 #     if (random bool) {
 #         print (http get -H ["Accept" "text/plain"] https://icanhazdadjoke.com)
