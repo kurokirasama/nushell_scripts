@@ -12,7 +12,7 @@ def main [file? = "Monocraft.ttc"] {
 
 	./fontforge.AppImage -script ([$nerd_font font-patcher] | path join | path expand) ([$env.PWD $file] | path join) --complete --careful --output "Monocraft_updated.ttc" --outputdir $env.PWD
 
-	mv -f (ls *.otf | sort-by modified | last | get name) $"($file | path parse | get stem)-nerd-fonts-patched_by_me.ttc"
+	mv -f (ls *.ttc | sort-by modified | last | get name) $"($file | path parse | get stem)-nerd-fonts-patched_by_me.ttc"
   	cp -f $"($file | path parse | get stem)-nerd-fonts-patched_by_me.ttc" ($font_folder | path expand)
   	mv -f $"($file | path parse | get stem)-nerd-fonts-patched_by_me.ttc" $file
 
