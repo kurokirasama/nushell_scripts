@@ -70,7 +70,7 @@ export def apps-update [] {
     print (echo-r "Something went wrong with mpris instalation!")
   }
   try {
-    apps-update monocraft -p
+    apps-update monocraft
   } catch {
     print (echo-r "Something went wrong with monocraft instalation!")
   }
@@ -296,8 +296,8 @@ export def "apps-update mpris" [] {
   
 #update monocraft font
 export def "apps-update monocraft" [
-  --to_patch(-p)      #to patch Monocraft.otf, else to use patched ttf
-  --type(-t):string = "otf"  #"otf" if -p, else "ttf"
+  --to_patch(-p) = true     #to patch Monocraft.otf, else to use patched ttf
+  --type(-t):string = "ttc"  #"otf" if -p, else "ttf"
 ] {
   let current_version = (
     open --raw ([$env.MY_ENV_VARS.linux_backup Monocraft.json] | path join) 
@@ -804,8 +804,8 @@ export def update-nu-config [] {
 
 #install font
 export def install-font [file] {
-  cp $file ~/.fonts
-  fc-cache -fv
+  sudo cp -f $file /usr/local/share/fonts
+  fc-cache -fv;sudo fc-cache -fv
 }
 
 #update maestral
