@@ -1,3 +1,23 @@
+#patch font with nerd font
+def patch-font [file? = "Monocraft.ttc"] {
+  let nerd_font = "~/software/nerd-fonts"
+  let folder = $env.MY_ENV_VARS.appImages
+  let font_folder = $env.MY_ENV_VARS.linux_backup
+  
+  cd $folder
+
+  cp ($font_folder | path join "Monocraft.ttc" | path expand) .
+
+  ./fontforge.AppImage -script ([$nerd_font font-patcher] | path join | path expand) ([$env.PWD $file] | path join) --complete --careful --output "Monocraft_updated.ttc" --outputdir $env.PWD
+
+  mv -f (ls *.ttc | sort-by modified | last | get name) $"($file | path parse | get stem)-nerd-fonts-patched_by_me.ttc"
+    cp -f $"($file | path parse | get stem)-nerd-fonts-patched_by_me.ttc" ($font_folder | path expand)
+    mv -f $"($file | path parse | get stem)-nerd-fonts-patched_by_me.ttc" $file
+
+  sudo mv -f $file /usr/local/share/fonts
+  fc-cache -fv;sudo fc-cache -fv
+}
+
 #update-upgrade system
 export def supgrade [--old(-o),--apps(-a)] {
   if not $old {
@@ -319,7 +339,7 @@ export def "apps-update monocraft" [
 
   if $to_patch {
     print (echo-g "New version of Monocraft downloaded, now patching nerd fonts...")
-    nu ([$env.MY_ENV_VARS.nu_scripts "patch-font.nu"] | path join)
+    patch-font
   } else {
     let font = ([$env.MY_ENV_VARS.linux_backup (ls ($"($env.MY_ENV_VARS.linux_backup)/*.($type)" | into glob) | sort-by modified | last | get name | ansi strip)] | path join)
     print (echo-g $"New version of Monocraft downloaded, now installing ($font | path parse | get stem)...")
