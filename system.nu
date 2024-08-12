@@ -12,10 +12,29 @@ export def ? [...search] {
      help commands 
    }
   } else if (which $search | get type | get 0) =~ "external" {
-    tldr (which $search | get command | get 0)
+    usage (which $search | get command | get 0)
   } else {
     help (which $search | get command | get 0)
   }
+}
+
+# get the examples from tldr as a table.
+export def usage [ cmd: string --no-ansi(-A) --update(-u) ] {
+    if $update {
+        ^tldr -u --markdown $cmd
+    } else {
+        ^tldr --markdown $cmd
+    } | lines | compact -e
+    | skip until { str starts-with '- ' }
+    | chunks 2 | each { str join ' ' }
+    | parse '- {desc}: `{example}`'
+    | update example {
+        str replace -ra '{{(.+?)}}' $'(ansi u)$1(ansi reset)' # Underline shown for user input
+        | str replace -r '^(\w\S*)' $'(ansi bo)$1(ansi reset)' # Make first word (usually command) bold
+        | str replace -ar ' (-{1,2}\S+)' $' (ansi d)$1(ansi reset)' # Make cli flags dim
+    } | if $no_ansi { update example { ansi strip } } else {}
+    | move desc --after example
+    | collect
 }
 
 # get the version information formatting the plugins differently
