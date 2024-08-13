@@ -60,6 +60,7 @@ let hooks = {
                     }
                 } else {
                     match (sys host | get name) {
+                        $p if $p =~ "Debian*" => {"f306"},
                         "Windows" => {"f17a"},
                         "Ubuntu"  => {"f31b"},
                         "CentOs" => {"f304"},

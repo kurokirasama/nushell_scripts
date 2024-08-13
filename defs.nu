@@ -404,6 +404,12 @@ export def ssh-sin-pass [
   ssh-copy-id -i ~/.ssh/id_rsa.pub -p $port $"($user)@($ip)"
 }
 
+#clean nerd-fonts repo
+export def nerd-fonts-clean [] {
+  cd ~/software/nerd-fonts/
+  rm -rf .git 
+  rm -rf patched-fonts
+}
 ## appimages
 
 #open balena-etche

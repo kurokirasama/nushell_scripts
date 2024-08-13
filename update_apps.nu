@@ -1,5 +1,5 @@
 #patch font with nerd font
-def patch-font [file? = "Monocraft.ttc"] {
+export def patch-font [file? = "Monocraft.ttc"] {
   let nerd_font = "~/software/nerd-fonts"
   let folder = $env.MY_ENV_VARS.appImages
   let font_folder = $env.MY_ENV_VARS.linux_backup
@@ -746,7 +746,7 @@ export def "apps-update nushell" [] {
   plugin add ~/.cargo/bin/nu_plugin_custom_values
   plugin add ~/.cargo/bin/nu_plugin_formats
   plugin add ~/.cargo/bin/nu_plugin_polars
-
+  
   plugin use ~/.cargo/bin/nu_plugin_inc
   plugin use ~/.cargo/bin/nu_plugin_gstat
   plugin use ~/.cargo/bin/nu_plugin_query
