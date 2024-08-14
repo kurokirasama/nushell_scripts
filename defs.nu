@@ -257,7 +257,7 @@ export def reset-alpine-auth [] {
 #run matlab in cli
 export def matlab-cli [
   --background(-b)    #send process to the background
-  --input(-i):string  #input m-file to run
+  --input(-i):string  #input m-file to run, must be in the same directory
   --output(-o):string #output file for log without extension
   --log_file(-l):string = "log24" #log file in foreground mode
   --kill(-k)          #kill current matlab processes
@@ -294,7 +294,7 @@ export def matlab-cli [
   
   let output = if ($output | is-empty) {$log} else {$output + ".txt"}
 
-  bash -c ($"matlab -nodisplay -nodesktop -nosplash -sd ($env.PWD)" + $" -r ($input) > ($output) &")
+  bash -c ($"matlab -batch \"" + "setenv('SHELL', '/bin/bash'); " + $"($input)\"" + " > ($output) &")
 }
 
 #get files all at once from webpage using wget
