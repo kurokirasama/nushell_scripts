@@ -683,7 +683,7 @@ export def "ai media-summary" [
   --gemini(-G)           # use google gemini-1.5-pro-latest instead of gpt
   --notify(-n)           # notify to android via join/tasker
   --upload(-u)           # upload extracted audio to gdrive
-  --type(-t): string = "meeting" # meeting, youtube or class
+  --type(-t): string = "meeting" # meeting, youtube, class or instructions
   --filter_noise(-f)     # filter audio noise
 ] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
@@ -717,13 +717,15 @@ export def "ai media-summary" [
     "meeting" => {"meeting_summarizer"},
     "youtube" => {"ytvideo_summarizer"},
     "class" => {"class_transcriptor"},
+    "instructions" => {"instructions_extractor"},
     _ => {return-error "not a valid type!"}
   }
 
   let pre_prompt = match $type {
     "meeting" => {"consolidate_transcription"},
     "youtube" => {"consolidate_ytvideo"},
-    "class" => {"consolidate_class"}
+    "class" => {"consolidate_class"},
+    "instructions" => {"extract_instructions"}
   }
 
   if $upload and $media_type in ["video" "audio" "url"] {
@@ -1376,7 +1378,7 @@ export def google_ai [
   let system_messages = $system_messages_files | path parse | get stem
 
   mut ssystem = ""
-  if ($list_system and ($select_system | is-empty)) {
+  if $list_system {
     let selection = ($system_messages | input list -f (echo-g "Select system message: "))
     $ssystem = (open ($system_messages_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
   } else if (not ($select_system | is-empty)) {
@@ -1391,7 +1393,7 @@ export def google_ai [
   let pre_prompts = $pre_prompt_files | path parse | get stem
 
   mut preprompt = ""
-  if ($pre_prompt and ($select_preprompt | is-empty)) {
+  if $pre_prompt {
     let selection = ($pre_prompts | input list -f (echo-g "Select pre-prompt: "))
     $preprompt = (open ($pre_prompt_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
   } else if (not ($select_preprompt | is-empty)) {

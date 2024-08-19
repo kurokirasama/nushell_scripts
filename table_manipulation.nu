@@ -177,7 +177,7 @@ export def table-diff [
 # Example:
 #
 # ls | multiwhere { name: .txt, type: file }
-export def main [maps: record]: table -> table {
+export def multiwhere [maps: record]: table -> table {
     let inp = $in
 
     if ($inp | is-empty) {

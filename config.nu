@@ -96,8 +96,8 @@ let hooks = {
       	{|before, after| 
       		try {print (ls | sort-by -i type name | grid -c)}      		
       	}
-      	{|before, after|
-      		zoxide add -- $env.PWD
+      	{|_, dir|
+      		zoxide add -- $dir
       	}
         {
             condition: {".autouse.nu" | path exists},
