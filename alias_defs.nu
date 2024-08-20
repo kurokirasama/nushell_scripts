@@ -38,11 +38,6 @@ export def listen-ports [] {
   sudo netstat -tunlp | detect columns
 }
 
-#connect bluetooth headset
-export def cblue [] {
-  echo "connect 34:82:C5:47:E3:3B" | bluetoothctl
-}
-
 #ram info
 export def ram [] {
   free -h
