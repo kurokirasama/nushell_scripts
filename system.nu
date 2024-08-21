@@ -520,8 +520,14 @@ export def autouse-file [] {
 
 #list bluetooth devices and connect
 export def cblue [] {
-  let devices = ^bluetoothctl paired-devices | parse "Device {mac} {name}"
-  let connected = bluetoothctl info | lines | first | parse "{Device} {mac} {public}" | get mac.0
+  let os_version = sys host | get os_version
+  let devices = if $os_version == "20.04" {
+    ^bluetoothctl paired-devices
+  } else {
+    ^bluetoothctl devices
+  } | parse "Device {mac} {name}"
+
+  let connected = ^bluetoothctl info | lines | first | parse "{Device} {mac} {public}" | get mac.0
   let chosen_name = $devices | get name | input list -f (echo-g "Select device: ")
   let chosen = $devices | where name == $chosen_name | get mac.0
   
