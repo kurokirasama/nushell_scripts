@@ -88,7 +88,23 @@ let hooks = {
     		nu ("~/Yandex.Disk/Backups/linux/my_scripts/nushell/pre_execution_hook.nu" | path expand)
     	}
     ]
-    c
+    env_change: {
+      PWD: [
+      	{|before, after|
+			source-env ("~/Yandex.Disk/Backups/linux/my_scripts/nushell/env_change_hook.nu" | path expand)
+      	}
+      	{|before, after| 
+      		try {print (ls | sort-by -i type name | grid -c -s " ")}      		
+      	}
+      	{|_, dir|
+      		zoxide add -- $dir
+      	}
+        {
+            condition: {".autouse.nu" | path exists},
+            code: "source .autouse.nu"
+        }
+      ]
+    }
     display_output: {||
        table
     }

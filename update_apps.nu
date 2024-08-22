@@ -799,7 +799,6 @@ export def update-nu-config [] {
       | get 0
   )
   
-
   cp -f $default $nu.config-path
 
   open ([$env.MY_ENV_VARS.linux_backup "append_to_config.nu"] | path join)
