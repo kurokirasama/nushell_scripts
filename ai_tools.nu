@@ -211,6 +211,7 @@ export def chat_gpt [
     --delim_with_backquotes(-d)   # to delimit prompt (not pre-prompt) with triple backquotes (')
     --select_system: string                       # directly select system message    
     --select_preprompt: string                    # directly select pre_prompt
+    --document:string   #use provided document to retrieve answer
 ] {
   let prompt = if ($prompt | is-empty) {$in} else {$prompt}
   if ($prompt | is-empty) {
@@ -272,7 +273,9 @@ export def chat_gpt [
 
   #build prompt
   let prompt = (
-    if ($preprompt | is-empty) and $delim_with_backquotes {
+    if ($document | is-not-empty) {
+      $preprompt + "\n# DOCUMENT\n\n" + (open $document) + "\n\n# INPUT\n\n'''\n" + $prompt + "\n'''" 
+    } else if ($preprompt | is-empty) and $delim_with_backquotes {
       "'''" + "\n" + $prompt + "\n" + "'''"
     } else if ($preprompt | is-empty) {
       $prompt
@@ -366,7 +369,7 @@ export def askai [
   --summarizer(-S) #use simple summarizer s.m with temp 0.70
   --list_system(-l)       # select s.m from list (takes precedence over flags)
   --list_preprompt(-p)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
-  --delimit_with_quotes(-d) = true #add '''  before and after prompt
+  --delimit_with_quotes(-q) = true #add '''  before and after prompt
   --temperature(-t):float # takes precedence over the 0.7 and 0.9
   --gpt4(-g)              # use gpt-4o instead of gpt-4o-mini (default)
   --vision(-v)            # use gpt-4-vision/gemini-pro-vision
@@ -378,6 +381,7 @@ export def askai [
   --database(-D) #load chat conversation from database
   --web_search(-w) #include web search results into the prompt
   --web_results(-W):int = 5 #how many web results to include
+  --document(-d):string  # answer question from provided document
 ] {
   let prompt = if $fast {
     open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
@@ -439,6 +443,8 @@ export def askai [
         "biblical_assistant"
       } else if $summarizer {
         "simple_summarizer"
+      } else if ($document | is-not-empty) {
+        "document_expert"
       } else {
         "assistant"
       }
@@ -452,6 +458,8 @@ export def askai [
       "improve_academic_writing"
     } else if $summarizer {
       "simple_summary"
+    } else if ($document | is-not-empty) {
+        "document_answer"
     } else {
       "empty"
     }
@@ -460,7 +468,7 @@ export def askai [
   #chat mode
   if $chat {
     if $gemini {
-      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -W $web_results --select_preprompt $pre_prompt
+      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -W $web_results --select_preprompt $pre_prompt --document $document
     } else {
       # chat_gpt $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d $delimit_with_quotes
       print (echo-g "in progress")
@@ -473,11 +481,11 @@ export def askai [
   if $gemini {
     let answer = (
       if $vision {
-        google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -p $list_preprompt -d true -i $image --select_preprompt $pre_prompt --select_system $system
+        google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -p $list_preprompt -d true -i $image --select_preprompt $pre_prompt --select_system $system 
       } else {
           match $bison {
-          true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d true -w $web_search -W $web_results --select_preprompt $pre_prompt --select_system $system},
-          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m gemini-1.5-pro-latest -d true -w $web_search -W $web_results --select_preprompt $pre_prompt --select_system $system},
+          true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d true -w $web_search -W $web_results --select_preprompt $pre_prompt --select_system $system --document $document},
+          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m gemini-1.5-pro-latest -d true -w $web_search -W $web_results --select_preprompt $pre_prompt --select_system $system --document $document},
         }
       }
     )
@@ -1332,6 +1340,7 @@ export def google_ai [
     --web_results(-W):int = 5     #number of web results to include
     --max_retries(-r):int = 5 #max number of retries in case of server-side errors 
     --verbose(-v) = false     #show the attempts to call the gemini api
+    --document:string         #uses provided document to retrieve the answer
 ] {
   #api parameters
   let apikey = $env.MY_ENV_VARS.api_keys.google.gemini
@@ -1404,7 +1413,9 @@ export def google_ai [
 
   #build prompt
   let prompt = (
-    if ($preprompt | is-empty) and $delim_with_backquotes {
+    if ($document | is-not-empty) {
+      $preprompt + "\n# DOCUMENT\n\n" + (open $document) + "\n\n# INPUT\n\n'''\n" + $query + "\n'''" 
+    } else if ($preprompt | is-empty) and $delim_with_backquotes {
       "'''" + "\n" + $query + "\n" + "'''"
     } else if ($preprompt | is-empty) {
       $query
