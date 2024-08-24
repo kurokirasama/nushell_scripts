@@ -65,6 +65,9 @@ export def --env gmail [] {
 }
 
 #wrapper for mermaid diagrams
+#
+#Usage:
+#   m -i file.mmd --other_mmcd_options -o pdf/png/svg
 export def --wrapped m [
   ...rest #arguments for mmcd
   --output_format(-o):string = "pdf" #png, svg or pdf
