@@ -298,8 +298,8 @@ let my_config = (
     $my_config 
     | upsert table.trim $tableTrim
     | upsert use_kitty_protocol true
-    | upsert completions.algorithm prefix #fuzzy
-    | upsert recursion_limit 100
+    | upsert completions.algorithm fuzzy #prefix
+    | upsert recursion_limit 500
 )
 
 #updating $env.config
@@ -308,6 +308,7 @@ $env.config = $my_config
 $env.config.float_precision = 4;
 $env.config.filesize.metric = true
 $env.config.cursor_shape.emacs = "blink_line"
+$env.config.highlight_resolved_externals = true
 
 #for fun
 # try {
