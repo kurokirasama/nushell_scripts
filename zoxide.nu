@@ -21,7 +21,8 @@ def "__z_complete" [line : string, pos: int] {
   {
     completions : $data,
                 options: {
-                 completion_algorithm: "fuzzy"
+                 completion_algorithm: "fuzzy",
+                 positional: false
                 }
   }
 }
