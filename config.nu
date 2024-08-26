@@ -1,51 +1,57 @@
-#modifying $env.config...
-let my_config = $env.config
-
-#restoring custom color config
-mut my_color_config = ($my_config 
-	| get color_config 
-	| upsert shape_internalcall (if TERMINUS_SUBLIME in $env {"light_cyan_bold"} else { fg: "#00b7ff" attr: b} )
-	| upsert shape_external (if TERMINUS_SUBLIME in $env {"xterm_skyblue2"} else "#00b7ff" )
-)
-
-$my_color_config.filesize = {|e| 
-	if $e == 0b {
-		'white'
-	} else if $e < 1mb {
-		'cyan'
-	} else if $e < 1gb {
-		'cyan_bold'
-	} else {
-		'blue'
-	}
+#color config
+$env.config.color_config.shape_internalcall = if TERMINUS_SUBLIME in $env {"light_cyan_bold"} else { fg: "#00b7ff" attr: b}
+$env.config.color_config.shape_external = if TERMINUS_SUBLIME in $env {"xterm_skyblue2"} else {"#00b7ff"}
+$env.config.color_config.shape_external_resolved = { fg: blue attr: b }
+$env.config.color_config.filesize = {|e| 
+    if $e == 0b {
+        'white'
+    } else if $e < 1mb {
+        'cyan'
+    } else if $e < 1gb {
+        'cyan_bold'
+    } else {
+        'blue'
+    }
 }
 
-let my_config = (
-	$my_config 
-	| upsert table.trim.wrapping_try_keep_words false
-	| upsert color_config $my_color_config 
-	| upsert show_banner false
-	| upsert ls.clickable_links false
-	| upsert table.mode (if TERMINUS_SUBLIME in $env {"ascii_rounded"} else {"rounded"})
-    | upsert table.show_empty false
-	| upsert history.file_format sqlite
-)
+#table config
+$env.config.table.trim.wrapping_try_keep_words = false
+$env.config.table.mode = if TERMINUS_SUBLIME in $env {"ascii_rounded"} else {"rounded"}
+$env.config.table.show_empty = false
+$env.config.table.trim = {
+    methodology: "truncating", # wrapping
+    wrapping_try_keep_words: true,
+    truncating_suffix: "❱" #...
+  }
 
-#restoring hooks
-let hooks = {
+#miscelaneous
+$env.config.history.file_format = "sqlite"
+$env.config.show_banner = false
+$env.config.ls.clickable_links = false
+$env.config.use_kitty_protocol = true
+$env.config.recursion_limit = 500
+$env.config.completions.algorithm = "prefix" #fuzzy
+$env.config.completions.use_ls_colors = true
+$env.config.float_precision = 4;
+$env.config.filesize.metric = true
+$env.config.cursor_shape.emacs = "blink_line"
+$env.config.highlight_resolved_externals = true
+
+#hooks
+$env.config.hooks = {
     pre_prompt: [
         {||
-        	$env.GIT_STATUS = (
-    			try {
-        			if (ls .git | length) > 0 and (git status -s | str length) > 0 {
-            			git status -s | lines | length
-        			} else {
-            			0
-        			}	
-    			} catch {
-        			0
-    			}
-			)
+            $env.GIT_STATUS = (
+                try {
+                    if (ls .git | length) > 0 and (git status -s | str length) > 0 {
+                        git status -s | lines | length
+                    } else {
+                        0
+                    }   
+                } catch {
+                    0
+                }
+            )
 
             $env.CLOUD = (
                 if $env.PWD =~ "rclone/" {
@@ -84,21 +90,21 @@ let hooks = {
         }
     ]
     pre_execution: [
-    	{||
-    		nu ("~/Yandex.Disk/Backups/linux/my_scripts/nushell/pre_execution_hook.nu" | path expand)
-    	}
+        {||
+            nu ("~/Yandex.Disk/Backups/linux/my_scripts/nushell/pre_execution_hook.nu" | path expand)
+        }
     ]
     env_change: {
       PWD: [
-      	{|before, after|
-			source-env ("~/Yandex.Disk/Backups/linux/my_scripts/nushell/env_change_hook.nu" | path expand)
-      	}
-      	{|before, after| 
-      		try {print (ls | sort-by -i type name | grid -c -s " ")}      		
-      	}
-      	{|_, dir|
-      		zoxide add -- $dir
-      	}
+        {|before, after|
+            source-env ("~/Yandex.Disk/Backups/linux/my_scripts/nushell/env_change_hook.nu" | path expand)
+        }
+        {|before, after| 
+            try {print (ls | sort-by -i type name | grid -c)}           
+        }
+        {|_, dir|
+            zoxide add -- $dir
+        }
         {
             condition: {".autouse.nu" | path exists},
             code: "source .autouse.nu"
@@ -110,10 +116,8 @@ let hooks = {
     }
   }
 
-let my_config = ($my_config | upsert hooks $hooks)
-let my_config = ($my_config | upsert completions.use_ls_colors true)
-
-#restoring menus
+#menus
+let new_menus_names = ["alias_menu"]
 let alias_menu = {
     name: alias_menu
     only_buffer_difference: false
@@ -136,33 +140,13 @@ let alias_menu = {
     }
 }
 
-let menus = ($my_config | get menus | indexify idx)
+$env.config.menus = $env.config.menus | where name not-in $new_menus_names | append $alias_menu
 
-let alias_menu_row = (
-	$menus 
-	| find "alias_menu" 
-	| try {
-      	get idx | get 0
-      } catch {
-        -1
-      }
-)
-
-let menus = (
-	$menus 
-	| where idx not-in [$alias_menu_row] 
-	| reject idx 
-	| append $alias_menu
-)
-
-let my_config = ($my_config | upsert menus $menus)
-
-#restoring keybinds
-let keybindings = ($my_config | get keybindings | find -v completion_menu | indexify idx)
-mut new_indexes = []
+#keybindings
+let new_keybinds_names = ["alias_menu" "reload_config" "update_right_prompt" "insert_newline" "insert_last_argument" "insert_sudo" "completion_menu" "ide_completion_menu" "fuzzy_select_fs"]
 let new_keybinds = [
-	{
-  		name: alias_menu
+    {
+        name: alias_menu
         modifier: alt
         keycode: char_a
         mode: [emacs, vi_normal, vi_insert]
@@ -170,8 +154,8 @@ let new_keybinds = [
             { send: menu name: alias_menu }
             { edit: insertchar, value: ' '}
         ]
-  	 },
-  	{
+     },
+    {
         name: reload_config
         modifier: alt
         keycode: char_x
@@ -179,7 +163,7 @@ let new_keybinds = [
         event: {
           send: executehostcommand,
           cmd: $"source ($nu.config-path)"
-      	}
+        }
     },
     {
         name: update_right_prompt
@@ -189,7 +173,7 @@ let new_keybinds = [
         event: {
           send: executehostcommand,
           cmd: $"source-env ([($env.MY_ENV_VARS.nu_scripts) update_right_prompt.nu] | path join)"
-      	}        
+        }        
     },
     {
         name: insert_newline
@@ -204,9 +188,9 @@ let new_keybinds = [
         keycode: char_i
         mode: emacs
         event: [{  
-        			edit: InsertString,
-            	  	value: "!$"
-          	   },
+                    edit: InsertString,
+                    value: "!$"
+               },
                { send: Enter }]
     },
     {
@@ -260,55 +244,8 @@ let new_keybinds = [
     }
 ]
 
-let n_new_k = ($new_keybinds | length)
+$env.config.keybindings = $env.config.keybindings | where name not-in $new_keybinds_names | append $new_keybinds
 
-let new_indexes = (
-	$new_keybinds 
-	| each {|key|
-		let name = ($key | get name)
-		$keybindings 
-		| find $name 
-		| try {
-      		get idx | get 0
-    	  } catch {
-      		-1
-    	  }
-		| get 0
-	}
-)
-
-##updating
-let keybindings = (
-	$keybindings 
-	| where idx not-in $new_indexes 
-	| reject idx
-	| append $new_keybinds
-)
-
-let my_config = ($my_config | upsert keybindings $keybindings)
-
-#restoring table_trim
-let tableTrim = {
-    methodology: truncating, # wrapping
-    wrapping_try_keep_words: true,
-    truncating_suffix: "❱" #...
-  }
-
-let my_config = (
-    $my_config 
-    | upsert table.trim $tableTrim
-    | upsert use_kitty_protocol true
-    | upsert completions.algorithm fuzzy #prefix
-    | upsert recursion_limit 500
-)
-
-#updating $env.config
-$env.config = $my_config  
-
-$env.config.float_precision = 4;
-$env.config.filesize.metric = true
-$env.config.cursor_shape.emacs = "blink_line"
-$env.config.highlight_resolved_externals = true
 
 #for fun
 # try {

@@ -683,25 +683,29 @@ export def "apps-update gmail" [] {
 }
 
 #update nushell
-export def "apps-update nushell" [] {
+export def "apps-update nushell" [--repo(-r)] {
   print (echo-g "updating nushell...")
   cd ~/software/nushell
   git pull
-  bash scripts/install-all.sh
+  if $repo {
+    bash scripts/install-all.sh
+  } else {
+    cargo install nu nu_plugin_inc nu_plugin_gstat nu_plugin_query nu_plugin_formats nu_plugin_polars #nu_plugin_custom_values
+  }
 
   plugin add ~/.cargo/bin/nu_plugin_inc
   plugin add ~/.cargo/bin/nu_plugin_gstat
   plugin add ~/.cargo/bin/nu_plugin_query
-  plugin add ~/.cargo/bin/nu_plugin_custom_values
   plugin add ~/.cargo/bin/nu_plugin_formats
   plugin add ~/.cargo/bin/nu_plugin_polars
-  
+  # plugin add ~/.cargo/bin/nu_plugin_custom_values
+
   plugin use ~/.cargo/bin/nu_plugin_inc
   plugin use ~/.cargo/bin/nu_plugin_gstat
   plugin use ~/.cargo/bin/nu_plugin_query
-  plugin use ~/.cargo/bin/nu_plugin_custom_values
   plugin use ~/.cargo/bin/nu_plugin_formats
   plugin use ~/.cargo/bin/nu_plugin_polars
+  # plugin use ~/.cargo/bin/nu_plugin_custom_values
 
   cargo clean
 
@@ -732,19 +736,19 @@ export def "apps-update nushell-plugins" [] {
   cargo install --git https://github.com/FMotalleb/nu_plugin_port_scan
   cargo install --git https://github.com/FMotalleb/nu_plugin_image.git
 
-  # plugin add ~/.cargo/bin/nu_plugin_net
+  plugin add ~/.cargo/bin/nu_plugin_net
+  plugin add ~/.cargo/bin/nu_plugin_highlight
+  plugin add ~/.cargo/bin/nu_plugin_units
+  plugin add ~/.cargo/bin/nu_plugin_port_scan
+  plugin add ~/.cargo/bin/nu_plugin_image
   # plugin add ~/.cargo/bin/nu_plugin_plot
-  # plugin add ~/.cargo/bin/nu_plugin_highlight
-  # plugin add ~/.cargo/bin/nu_plugin_units
-  # plugin add ~/.cargo/bin/nu_plugin_port_scan
-  # plugin add ~/.cargo/bin/nu_plugin_image
 
-  # plugin use ~/.cargo/bin/nu_plugin_net
+  plugin use ~/.cargo/bin/nu_plugin_net
+  plugin use ~/.cargo/bin/nu_plugin_highlight
+  plugin use ~/.cargo/bin/nu_plugin_units
+  plugin use ~/.cargo/bin/nu_plugin_port_scan
+  plugin use ~/.cargo/bin/nu_plugin_image
   # plugin use ~/.cargo/bin/nu_plugin_plot
-  # plugin use ~/.cargo/bin/nu_plugin_highlight
-  # plugin use ~/.cargo/bin/nu_plugin_units
-  # plugin use ~/.cargo/bin/nu_plugin_port_scan
-  # plugin use ~/.cargo/bin/nu_plugin_image
 }
 
 #upgrade pip3 packages
