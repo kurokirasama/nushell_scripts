@@ -552,9 +552,13 @@ export def "obs search" [
 #obsidian create new note
 export def "obs create" [
   name:string   # name of the note
-  content:string   # content of the note
-  v_path?:string # path for the note in vault, otherwise select from list
+  content?:string # content of the note
+  --v_path(-v):string # path for the note in vault, otherwise select from list
+  --sub_path(-s) # select subpath
 ] {
+  let content = if ($content | is-empty) {$in} else {$content}
+  if ($content | is-empty) {return-error "empty content!"}
+
   let v_path = if ($v_path | is-empty) {
     ls $env.MY_ENV_VARS.api_keys.obsidian.vault 
     | get name 
@@ -567,11 +571,25 @@ export def "obs create" [
       $v_path
     }
 
+  let sub_path = if $sub_path {
+    ls ($env.MY_ENV_VARS.api_keys.obsidian.vault | path join $v_path)
+    | where type == "dir"
+    | get name
+    | path parse
+    | get stem
+    | sort
+    | input list -f (echo-g "Select sub_path for the note: ")
+    } else {
+      ""
+    }
+
   let check = obs check
 
   if $check.status != "OK" {
     return-error "something went wrong with the server!"
   }
+ 
+  let v_path = if ($sub_path | is-empty) {$v_path} else {$v_path + "/" + $sub_path}
 
   let check_path = obs check-path $v_path
 

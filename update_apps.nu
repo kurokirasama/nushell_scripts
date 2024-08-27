@@ -1,3 +1,69 @@
+#update nushell
+export def "apps-update nushell" [
+  --repo(-r)    #install from repo instead of cargo
+  --plugins(-p) #install e3rd party plugins
+] {
+  print (echo-g "updating nushell...")
+  cd ~/software/nushell
+  git pull
+  
+  if $repo {
+    bash scripts/install-all.sh
+  } else {
+    cargo install-update nu nu_plugin_inc nu_plugin_gstat nu_plugin_query nu_plugin_formats nu_plugin_polars #nu_plugin_custom_values
+  }
+
+  plugin add ~/.cargo/bin/nu_plugin_inc
+  plugin add ~/.cargo/bin/nu_plugin_gstat
+  plugin add ~/.cargo/bin/nu_plugin_query
+  plugin add ~/.cargo/bin/nu_plugin_formats
+  plugin add ~/.cargo/bin/nu_plugin_polars
+  # plugin add ~/.cargo/bin/nu_plugin_custom_values
+
+  plugin use ~/.cargo/bin/nu_plugin_inc
+  plugin use ~/.cargo/bin/nu_plugin_gstat
+  plugin use ~/.cargo/bin/nu_plugin_query
+  plugin use ~/.cargo/bin/nu_plugin_formats
+  plugin use ~/.cargo/bin/nu_plugin_polars
+  # plugin use ~/.cargo/bin/nu_plugin_custom_values
+
+  cargo clean
+
+  print (echo-g "updating config file...")
+  update-nu-config
+
+  if $plugins {
+    print (echo-g "updating plugins...")
+    apps-update nushell-plugins
+  }
+}
+
+#update nushell 3rd party plugins
+#
+#nu_plugin_net nu_plugin_highlight nu_plugin_units nu_plugin_port_scan nu_plugin_image
+export def "apps-update nushell-plugins" [] {
+  cargo install-update nu_plugin_net nu_plugin_highlight nu_plugin_units #nu_plugin_plot
+  cargo install --git https://github.com/FMotalleb/nu_plugin_port_scan.git
+  cargo install --git https://github.com/FMotalleb/nu_plugin_image.git
+  # cargo install --git https://github.com/amtoine/nu_plugin_explore.git
+
+  plugin add ~/.cargo/bin/nu_plugin_net
+  plugin add ~/.cargo/bin/nu_plugin_highlight
+  plugin add ~/.cargo/bin/nu_plugin_units
+  plugin add ~/.cargo/bin/nu_plugin_port_scan
+  plugin add ~/.cargo/bin/nu_plugin_image
+  # plugin add ~/.cargo/bin/nu_plugin_plot
+  # plugin add ~/.cargo/bin/nu_plugin_explore
+
+  plugin use ~/.cargo/bin/nu_plugin_net
+  plugin use ~/.cargo/bin/nu_plugin_highlight
+  plugin use ~/.cargo/bin/nu_plugin_units
+  plugin use ~/.cargo/bin/nu_plugin_port_scan
+  plugin use ~/.cargo/bin/nu_plugin_image
+  # plugin use ~/.cargo/bin/nu_plugin_plot
+  # plugin add ~/.cargo/bin/nu_plugin_explore
+}
+
 #patch font with nerd font
 export def patch-font [file? = "Monocraft.ttc"] {
   let nerd_font = "~/software/nerd-fonts"
@@ -680,75 +746,6 @@ export def "apps-update gmail" [] {
   git pull
   go build ./cmd/cmdg
   sudo cp cmdg /usr/local/bin
-}
-
-#update nushell
-export def "apps-update nushell" [--repo(-r)] {
-  print (echo-g "updating nushell...")
-  cd ~/software/nushell
-  git pull
-  if $repo {
-    bash scripts/install-all.sh
-  } else {
-    cargo install nu nu_plugin_inc nu_plugin_gstat nu_plugin_query nu_plugin_formats nu_plugin_polars #nu_plugin_custom_values
-  }
-
-  plugin add ~/.cargo/bin/nu_plugin_inc
-  plugin add ~/.cargo/bin/nu_plugin_gstat
-  plugin add ~/.cargo/bin/nu_plugin_query
-  plugin add ~/.cargo/bin/nu_plugin_formats
-  plugin add ~/.cargo/bin/nu_plugin_polars
-  # plugin add ~/.cargo/bin/nu_plugin_custom_values
-
-  plugin use ~/.cargo/bin/nu_plugin_inc
-  plugin use ~/.cargo/bin/nu_plugin_gstat
-  plugin use ~/.cargo/bin/nu_plugin_query
-  plugin use ~/.cargo/bin/nu_plugin_formats
-  plugin use ~/.cargo/bin/nu_plugin_polars
-  # plugin use ~/.cargo/bin/nu_plugin_custom_values
-
-  cargo clean
-
-  print (echo-g "updating plugins...")
-  apps-update nushell-plugins
-
-  #polars aliases
-  # let polares = scope commands | select name | find polars | ansi-strip-table | find -v melt & replace
-  # let p_aliases = (
-  #   $polares 
-  #   | skip 
-  #   | each {|n| 
-  #       'export alias "p ' + ($n.name | split row " " | get 1) + '" = ' + $n.name
-  #     }
-  # )
-
-  # let p_aliases = $p_aliases ++ 'export alias p = polars'
-
-  # $p_aliases | save -f ([$env.MY_ENV_VARS.nu_scripts polars_aliases.nu] | path join)
-
-  print (echo-g "updating config file...")
-  update-nu-config
-}
-
-#update nushell plugins
-export def "apps-update nushell-plugins" [] {
-  cargo install-update nu_plugin_net nu_plugin_plot nu_plugin_highlight nu_plugin_units 
-  cargo install --git https://github.com/FMotalleb/nu_plugin_port_scan
-  cargo install --git https://github.com/FMotalleb/nu_plugin_image.git
-
-  plugin add ~/.cargo/bin/nu_plugin_net
-  plugin add ~/.cargo/bin/nu_plugin_highlight
-  plugin add ~/.cargo/bin/nu_plugin_units
-  plugin add ~/.cargo/bin/nu_plugin_port_scan
-  plugin add ~/.cargo/bin/nu_plugin_image
-  # plugin add ~/.cargo/bin/nu_plugin_plot
-
-  plugin use ~/.cargo/bin/nu_plugin_net
-  plugin use ~/.cargo/bin/nu_plugin_highlight
-  plugin use ~/.cargo/bin/nu_plugin_units
-  plugin use ~/.cargo/bin/nu_plugin_port_scan
-  plugin use ~/.cargo/bin/nu_plugin_image
-  # plugin use ~/.cargo/bin/nu_plugin_plot
 }
 
 #upgrade pip3 packages
