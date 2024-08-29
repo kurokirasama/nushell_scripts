@@ -997,8 +997,11 @@ export def dall_e [
 
         #translate prompt if not in english
         let english = google_ai --select_preprompt is_in_english -d true $prompt | from json | get english | into bool
-        let prompt = if $english {google_ai --select_preprompt translate_dalle_prompt -d true $prompt} else {$prompt}
-        let prompt = google_ai --select_preprompt improve_dalle_prompt -d true $prompt
+        let prompt = if $english {google_ai --select_system ai_art_creator --select_preprompt translate_dalle_prompt -d true $prompt} else {$prompt}
+        let prompt = google_ai --select_system ai_art_creator --select_preprompt improve_dalle_prompt -d true $prompt
+
+        print (echo-g "improved prompt: ")
+        print ($prompt)
 
         let site = "https://api.openai.com/v1/images/generations"
 
