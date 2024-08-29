@@ -375,7 +375,7 @@ export def askai [
   --vision(-v)            # use gpt-4-vision/gemini-pro-vision
   --image(-i):string      # filepath of the image to prompt to vision models
   --fast(-f) # get prompt from prompt.md file and save response to answer.md
-  --gemini(-G) #use google gemini instead of chatgpt. gemini-1.5-flash-latest for chat, gemini-1.5-pro-latest otherwise
+  --gemini(-G) #use google gemini instead of chatgpt. gemini-1.5-flash for chat, gemini-1.5-pro otherwise
   --bison(-b)  #use google bison instead of chatgpt (needs --gemini)
   --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt4
   --database(-D) #load chat conversation from database
@@ -485,7 +485,7 @@ export def askai [
       } else {
           match $bison {
           true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d true -w $web_search -W $web_results --select_preprompt $pre_prompt --select_system $system --document $document},
-          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m gemini-1.5-pro-latest -d true -w $web_search -W $web_results --select_preprompt $pre_prompt --select_system $system --document $document},
+          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m gemini-1.5-pro -d true -w $web_search -W $web_results --select_preprompt $pre_prompt --select_system $system --document $document},
         }
       }
     )
@@ -539,7 +539,7 @@ export alias chatgpt = askai -c -g -W 3
 #Inspired by https://github.com/zurawiki/gptcommit
 export def "ai git-push" [
   --gpt4(-g) # use gpt-4o instead of gpt-4o-mini
-  --gemini(-G) #use google gemini-1.5-pro-latest model
+  --gemini(-G) #use google gemini-1.5-pro model
 ] {
   if $gpt4 and $gemini {
     return-error "select only one model!"
@@ -582,12 +582,12 @@ export def "ai git-push" [
         },
         [false,true] => {
           try {
-            google_ai $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true -m gemini-1.5-pro-latest
+            google_ai $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true -m gemini-1.5-pro
           } catch {
             try {
-              google_ai $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true -m gemini-1.5-pro-latest
+              google_ai $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true -m gemini-1.5-pro
             } catch {
-              google_ai $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d true -m gemini-1.5-pro-latest
+              google_ai $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d true -m gemini-1.5-pro
             }
           }
         }
@@ -688,7 +688,7 @@ export def "ai media-summary" [
   file:string            # video, audio or subtitle file (vtt, srt, txt, url) file name with extension
   --lang(-l):string = "Spanish" # language of the summary
   --gpt4(-g)             # to use gpt-4o instead of gpt-4o-mini
-  --gemini(-G)           # use google gemini-1.5-pro-latest instead of gpt
+  --gemini(-G)           # use google gemini-1.5-pro instead of gpt
   --notify(-n)           # notify to android via join/tasker
   --upload(-u)           # upload extracted audio to gdrive
   --type(-t): string = "meeting" # meeting, youtube, class or instructions
@@ -792,7 +792,7 @@ export def "ai media-summary" [
     } else if (not $gemini) {
       chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d
     } else {
-      google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m gemini-1.5-pro-latest
+      google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m gemini-1.5-pro
     }
     | save -f $output
 
@@ -812,7 +812,7 @@ export def "ai transcription-summary" [
   prompt                #transcription text
   output                #output name without extension
   --gpt4(-g) = false    #whether to use gpt-4o
-  --gemini(-G) = false  #use google gemini-1.5-pro-latest
+  --gemini(-G) = false  #use google gemini-1.5-pro
   --type(-t): string = "meeting" # meeting, youtube or class
   --notify(-n)          #notify to android via join/tasker
 ] {
@@ -838,7 +838,7 @@ export def "ai transcription-summary" [
   } else if (not $gemini) {
     chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d
   } else {
-    google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m gemini-1.5-pro-latest
+    google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m gemini-1.5-pro
   }
   | save -f $output_file
 
@@ -1294,7 +1294,7 @@ export def tts [
 #single call to google ai LLM api wrapper
 #
 #Available models at https://ai.google.dev/models:
-# - gemini-1.5-pro-latest: text & images & audio -> text, 1048576 (tokens), 2 RPM
+# - gemini-1.5-pro: text & images & audio -> text, 1048576 (tokens), 2 RPM
 # - Gemini Pro (gemini-pro): text -> text, 15 RPM
 # - Gemini Pro Vision (gemini-pro-vision): text & images -> text, 12288 (tokens), 60 RP 
 # - PaLM2 Bison (text-bison-001): text -> text
@@ -1327,7 +1327,7 @@ export def tts [
 # - --select_preprompt > --pre_prompt
 export def google_ai [
     query?: string                               # the query to Gemini
-    --model(-m):string = "gemini-1.5-flash-latest" # the model gemini-1.5-flash-latest, gemini-pro-vision, gemini-1.5-pro-latest, etc
+    --model(-m):string = "gemini-1.5-flash" # the model gemini-1.5-flash, gemini-pro-vision, gemini-1.5-pro, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9                       # the temperature of the model
     --image(-i):string                        # filepath of image file for gemini-pro-vision
@@ -1682,6 +1682,26 @@ export def google_ai [
     sleep 1sec
   }
 
+  if ($answer | is-empty) {
+    try {
+      $answer = (http post -t application/json $url_request $request)
+    } 
+
+    if ($answer | is-empty) and ($model == "gemini-1.5-pro") {
+      let model = "gemini-1.5-flash"
+      let url_request = {
+        scheme: "https",
+        host: "generativelanguage.googleapis.com",
+        path: ("/v1beta" + $for_bison_beta +  "/models/" + $model + $for_bison_gen),
+        params: {
+            key: $apikey,
+        }
+      } | url join
+
+      $answer = (http post -t application/json $url_request $request)
+    }
+  }
+
   if ($model =~ "gemini") {
     return $answer.candidates.content.parts.0.text.0
   } else if ($model =~ "bison") {
@@ -1850,7 +1870,7 @@ export def "ai trans" [
   print (echo-g $"translating to ($destination)...")
   let translated = (
     if $gemini {
-      google_ai $prompt -t 0.5 -s $system_prompt -m gemini-1.5-pro-latest
+      google_ai $prompt -t 0.5 -s $system_prompt -m gemini-1.5-pro
     } else if $gpt4 {
       chat_gpt $prompt -t 0.5 -s $system_prompt -m gpt-4
     } else {
@@ -2025,7 +2045,7 @@ export def "ai google_search-summary" [
 # debunk input using ai
 export def "ai debunk" [
   data? #file record with name field or plain text
-  --gpt4(-g) #use gpt-4o to consolidate the debunk instead of gemini-1.5-pro-latest
+  --gpt4(-g) #use gpt-4o to consolidate the debunk instead of gemini-1.5-pro
   --web_results(-w) #use web search results as input for the refutations
   --no_clean(-n)    #do not clean text
 ] {
@@ -2060,7 +2080,7 @@ export def "ai debunk" [
   #consolidation
   print (echo-g "consolidating arguments...")
   let all_arguments = {text: $data, fallacies: $log_fallacies, false_claims: $false_claims} | to json
-  let consolidation = google_ai $all_arguments --select_system debunker --select_preprompt consolidate_refutation -d true -m gemini-1.5-pro-latest
+  let consolidation = google_ai $all_arguments --select_system debunker --select_preprompt consolidate_refutation -d true -m gemini-1.5-pro
 
   return $consolidation
 }
@@ -2140,7 +2160,7 @@ export def "ai analyze_paper" [
     $analysis = (chat_gpt $data --select_system paper_analyzer --select_preprompt analyze_paper -d -m gpt-4)
   } else {
     try {
-      $analysis = (google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -m gemini-1.5-pro-latest -v $verbose)
+      $analysis = (google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -m gemini-1.5-pro -v $verbose)
       $failed = false
     }
 
@@ -2171,7 +2191,7 @@ export def "ai analyze_paper" [
     $summary = (chat_gpt $data --select_system paper_summarizer --select_preprompt summarize_paper -d -m gpt-4)
   } else {
     try {
-      $summary = (google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -m gemini-1.5-pro-latest -v $verbose)
+      $summary = (google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -m gemini-1.5-pro -v $verbose)
       $failed = false
     }
 
@@ -2204,7 +2224,7 @@ export def "ai analyze_paper" [
     $consolidated_summary = (chat_gpt $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d -m gpt-4)
   } else {
     try {
-      $consolidated_summary = (google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -m gemini-1.5-pro-latest -v $verbose )
+      $consolidated_summary = (google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -m gemini-1.5-pro -v $verbose )
       $failed = false
     }
 
@@ -2247,7 +2267,7 @@ export def "ai clean-text" [
     $data = (chat_gpt $raw_data --select_system text_cleaner --select_preprompt clean_text -d -m gpt-4)
   } else {
     try {
-      $data = (google_ai $raw_data --select_system text_cleaner --select_preprompt clean_text -d true -m gemini-1.5-pro-latest)
+      $data = (google_ai $raw_data --select_system text_cleaner --select_preprompt clean_text -d true -m gemini-1.5-pro)
       $failed = false
     }
 
@@ -2275,7 +2295,7 @@ export def "ai clean-text" [
 # analyze religious text using ai
 export def "ai analyze_religious_text" [
   data? #file record with name field or plain text
-  --gpt4(-g) #use gpt-4o to consolidate the debunk instead of gemini-1.5-pro-latest
+  --gpt4(-g) #use gpt-4o to consolidate the debunk instead of gemini-1.5-pro
   --web_results(-w) #use web search results as input for the refutations
   --no_clean(-N)    #do not clean text
   --copy(-c)        #copy response to clipboard
@@ -2333,7 +2353,7 @@ export def "ai analyze_religious_text" [
     false_claims: $false_claims, 
     } | to json
 
-  let consolidation = google_ai $all_info --select_system biblical_assistant --select_preprompt consolidate_religious_text_analysus -d true -m gemini-1.5-pro-latest -v $verbose 
+  let consolidation = google_ai $all_info --select_system biblical_assistant --select_preprompt consolidate_religious_text_analysus -d true -m gemini-1.5-pro -v $verbose 
 
   if $notify {"analysis finished!" | tasker send-notification}
   if $copy {$consolidation | xsel --input --clipboard}
