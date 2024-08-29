@@ -2166,13 +2166,6 @@ export def "ai analyze_paper" [
 
     if $failed {
       try {
-        $analysis = (google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -v $verbose)
-        $failed = false
-      }
-    }
-
-    if $failed {
-      try {
         $analysis = (chat_gpt $data --select_system paper_analyzer --select_preprompt analyze_paper -d -m gpt-4)
         $failed = false
       }
@@ -2193,13 +2186,6 @@ export def "ai analyze_paper" [
     try {
       $summary = (google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -m gemini-1.5-pro -v $verbose)
       $failed = false
-    }
-
-    if $failed {
-      try {
-        $summary = (google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -v $verbose)
-        $failed = false
-      }
     }
 
     if $failed {
@@ -2226,13 +2212,6 @@ export def "ai analyze_paper" [
     try {
       $consolidated_summary = (google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -m gemini-1.5-pro -v $verbose )
       $failed = false
-    }
-
-    if $failed {
-      try {
-        $consolidated_summary = (google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -v $verbose )
-        $failed = false
-      }
     }
 
     if $failed {
@@ -2269,13 +2248,6 @@ export def "ai clean-text" [
     try {
       $data = (google_ai $raw_data --select_system text_cleaner --select_preprompt clean_text -d true -m gemini-1.5-pro)
       $failed = false
-    }
-
-    if $failed {
-      try {
-        $data = (google_ai $raw_data --select_system text_cleaner --select_preprompt clean_text -d true)
-        $failed = false
-      }
     }
 
     if $failed {
