@@ -241,6 +241,16 @@ let new_keybinds = [
             send: executehostcommand
             cmd: "commandline edit --insert (fuzzy-dispatcher)"
         }
+    },
+    {
+        name: copy_command
+        modifier: control_alt
+        keycode: char_c
+        mode: [emacs, vi_normal, vi_insert]
+        event: {
+            send: executehostcommand
+            cmd: "commandline | xsel --input --clipboard; commandline edit --append ' # copied'"
+        }
     }
 ]
 

@@ -360,3 +360,53 @@ export def "math mean-w" [
 
 	math prod-list $numbers $weigths | math sum
 }
+
+# Calculate all of the possible permutations (ways to arrange the elements) of a list.
+#
+# Examples:
+#   # Calculate all possible ways to arrange [ 'foo', 'bar', 'baz' ]
+#   [ 'foo', 'bar', 'baz' ] | permutations
+#   # ->
+#   # [
+#   #   [ 'foo', 'bar', 'baz' ],
+#   #   [ 'foo', 'baz', 'bar' ],
+#   #   [ 'bar', 'foo', 'baz' ],
+#   #   [ 'bar', 'baz', 'foo' ],
+#   #   [ 'baz', 'bar', 'foo' ],
+#   #   [ 'baz', 'foo', 'bar' ]
+#   # ]
+export def "iter permutations" [
+  --optional(-o) # Make all elements optional.
+]: [ list -> list<list> ] {
+  let input = $in
+
+  # Base case: empty list has one permutation (the empty list itself)
+  if ($input | is-empty) { 
+    return [[ ]] # Return a list containing an empty list
+  }
+
+  # Recursive case: for each element in the input
+  $input | reduce --fold [
+    []
+  ] {|element,acc|
+    # 1. Calculate permutations of the remaining elements.
+    let remaining = $input | where {|it| $it != $element }
+    let sub_perms = $remaining | iter permutations --optional=($optional)
+
+    # 2. For each of those permutations, insert the current element at every possible position.
+    let with_element = ($sub_perms | each {|it|
+      # Generate a range of indices from 0 to the length of the permutation
+      let indices = (0..($it | length))
+
+      # For each index, insert the current element at that position in the permutation
+      $indices | each {|i| $it | insert $i $element } 
+    } | flatten) # Flatten the nested list of permutations
+
+    # 3. If optional is true, also add each permutation without the current element.
+    if $optional {
+      ($sub_perms | append $with_element) # Combine sub_perms and with_element
+    } else {
+      $with_element
+    }
+  }
+}

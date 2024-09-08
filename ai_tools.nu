@@ -62,10 +62,13 @@ export def "chatpdf add" [
     return-error "there is already a file with the same label already uploaded!"
   }  
 
-  let filename = if ($label | is-empty) {$filename} else {label}
+  let filename = if ($label | is-empty) {$filename} else {$label}
         
-  let header = $"x-api-key: ($api_key)"
-  let response = (curl -s -X POST $url -H $header -F $"file=@($filepath)" | from json)
+  # let header = $"x-api-key: ($api_key)"
+  # let response = curl -s -X POST $url -H $header -F $"file=@($filepath)" | from json
+# AQUI
+  let header = ["x-api-key" $api_key]
+  let response = http post -H $header -t multipart/form-data $url { file: (open -r $filepath) } --allow-errors
 
   if ($response | is-empty) {
     return-error "empty response!"
@@ -1675,7 +1678,7 @@ export def google_ai [
   while ($retry_counter <= $max_retries) and $error {
     if $verbose {print ($"attempt #($retry_counter)...")}
     try {
-      $answer = (http post -t application/json $url_request $request)
+      $answer = (http post -t application/json $url_request $request --allow-errors)
       $error = false
     }
     $retry_counter = $retry_counter + 1
@@ -1684,7 +1687,7 @@ export def google_ai [
 
   if ($answer | is-empty) {
     try {
-      $answer = (http post -t application/json $url_request $request)
+      $answer = (http post -t application/json $url_request $request --allow-errors)
     } 
 
     if ($answer | is-empty) and ($model == "gemini-1.5-pro") {
@@ -1698,7 +1701,7 @@ export def google_ai [
         }
       } | url join
 
-      $answer = (http post -t application/json $url_request $request)
+      $answer = (http post -t application/json $url_request $request --allow-errors)
     }
   }
 

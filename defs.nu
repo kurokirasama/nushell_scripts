@@ -275,7 +275,7 @@ export def matlab-cli [
   }
 
   if not $background {
-    matlab -nosplash -nodesktop -softwareopengl -sd ($env.PWD) -logfile ([~/Dropbox/matlab $"($log_file).txt"] | path join | path expand) -r "setenv('SHELL', '/bin/bash');"
+    matlab -nosplash -nodesktop -softwareopengl -sd ($env.PWD) -logfile ("~/Dropbox/matlab" | path join $"($log_file).txt" | path expand) -r "setenv('SHELL', '/bin/bash');"
     return
   } 
   let log = (date now | format date "%Y.%m.%d_%H.%M.%S") + "_log.txt"
@@ -288,13 +288,13 @@ export def matlab-cli [
       | get stem 
       | input list -f (echo-g "m-file to run: ")
     } else {
-      $input
+      $input | path parse | get stem
     }
   )
   
   let output = if ($output | is-empty) {$log} else {$output + ".txt"}
 
-  bash -c ($"matlab -batch \"" + "setenv('SHELL', '/bin/bash'); " + $"($input)\"" + " > ($output) &")
+  bash -c ($"matlab -batch \"" + "setenv('SHELL', '/bin/bash'); " + $"($input)\"" + $" > ($output) &")
 }
 
 #get files all at once from webpage using wget
