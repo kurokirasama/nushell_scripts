@@ -1,5 +1,10 @@
 #color config
-$env.config.color_config.shape_internalcall = if TERMINUS_SUBLIME in $env {"light_cyan_bold"} else { fg: "#00b7ff" attr: b}
+$env.config.color_config.shape_internalcall = if TERMINUS_SUBLIME in $env {
+        "light_cyan_bold"
+    } else { 
+        fg: "#00b7ff" attr: b
+    }
+
 $env.config.color_config.shape_external = if TERMINUS_SUBLIME in $env {"xterm_skyblue2"} else {"#00b7ff"}
 $env.config.color_config.shape_external_resolved = { fg: blue attr: b }
 $env.config.color_config.filesize = {|e| 
@@ -255,7 +260,6 @@ let new_keybinds = [
 ]
 
 $env.config.keybindings = $env.config.keybindings | where name not-in $new_keybinds_names | append $new_keybinds
-
 
 #for fun
 try {
