@@ -280,4 +280,3 @@ export def pivot-table [
 
   $table_1 | polars into-df | polars pivot -o $columns -i $index -v $values
 }
-

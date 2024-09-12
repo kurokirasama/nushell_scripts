@@ -225,13 +225,38 @@ export def randi [
 	random int 0..$n
 }
 
-#random selection from a list
+#random selection from a list or table
 export def rand-select [
-	x?	#list
+	x?	#list or table
+	--index(-i) #return index of selection
 ] { 
-	let xs = if ($x | is-empty) {$in} else {$x}
-	let len = ($xs | length) 
-	$xs | select (random int 0..($len - 1))
+	let xs = if ($x | is-empty) {$in} else {$x} 
+
+	match ($xs | typeof) {
+		"list" => {
+				let len = $xs | length
+				let idx = random int 0..($len - 1)
+				let selection = $xs | get $idx
+
+				if $index {
+					return {selection: $selection, index: $idx}
+				} else {
+					return ($selection)
+				}
+			},
+		"table" => {
+				let col = $xs | columns | rand-select
+				let selection = $xs | get $col | rand-select -i
+				
+				if $index {
+					return {selection: $selection.selection, column: $col, index: $selection.index}
+				} else {
+					return ($selection.selection)
+				}
+
+			},
+		_ => {return-error "input type not allowed!"}
+	}
 }
 
 #binomial coefficient (C_k^n)
