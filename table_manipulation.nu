@@ -280,3 +280,29 @@ export def pivot-table [
 
   $table_1 | polars into-df | polars pivot -o $columns -i $index -v $values
 }
+
+#generates table with an unique constant value
+export def const-table [
+ value:int #value to span
+ nrows:int #number of rows
+ --number_of_cols(-m):int #number of columns (generates colums c0, c1, etc)
+ --cols(-c):list #list of column names (it has precedence over -m)
+] {
+  let ncols = if ($cols | is-empty) {
+      $number_of_cols
+    } else {
+      $cols | length
+    }
+
+  $value 
+  | std repeat $ncols 
+  | wrap dummy 
+  | transpose -i 
+  | std repeat $nrows 
+  | flatten
+  | if ($cols | is-not-empty) {
+      $in | rename ...$cols
+    } else {
+      $in
+    }
+}

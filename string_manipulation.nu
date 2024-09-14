@@ -17,7 +17,7 @@ export def "str append" [tail: string]: [string -> string, list<string> -> list<
 #
 #needs nushell std library
 export def "str repeat" [count: int] { 
-  repeat $count | str join ""
+  std repeat $count | str join ""
 }
 
 #remove accent
@@ -279,8 +279,8 @@ export def bar [
       let title_width = ($title | str length)
       let half_width = ([(($percent_width - $title_width) / 2) 0] | math max)
 
-      let lhs = (" " | repeat ($half_width | math floor) | str join)
-      let rhs = (" " | repeat ($half_width | math ceil) | str join)
+      let lhs = (" " | std repeat ($half_width | math floor) | str join)
+      let rhs = (" " | std repeat ($half_width | math ceil) | str join)
 
       $color + $title + $lhs + $rhs
     }

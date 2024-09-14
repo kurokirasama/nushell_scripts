@@ -255,7 +255,7 @@ export def rand-select [
 				}
 
 			},
-		_ => {return-error "input type not allowed!"}
+		_ => {return-error $"($xs | typeof) type not allowed!"}
 	}
 }
 
@@ -434,4 +434,88 @@ export def "iter permutations" [
       $with_element
     }
   }
+}
+
+#random incomplete table
+export def "random table" [
+    ncols:int 
+    nrows:int 
+    value?:int = 0 #fill
+    --min(-m):int = 5 #minimum random value
+    --max(-M):int = 100 #maximum random value
+] {
+    let sample_size = random int $min..$max 
+    mut output = const-table $value $nrows -m $ncols
+    let $r = $output
+
+    for $i in 1..$sample_size {
+        let value = random int $min..$max 
+        let selection = ($r | rand-select -i) 
+        let index = $selection.index 
+        let column = $selection.column
+
+        $output = $output | merge (
+            $output 
+            | get $column 
+            | update $index $value 
+            | wrap $column
+        )
+    }
+    return ($output)
+}
+
+#get random sample from set
+export def "math sample" [
+	set:list #set to take the sample from
+	sample_size:int #size of the sample
+	--replacement(-r) #sample with replacement
+	--probabilities(-p):list #probability of each element in the set
+] {
+	if ($probabilities | is-not-empty) and ($probabilities | math sum) != 1 {
+		return-error "probabilities must add to 1"
+	}
+
+	# Sample without replacement
+	if not $replacement {
+    	if ($sample_size > ($set | length)) {
+    	    return-error "Cannot take a sample larger than the set without replacement."
+    	} 
+    
+    	#uniform distribution
+    	if ($probabilities | is-empty) {
+    		return ($set | shuffle | take $sample_size)
+    	}
+
+    	#non uniform distribution
+    	#pending
+	}
+
+	# Sample with replacement
+	#uniform distribution
+    if ($probabilities | empty?) {
+        0..($sample_size - 1) | each { 
+        	$set | rand-select
+        }
+        return
+    } 
+    
+    #non uniform distribution
+    #pending 
+} 
+
+#cumulative sum of list
+export def "math cumsum" [numbers?: list<number>] {
+	let numbers = if ($numbers | is-empty) {$in} else {$numbers}
+    mut acc = []
+
+    for i in 0..<($numbers | length) {
+        let sum = if $i == 0 {
+            $numbers | get $i
+        	} else {
+            	($acc | get ($i - 1)) + ($numbers| get $i)
+        	}
+        $acc = $acc ++ $sum
+    }
+
+    return $acc
 }
