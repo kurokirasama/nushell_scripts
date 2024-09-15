@@ -1,6 +1,6 @@
 #range to list
 export def range2list [] {
-  collect {$in}
+  each {||}
 }
 
 #ansi strip table

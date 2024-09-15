@@ -1,3 +1,11 @@
+#get $in input if necessary
+export def get-input [
+  inp #in variable
+  var #input variable
+] {
+  if ($var | is-empty) {$inp} else {$var}
+}
+
 #grep for nu
 #
 #Examples;

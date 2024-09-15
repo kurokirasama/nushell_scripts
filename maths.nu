@@ -221,8 +221,33 @@ export def "math exp" [ ] {
 #random int
 export def randi [
 	n:int #select random int in 0..n
+	--probabilities(-p):list<float> #uses non uniform distribution
 ] { 
-	random int 0..$n
+	#uniform distribution
+	if ($probabilities | is-empty) {
+		return (random int 0..$n)
+	}
+
+	#non uniform distribution
+	if ($probabilities | length) < ($n + 1) {
+		return-error $"there must be at least ($n + 1) probabilities!"
+	}
+
+	if ($probabilities | math sum) != 1 {
+		return-error $"probabilities must add to 1!"
+	}
+
+	let random_value = random float 
+	mut cumulative_probability = 0;
+
+  	for $i in 0..($n - 1) {
+  	  $cumulative_probability = $cumulative_probability + ($probabilities | get $i);
+  	  if ($random_value <= $cumulative_probability) {
+		return $i
+  	  }
+  	}
+
+  	return $n
 }
 
 #random selection from a list or table
@@ -233,9 +258,9 @@ export def rand-select [
 	let xs = if ($x | is-empty) {$in} else {$x} 
 
 	match ($xs | typeof) {
-		"list" => {
+		"list"|"range" => {
 				let len = $xs | length
-				let idx = random int 0..($len - 1)
+				let idx = randi ($len - 1)
 				let selection = $xs | get $idx
 
 				if $index {
@@ -466,41 +491,49 @@ export def "random table" [
 
 #get random sample from set
 export def "math sample" [
-	set:list #set to take the sample from
 	sample_size:int #size of the sample
+	set? #set to take the sample from
 	--replacement(-r) #sample with replacement
-	--probabilities(-p):list #probability of each element in the set
+	--probabilities(-p):list<float> #probability of each element in the set
 ] {
-	if ($probabilities | is-not-empty) and ($probabilities | math sum) != 1 {
-		return-error "probabilities must add to 1"
-	}
+	let set = get-input $in $set
+	let len = $set | length
 
-	# Sample without replacement
-	if not $replacement {
-    	if ($sample_size > ($set | length)) {
-    	    return-error "Cannot take a sample larger than the set without replacement."
-    	} 
-    
-    	#uniform distribution
-    	if ($probabilities | is-empty) {
-    		return ($set | shuffle | take $sample_size)
-    	}
-
-    	#non uniform distribution
-    	#pending
+	if ($probabilities | is-not-empty) {
+		if ($probabilities | length) != $len {
+			return-error $"must provide ($len) probabilities!"
+		}
+		if ($probabilities | math sum) != 1 {
+			return-error "probabilities must add to 1!"
+		}
 	}
 
 	# Sample with replacement
-	#uniform distribution
-    if ($probabilities | empty?) {
-        0..($sample_size - 1) | each { 
-        	$set | rand-select
-        }
-        return
+	if $replacement {
+    	return (1..$sample_size | each {$set | get (randi ($len - 1) -p $probabilities)})
+    }
+
+	# Sample without replacement
+    if $sample_size > $len {
+        return-error "Cannot take a sample larger than the set."
     } 
     
-    #non uniform distribution
-    #pending 
+    #uniform distribution
+    if ($probabilities | is-empty) {
+    	return ($set | shuffle | take $sample_size)
+   	}
+
+   	#non uniform distribution
+   	mut temp = $set 
+    mut sample = []
+   	
+   	for $i in 0..($sample_size - 1) {
+   		let index = randi ($len - $i - 1) -p $probabilities
+   		$sample = $sample ++ ($temp | get $index)
+   		$temp = $temp | update $index ($temp | get ($len - $i - 1))
+   	}
+
+   	return $sample
 } 
 
 #cumulative sum of list
