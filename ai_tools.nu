@@ -39,8 +39,7 @@ export def "chatpdf add" [
   label?:string #label for the pdf (default is downcase filename with underscores as spaces)
   --notify(-n)  #notify to android via join/tasker
 ] {
-  let file = if ($file | is-empty) {$in | get name} else {$file}
-
+  let file = get-input ($in | get name) $file
   if ($file | path parse | get extension | str downcase) != pdf {
     return-error "wrong file type, it must be a pdf!"
   }
@@ -105,7 +104,7 @@ export def "chatpdf ask" [
   prompt?:string            #question to the pdf
   --select_pdf(-s):string   #specify which book to ask via filename (without extension)
 ] {
-  let prompt = if ($prompt | is-empty) {$in} else {$prompt}
+  let prompt = get-input $in $prompt
 
   let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
   let database_file = $env.MY_ENV_VARS.chatgpt_config  | path join chatpdf_ids.json
@@ -156,10 +155,8 @@ export def askpdf [
 ] {
   let prompt = if $fast {
     open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
-  } else if ($prompt | is-empty) {
-    $in
   } else {
-    $prompt
+    get-input $in $prompt
   }
 
   let answer = (
@@ -216,7 +213,7 @@ export def chat_gpt [
     --select_preprompt: string                    # directly select pre_prompt
     --document:string   #use provided document to retrieve answer
 ] {
-  let prompt = if ($prompt | is-empty) {$in} else {$prompt}
+  let prompt = get-input $in $prompt
   if ($prompt | is-empty) {
     return-error "Empty prompt!!!"
   }
@@ -388,10 +385,8 @@ export def askai [
 ] {
   let prompt = if $fast {
     open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
-  } else if ($prompt | is-empty) {
-    $in
   } else {
-    $prompt
+    get-input $in $prompt
   }
 
   if ($prompt | is-empty) and not $chat {
@@ -638,7 +633,7 @@ export def "ai audio2text" [
   --filter_noise(-f) = false  #filter noise
   --notify(-n)                #notify to android via join/tasker
 ] {
-  let file = ($filename | path parse | get stem)
+  let file = $filename | path parse | get stem
 
   mut start = ""
   mut end = ""
@@ -676,8 +671,8 @@ export def "ai video2text" [
   --filter_noise(-f) = false  #filter audio noise
   --notify(-n)                #notify to android via join/tasker
 ] {
-  let file = if ($file | is-empty) {$in} else {$file}
-  
+  let file = get-input $in $file
+
   media extract-audio $file
 
   ai audio2text $"($file | path parse | get stem).mp3" -l $language -f $filter_noise
@@ -697,9 +692,9 @@ export def "ai media-summary" [
   --type(-t): string = "meeting" # meeting, youtube, class or instructions
   --filter_noise(-f)     # filter audio noise
 ] {
-  let file = if ($file | is-empty) {$in | get name} else {$file}
+  let file = get-input ($in | get name) $file
 
-  if ($file | is-empty) {return-error "no input provided"}
+  if ($file | is-empty) {return-error "no input provided!"}
 
   mut title = ($file | path parse | get stem) 
   let extension = ($file | path parse | get extension)
@@ -913,7 +908,7 @@ export def "ai generate-subtitles" [
   --translate(-t) = false            #to translate to spanish
   --notify(-n)                       #notify to android via join/tasker
 ] {
-  let filename = ($file | path parse | get stem)
+  let filename = $file | path parse | get stem
 
   media extract-audio $file 
   ai audio2text $"($filename).mp3" -o srt -l ($language | split row "/" | get 1)
@@ -961,8 +956,9 @@ export def dall_e [
     --image(-i):string                  # image base for editing and variation
     --mask(-k):string                   # masked image for editing
 ] {
+  let prompt = get-input $in $prompt
+
   #error checking
-  let prompt = if ($prompt | is-empty) {$in} else {$prompt}
   if ($prompt | is-empty) and ($task =~ "generation|edit") {
     return-error "Empty prompt!!!"
   }
@@ -1121,10 +1117,8 @@ export def askdalle [
 ] {
   let prompt = if $fast {
     open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
-  } else if ($prompt | is-empty) {
-    $in
   } else {
-    $prompt
+    get-input $in $prompt
   }
 
   match [$dalle3,$edit,$variation] {
@@ -1164,8 +1158,8 @@ export def "ai openai-tts" [
   --output(-o):string = "speech"  #output file name
   --format(-f):string = "mp3"     #output file format
 ] {
-  let prompt = if ($prompt | is-empty) {$in} else {$prompt}
-  let output = if ($output | is-empty) {"speech"} else {$output}
+  let prompt = get-input $in $prompt
+  let output = get-input "speech" $output
 
   let header = [Authorization $"Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"]
 
@@ -1199,7 +1193,7 @@ export def "ai elevenlabs-tts" [
   --select_voice(-V)                #select voice from list 
   --select_model(-M)                #select model from list
 ] {
-  let prompt = if ($prompt | is-empty) {$in} else {$prompt} 
+  let prompt = get-input $in $prompt
 
   let get_endpoints = ["models" "voices" "history" "user"]
   let post_endpoints = ["text-to-speech"]
@@ -1786,7 +1780,6 @@ export def "gcal ai" [
 ] {
   let request = if ($request | is-empty) {$in} else {$request | str join}
   let date_now = date now | format date "%Y.%m.%d"
-
   let prompt =  $request + ".\nPlease consider that today's date is " + $date_now
 
   #get data to make query to gcal
@@ -1900,7 +1893,8 @@ export def "ai trans-sub" [
   --gemini(-G)    #use gemini
   --notify(-n)    #notify to android via join/tasker
 ] {
-  let file = if ($file | is-empty) {$file | get name} else {$file}
+  let file = get-input ($in | get name) $prompt
+
   dos2unix -q $file
 
   let $file_info = ($file | path parse)
@@ -2052,7 +2046,7 @@ export def "ai debunk" [
   --web_results(-w) #use web search results as input for the refutations
   --no_clean(-n)    #do not clean text
 ] {
-  let data = if ($data | is-empty) {$in} else {$data}
+  let data = get-input $in $data
   let data = (
     if ($data | typeof) == "table" {
       open ($data | get name.0)
@@ -2122,7 +2116,7 @@ export def "ai analyze_paper" [
   --verbose(-v)   #show gemini attempts
   --notify(-n)    #send notification when finished
 ] {
-  let paper = if ($paper | is-empty) {$in} else {$paper}
+  let paper = get-input $in $paper
 
   let file = (
     if ($paper | typeof) == "table" {
@@ -2240,7 +2234,7 @@ export def "ai clean-text" [
   text? #raw text to clean
   --gpt4(-g) = false #use gpt4 instead of gemini
 ] {
-  let raw_data = if ($text | is-empty) {$in} else {$text}
+  let raw_data = get-input $in $text
 
   mut $data = ""
   mut failed = true
@@ -2344,7 +2338,8 @@ export def "ai fix-json" [
   json?:string
   --copy(-c) #copy response to clipboeard
 ] {
-  let json = if ($json | is-empty) {$in} else {$json}
+  let json = get-input $in $json
+
   if ($json | is-empty) {return $json}
 
   mut response = []
