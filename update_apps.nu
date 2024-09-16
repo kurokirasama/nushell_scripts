@@ -931,7 +931,7 @@ export def "apps-update obsidian" [] {
 
 #update ox
 export def "apps-update ox" [] {
-  cargo install --git https://github.com/curlpipe/ox
+  cargo install --git https://github.com/curlpipe/ox ox
 
   #download plugins
   let git_token = $env.MY_ENV_VARS.api_keys.github.api_key

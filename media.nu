@@ -708,6 +708,8 @@ export def "media compress-video" [
   if $notify {"compression finished!" | tasker send-notification}
 }
 
+export alias mcv = media compress-video -nmc 18
+
 #delete original videos after compression recursively
 export def "media delete-non-compressed" [
   file?

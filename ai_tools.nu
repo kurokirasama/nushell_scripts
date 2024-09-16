@@ -1893,7 +1893,7 @@ export def "ai trans-sub" [
   --gemini(-G)    #use gemini
   --notify(-n)    #notify to android via join/tasker
 ] {
-  let file = get-input ($in | get name) $prompt
+  let file = get-input ($in | get name) $file
 
   dos2unix -q $file
 
