@@ -10,7 +10,8 @@ export def "apps-update nushell" [
   if $repo {
     bash scripts/install-all.sh
   } else {
-    cargo install-update nu nu_plugin_inc nu_plugin_gstat nu_plugin_query nu_plugin_formats nu_plugin_polars #nu_plugin_custom_values
+    cargo install-update nu 
+    cargo install-update nu_plugin_inc nu_plugin_gstat nu_plugin_query nu_plugin_formats nu_plugin_polars #nu_plugin_custom_values
   }
 
   plugin add ~/.cargo/bin/nu_plugin_inc
