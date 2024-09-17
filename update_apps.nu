@@ -357,8 +357,16 @@ export def "apps-update pandoc" [] {
 #update pandoc cross-ref
 export def "apps-update pandoc-cross-ref" [] {
   cd ~/software/pandoc-crossref
-  git pull
-  stack install
+  try {
+    git pull
+    stack install
+  } catch {
+    cd ~/software
+    rm -rf pandoc-crossref
+    git clone https://github.com/lierdakil/pandoc-crossref.git
+    cd pandoc-crossref
+    stack install
+  }
 }
 
 #update tasker helper deb

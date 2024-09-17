@@ -221,7 +221,7 @@ export def "math exp" [ ] {
 #random int
 export def randi [
 	n:int #select random int in 0..n
-	--probabilities(-p):list<float> #uses non uniform distribution
+	--probabilities(-p):list<float> #use non uniform distribution
 ] { 
 	#uniform distribution
 	if ($probabilities | is-empty) {
@@ -425,7 +425,7 @@ export def "math mean-w" [
 #   #   [ 'baz', 'bar', 'foo' ],
 #   #   [ 'baz', 'foo', 'bar' ]
 #   # ]
-export def "iter permutations" [
+export def "math permutations" [
   --optional(-o) # Make all elements optional.
 ]: [ list -> list<list> ] {
   let input = $in
@@ -489,7 +489,7 @@ export def "random table" [
     return ($output)
 }
 
-#get random sample from set
+#get random sample from list
 export def "math sample" [
 	sample_size:int #size of the sample
 	set? #set to take the sample from
@@ -500,8 +500,8 @@ export def "math sample" [
 	let len = $set | length
 
 	if ($probabilities | is-not-empty) {
-		if ($probabilities | length) != $len {
-			return-error $"must provide ($len) probabilities!"
+		if ($probabilities | length) < $len {
+			return-error $"must provide at least ($len) probabilities!"
 		}
 		if ($probabilities | math sum) != 1 {
 			return-error "probabilities must add to 1!"
