@@ -900,7 +900,12 @@ export def "apps-update mermaid" [] {
   sudo npm update --global mermaid-filter
 }
 
-#update mermaid ddgr (gg)
+#update mermaid-cli
+export def "apps-update mermaid" [] {
+  sudo npm update -g @mermaid-js/mermaid-cli
+}
+
+#update ddgr (gg)
 export def "apps-update ddgr" [] {
   cd ~/software/ddgr
   git pull
