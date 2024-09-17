@@ -901,7 +901,7 @@ export def "apps-update mermaid" [] {
 }
 
 #update mermaid-cli
-export def "apps-update mermaid" [] {
+export def "apps-update mermaid-cli" [] {
   sudo npm update -g @mermaid-js/mermaid-cli
 }
 
