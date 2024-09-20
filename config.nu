@@ -262,10 +262,10 @@ let new_keybinds = [
 $env.config.keybindings = $env.config.keybindings | where name not-in $new_keybinds_names | append $new_keybinds
 
 #for fun
-try {
-    if (random bool) {
-        print (http get -H ["Accept" "text/plain"] https://icanhazdadjoke.com)
-    } else {
-        print (http get https://api.chucknorris.io/jokes/random).value
-    }   
-}
+# try {
+#     if (random bool) {
+#         print (http get -H ["Accept" "text/plain"] https://icanhazdadjoke.com)
+#     } else {
+#         print (http get https://api.chucknorris.io/jokes/random).value
+#     }   
+# }

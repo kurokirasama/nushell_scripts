@@ -11,58 +11,53 @@ export def "apps-update nushell" [
     bash scripts/install-all.sh
   } else {
     cargo install-update nu 
-    cargo install-update nu_plugin_inc nu_plugin_gstat nu_plugin_query nu_plugin_formats nu_plugin_polars #nu_plugin_custom_values
   }
+
+  cargo clean
+
+  print (echo-g "updating config file...")
+  update-nu-config
+}
+
+#update nushell default plugins
+export def "apps-update nushell-plugins" [] {
+  cargo install-update nu_plugin_inc nu_plugin_gstat nu_plugin_query nu_plugin_formats 
+  cargo install nu_plugin_polars
 
   plugin add ~/.cargo/bin/nu_plugin_inc
   plugin add ~/.cargo/bin/nu_plugin_gstat
   plugin add ~/.cargo/bin/nu_plugin_query
   plugin add ~/.cargo/bin/nu_plugin_formats
   plugin add ~/.cargo/bin/nu_plugin_polars
-  # plugin add ~/.cargo/bin/nu_plugin_custom_values
 
   plugin use ~/.cargo/bin/nu_plugin_inc
   plugin use ~/.cargo/bin/nu_plugin_gstat
   plugin use ~/.cargo/bin/nu_plugin_query
   plugin use ~/.cargo/bin/nu_plugin_formats
   plugin use ~/.cargo/bin/nu_plugin_polars
-  # plugin use ~/.cargo/bin/nu_plugin_custom_values
-
-  cargo clean
-
-  print (echo-g "updating config file...")
-  update-nu-config
-
-  if $plugins {
-    print (echo-g "updating plugins...")
-    apps-update nushell-plugins
-  }
 }
 
 #update nushell 3rd party plugins
 #
 #nu_plugin_net nu_plugin_highlight nu_plugin_units nu_plugin_port_scan nu_plugin_image
-export def "apps-update nushell-plugins" [] {
+export def "apps-update nushell-external-plugins" [] {
   cargo install-update nu_plugin_net nu_plugin_highlight nu_plugin_units #nu_plugin_plot
   cargo install --git https://github.com/FMotalleb/nu_plugin_port_scan.git
   cargo install --git https://github.com/FMotalleb/nu_plugin_image.git
-  # cargo install --git https://github.com/amtoine/nu_plugin_explore.git
 
-  plugin add ~/.cargo/bin/nu_plugin_net
+  # plugin add ~/.cargo/bin/nu_plugin_net
   plugin add ~/.cargo/bin/nu_plugin_highlight
-  plugin add ~/.cargo/bin/nu_plugin_units
   plugin add ~/.cargo/bin/nu_plugin_port_scan
   plugin add ~/.cargo/bin/nu_plugin_image
+  # plugin add ~/.cargo/bin/nu_plugin_units
   # plugin add ~/.cargo/bin/nu_plugin_plot
-  # plugin add ~/.cargo/bin/nu_plugin_explore
 
-  plugin use ~/.cargo/bin/nu_plugin_net
+  # plugin use ~/.cargo/bin/nu_plugin_net
   plugin use ~/.cargo/bin/nu_plugin_highlight
-  plugin use ~/.cargo/bin/nu_plugin_units
   plugin use ~/.cargo/bin/nu_plugin_port_scan
   plugin use ~/.cargo/bin/nu_plugin_image
+  # plugin use ~/.cargo/bin/nu_plugin_units
   # plugin use ~/.cargo/bin/nu_plugin_plot
-  # plugin add ~/.cargo/bin/nu_plugin_explore
 }
 
 #patch font with nerd font
