@@ -578,6 +578,7 @@ export def "media compress-video" [
   --crf(-c):int = 28        #compression rate, range 0-51, sane range 18-28.
   --vcodec(-v):string = "libx265"  #video codec: libx264 | libx265.
   --append(-a):string = "com" # what to append to compressed file names
+  --jobs(-j):int = 2        #number of jobs to run in parallel
   --mkv(-m)                 #include mkv files
   --notify(-n)              #notify to android via join/tasker
 ] {
@@ -608,40 +609,40 @@ export def "media compress-video" [
       if not $mkv {
         try {
           print (echo-g "trying myffmpeg...")
-          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
+          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
         } catch {
           print (echo-r "failed myffmpeg...")
           print (echo-g "trying ffmpeg...")
-          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
+          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
         }
       } else {
         try {
           print (echo-g "trying myffmpeg...")
-          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
+          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
         } catch {
           print (echo-r "failed myffmpeg...")
           print (echo-g "trying ffmpeg...")
-          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
+          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
         }
       }
     } else {
       if not $mkv {
         try {
           print (echo-g "trying myffmpeg...")
-          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
+          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
         } catch {
           print (echo-r "failed myffmpeg...")
           print (echo-g "trying ffmpeg...")
-          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
+          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
         }
       } else {
         try {
           print (echo-g "trying myffmpeg...")
-          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
+          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
         } catch {
           print (echo-r "failed myffmpeg...")
           print (echo-g "trying ffmpeg...")
-          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs 2 ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
+          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
         }
       }
     }
