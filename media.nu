@@ -575,7 +575,7 @@ export def "media merge-videos-auto" [
 export def "media compress-video" [
   --file(-f):string         #single file
   --level(-l):int           #level of recursion (-maxdepth in ^find, minimun = 1).
-  --crf(-c):int = 28        #compression rate, range 0-51, sane range 18-28.
+  --crf(-c):int = 18        #compression rate, range 0-51, sane range 18-28.
   --vcodec(-v):string = "libx265"  #video codec: libx264 | libx265.
   --append(-a):string = "com" # what to append to compressed file names
   --jobs(-j):int = 2        #number of jobs to run in parallel
@@ -609,40 +609,40 @@ export def "media compress-video" [
       if not $mkv {
         try {
           print (echo-g "trying myffmpeg...")
-          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
+          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) myffmpeg -n -loglevel 0 -i {} -map 0:v -map 0:a -map 0:s? -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
         } catch {
           print (echo-r "failed myffmpeg...")
           print (echo-g "trying ffmpeg...")
-          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
+          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) ffmpeg -n -loglevel 0 -i {} -map 0:v -map 0:a -map 0:s? -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
         }
       } else {
         try {
           print (echo-g "trying myffmpeg...")
-          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
+          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) myffmpeg -n -loglevel 0 -i {} -map 0:v -map 0:a -map 0:s? -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
         } catch {
           print (echo-r "failed myffmpeg...")
           print (echo-g "trying ffmpeg...")
-          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
+          bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) ffmpeg -n -loglevel 0 -i {} -map 0:v -map 0:a -map 0:s? -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
         }
       }
     } else {
       if not $mkv {
         try {
           print (echo-g "trying myffmpeg...")
-          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
+          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) myffmpeg -n -loglevel 0 -i {} -map 0:v -map 0:a -map 0:s? -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
         } catch {
           print (echo-r "failed myffmpeg...")
           print (echo-g "trying ffmpeg...")
-          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
+          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) ffmpeg -n -loglevel 0 -i {} -map 0:v -map 0:a -map 0:s? -vcodec ($vcodec) -crf ($crf) -c:a aac {.}_($append).mp4"
         }
       } else {
         try {
           print (echo-g "trying myffmpeg...")
-          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) myffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
+          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) myffmpeg -n -loglevel 0 -i {} -map 0:v -map 0:a -map 0:s? -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
         } catch {
           print (echo-r "failed myffmpeg...")
           print (echo-g "trying ffmpeg...")
-          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) ffmpeg -n -loglevel 0 -i {} -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
+          bash -c $"find . -maxdepth ($level) -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' (char -i 92)(char rparen) -not -name '*($append)*' -print0 | parallel -0 --eta --jobs ($jobs) ffmpeg -n -loglevel 0 -i {} -map 0:v -map 0:a -map 0:s? -vcodec ($vcodec) -crf ($crf) -c:a aac -c:s mov_text {.}_($append).mp4"
         }
       }
     }
@@ -660,7 +660,7 @@ export def "media compress-video" [
       } catch {
         print (echo-r "failed myffmpeg...")
         print (echo-g "trying ffmpeg...")
-        ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+        ffmpeg -i $file -map 0:v -map 0:a -map 0:s? -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
       }
     },
     "mp4" => {
@@ -670,27 +670,27 @@ export def "media compress-video" [
       } catch {
         print (echo-r "failed myffmpeg...")
         print (echo-g "trying ffmpeg...")
-        ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+        ffmpeg -i $file -map 0:v -map 0:a -map 0:s? -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
       }
     },
     "h264" => {
       try {
         print (echo-g "trying myffmpeg...")
-        myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+        myffmpeg -i $file -map 0:v -map 0:a -map 0:s? -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
       } catch {
         print (echo-r "failed myffmpeg...")
         print (echo-g "trying ffmpeg...")
-        ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+        ffmpeg -i $file -map 0:v -map 0:a -map 0:s? -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
       }
     },
     "webm" => {
       try {
         print (echo-g "trying myffmpeg...")
-        myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+        myffmpeg -i $file -map 0:v -map 0:a -map 0:s? -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
       } catch {
         print (echo-r "failed myffmpeg...")
         print (echo-g "trying ffmpeg...")
-        ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+        ffmpeg -i $file -map 0:v -map 0:a -map 0:s? -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
       }
     },
     "mkv" => {
@@ -700,7 +700,7 @@ export def "media compress-video" [
       } catch {
         print (echo-r "failed myffmpeg...")
         print (echo-g "trying ffmpeg...")
-        ffmpeg -i $file -vcodec $vcodec -c:a aac -c:s mov_text $"($name)_($append).mp4"
+        ffmpeg -i $file -map 0:v -map 0:a -map 0:s? -vcodec $vcodec -c:a aac -c:s mov_text $"($name)_($append).mp4"
       }
     },
     _ => {return-error "file extension not allowed"}
@@ -709,7 +709,7 @@ export def "media compress-video" [
   if $notify {"compression finished!" | tasker send-notification}
 }
 
-export alias mcv = media compress-video -nmc 18
+export alias mcv = media compress-video -nm
 
 #delete original videos after compression recursively
 export def "media delete-non-compressed" [
