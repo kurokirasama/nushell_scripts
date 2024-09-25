@@ -39,7 +39,7 @@ export def "chatpdf add" [
   label?:string #label for the pdf (default is downcase filename with underscores as spaces)
   --notify(-n)  #notify to android via join/tasker
 ] {
-  let file = get-input ($in | get name) $file
+  let file = get-input $in $file -n
   if ($file | path parse | get extension | str downcase) != pdf {
     return-error "wrong file type, it must be a pdf!"
   }
@@ -692,13 +692,15 @@ export def "ai media-summary" [
   --type(-t): string = "meeting" # meeting, youtube, class or instructions
   --filter_noise(-f)     # filter audio noise
 ] {
-  let file = get-input ($in | get name) $file
+  let file = get-input $in $file -n
 
   if ($file | is-empty) {return-error "no input provided!"}
 
   mut title = ($file | path parse | get stem) 
   let extension = ($file | path parse | get extension)
-  let media_type = (askai -G $"does the extension file format ($file) correspond to and audio, video or subtitle file; or an url?. IMPORTANT: include as subtitle type files with txt extension. Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle, url or none. In plain text without any markdown formatting, ie, without ```" | ai fix-json | get answer)
+
+  let prompt = $"does the extension file format ($file) correspond to and audio, video or subtitle file; or an url?. IMPORTANT: include as subtitle type files with txt extension. Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle, url or none. In plain text without any markdown formatting, ie, without ```"
+  let media_type = google_ai $prompt | ai fix-json | get answer
 
   match $media_type {
     "video" => {ai video2text $file -l $lang -f $filter_noise},
@@ -1831,7 +1833,7 @@ export def "gcal ai" [
       let where = $gcal_query | get where
       let duration = $gcal_query | get duration
 
-      let title = askai -G ("if the next text is using a naming convention, rewrite it in normal writing in the original language, i.e., separate words by a space. Only return your response without any commentary on your part, in plain text without any formatting. The text: " + ($gcal_query | get title ))
+      let title = google_ai ("if the next text is using a naming convention, rewrite it in normal writing in the original language, i.e., separate words by a space. Only return your response without any commentary on your part, in plain text without any formatting. The text: " + ($gcal_query | get title ))
       
       gcal add $calendar $title $when $where $duration
     },
@@ -1893,7 +1895,7 @@ export def "ai trans-sub" [
   --gemini(-G)    #use gemini
   --notify(-n)    #notify to android via join/tasker
 ] {
-  let file = get-input ($in | get name) $file
+  let file = get-input $in $file -n
 
   dos2unix -q $file
 

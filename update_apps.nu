@@ -3,6 +3,9 @@ export def "apps-update nushell" [
   --repo(-r)    #install from repo instead of cargo
   --plugins(-p) #install e3rd party plugins
 ] {
+  print (echo-g "deleting plugins...")
+  plugin list | get filename | each {|p| plugin rm $p}
+  
   print (echo-g "updating nushell...")
   cd ~/software/nushell
   git pull

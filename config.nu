@@ -114,6 +114,10 @@ $env.config.hooks = {
             condition: {".autouse.nu" | path exists},
             code: "source .autouse.nu"
         }
+        {
+            condition: {"venv" | path exists},
+            code: "overlay use venv/bin/activate.nu"
+        }
       ]
     }
     display_output: {||
