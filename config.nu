@@ -181,7 +181,7 @@ let new_keybinds = [
         mode: emacs
         event: {
           send: executehostcommand,
-          cmd: $"source-env ([($env.MY_ENV_VARS.nu_scripts) update_right_prompt.nu] | path join)"
+          cmd: '$env.MY_ENV_VARS.l_prompt = if not ($env.MY_ENV_VARS | is-column l_prompt) {"short"} else if ($env.MY_ENV_VARS.l_prompt | is-empty) or ($env.MY_ENV_VARS.l_prompt == "short") {"long"} else {"short"}'
         }        
     },
     {

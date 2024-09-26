@@ -51,7 +51,7 @@ export def table2record [] {
 }
 
 #calculates elements that are in list a but not in list b
-export def setdiff [a,b] {
+export def setdiff [a:list,b:list] {
   $a 
   | each {|n| 
     if $n not-in $b {$n} 

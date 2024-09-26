@@ -39,38 +39,34 @@ export def ytm [
   --list(-l)              #list available music playlists for selection
   --artist(-a):string     #search by artist from all_likes
 ] {
-  let mpv_input = ([$env.MY_ENV_VARS.linux_backup "scripts/mpv_input.conf"] | path join)
-  let playlists = (ls $env.MY_ENV_VARS.youtube_database | get name)
+  let mpv_input = [$env.MY_ENV_VARS.linux_backup "scripts/mpv_input.conf"] | path join
+  let playlists = ls $env.MY_ENV_VARS.youtube_database | get name
 
-  let to_play = (
-    if $list {
+  let to_play = if $list {
       $playlists | path parse | get stem | input list -f (echo-g "Select playlist:")
     } else {
       $playlists | find $playlist | ansi strip | get 0 | path parse | get stem
     }
-  )
 
   if ($to_play | is-empty) {
     return-error "playlist not found!"
   } 
 
-  let songs = (open ([$env.MY_ENV_VARS.youtube_database $"($to_play).json"] | path join))
+  let songs = open ([$env.MY_ENV_VARS.youtube_database $"($to_play).json"] | path join)
 
-  let songs = (
-    if not ($artist | is-empty) {
+  let songs = if not ($artist | is-empty) {
       $songs 
       | str downcase "artist"
       | where "artist" =~ ($artist | str downcase)
     } else {
       $songs 
     }
-  )
     
   if ($songs | is-empty) {
     return-error "artist not found!"
   }
 
-  let len = ($songs | length)
+  let len = $songs | length
 
   $songs 
   | shuffle 
@@ -81,8 +77,12 @@ export def ytm [
       notify-send $"($song.item.title)" $"($song.item.artist)" -t 5000 --icon=/tmp/thumbnail.ico 
       tiv /tmp/thumbnail.ico        
       print (echo-g $"now playing ($song.item.title) by ($song.item.artist) [($song.index)/($len)]...")
-      ^mpv --msg-level=all=no --no-resume-playback --no-video --input-conf=($mpv_input) $song.item.url
-      sleep 1ns
+      try {
+        ^mpv --msg-level=all=no --no-resume-playback --no-video --input-conf=($mpv_input) $song.item.url
+        sleep 1ns
+      } catch {|e|
+        print (echo-r $e.msg)
+      }
     }
 }
 
@@ -92,8 +92,8 @@ export def "ytm online" [
   --list(-l)              #list available music playlists
   --artist(-a):string     #search by artist in all_likes
 ] {
-  let mpv_input = ([$env.MY_ENV_VARS.linux_backup "scripts/mpv_input.conf"] | path join)
-  let response = (yt-api)
+  let mpv_input = [$env.MY_ENV_VARS.linux_backup "scripts/mpv_input.conf"] | path join
+  let response = yt-api
 
   let playlists = (
     $response 
@@ -110,10 +110,10 @@ export def "ytm online" [
   if not $list {
     $playlists | find music & likes | ansi-strip-table
   } else {
-    let to_play = ($playlists | where title =~ $playlist | first | get id)
+    let to_play = $playlists | where title =~ $playlist | first | get id
 
     if ($to_play | length) > 0 {
-      let songs = (yt-api get-songs $to_play)
+      let songs = yt-api get-songs $to_play
 
       let songs = (
         if not ($artist | is-empty) {
@@ -125,7 +125,7 @@ export def "ytm online" [
         }
       )
 
-      let len = ($songs | length)
+      let len = $songs | length
 
       $songs 
       | shuffle 
@@ -156,8 +156,8 @@ export def yt-api [
   yt-api verify-token
 
   let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
-  let api_key = ($youtube_credential | get api_key)
-  let token = ($youtube_credential | get token)
+  let api_key = $youtube_credential | get api_key
+  let token = $youtube_credential | get token
 
   #playlist|playlist nextPage|songs|songs nextPage
   let url = (
@@ -174,7 +174,7 @@ export def yt-api [
     }
   )
 
-  let response = (http get $"($url)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json'])
+  let response = http get $"($url)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json']
  
   return $response
 }
@@ -191,13 +191,11 @@ export def "yt-api get-songs" [
   yt-api verify-token
 
   #songs|songs nextPage
-  let response = (
-    if ($ptoken | is-empty) {
+  let response = if ($ptoken | is-empty) {
       yt-api --pid $pid
     } else {
       yt-api --pid $pid --ptoken $ptoken
     }
-  )
 
   let nextpageToken = (
     if ($response | is-column nextPageToken) {
@@ -234,14 +232,12 @@ export def "yt-api get-songs" [
   )
 
   #next pages via recursion
-  let songs = (
-    if ($nextpageToken | typeof) == string {
+  let songs = if ($nextpageToken | typeof) == string {
       print -n (echo $"\rgetting page ($nextpageToken)...")
       $songs | append (yt-api get-songs $pid --ptoken $nextpageToken)
     } else {
       $songs
     }
-  )
 
   return $songs
 }
@@ -250,8 +246,8 @@ export def "yt-api get-songs" [
 export def "yt-api download-music-playlists" [
   --downloadDir(-d):string #download directory, export default: $env.MY_ENV_VARS.youtube_database
 ] {
-  let downloadDir = if ($downloadDir | is-empty) {$env.MY_ENV_VARS.youtube_database} else {$downloadDir}
-  let response = (yt-api)
+  let downloadDir = get-input $env.MY_ENV_VARS.youtube_database $downloadDir
+  let response = yt-api
 
   let playlists = (
     $response 
@@ -273,7 +269,7 @@ export def "yt-api download-music-playlists" [
   | each {|playlist|
       print (echo-g $"getting ($playlist.title)'s songs...")
       let filename = $"([($downloadDir) ($playlist.title)] | path join).json"
-      let songs = (yt-api get-songs $playlist.id)
+      let songs = yt-api get-songs $playlist.id
       
       if ($songs | length) > 0 {
         print (echo-g $"\nsaving into ($filename)...")
@@ -288,9 +284,9 @@ export def "yt-api update-all" [
   --playlist2 = "new_likes"
 ] {
   let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
-  let api_key = ($youtube_credential | get api_key)
-  let token = ($youtube_credential | get token)
-  let response = (yt-api)
+  let api_key = $youtube_credential | get api_key
+  let token = $youtube_credential | get token
+  let response = yt-api
 
   let playlists = (
     $response 
@@ -302,10 +298,10 @@ export def "yt-api update-all" [
     | rename -c {snippet: title}
   )
 
-  let from = ($playlists | find $playlist2 | get id | get 0)
-  let to = ($playlists | find $playlist1 | get id | get 0)
+  let from = $playlists | find $playlist2 | get id | get 0
+  let to = $playlists | find $playlist1 | get id | get 0
 
-  let to_add = (yt-api get-songs $from)
+  let to_add = yt-api get-songs $from
 
   print (echo-g $"copying playlist items from ($playlist2) to ($playlist1)...")
   $to_add 
@@ -323,7 +319,6 @@ export def "yt-api update-all" [
 
       http post "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&key=($api_key)" -t 'application/json' -H ["Authorization", $"Bearer ($token)"] $body | ignore
       sleep 10ms
-
     }   
 
   print (echo-g $"deleting playlist items from ($playlist2)...")
@@ -344,12 +339,12 @@ export def "yt-api update-all" [
 
 #delete all songs of a playlist
 export def "yt-api empty-playlist" [playlist?:string] {
-  let response = (yt-api)
+  let response = yt-api
 
   print (echo-g "listing playlists...")
   let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
-  let api_key = ($youtube_credential | get api_key)
-  let token = ($youtube_credential | get token)
+  let api_key = $youtube_credential | get api_key
+  let token = $youtube_credential | get token
 
   let playlists = (
     $response 
@@ -373,7 +368,7 @@ export def "yt-api empty-playlist" [playlist?:string] {
   )
 
   print (echo-g "geting songs...")
-  let songs = (yt-api get-songs $the_playlist.id)
+  let songs = yt-api get-songs $the_playlist.id
 
   print (echo-g $"removing songs from ($the_playlist.title)...")
   let header2 = "Accept: application/json"
@@ -394,12 +389,12 @@ export def "yt-api empty-playlist" [playlist?:string] {
 export def "yt-api remove-duplicated-songs" [
   playlist?:string #playlist id
 ] {
-  let response = (yt-api)
+  let response = yt-api
 
   print (echo-g "listing playlists...")
   let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
-  let api_key = ($youtube_credential | get api_key)
-  let token = ($youtube_credential | get token)
+  let api_key = $youtube_credential | get api_key
+  let token = $youtube_credential | get token
 
   let playlists = (
     $response 
@@ -455,7 +450,6 @@ export def "yt-api remove-duplicated-songs" [
 
       http post "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&key=($api_key)" -t 'application/json' -H ["Authorization", $"Bearer ($token)"] $body | ignore
       sleep 10ms
-
     } 
 
   print (echo-g "updating local database...")
@@ -465,8 +459,8 @@ export def "yt-api remove-duplicated-songs" [
 #verify if youtube api token has expired
 export def "yt-api verify-token" [] {
   let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
-  let api_key = ($youtube_credential | get api_key)
-  let token = ($youtube_credential | get token)
+  let api_key = $youtube_credential | get api_key
+  let token = $youtube_credential | get token
 
   let response = (try {
         http get $"https://youtube.googleapis.com/youtube/v3/playlists?part=snippet&mine=true&key=($api_key)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json'] 
@@ -485,7 +479,7 @@ export def "yt-api verify-token" [] {
 #update youtube api token
 export def --env "yt-api get-token" [] {
   let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
-  let client = ($youtube_credential | get client_id)
+  let client = $youtube_credential | get client_id
 
   let uri = (
     $youtube_credential 
@@ -510,14 +504,11 @@ export def --env "yt-api get-token" [] {
     | get 0
  )
 
-  let content = ($youtube_credential  | upsert token $token) 
+  let content = $youtube_credential  | upsert token $token
   
   save-credential $content youtube  
   
-  $env.MY_ENV_VARS = (
-    $env.MY_ENV_VARS
-    | upsert api_keys.youtube.token $token
-  )
+  $env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert api_keys.youtube.token $token
 }
 
 ##In progress

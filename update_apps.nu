@@ -20,6 +20,8 @@ export def "apps-update nushell" [
 
   print (echo-g "updating config file...")
   update-nu-config
+
+  print (echo-g "now restart nushell...")
 }
 
 #update nushell default plugins
@@ -61,6 +63,39 @@ export def "apps-update nushell-external-plugins" [] {
   plugin use ~/.cargo/bin/nu_plugin_image
   # plugin use ~/.cargo/bin/nu_plugin_units
   # plugin use ~/.cargo/bin/nu_plugin_plot
+}
+
+#update nu config (after nushell update)
+export def update-nu-config [] {
+  #config
+  let default = (
+    ls ($env.MY_ENV_VARS.nushell_dir + "/**/*" | into glob) 
+      | find -i default_config 
+      | get name
+      | ansi strip
+      | get 0
+  )
+  
+  cp -f $default $nu.config-path
+
+  open ([$env.MY_ENV_VARS.linux_backup "append_to_config.nu"] | path join)
+  | str replace kira $env.USER -a
+  | save --append $nu.config-path
+
+  #env
+  let default = (
+    ls ($env.MY_ENV_VARS.nushell_dir + "/**/*" | into glob) 
+      | find -i default_env 
+      | update name {|n| 
+          $n.name | ansi strip
+        }
+      | get name
+      | get 0
+  )
+
+  cp $default $nu.env-path
+
+  nu -c $"source-env ($nu.config-path)"
 }
 
 #patch font with nerd font
@@ -239,11 +274,11 @@ export def github-app-update [
   let down_dir = if ($down_dir | is-empty) {$env.MY_ENV_VARS.debs} else {$down_dir}
   cd $down_dir
 
-  let info = (get-github-latest $owner $repo -f $file_type)
+  let info = get-github-latest $owner $repo -f $file_type
 
   if ($info | is-empty) {return}
 
-  let url = ($info | get browser_download_url | ansi strip)
+  let url = $info | get browser_download_url | ansi strip
 
   let app = (
     if ($alternative_name | is-empty) {
@@ -282,7 +317,7 @@ export def github-app-update [
     }
   )
   
-  let exists = ((ls | find $app | find $file_type | length) > 0)
+  let exists = (ls | find $app | find $file_type | length) > 0
 
   if $exists {
     let current_version = (
@@ -414,7 +449,7 @@ export def "apps-update monocraft" [
     print (echo-g "New version of Monocraft downloaded, now patching nerd fonts...")
     patch-font
   } else {
-    let font = ([$env.MY_ENV_VARS.linux_backup (ls ($"($env.MY_ENV_VARS.linux_backup)/*.($type)" | into glob) | sort-by modified | last | get name | ansi strip)] | path join)
+    let font = [$env.MY_ENV_VARS.linux_backup (ls ($"($env.MY_ENV_VARS.linux_backup)/*.($type)" | into glob) | sort-by modified | last | get name | ansi strip)] | path join
     print (echo-g $"New version of Monocraft downloaded, now installing ($font | path parse | get stem)...")
     install-font $font
   }
@@ -484,7 +519,7 @@ export def "apps-update earth" [] {
     | ansi strip
   )
 
-  let current_version = (open ([$env.MY_ENV_VARS.debs earth.json] | path join) | get version)
+  let current_version = open ([$env.MY_ENV_VARS.debs earth.json] | path join) | get version
 
   if $current_version == $new_version {
     print (echo-g "earth is already in its latest version!")
@@ -505,7 +540,7 @@ export def "apps-update earth" [] {
 export def "apps-update yandex" [] {
   cd $env.MY_ENV_VARS.debs
 
-  let file = ([$env.MY_ENV_VARS.debs yandex.json] | path join) 
+  let file = [$env.MY_ENV_VARS.debs yandex.json] | path join
   
   let new_date = (
     http get http://repo.yandex.ru/yandex-disk/?instant=1 
@@ -521,7 +556,7 @@ export def "apps-update yandex" [] {
     | into datetime
   )
 
-  let old_date = (open $file | get date | into datetime)
+  let old_date = open $file | get date | into datetime
 
   if $old_date >= $new_date {
     print (echo-g "yandex is already in its latest version!")
@@ -562,11 +597,11 @@ export def "apps-update sejda" [] {
     | get 1
   )
 
-  let new_version = ($new_file | split row _ | get 1)
+  let new_version = $new_file | split row _ | get 1
 
   let url = $"https://downloads.sejda-cdn.com/($new_file)"
 
-  let sedja = ((ls *.deb | find sejda | length) > 0)
+  let sedja = (ls *.deb | find sejda | length) > 0
 
   if $sedja {
     let current_version = (
@@ -614,9 +649,9 @@ export def "apps-update nmap" [] {
 
   let url = $"https://nmap.org/dist/($new_file)"
 
-  let new_version = ($new_file  | split row .x | get 0 | str replace nmap- "")
+  let new_version = $new_file  | split row .x | get 0 | str replace nmap- ""
 
-  let nmap_list = ((ls *.deb | find nmap | length) > 0)
+  let nmap_list = (ls *.deb | find nmap | length) > 0
 
   if $nmap_list {
     let current_version = (
@@ -639,7 +674,7 @@ export def "apps-update nmap" [] {
     aria2c --download-result=hide $url
     sudo alien -v -k $new_file
 
-    let new_deb = (ls *.deb | find nmap | get 0 | get name | ansi strip)
+    let new_deb = ls *.deb | find nmap | get 0 | get name | ansi strip
 
     sudo gdebi -n $new_deb
     ls $new_file | rm-pipe | ignore
@@ -682,9 +717,9 @@ export def "apps-update ttyplot" [] {
     | first
   )
 
-  let filename = ($url | split row / | last)
+  let filename = $url | split row / | last
 
-  let new_version = ($filename | split row _ | get 1)
+  let new_version = $filename | split row _ | get 1
 
   if $current_version == $new_version {
     print (echo-g "ttyplot is already in the latest version!")
@@ -766,39 +801,6 @@ export def pip3-upgrade [] {
     }
 }
 
-#update nu config (after nushell update)
-export def update-nu-config [] {
-  #config
-  let default = (
-    ls ($env.MY_ENV_VARS.nushell_dir + "/**/*" | into glob) 
-      | find -i default_config 
-      | get name
-      | ansi strip
-      | get 0
-  )
-  
-  cp -f $default $nu.config-path
-
-  open ([$env.MY_ENV_VARS.linux_backup "append_to_config.nu"] | path join)
-  | str replace kira $env.USER -a
-  | save --append $nu.config-path
-
-  #env
-  let default = (
-    ls ($env.MY_ENV_VARS.nushell_dir + "/**/*" | into glob) 
-      | find -i default_env 
-      | update name {|n| 
-          $n.name | ansi strip
-        }
-      | get name
-      | get 0
-  )
-
-  cp $default $nu.env-path
-
-  nu -c $"source-env ($nu.config-path)"
-}
-
 #install font
 export def install-font [file] {
   sudo cp -f $file /usr/local/share/fonts
@@ -819,11 +821,6 @@ export def "apps-update whisper" [] {
   }
 }
 
-#update manim
-export def "apps-update manim" [] {
-  pip3 install manim --upgrade
-}
-
 #update yewtube
 export def "apps-update yewtube" [] {
   if (sys host | get os_version) == 20.04 {
@@ -838,7 +835,7 @@ export def "apps-update yt-dlp" [] {
   if (sys host | get os_version) == "20.04" {
     python3 -m pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz
   } else {
-    return-error "only available in Ubuntu 20.04"
+    return-error "only available in Ubuntu 20.04. In 24.04 is system-wide via package manager."
   }
 }
 
@@ -961,17 +958,17 @@ export def "apps-update ox" [] {
   | each {|url| aria2c --allow-overwrite=true $url}
 
   #updating help in programmer system message
-  if (sys host | get hostname) == "deathnote" {
-    cd /home/kira/software/ox.wiki
-    git pull
-    let ox_config = open Configuration.md
+  # if (sys host | get hostname) == "deathnote" {
+  #   cd /home/kira/software/ox.wiki
+  #   git pull
+  #   let ox_config = open Configuration.md
 
-    let p_system_file = [$env.MY_ENV_VARS.chatgpt_config system programmer.md] | path join
-    let r_line = grp "ox editor lua scripting reference" $p_system_file | get line.0 | into int
-    let p_system = open $p_system_file | lines | first $r_line | to text
+  #   let p_system_file = [$env.MY_ENV_VARS.chatgpt_config system programmer.md] | path join
+  #   let r_line = grp "ox editor lua scripting reference" $p_system_file | get line.0 | into int
+  #   let p_system = open $p_system_file | lines | first $r_line | to text
 
-    $p_system ++ "\n" ++ $ox_config | save -f $p_system_file
-  }
+  #   $p_system ++ "\n" ++ $ox_config | save -f $p_system_file
+  # }
 }
 
 #update rustc

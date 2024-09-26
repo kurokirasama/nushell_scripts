@@ -17,28 +17,28 @@ export def --env weather [--home(-h),--ubb(-b),--no_plot] {
 
 # Get weather for right command prompt
 export def --env get_weather_by_interval [INTERVAL_WEATHER:duration] {
-    let weather_runtime_file = (($env.HOME) | path join .weather_runtime_file.json)
+    let weather_runtime_file = $env.HOME | path join .weather_runtime_file.json
     
     if ($weather_runtime_file | path exists) {
-        let last_runtime_data = (open $weather_runtime_file)
+        let last_runtime_data = open $weather_runtime_file
 
         if not $env.NETWORK.status {
             return ($last_runtime_data | get weather)
         } 
 
-        let LAST_WEATHER_TIME = ($last_runtime_data | get last_weather_time)
+        let LAST_WEATHER_TIME = $last_runtime_data | get last_weather_time
     
         if ($LAST_WEATHER_TIME | into datetime) + ($INTERVAL_WEATHER | into duration) >= (date now) {
             return ($last_runtime_data | get weather)
         }
     
-        let WEATHER = (get_weather_for_prompt (get_location))
+        let WEATHER = get_weather_for_prompt (get_location)
 
         if not $WEATHER.mystatus {
             return ($last_runtime_data | get weather)
         }
         
-        let NEW_WEATHER_TIME = (date now | format date '%Y-%m-%d %H:%M:%S %z')
+        let NEW_WEATHER_TIME = date now | format date '%Y-%m-%d %H:%M:%S %z'
            
         $last_runtime_data 
         | upsert weather $"($WEATHER.Icon) ($WEATHER.Temperature)" 
@@ -48,8 +48,8 @@ export def --env get_weather_by_interval [INTERVAL_WEATHER:duration] {
     
         return $"($WEATHER.Icon) ($WEATHER.Temperature)"
     } else {
-        let WEATHER = (get_weather_for_prompt (get_location))
-        let LAST_WEATHER_TIME = (date now | format date '%Y-%m-%d %H:%M:%S %z') 
+        let WEATHER = get_weather_for_prompt (get_location)
+        let LAST_WEATHER_TIME = date now | format date '%Y-%m-%d %H:%M:%S %z'
     
         let WEATHER_DATA = {
             "weather": ($WEATHER)
@@ -81,13 +81,13 @@ def get_location [--home(-h),--ubb(-b)] {
         | wrap online
     )
 
-    let table = (locations | merge $online | find true)
+    let table = locations | merge $online | find true
 
     # if ip address in your home isn't precise, you can force a location
     if ($wifi =~ $env.MY_ENV_VARS.home_wifi) or ($table | length) == 0 or $home { 
-        "-36.877568,-73.148715" 
-    } else if $ubb or ($wifi =~ "wifi-ubb") {
-        "-36.821795,-73.014665" 
+        $env.MY_ENV_VARS.home_loc 
+    } else if $ubb or ($wifi =~ $env.MY_ENV_VARS.work_wifi) {
+         $env.MY_ENV_VARS.work_loc 
     } else { 
         let loc_json = (http get ($table | select 0).0.location)
         if ($loc_json | is-column lat) {
@@ -248,13 +248,13 @@ def get_airCond [loc] {
 
 # parse all the information
 def get_weather [loc, --plot = true] {
-    let response = (fetch_api $loc)
+    let response = fetch_api $loc
 
     if not $response.mystatus {
         return-error "something went wrong with the call to the weather api"
     }
 
-    let address = (get_address $loc)
+    let address = get_address $loc
     let air_cond = (
         try {
             get_airCond $loc
@@ -264,7 +264,7 @@ def get_weather [loc, --plot = true] {
     )
 
     ## Current conditions
-    let cond = (get_weather_description_from_code ($response.realtime.data.values.weatherCode | into string))
+    let cond = get_weather_description_from_code ($response.realtime.data.values.weatherCode | into string)
     let temp = $response.realtime.data.values.temperature
     let wind = $response.realtime.data.values.windSpeed * 3.6 
     let humi = $response.realtime.data.values.humidity 
@@ -290,8 +290,8 @@ def get_weather [loc, --plot = true] {
         | format date "%H:%M:%S"
     )
 
-    let vientos = (desc_wind $wind)
-    let uvClass = (uv_class $uvIndex)
+    let vientos = desc_wind $wind
+    let uvClass = uv_class $uvIndex
     
     let Vientos = $"($vientos) \(($wind | into string -d 2) Km/h\)"
     let humedad = $"($humi)%"
@@ -326,7 +326,7 @@ def get_weather [loc, --plot = true] {
         $data = ($data | append ($response.forecast.timelines.daily | get values | get $i | select weatherCodeMax temperatureMin temperatureMax windSpeedAvg humidityAvg precipitationProbabilityAvg rainIntensityAvg uvIndexAvg? | transpose | transpose -r))
     }
 
-    mut forecast = ($days | polars into-df | polars append ($data | polars into-df) | polars into-nu)
+    mut forecast = $days | polars into-df | polars append ($data | polars into-df) | polars into-nu
     
     let windSpeedAvg = (
         $forecast 
@@ -354,7 +354,7 @@ def get_weather [loc, --plot = true] {
 
     ## plots
     if $plot {
-        let canIplot = (try {[1 2] | plot;true} catch {false})
+        let canIplot = try {[1 2] | plot;true} catch {false}
 
         if $canIplot {
             print ($data | select uvIndexAvg | default 0 uvIndexAvg | rename uvIndex | plot-table --title "UV Index" --width 150)
@@ -407,15 +407,14 @@ def get_weather [loc, --plot = true] {
 }
 
 def get_weather_for_prompt [loc] {
-    
-    let response = (fetch_api $loc)
+    let response = fetch_api $loc
 
     if not $response.mystatus {
         return $response
     }
 
     ## current conditions
-    let cond = (get_weather_description_from_code ($response.realtime.data.values.weatherCode | into string))
+    let cond = get_weather_description_from_code ($response.realtime.data.values.weatherCode | into string)
     let temp = $response.realtime.data.values.temperature
     let temperature = $"($temp)°C"
 
@@ -440,7 +439,7 @@ def get_weather_for_prompt [loc] {
     )
 
     let icon_description = get_icon_description_from_code $response.realtime.data.values.weatherCode $sunrise $sunset
-    let icon = (get_weather_icon $icon_description)
+    let icon = get_weather_icon $icon_description
 
     let current = {
         Condition: ($cond),

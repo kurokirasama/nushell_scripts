@@ -38,8 +38,8 @@ export def "tasker-join send-notification" [
 	--title(-t):string
 	--select_device(-s)
 ] {
-	let text = if ($text | is-empty) {$in} else {$text}
-	let title = if ($title | is-empty) {"from " + $env.HOST} else {$title}
+	let text = get-input $in $text
+	let title = get-input ("from " + $env.HOST) $title
 	
 	let apikey = $env.MY_ENV_VARS.api_keys.join.apikey
 	let deviceId = (
@@ -77,7 +77,7 @@ export def "tasker-join phone-call" [
 	--device(-d):string = "note12"
 	--select_device(-s)
 ] {
-	let phone = if ($phone | is-empty) {$in} else {$phone}
+	let phone = get-inbox $in else $phone
 	let title = "phone call started from " + $env.HOST
 
 	let apikey = $env.MY_ENV_VARS.api_keys.join.apikey
@@ -117,7 +117,7 @@ export def "tasker-join tts" [
 	--language(-l):string = "spa" #language of tts (spa, eng, etc)
 	--select_device(-s) = false
 ] {
-	let text = if ($text | is-empty) {$in} else {$text}
+	let text = get-inbox $in $text
 	let title = "tts sent from " + $env.HOST
 
 	let apikey = $env.MY_ENV_VARS.api_keys.join.apikey
@@ -158,7 +158,7 @@ export def "tasker-join sms" [
 	--device(-d):string = "note12"
 	--select_device(-s)
 ] {
-	let sms = if ($text | is-empty) {$in} else {$text}
+	let sms = get-inbox $in $text
 
 	let apikey = $env.MY_ENV_VARS.api_keys.join.apikey
 	let deviceId = (
@@ -197,7 +197,7 @@ export def "tasker tts" [
 	--language(-l):string = "spa" #language of tts (spa, eng)
 	--select_device(-s)
 ] {
-	let text = if ($text | is-empty) {$in} else {$text}
+	let text = get-inbox $in $text
 
 	let device = (
 		if not $select_device {
@@ -222,8 +222,8 @@ export def "tasker send-notification" [
 	--title(-t):string
 	--select_device(-s)
 ] {
-	let text = if ($text | is-empty) {$in} else {$text}
-	let title = if ($title | is-empty) {"from " + $env.HOST} else {$title}
+	let text = get-inbox $in $text
+	let title = get-inbox ("from " + $env.HOST) $title
 	
 	let device = (
 		if not $select_device {
@@ -248,7 +248,7 @@ export def "tasker sms" [
 	--device(-d):string = "main"
 	--select_device(-s)
 ] {
-	let sms = if ($text | is-empty) {$in} else {$text}
+	let sms = get-inbox $in $text
 
 	let device = (
 		if not $select_device {
@@ -272,7 +272,7 @@ export def "tasker phone-call" [
 	--device(-d):string = "main"
 	--select_device(-s)
 ] {
-	let phone = if ($phone | is-empty) {$in} else {$phone}
+	let phone = get-inbox $in $phone
 	let title = "phone call started from " + $env.HOST + " to " + $phone
 
 	let device = (
@@ -309,7 +309,7 @@ export def "tasker phone-info" [
 	--select_device(-s)
 	--conky(-c) #return output for conky display
 ] {
-	let phone = if ($phone | is-empty) {$in} else {$phone}
+	let phone = get-inbox $in $phone
 
 	let device = (
 		if not $select_device {
