@@ -18,8 +18,8 @@ export def ? [...search] {
   }
 }
 
-# get the examples from tldr as a table.
-export def usage [ cmd: string --no-ansi(-A) --update(-u) ] {
+# get the examples from tldr as a table
+export def usage [ cmd: string, --no-ansi(-A), --update(-u) ] {
     if $update {
         ^tldr -u --markdown $cmd
     } else {
@@ -37,7 +37,7 @@ export def usage [ cmd: string --no-ansi(-A) --update(-u) ] {
     | collect
 }
 
-# get the version information formatting the plugins differently
+# get the version information formatting the plugins
 export def ver [] { 
     let plugin_modified = plugin list | insert last_modified { |plug| ls $plug.filename | get 0?.modified? } | select name last_modified
 
@@ -59,21 +59,21 @@ export def show_banner [] {
         "'|, . ,'  "
         ' !_-(_\   '
     ]
-    let s = (sys)
+    let s = {mem: (sys mem), host: (sys host)}
     print $"(ansi reset)(ansi green)($ellie.0)"
     print $"(ansi green)($ellie.1)  (ansi yellow) (ansi yellow_bold)Nushell (ansi reset)(ansi yellow)v(version | get version)(ansi reset)"
     print $"(ansi green)($ellie.2)  (ansi light_blue) (ansi light_blue_bold)RAM (ansi reset)(ansi light_blue)($s.mem.used) / ($s.mem.total)(ansi reset)"
     print $"(ansi green)($ellie.3)  (ansi light_purple)ﮫ (ansi light_purple_bold)Uptime (ansi reset)(ansi light_purple)($s.host.uptime)(ansi reset)"
 }
 
-#neofetch but nu (in progress)
+#neofetch but nu
 export def nufetch [--table(-t)] {
   if not $table {
     show_banner
     return 
   } 
 
-  let s  = sys
+  let s = {mem: (sys mem), host: (sys host), disks: (sys disks), cpu: (sys cpu)}
   let s2 = (
     hostnamectl 
     | lines 
@@ -185,7 +185,7 @@ export def h [howmany = 100] {
 
 #search for specific process
 export def psn [name?: string] {
-  let name = if ($name | is-empty) {$in} else {$name}
+  let name = get-input $in $name
   ps -l | find -i $name
 }
 
@@ -300,7 +300,7 @@ export def set-screen [
 
 #umount all drives 
 export def umall [user?] {
-  let user = if ($user | is-empty) {$env.USER} else {$user}
+  let user = get-input $env.USER $user
 
   try {
     sys disks 
@@ -337,7 +337,7 @@ export def get-monitors [] {
 }
 
 # Show some history stats similar to how atuin does it
-def history-stats [
+export def history-stats [
   --summary (-s): int = 10
   --last-cmds (-l): int
 ] {
