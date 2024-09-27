@@ -12,7 +12,7 @@ export def network-switcher [] {
     | wrap known_networks
   )
 
-  let current_network_name = (wifi-info -w)
+  let current_network_name = wifi-info -w
   let current_network_strength = (
     nmcli -t -f ssid,signal,rate,in-use dev wifi list 
     | lines 
@@ -34,16 +34,16 @@ export def network-switcher [] {
     | str trim
   )
 
-  let number_nets = ($network_list | length)
+  let number_nets = $network_list | length
 
   print (echo-g "checking each network...")
 
   for i in 0..($number_nets - 1) {
-    let net = ($network_list | get $i)
+    let net = $network_list | get $i
     print (echo $"net: ($net.name), strength: ($net.signal)")
-    if ($net.name == "") {continue}
+    if $net.name == "" {continue}
 
-    if ($net.name) in ($known_networks_info | get known_networks) {
+    if $net.name in ($known_networks_info | get known_networks) {
       if ($net.signal | into int) >= ($current_network_strength + $threshold) {
         let notification = $"Switching to network ($net.name) that has a better signal \(($net.signal) > (($current_network_strength) + ($threshold))\)"
         print (echo-g $notification)
@@ -92,7 +92,7 @@ export def wifi-info [
 
 #list used network sockets
 export def ls-ports [] {
-  let input = (^lsof +c 0xFFFF -i -n -P)
+  let input = ^lsof +c 0xFFFF -i -n -P
   
   let header = (
     $input 
@@ -133,7 +133,7 @@ export def ls-ports [] {
 export def get-ips [
   device?: string  #wlo1 for wifi (export default), eno1 for lan
 ] {
-  let host = (sys host | get hostname)
+  let host = sys host | get hostname
   
   let device = (
     if ($device | is-empty) {
@@ -157,7 +157,7 @@ export def get-ips [
     | get 0
   )
 
-  let external = (dig +short myip.opendns.com @resolver1.opendns.com)
+  let external = dig +short myip.opendns.com @resolver1.opendns.com
   
   return {internal: $internal, external: $external}
 }
@@ -194,11 +194,11 @@ export def get-devices [
     }
   )
 
-  let nmap_output = (sudo nmap -oX nmap.xml -sn $ipinfo --max-parallelism 10)
+  let nmap_output = sudo nmap -oX nmap.xml -sn $ipinfo --max-parallelism 10
 
-  let nmap_output = (nmap2json convert nmap.xml | from json | get nmaprun | get host | get address)
+  let nmap_output = nmap2json convert nmap.xml | from json | get nmaprun | get host | get address
 
-  let this_ip = ($nmap_output | last | get addr)
+  let this_ip = $nmap_output | last | get addr
 
   let ips = ($nmap_output 
     | drop 1 
@@ -217,14 +217,14 @@ export def get-devices [
     | default null name
   )
 
-  let devices = ( $ips | merge $macs_n_names )
+  let devices = $ips | merge $macs_n_names
 
-  let known_devices = (open ([$env.MY_ENV_VARS.linux_backup "known_devices.csv"] | path join))
-  let known_macs = ($known_devices | get mac | str upcase)
+  let known_devices = open ($env.MY_ENV_VARS.linux_backup | path join known_devices.csv)
+  let known_macs = $known_devices | get mac | str upcase
 
-  let known = ($devices | each {|it| $it.mac in $known_macs} | wrap known)
+  let known = $devices | each {|it| $it.mac in $known_macs} | wrap known
 
-  let devices = ($devices | merge $known)
+  let devices = $devices | merge $known
 
   let aliases = (
     $devices 

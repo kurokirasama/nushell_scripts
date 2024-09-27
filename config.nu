@@ -84,25 +84,109 @@ $env.config.hooks = {
         },
         {||
             $env.NETWORK = (
-                $env.NETWORK 
-                | upsert status (check-link https://www.google.com)
+                $env.NETWORK | upsert status (check-link https://www.google.com)
             )
             
             $env.NETWORK = (
-                $env.NETWORK
-                | upsert color (if $env.NETWORK.status {'#00ff00'} else {'#ffffff'})
+                $env.NETWORK | upsert color (if $env.NETWORK.status {'#00ff00'} else {'#ffffff'})
             )
         }
     ]
     pre_execution: [
         {||
-            nu ("~/Yandex.Disk/Backups/linux/my_scripts/nushell/pre_execution_hook.nu" | path expand)
+            #checking existence of data file
+            if not ("~/.autolister.json" | path expand | path exists) {
+                cp ($env.MY_ENV_VARS.linux_backup | path join autolister.json) ~/.autolister.json
+            }
+            
+            #checking conditions
+            let interval = 24hr 
+            let now = date now
+            let update = (open ~/.autolister.json | get updated | into datetime) + $interval < $now
+            let autolister_file = open ~/.autolister.json
+            
+            if $update {
+                if (sys host | get hostname) != "rayen" {
+                    ## list mounted drives and download directory
+                    nu ($env.MY_ENV_VARS.nu_scripts | path join autolister.nu)
+                }
+            
+                $autolister_file
+                | upsert updated $now
+                | save -f ~/.autolister.json
+            
+                ## update ip
+                print (echo $"(ansi -e { fg: '#00ff00' attr: b })getting device ips...(ansi reset)")
+                let host = (sys host | get hostname)
+                let ips_file = $env.MY_ENV_VARS.ips
+                let ips_content = open $ips_file
+                let ips = nu ($env.MY_ENV_VARS.nu_scripts | path join get-ips.nu)
+            
+                $ips_content
+                | upsert $host ($ips | from json)
+                | save -f $ips_file
+            }
         }
     ]
     env_change: {
       PWD: [
         {|before, after|
-            source-env ("~/Yandex.Disk/Backups/linux/my_scripts/nushell/env_change_hook.nu" | path expand)
+            #checking existence of data file
+            if not ("~/.pwd_sizes.json" | path expand | path exists) {
+                cp ($env.MY_ENV_VARS.linux_backup | path join pwd_sizes.json) ~/.pwd_sizes.json
+            }
+            
+            #checking conditions
+            let interval = 12hr 
+            let last_record = (open ~/.pwd_sizes.json | where directory == $env.PWD)
+            let now = (date now)
+            let not_update = (
+                if ($last_record | length) == 0 {
+                    false
+                } else {
+                    (($last_record | get updated | get 0 | into datetime) + $interval > $now)
+                }
+            )
+            let not_gdrive = not ($env.PWD =~ rclone)
+            
+            #calculating pwd_size
+            let pwd_size = (
+                if ($last_record | length) == 0 and $not_gdrive {
+                    du $env.PWD --exclude *rclone*
+                    | get apparent 
+                    | get 0 
+                    | into string 
+                    | str replace " " "" 
+                } else if $not_gdrive {
+                    if $not_update {
+                        $last_record | get size | get 0
+                    } else {
+                        du $env.PWD --exclude *rclone*
+                        | get apparent 
+                        | get 0 
+                        | into string 
+                        | str replace " " "" 
+                    }
+                } else {
+                    ""
+                }    
+            )
+            
+            #seting up env var
+            $env.PWD_SIZE = $pwd_size
+            let pwd_file = open ~/.pwd_sizes.json
+            
+            #updating data file
+            if ($last_record | length) == 0 and $not_gdrive {    
+                $pwd_file  
+                | append {directory: $env.PWD,size: $pwd_size, updated: $now} 
+                | save -f ~/.pwd_sizes.json    
+            } else if (not $not_update) and $not_gdrive {
+                $pwd_file
+                | where directory != $env.PWD 
+                | append {directory: $env.PWD,size: $pwd_size, updated: $now}
+                | save -f ~/.pwd_sizes.json
+            }
         }
         {|before, after| 
             try {print (ls | sort-by -i type name | grid -c)}           

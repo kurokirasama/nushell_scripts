@@ -7,7 +7,7 @@ export def png-plot [ip?] {
 
 #plot download-upload speed
 export def speedtest-plot [] {
-  echo "fast --single-line --upload |  stdbuf -o0 awk '{print $2 \" \" $6}' | ttyplot -2 -t 'Download/Upload speed' -u Mbps" | bash 
+  bash -c "fast --single-line --upload |  stdbuf -o0 awk '{print $2 \" \" $6}' | ttyplot -2 -t 'Download/Upload speed' -u Mbps"
 }
 
 #plot data table using gnuplot
@@ -22,7 +22,7 @@ export def gnu-plot [
   data?           #1 or 2 column table
   --title:string  #title
 ] {
-  let x = if ($data | is-empty) {$in} else {$data}
+  let x = get-input $in $data
   let n_cols = ($x | transpose | length)
   let name_cols = ($x | transpose | column2 0)
 
@@ -44,7 +44,7 @@ export def gnu-plot [
   
   gnuplot -e $"set terminal dumb; unset key;set title '($title)';plot 'data.txt' w l lt 0;"
 
- rm -f data*.txt
+  rm -f data*.txt
 } 
 
 #plot data table using plot plugin
@@ -56,13 +56,13 @@ export def plot-table [
   --title = ""   #title
   --width:number #width of the plot
 ] {
-  let x = (if ($data | is-empty) {$in} else {$data} | reject index?)
-  let n_cols = ($x | transpose | length)
-  let name_cols = ($x | columns)
+  let x = get-input $in $data | reject index?
+  let n_cols = $x | transpose | length
+  let name_cols = $x | columns
 
   mut list = []
   for col in ($x | columns) {
-    $list = ($list | append [($x | get $col | into float)])
+    $list = $list | append [($x | get $col | into float)]
   }
 
   if ($width | is-empty) {
