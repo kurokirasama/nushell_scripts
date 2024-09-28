@@ -20,7 +20,6 @@ use /path/to/nushell_scripts/update_apps.nu *
 use /path/to/nushell_scripts/network.nu *
 use /path/to/nushell_scripts/transmission.nu *
 use /path/to/nushell_scripts/yandex.nu *
-use /path/to/nushell_scripts/geek.nu *
 use /path/to/nushell_scripts/yt_api.nu *
 use /path/to/nushell_scripts/maths.nu *
 use /path/to/nushell_scripts/plots.nu *

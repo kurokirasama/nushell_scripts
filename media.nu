@@ -64,9 +64,13 @@ export def "media sub-sync" [
     cp $file $"($file).backup"
   }
 
-  let t1 = if ($t1 | is-empty) {"@"} else {$t1}  
-  let d2 = if ($d2 | is-empty) {""} else {$d2}
-  let t2 = if ($d2 | is-empty) {""} else {if ($t2 | is-empty) {"@"} else {$t2}}
+  # let t1 = if ($t1 | is-empty) {"@"} else {$t1}  
+  # let d2 = if ($d2 | is-empty) {""} else {$d2}
+  # let t2 = if ($d2 | is-empty) {""} else {if ($t2 | is-empty) {"@"} else {$t2}}
+
+  let t1 = get-input "@" $t1
+  let d2 = get-input "" $d2
+  let t2 = if ($d2 | is-empty) {""} else {get-input "@" $t2}
   
   bash -c $"subsync -e latin1 ($t1)($d1) ($t2)($d2) < \"($file)\" > output.srt; cp output.srt \"($file)\""
 
@@ -90,8 +94,8 @@ export def "media remove-noise" [
     }
   }
 
-  let filename = ($file | path parse | get stem)
-  let ext = ($file | path parse | get extension)
+  let filename = $file | path parse | get stem
+  let ext = $file | path parse | get extension
 
   if $ext !~ "wav" {
     print (echo-g "converting input file to wav format...")
@@ -205,10 +209,10 @@ export def "media screen-record" [
       | get device
     )
 
-    let bluetooth_not_connected = ($devices | find blue | is-empty)
+    let bluetooth_not_connected = $devices | find blue | is-empty
 
     if $bluetooth_not_connected {
-      let device = ($devices | find alsa_input | get 0 | ansi strip)
+      let device = $devices | find alsa_input | get 0 | ansi strip
     
       try {
         print (echo-g "trying myffmpeg...")
@@ -218,8 +222,8 @@ export def "media screen-record" [
         ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -acodec aac -strict experimental $"($file).mp4"
       }
     } else {
-      let alsa = ($devices | find alsa_input | get 0 | ansi strip)
-      let blue = ($devices | find blue | get 0 | ansi strip)
+      let alsa = $devices | find alsa_input | get 0 | ansi strip
+      let blue = $devices | find blue | get 0 | ansi strip
 
       try {
         print (echo-g "trying myffmpeg...")
@@ -242,13 +246,8 @@ export def "media remove-audio" [
   output_file?       #the output file
   --notify(-n)       #notify to android via join/tasker
 ] {
-  let output_file = (
-    if ($output_file | is-empty) {
-      $"($input_file | path parse | get stem)-noaudio.($input_file | path parse | get extension)"
-    } else {
-      $output_file
-    }
-  )
+  let output_file = get-input $"($input_file | path parse | get stem)-noaudio.($input_file | path parse | get extension)" $output_file
+
   try {
     echo-g "trying myffmpeg..."
     myffmpeg -n -loglevel 0 -i $input_file -c copy -an $output_file
@@ -268,16 +267,10 @@ export def "media cut-video" [
   --append(-a):string = "cutted"  #append to file name
   --notify(-n)             #notify to android via join/tasker
 ] {
-  let ext = ($file | path parse | get extension)
-  let name = ($file | path parse | get stem)
+  let ext = $file | path parse | get extension
+  let name = $file | path parse | get stem
 
-  let ofile = (
-    if ($output_file | is-empty) {
-      $"($name)_($append).($ext)"
-    } else {
-        $output_file
-    }
-  )
+  let ofile = get-input $"($name)_($append).($ext)" $output_file
 
   try {
     echo-g "trying myffmpeg..."
@@ -304,7 +297,7 @@ export def "media split-video" [
   )
 
   let full_secs = ($full_length + "sec") | into duration
-  let full_hhmmss = (into hhmmss $full_secs)
+  let full_hhmmss = into hhmmss $full_secs
 
   let n_segments = (
     if not ($number_segments | is-empty) {
@@ -318,14 +311,14 @@ export def "media split-video" [
   let seg_end = $seg_duration
 
   for $it in 1..($n_segments - 1) {
-    let segment_start = (into hhmmss (($it - 1) * $seg_duration))
-    let segment_end = (into hhmmss ($seg_end + ($it - 1) * $seg_duration + $delta))
+    let segment_start = into hhmmss (($it - 1) * $seg_duration)
+    let segment_end = into hhmmss ($seg_end + ($it - 1) * $seg_duration + $delta)
 
     print (echo-g $"generating part ($it): ($segment_start) - ($segment_end)...")
     media cut-video $file $segment_start $segment_end -a $it
   }
 
-  let segment_start = (into hhmmss (($n_segments - 1) * $seg_duration))
+  let segment_start = into hhmmss (($n_segments - 1) * $seg_duration)
 
   print (echo-g $"generating part ($n_segments): ($segment_start) - ($full_hhmmss)...")
   media cut-video $file $segment_start $full_hhmmss -a $n_segments
@@ -355,7 +348,7 @@ export def "media to" [
           | length
       )
 
-     print (echo-g $"($n_files) audio files found...")
+      print (echo-g $"($n_files) audio files found...")
 
       if $n_files > 0 {
         bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.3gp" -not -name "*.($to)" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:a ($to) -b:a 64k {.}.($to)'
@@ -374,6 +367,7 @@ export def "media to" [
           return-error $"audio conversion to ($to) done, but something might be wrong"
         }
       }
+
     #to mp4
     } else if $to =~ "mp4" {
       let n_files = (ls **/*
@@ -534,7 +528,7 @@ export def "media merge-videos-auto" [
   output #output file
   --notify(-n) #notify to android via join/tasker
 ] {
-  let list = (($env.PWD) | path join "list.txt")
+  let list = $env.PWD | path join "list.txt"
 
   if not ($list | path exists) {
     touch $"($list)"
@@ -546,7 +540,7 @@ export def "media merge-videos-auto" [
   | where type == file 
   | get name
   | each {|file|
-      ("file \'" + (($env.PWD) | path join $file) + "\'\n") | save --append list.txt
+      ("file \'" + ($env.PWD | path join $file) + "\'\n") | save --append list.txt
     }
 
   print (echo-g "merging videos...")
@@ -719,7 +713,7 @@ export def "media delete-non-compressed" [
   ls **/* 
   | where type == file 
   | where name =~ $append 
-  | par-each {|file| 
+  | each {|file| 
       $file 
       | get name 
       | split row $"_($append)" 
@@ -820,9 +814,8 @@ export def "media delete-mps" [] {
 
   le
   | where type == "file" and ext !~ "mp4|mkv|webm|part" 
-  | par-each {|it| 
-      rm $"($it.name)" 
-      | ignore
+  | each {|it| 
+      rm $"($it.name)" | ignore
     }     
 }
 
@@ -831,8 +824,8 @@ export def mpv [
   video?, 
   --ontop(-o)
 ] {
-  let video = if ($video | is-empty) {$in} else {$video}
-  let type = ($video | typeof)
+  let video = get-input $in $video
+  let type = $video | typeof
 
   match $type {
     "table" | "list" => {
@@ -861,7 +854,7 @@ export def "media extract-audio" [
   --audio_format(-a):string = "mp3" #audio output format, wav or mp3
   --notify(-n)               #notify to android via mpv
 ] {
-  let file = ($filename | path parse | get stem)
+  let file = $filename | path parse | get stem
 
   print (echo-g "extracting audio...")
   match $audio_format {
@@ -884,7 +877,7 @@ export def "media crop-image" [
   image?:string
   --name(-n)    #return name of cropped image
 ] {
-  let image = if ($image | is-empty) {$in | get name} else {$image}
+  let image = get-input $in $image -n
   let image_size = identify $image | split row " " | get 2 | split row "x" | uniq
   
   if ($image_size | length) == 1 {
@@ -954,7 +947,7 @@ export def "media crop-video" [
   --append_to_filename(-a):string = "cropped" #append to original filename to differentiate
   --android(-A)           #use android resolution "720:x"
 ] {
-  let video = if ($video | is-empty) {$in | get name} else {$video}
+  let video = get-input $in $video -n
   let resolution = media video-info $video | get streams.0 | select width height
   let output_resolution = (
     if not ($size | is-empty) {
@@ -986,7 +979,7 @@ export def "media get-frame" [
   file? #file or list of files
 ] {
 
-  let files = if ($file | is-empty) {$in} else {$file}
+  let files = get-input $in $file
 
   $files 
   | get name 

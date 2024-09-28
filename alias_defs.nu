@@ -49,7 +49,7 @@ export def ram [] {
 
 #yewtube
 export def ytcli [] {
-  yt set show_video True, set fullscreen False, set search_music False, set player mpv, set notifier notify-send, set order date, set user_order date, set playerargs default, set video_format webm, userpl kurokirasama
+  yt set show_video True, set fullscreen False, set search_music False, set player mpv, set notifier notify-send, set order date, set user_order date, set playerargs default, set video_format webm, set ddir /home/kira/Yandex.Disk/mps, userpl kurokirasama
 }
 
 #adbtasker

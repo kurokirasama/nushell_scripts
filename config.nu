@@ -236,7 +236,17 @@ let alias_menu = {
 $env.config.menus = $env.config.menus | where name not-in $new_menus_names | append $alias_menu
 
 #keybindings
-let new_keybinds_names = ["alias_menu" "reload_config" "update_right_prompt" "insert_newline" "insert_last_argument" "insert_sudo" "completion_menu" "ide_completion_menu" "fuzzy_select_fs"]
+let new_keybinds_names = ["alias_menu" 
+    "reload_config" 
+    "update_right_prompt" 
+    "insert_newline" 
+    "insert_last_argument" 
+    "insert_sudo" 
+    "completion_menu" 
+    "ide_completion_menu" 
+    "fuzzy_select_fs"
+]
+
 let new_keybinds = [
     {
         name: alias_menu

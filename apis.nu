@@ -36,7 +36,7 @@ export def trans [
   --from:string     #from which language you are translating (default english)
   --to:string       #to which language you are translating (default spanish)
 ] {
-  let search = if ($text | is-empty) {$in} else {$text}
+  let search = get-input $in $text
   if ($search | is-empty) {
     return-error "no search query provided!"
   } 
@@ -316,11 +316,12 @@ export def exchange_rates [
 
 # Translate text using Google Translate
 export def gg-trans [
-  text: string, # The text to translate
+  text?: string # The text to translate
   --source(-s): string = "auto", # The source language
   --destination(-d): string = "es", # The destination language
   --list(-l)  # Select destination language from list
 ] {
+  let text = get-input $in $text
   mut dest = ""
 
   if $list {

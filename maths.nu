@@ -53,7 +53,7 @@ export def "math qroots" [
 
 #Check if integer is prime
 export def "math isprime" [n: int] {
-	let max = ($n | math sqrt | math ceil)
+	let max = $n | math sqrt | math ceil
 
 	if $n == 1 or ($n mod 2) == 0 {
 		return false
@@ -142,7 +142,7 @@ export def dec2base [
 		return ''
 	} 
 
-	let newNumber = (($number - ($number mod $base)) / $base)
+	let newNumber = ($number - ($number mod $base)) / $base
 	return ([(dec2base $newNumber $base) ($chars | get ($number mod $base))] | str join)
 }
 
@@ -151,7 +151,7 @@ export def base2dec [
 	s:string	#string
 	b:int 		#base
 ] {
-	let s = ($s | str downcase)
+	let s = $s | str downcase
 
 	if $b < 1 or $b > 16 {
 		return-error "wrong base provided!"
@@ -163,9 +163,9 @@ export def base2dec [
 		return-error "malformed string!"
 	}
 
-	let length = (($s | str length) - 1)
+	let length = ($s | str length) - 1
 	mut decimal = 0
-	let s = ($s | split chars)
+	let s = $s | split chars
 
 	for i in 0..$length {
 		let digit = (
@@ -177,29 +177,29 @@ export def base2dec [
 				return-error "wrong character found!"
 			}
 		)
-		$decimal = ($decimal + $digit * $b ** ($length - $i))
+		$decimal = $decimal + $digit * $b ** ($length - $i)
 	}
 	return $decimal
 }
 
 # Scale list to [a,b] interval
 export def scale-minmax [a, b,input?] {
-	let x = if ($input | is-empty) {$in} else {$input}
+	let x = get-input $in $input
 
-	let min = ($x | math min)
-	let max = ($x | math max)
+	let min = $x | math min
+	let max = $x | math max
 
 	$x 
 	| each {|it| 
-		((($it - $min) / ($max - $min)) * ($b - $a) + $a) 
+		(($it - $min) / ($max - $min)) * ($b - $a) + $a
 	}
 }
 
 # Scale every column of a table (separately) to [a,b] interval
 export def scale-minmax-table [a, b,input?] {
-	let x = if ($input | is-empty) {$in} else {$input}
-	let n_cols = ($x | transpose | length)
-	let name_cols = ($x | transpose | column2 0)
+	let x = get-input $in $input
+	let n_cols = $x | transpose | length
+	let name_cols = $x | transpose | column2 0
 	
 	0..($n_cols - 1) | each {|i|
 		($x | column2 $i) | scale-minmax $a $b | wrap ($name_cols | get $i)
