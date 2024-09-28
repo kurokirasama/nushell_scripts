@@ -1,16 +1,3 @@
-#get $in input if necessary
-export def get-input [
-  inp #in variable
-  var #input variable
-  --name(-n) #get name of $inp
-] {
-  if $name {
-    if ($var | is-empty) {$inp | get name} else {$var}
-  } else {
-    if ($var | is-empty) {$inp} else {$var}
-  }
-}
-
 #grep for nu
 #
 #Examples;
