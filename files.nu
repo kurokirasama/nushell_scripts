@@ -26,6 +26,19 @@ export def is-column [name] {
   $name in ($in | columns) 
 }
 
+#get $in input if necessary
+export def get-input [
+  inp #in variable
+  var #input variable
+  --name(-n) #get name of $inp
+] {
+  if $name {
+    if ($var | is-empty) {$inp | get name} else {$var}
+  } else {
+    if ($var | is-empty) {$inp} else {$var}
+  }
+}
+
 ######################################################
 ######################################################
 
@@ -46,8 +59,8 @@ export def op [
   --open(-o)    # use default open
   --sublime(-s) # use sublime text
 ] {
-  let file = if ($file | is-empty) {$in | get name} else {$file}
-  let extension = ($file | path parse | get extension)
+  let file = get-input $in $file -n
+  let extension = $file | path parse | get extension
 
   if $open {
     open $file
@@ -69,7 +82,7 @@ export def op [
 
 #open file 
 export def openf [file?] {
-  let file = if ($file | is-empty) {$in} else {$file}
+  let file = get-input $in $file
 
   let file = (
     match ($file | typeof) {
@@ -104,7 +117,7 @@ export def openl [] {
 export def openm [
   list? #list of files
 ] {
-  let list = if ($list | is-empty) {$in} else {$list}
+  let list = get-input $in $list
   
   $list 
   | get name
@@ -115,18 +128,21 @@ export def openm [
 
 #send to printer
 export def print-file [file?,--n_copies(-n):int] {
-  let file = if ($file | is-empty) {$in | get name | ansi strip} else {$file}
+  let file = get-input $in $file -n | ansi strip
   
-  if ($file | length) == 1 {
-    if ($n_copies | is-empty) {
-      lp $file
-    } else {
-      lp -n $n_copies $file
-    }
-  } else {
-    $file
-    | each {|name| 
-        print-file $name
+  match ($file | length) {
+    1 => {
+            if ($n_copies | is-empty) {
+              lp $file
+            } else {
+              lp -n $n_copies $file
+            }
+      },
+    _ => {
+            $file
+            | each {|name| 
+                print-file $name
+              }
       }
   }
 }
@@ -175,6 +191,7 @@ export def rm-pipe [] {
   if ($files | is-empty) {return}
 
   let number = ($files | length) - 1
+
   for i in 0..$number {     
     ^rm -rf ($files | get $i) | ignore
 
@@ -221,9 +238,9 @@ export def mv-pipe [
     let file = $files | get $i 
 
     if $force {
-      ^mv -f $file ($to | path expand)
+      mv -f $file ($to | path expand)
     } else {
-      ^mv -u $file ($to | path expand)
+      mv -u $file ($to | path expand)
     }
 
     progress_bar ($i + 1) ($number + 1)
@@ -413,7 +430,7 @@ export def "pdf join" [
 export def "pdf split" [
   file?: #pdf file name
 ] {
-  let file = if ($file | is-empty) {$in | get name} else {$file}
+  let file = get-input $in $file -n
   if ($file | is-empty) {
     return-error "no pdf provided!"
   }
@@ -423,7 +440,7 @@ export def "pdf split" [
 
 #create media database for downloads and all mounted disks
 export def autolister [user?] {
-  let user = if ($user | is-empty) {$env.USER} else {$user}
+  let user = get-input $env.USER $user
   let host = $env.HOST
 
   print (echo-g "listing Downloads...")
@@ -461,7 +478,7 @@ export def lister [file] {
     return
   }
 
-  let last = ($df | reject name | polars into-df) 
+  let last = $df | reject name | polars into-df
 
   let df = (
     $df
@@ -473,7 +490,7 @@ export def lister [file] {
     | flatten
   ) 
 
-  let first = ($df | select origin location | polars into-df) 
+  let first = $df | select origin location | polars into-df
 
   let second = (
     $df 
@@ -548,7 +565,7 @@ export def mk-anime [--wzf] {
 
 #open google analytics csv file
 export def open-analytics [file?] {
-  let file = if ($file | is-empty) {$in | get name} else {$file}
+  let file = get-input $in $file -n
 
   open $file --raw 
   | lines 
@@ -590,9 +607,9 @@ export def replicate-tree [to:string] {
 
 #rename all files starting with certain prefix, enumerating them
 export def re-enamerate [prefix] {
-  let files = (get-files | where name =~ $"^($prefix)" | sort-by modified)
-  let n_files = ($files | length)
-  let n_digits = (($n_files | math log 10) + 1 | math floor | into int)
+  let files = get-files | where name =~ $"^($prefix)" | sort-by modified
+  let n_files = $files | length
+  let n_digits = ($n_files | math log 10) + 1 | math floor | into int
 
   mut index = 0
   mut not_move = []
@@ -602,13 +619,13 @@ export def re-enamerate [prefix] {
     let name = ($files | get $i | get name)
     let info = ($name | path parse)
     
-    $new_name = ([$prefix "_" ($index | into string | fill -a r -c "0" -w $n_digits) "." ($info | get extension)] | str join)
+    $new_name = [$prefix "_" ($index | into string | fill -a r -c "0" -w $n_digits) "." ($info | get extension)] | str join
 
     if not ($name in $not_move) {
       while ($new_name | path expand | path exists) {
-        $not_move = ($not_move | append $new_name)
+        $not_move = $not_move | append $new_name
         $index = $index + 1
-        $new_name = ([$prefix "_" ($index | into string | fill -a r -c "0" -w $n_digits) "." ($info | get extension)] | str join)
+        $new_name = [$prefix "_" ($index | into string | fill -a r -c "0" -w $n_digits) "." ($info | get extension)] | str join
       }
 
       mv $name $new_name | ignore
@@ -628,17 +645,17 @@ export def join-text-files [
 
 #manually rename files in a directory
 export def rename-all [] {
-    let files = (ls -s | where type == file | get name)
+    let files = ls -s | where type == file | get name
     let temp_file = mktemp -t --suffix .txt
     $files | to text | save -f $temp_file
 
     ^$env.VISUAL $temp_file
 
-    let new_files = (open $temp_file | str trim | lines)
+    let new_files = open $temp_file | str trim | lines
     rm --permanent $temp_file
 
     if $new_files != $files and ($new_files | length) == ($files | length) {
-        let file_table = ($files | wrap old_name | merge ($new_files | wrap new_name) | where {$in.old_name != $in.new_name})
+        let file_table = $files | wrap old_name | merge ($new_files | wrap new_name) | where {$in.old_name != $in.new_name}
         $file_table | each { mv $in.old_name $in.new_name }
         $file_table
     } else {
@@ -651,6 +668,6 @@ export def svg2pdf [
   svg_file    #include extension  
   pdf_output? #include extension
 ] {
-  let pdf_output = if ($pdf_output | is-empty) {($svg_file | path parse | get stem) + ".pdf"} else {$pdf_output}
+  let pdf_output = get-input ($svg_file | path parse | get stem) $pdf_output 
   rsvg-convert -f pdf -o $pdf_output $svg_file
 }
