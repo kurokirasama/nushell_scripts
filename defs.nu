@@ -34,7 +34,6 @@ export def grep-nu [
       let info = $f.file | path parse
       $info.stem + "." + $info.extension
     }
-  # | rename "source file" "line number"
 }
 
 export alias grp = grep-nu
@@ -57,6 +56,7 @@ export def xls2csv [
     }
   )
   libreoffice --headless --convert-to csv $inputFile
+  #add in2csv
 }
 
 #check if drive is mounted
@@ -75,7 +75,7 @@ export def get-phone-number [search:string] {
 
 #open mcomix
 export def mcx [file?] {
-  let file = if ($file | is-empty) {$in} else {$file}
+  let file = get-input $in $file
 
   bash -c $'mcomix "($file)" 2>/dev/null &'
 }
@@ -160,7 +160,7 @@ export def countdown [
 
 #check validity of a link
 export def check-link [link?,timeout?:int] {
-  let link = if ($link | is-empty) {$in} else {$link}
+  let link = get-input $in $link
 
   if ($timeout | is-empty) {
     try {
@@ -197,7 +197,7 @@ export def send-gmail [
   ...attachments  #email attachments file names list (in current directory), separated by comma
 ] {
   let inp = if ($in | is-empty) { "" } else { $in | into string }
-  let from = if ($from | is-empty) {$env.MY_ENV_VARS.mail} else {$from}
+  let from = get-input $env.MY_ENV_VARS.mail $from
 
   if ($body | is-empty) and ($inp | is-empty) {
     return-error "body unexport defined!!"
@@ -307,7 +307,7 @@ export def wget-all [
 
 #my pdflatex
 export def my-pdflatex [file?] {
-  let tex = if ($file | is-empty) {$in | get name} else {$file}
+  let tex = get-input $in $file -n
   texfot pdflatex -interaction=nonstopmode -synctex=1 ($tex | path parse | get stem)
 }
 
@@ -315,7 +315,7 @@ export def my-pdflatex [file?] {
 export def my-pandoc [
   file?
 ] {
-  let file_name = if ($file | is-empty) {$in | get name} else {$file}
+  let file_name = get-input $in $file -n
   let file_base_name = $file_name | path parse | get stem
 
   pandoc --quiet $file_name -o $"($file_base_name).pdf" --pdf-engine=xelatex -F mermaid-filter -F pandoc-crossref --number-sections --highlight-style $env.MY_ENV_VARS.pandoc_theme

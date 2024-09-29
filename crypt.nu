@@ -6,7 +6,7 @@ export def nu-crypt [
 	--output_file(-o):string #only for -d option
 	--no_ui(-n)				 #to ask for password in cli
 ] {
-	let file = if ($file | is-empty) {$in | get name} else {$file}
+	let file = get-input $in $file -n
 
 	match [$encrypt,$decrypt] {
 		[true,false] => {gpg --pinentry-mode loopback --symmetric --armor --yes $file},
@@ -14,16 +14,16 @@ export def nu-crypt [
 			if ($output_file | is-empty) {
 				if $no_ui {
 					gpg --pinentry-mode loopback --decrypt --quiet $file
-				} else {
-					gpg --decrypt --quiet $file
+					return
 				}
-			} else {
-				if $no_ui {
-					gpg --pinentry-mode loopback --output $output_file --quiet --decrypt $file
-				} else {
-					gpg --output $output_file --quiet --decrypt $file
-				}
+				gpg --decrypt --quiet $file
+				return
 			}
+			if $no_ui {
+				gpg --pinentry-mode loopback --output $output_file --quiet --decrypt $file
+				return
+			}
+			gpg --output $output_file --quiet --decrypt $file
 		},
 		_ => {return-error "flag combination not allowed!!"} 	
 	}
@@ -31,12 +31,12 @@ export def nu-crypt [
 
 #open credentials
 export def open-credential [file?,--ui(-u)] {
-	let file = if ($file | is-empty) {$in | get name} else {$file}
+	let file = get-input $in $file -n
 	if $ui {
 		nu-crypt -d $file | from json
-	} else {
-		nu-crypt -d $file -n | from json
+		return
 	}
+	nu-crypt -d $file -n | from json
 }
 
 #save credentials
@@ -45,8 +45,8 @@ export def save-credential [content,field:string] {
 		return-error "missing arguments!"
 	}
 
-	let credentials_e = ([$env.MY_ENV_VARS.credentials credentials.json.asc] | path join)
-	let credentials = ([$env.MY_ENV_VARS.credentials credentials.json] | path join)
+	let credentials_e = $env.MY_ENV_VARS.credentials | path join credentials.json.asc
+	let credentials = $env.MY_ENV_VARS.credentials | path join credentials.json
 
 	open-credential $credentials_e
 	| upsert $field $content

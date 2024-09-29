@@ -4,8 +4,8 @@ export def "subl backup" [] {
 
   let source_dir = "~/.config/sublime-text"
   
-  7z max sublime-Packages.7z ([$source_dir "Packages"] | path join | path expand)
-  7z max sublime-installedPackages.7z ([$source_dir "Installed Packages"] | path join | path expand)
+  7z max sublime-Packages.7z ($source_dir | path join Packages | path expand)
+  7z max sublime-installedPackages.7z ($source_dir | path join "Installed Packages" | path expand)
 }
 
 #restore sublime settings
@@ -20,7 +20,7 @@ export def "subl restore" [] {
 export def "nchat backup" [] {
   cd $env.MY_ENV_VARS.linux_backup
 
-  let source_dir = ("~/.nchat" | path expand)
+  let source_dir = "~/.nchat" | path expand
   
   7z max nchat_config.7z ($source_dir + "/*.conf")
 }
@@ -35,7 +35,7 @@ export def "nchat restore" [] {
 #backup gnome extensions settings
 export def "gnome-settings backup" [] {
   dconf dump /org/gnome/shell/extensions/ 
-  | save -f ([$env.MY_ENV_VARS.linux_backup extensions/gnome_shell_extensions_backup.txt] | path join)
+  | save -f ([$env.MY_ENV_VARS.linux_backup extensions gnome_shell_extensions_backup.txt] | path join)
 }
 
 #restore gnome extensions settings
@@ -109,7 +109,7 @@ export def "nushell-syntax-2-sublime" [
   let idx = $file | indexify | find '(?x:' | get index | drop | enumerate
 
   for i in $idx {
-    $file = ($file | upsert $i.item ($new_commands | get $i.index))
+    $file = $file | upsert $i.item ($new_commands | get $i.index)
   }
   
   $file | save -f ~/.config/sublime-text/Packages/User/nushell.sublime-syntax
@@ -145,10 +145,10 @@ export def "rclone import" [] {
 
 #backup guake settings
 export def "guake backup" [] {
-  guake --save-preferences ([$env.MY_ENV_VARS.linux_backup guakesettings.txt] | path join)
+  guake --save-preferences ($env.MY_ENV_VARS.linux_backup | path join guakesettings.txt)
 }
 
 #restore guake settings
 export def "guake restore" [] {
-  guake --restore-preferences ([$env.MY_ENV_VARS.linux_backup guakesettings.txt] | path join)
+  guake --restore-preferences ($env.MY_ENV_VARS.linux_backup | path join guakesettings.txt)
 }
