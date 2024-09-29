@@ -1,7 +1,7 @@
 #!/usr/bin/env nu
 
 def main [user:string = "kira"] {
-	let host = (sys host | get hostname)
+	let host = sys host | get hostname
 
 	print (echo-g "listing Downloads...")
 	cd ~/Downloads
@@ -22,7 +22,7 @@ def main [user:string = "kira"] {
 
 #list all files and save it to json in Dropbox/Directorios
 def lister [file] {
-	let file = ["~/Dropbox/Directorios" $"($file).json"] | path join | path expand
+	let file = "~/Dropbox/Directorios" | path join $"($file).json" | path expand
 
 	let df = (try {
 				get-files -f -F 

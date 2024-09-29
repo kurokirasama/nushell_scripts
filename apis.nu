@@ -2,24 +2,24 @@
 export def bitly [longurl] {
   if ($longurl | is-empty) {
     return-error "no url provided!"
-  } else {
-    let bitly_credential = $env.MY_ENV_VARS.api_keys.bitly
-    let Accesstoken = ($bitly_credential | get token)
-    let guid = ($bitly_credential | get guid)
+  } 
+
+  let bitly_credential = $env.MY_ENV_VARS.api_keys.bitly
+  let Accesstoken = $bitly_credential | get token
+  let guid = $bitly_credential | get guid
     
-    let url = "https://api-ssl.bitly.com/v4/shorten"
-    let content = {
-      "group_guid": $guid,
-      "domain": "bit.ly",
-      "long_url": $longurl
-    }
-
-    let response = (http post $url $content --content-type "application/json" -H ["Authorization", $"Bearer ($Accesstoken)"])
-    let shorturl = ($response | get link)
-
-    $shorturl | copy
-    print (echo-g $"($shorturl) copied to clipboard!")
+  let url = "https://api-ssl.bitly.com/v4/shorten"
+  let content = {
+    "group_guid": $guid,
+    "domain": "bit.ly",
+    "long_url": $longurl
   }
+
+  let response = http post $url $content --content-type "application/json" -H ["Authorization", $"Bearer ($Accesstoken)"]
+  let shorturl = $response | get link
+
+  $shorturl | copy
+  print (echo-g $"($shorturl) copied to clipboard!")
 }
 
 #translate text using mymemmory or openai api
@@ -40,14 +40,15 @@ export def trans [
   if ($search | is-empty) {
     return-error "no search query provided!"
   } 
+
   let trans_credential = $env.MY_ENV_VARS.api_keys.mymemmory
-  let apikey = ($trans_credential | get token)
-  let user = ($trans_credential | get username)
+  let apikey = $trans_credential | get token
+  let user = $trans_credential | get username
 
-  let from = if ($from | is-empty) {"en-US"} else {$from}
-  let to = if ($to | is-empty) {"es-ES"} else {$to}
+  let from = get-input "en-US" $from
+  let to = get-input "es-ES" $to
 
-  let to_translate = ($search | str join "%20")
+  let to_translate = $search | str join "%20"
 
   let url = {
     scheme: "https",
@@ -62,20 +63,21 @@ export def trans [
     }
   } | url join
   
-  let response = (http get $url)
-  let status = ($response | get responseStatus)
-  let translated = ($response | get responseData | get translatedText)
+  let response = http get $url
+  let status = $response | get responseStatus
+  let translated = $response | get responseData | get translatedText
   
-  if $status == 200 {
-    let quota = ($response | get quotaFinished)
-    if $quota {
-      return-error "error: word quota limit excedeed!"
-    }
-  
-    return $translated
-  } else {
+  if $status != 200 {
     return-error $"error: bad request ($status)!"
   }
+
+  let quota = $response | get quotaFinished
+  
+  if $quota {
+      return-error "error: word quota limit excedeed!"
+  }
+  
+  return $translated
 }
 
 #get rebrandly short link
@@ -85,13 +87,13 @@ export def "rebrandly get" [longurl] {
   }
 
   let credential = $env.MY_ENV_VARS.api_keys.rebrandly
-  let api_key = ($credential | get api_key)
+  let api_key = $credential | get api_key
     
   let url = "https://api.rebrandly.com/v1/links"
   let content = {"destination": $longurl}
 
-  let response = (http post $url $content -H ["apikey", $api_key] --content-type "application/json" -H ["UserAgent:","UserAgent,curl/7.68.0"])
-  let shorturl = ($response | get shortUrl)
+  let response = http post $url $content -H ["apikey", $api_key] --content-type "application/json" -H ["UserAgent:","UserAgent,curl/7.68.0"]
+  let shorturl = $response | get shortUrl
 
   $shorturl | copy
   print (echo-g $"($shorturl) copied to clipboard!")
@@ -104,7 +106,7 @@ export def "rebrandly list" [longurl="www.google.com"] {
   } 
 
   let credential = $env.MY_ENV_VARS.api_keys.rebrandly
-  let apikey = ($credential | get api_key)
+  let apikey = $credential | get api_key
     
   let url = {
         scheme: "https",
@@ -172,16 +174,15 @@ export def "maps eta" [
 
   let avoid_option = if $avoid {"&avoid=highways"} else {""} 
 
-  let url = ("https://maps.googleapis.com/maps/api/directions/json?origin=" + $origin + "&destination=" + $destination + "&mode=" + $mode + "&departure_time=now&key=" + $apikey + $avoid_option)
+  # let url = "https://maps.googleapis.com/maps/api/directions/json?origin=" + $origin + "&destination=" + $destination + "&mode=" + $mode + "&departure_time=now&key=" + $apikey + $avoid_option
 
-  let response = (
-    {
+  let response = {
       scheme: "https",
       host: "maps.googleapis.com",
       path: "/maps/api/geocode/json",
       params: {
-        origin: $origin,
-        destination: $destination,
+        origin: ($origin | url encode),
+        destination: ($destination | url encode),
         mode: $mode,
         departure_time: "now",
         sensor: "true",
@@ -191,7 +192,6 @@ export def "maps eta" [
     | url join 
     | str append $avoid_option
     | http get $in
-  )
 
   let distance = $response.routes.legs.0.distance.text.0
   let steps = $response.routes.legs.0.steps
@@ -200,7 +200,7 @@ export def "maps eta" [
   let directions_steps = (
       $steps.0.html_instructions 
       | to text 
-      | chat_gpt --select_system html_parser --select_preprompt parse_html 
+      | google_ai --select_system html_parser --select_preprompt parse_html 
       | lines 
       | wrap directions 
       | polars into-df 
@@ -238,7 +238,7 @@ export def "maps address-from-loc" [latitude:number,longitude:number] {
   let mapsAPIkey = $env.MY_ENV_VARS.api_keys.google.general
   let url = $"https://maps.googleapis.com/maps/api/geocode/json?latlng=($latitude),($longitude)&key=($mapsAPIkey)"
 
-  let response = (http get $url)
+  let response = http get $url
 
   if $response.status != OK {
     return-error "address not found!"
@@ -270,7 +270,7 @@ export def exchange_rates [
       $"http://data.fixer.io/api/latest?access_key=($api_key)&symbols=CLP,CLF,USD,BTC,($new_currency)"
     }
   )
-  let response = (http get $url)
+  let response = http get $url
   
   if not $response.success {
     return-error $response.error
@@ -332,7 +332,7 @@ export def gg-trans [
       | input list -f (echo-g "Select destination language:")
     )
 
-    $dest = ($languages | get $selection)
+    $dest = $languages | get $selection
 
   } else {
       $dest = $destination
@@ -362,7 +362,7 @@ export def google_search [
   --verbose(-v) #show some debug messages
   --md(-m) #md output instead of table
 ] {
-  let query = if ($query | is-empty) {$in} else {$query} | str join " "
+  let query = get-input $in $query | str join " "
 
   if ($query | is-empty) {
     return-error "empty query!"

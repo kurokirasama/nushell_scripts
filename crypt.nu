@@ -14,16 +14,16 @@ export def nu-crypt [
 			if ($output_file | is-empty) {
 				if $no_ui {
 					gpg --pinentry-mode loopback --decrypt --quiet $file
-					return
+				} else {
+					gpg --decrypt --quiet $file
 				}
-				gpg --decrypt --quiet $file
-				return
+			} else {
+				if $no_ui {
+					gpg --pinentry-mode loopback --output $output_file --quiet --decrypt $file
+				} else {
+					gpg --output $output_file --quiet --decrypt $file
+				}
 			}
-			if $no_ui {
-				gpg --pinentry-mode loopback --output $output_file --quiet --decrypt $file
-				return
-			}
-			gpg --output $output_file --quiet --decrypt $file
 		},
 		_ => {return-error "flag combination not allowed!!"} 	
 	}
@@ -34,9 +34,9 @@ export def open-credential [file?,--ui(-u)] {
 	let file = get-input $in $file -n
 	if $ui {
 		nu-crypt -d $file | from json
-		return
+	} else {
+		nu-crypt -d $file -n | from json
 	}
-	nu-crypt -d $file -n | from json
 }
 
 #save credentials
