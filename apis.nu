@@ -174,12 +174,10 @@ export def "maps eta" [
 
   let avoid_option = if $avoid {"&avoid=highways"} else {""} 
 
-  # let url = "https://maps.googleapis.com/maps/api/directions/json?origin=" + $origin + "&destination=" + $destination + "&mode=" + $mode + "&departure_time=now&key=" + $apikey + $avoid_option
-
   let response = {
       scheme: "https",
       host: "maps.googleapis.com",
-      path: "/maps/api/geocode/json",
+      path: "/maps/api/directions/json",
       params: {
         origin: ($origin | url encode),
         destination: ($destination | url encode),
@@ -199,9 +197,8 @@ export def "maps eta" [
 
   let directions_steps = (
       $steps.0.html_instructions 
-      | to text 
-      | google_ai --select_system html_parser --select_preprompt parse_html 
-      | lines 
+      | each {|g| $g | html2text} 
+      | str trim
       | wrap directions 
       | polars into-df 
       | polars append ($steps.0.duration.text | wrap duration | polars into-df) 
@@ -483,7 +480,6 @@ export def "obs check-path" [
             } | url join
 
   let response = curl -sX 'GET' $"($url)/" -H 'accept: application/json' -H $auth_header --cacert $certificate | from json 
-
   return ($response)
 }
 
@@ -529,7 +525,7 @@ export def "obs search" [
 
     let response = curl -sX 'POST' $url -H 'accept: application/json' -H $auth_header --cacert $certificate -d '' | from json
 
-    $note = ($response | get filename | input list -f (echo-g "Select note:"))
+    $note = $response | get filename | input list -f (echo-g "Select note:")
   }
 
   if not $edit {
@@ -557,7 +553,7 @@ export def "obs create" [
   --v_path(-v):string # path for the note in vault, otherwise select from list
   --sub_path(-s) # select subpath
 ] {
-  let content = if ($content | is-empty) {$in} else {$content}
+  let content = get-input $in $content
   if ($content | is-empty) {return-error "empty content!"}
 
   let v_path = if ($v_path | is-empty) {
