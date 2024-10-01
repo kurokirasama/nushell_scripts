@@ -817,7 +817,7 @@ export def "apps-update whisper" [] {
   if (sys host | get os_version) == 20.04 {
     pip install --upgrade --no-deps --force-reinstall git+https://github.com/openai/whisper.git
   } else {
-    pipx install git+https://github.com/openai/whisper.git
+    pipx install git+https://github.com/openai/whisper.git --force
   }
 }
 

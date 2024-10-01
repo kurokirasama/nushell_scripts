@@ -1,4 +1,3 @@
-
 #ai tools
 export def "ai help" [] {
   print (
@@ -474,7 +473,7 @@ export def askai [
     return
   }
 
-  #question mode
+  # question mode
   #use google
   if $gemini {
     let answer = (
@@ -530,7 +529,7 @@ export def askai [
 #alias for bard
 export alias bard = askai -c -G -W 2
 #alias for chatgpt
-export alias chatgpt = askai -c -g -W 3
+export alias chatgpt = askai -c -g -W 2
 
 #generate a git commit message via chatgpt and push the changes
 #
@@ -1290,7 +1289,7 @@ export def tts [
   }
 }
 
-#single call to google ai LLM api wrapper
+#single call to google ai LLM api wrapper and chat mode
 #
 #Available models at https://ai.google.dev/models:
 # - gemini-1.5-pro: text & images & audio -> text, 1048576 (tokens), 2 RPM
