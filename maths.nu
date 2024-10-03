@@ -494,7 +494,7 @@ export def "math sample" [
 	sample_size:int #size of the sample
 	set? #set to take the sample from
 	--replacement(-r) #sample with replacement
-	--probabilities(-p):list<float> #probability of each element in the set
+	--probabilities(-p):list #probability of each element in the set
 ] {
 	let set = get-input $in $set
 	let len = $set | length

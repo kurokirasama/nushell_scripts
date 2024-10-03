@@ -1673,19 +1673,19 @@ export def google_ai [
   while ($retry_counter <= $max_retries) and $error {
     if $verbose {print ($"attempt #($retry_counter)...")}
     try {
-      $answer = (http post -t application/json $url_request $request --allow-errors)
+      $answer = http post -t application/json $url_request $request --allow-errors
       $error = false
     }
     $retry_counter = $retry_counter + 1
     sleep 1sec
   }
 
-  if ($answer | is-empty) {
+  if ($answer | is-empty) or ($answer == null) {
     try {
-      $answer = (http post -t application/json $url_request $request --allow-errors)
+      $answer = http post -t application/json $url_request $request --allow-errors
     } 
 
-    if ($answer | is-empty) and ($model == "gemini-1.5-pro") {
+    if (($answer | is-empty) or ($answer == null)) and ($model == "gemini-1.5-pro") {
       let model = "gemini-1.5-flash"
       let url_request = {
         scheme: "https",
@@ -1696,10 +1696,14 @@ export def google_ai [
         }
       } | url join
 
-      $answer = (http post -t application/json $url_request $request --allow-errors)
+      $answer = http post -t application/json $url_request $request --allow-errors
     }
   }
 
+  if ($answer | is-empty) or ($answer == null) {
+    return-error "something went wrong with the server!"
+  }
+  
   if ($model =~ "gemini") {
     return $answer.candidates.content.parts.0.text.0
   } else if ($model =~ "bison") {
@@ -1779,9 +1783,9 @@ export def "gcal ai" [
   --gpt4(-g)        #uses gpt-4o
   --gemini(-G)      #uses gemini
 ] {
-  let request = if ($request | is-empty) {$in} else {$request | str join}
+  let request = get-input $in $request | str join
   let date_now = date now | format date "%Y.%m.%d"
-  let prompt =  $request + ".\nPlease consider that today's date is " + $date_now
+  let prompt =  $request + ".\nPor favor considerar que la fecha de hoy es " + $date_now
 
   #get data to make query to gcal
   let gcal_query = (
@@ -1832,7 +1836,7 @@ export def "gcal ai" [
       let where = $gcal_query | get where
       let duration = $gcal_query | get duration
 
-      let title = google_ai ("if the next text is using a naming convention, rewrite it in normal writing in the original language, i.e., separate words by a space. Only return your response without any commentary on your part, in plain text without any formatting. The text: " + ($gcal_query | get title ))
+      let title = google_ai ("if the next text is using a naming convention, rewrite it in normal writing in the original language, i.e., separate words by a space. Only return your response without any commentary on your part, in plain text without any formatting. The text: " + ($gcal_query | get title )) | str trim
       
       gcal add $calendar $title $when $where $duration
     },

@@ -21,12 +21,16 @@ export def "gcal add" [
   where?      #location
   duration?   #duration in minutes
 ] {
-  let calendar = get-input (gcal list -r | sort | input list -f (echo-g "Select calendar: ")) $calendar
+  let calendar = if ($calendar | is-empty) {
+    gcal list -r | sort | input list -f (echo-g "Select calendar: ")
+  } else {
+    $calendar
+  }
 
-  let title = get-input (input (echo-g "title: ")) $title
-  let when = get-input (input (echo-g "when: ")) $when
-  let where = get-input (input (echo-g "where: ")) $where
-  let duration = get-input (input (echo-g "duration: ")) $duration
+  let title = if ($title | is-empty) {input (echo-g "title: ")} else {$title}
+  let when = if ($when | is-empty) {input (echo-g "when: ")} else {$when}
+  let where = if ($where | is-empty) {input (echo-g "where: ")} else {$where}
+  let duration = if ($duration | is-empty) {input (echo-g "duration: ")} else {$duration}
   
   gcalcli --calendar $"($calendar)" add --title $"($title)" --when $"($when)" --where $"($where)" --duration $"($duration)" --default-reminders
 }
