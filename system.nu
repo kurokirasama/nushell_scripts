@@ -406,11 +406,7 @@ export def um [
   }
 
   if $all {
-    sys disks
-    | find rclone 
-    | get mount
-    | ansi strip
-    | each {|drive|
+    $mounted | each {|drive|
         print (echo-g $"unmounting ($drive | path parse | get stem)...")
         fusermount -u $drive
       }

@@ -60,7 +60,7 @@ export def "chatpdf add" [
     return-error "there is already a file with the same label already uploaded!"
   }  
 
-  let filename = if ($label | is-empty) {$filename} else {$label}
+  let filename = get-input $filename $label
         
   # let header = $"x-api-key: ($api_key)"
   # let response = curl -s -X POST $url -H $header -F $"file=@($filepath)" | from json
