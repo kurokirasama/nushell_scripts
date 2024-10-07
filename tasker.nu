@@ -329,3 +329,23 @@ export def "tasker phone-info" [
 		$response.body | from json
 	}
 }
+
+#start autosync
+export def "tasker autosync" [
+	--device(-d):string = "main"
+	--select_device(-s)
+] {
+	let device = (
+		if not $select_device {
+			$device
+		} else {
+			$env.MY_ENV_VARS.tasker_server.devices
+			| columns
+			| input list -f (echo-g "select device:") 
+		} 
+	)
+	
+	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
+	let server = open ($env.MY_ENV_VARS.tasker_server.devices | get $device | get file ) | get $device_name
+	http get $"($server)/command?autosync=autosync" -f
+}
