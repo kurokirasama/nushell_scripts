@@ -1598,7 +1598,7 @@ export def google_ai [
   )
 
   #prompts
-  let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part. The question:\n'''" + $prompt + "\n'''"
+  let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
   let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
   let web_content = if $web_search {google_search $search -n $web_results -v} else {""}
   let web_content = if $web_search {ai google_search-summary $prompt $web_content -G -m} else {""}

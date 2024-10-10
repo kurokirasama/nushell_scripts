@@ -170,16 +170,6 @@ export def get-devices [
   device = "wlo1" #wlo1 for wifi, eno1 for lan
 ] {
   let ipinfo = (
-    if (? | where name == pnet | length) > 0 {
-      pnet 
-      | where name == ($device) 
-      | get 0 
-      | get ips 
-      | where type == v4 
-      | get 0 
-      | get addr
-      | str replace '(?P<nums>\d+/)' '0/'
-    } else {
       ip -json add 
       | from json 
       | where ifname =~ $"($device)" 
@@ -190,8 +180,7 @@ export def get-devices [
       | get local prefixlen 
       | flatten 
       | str join '/' 
-      | str replace '(?P<nums>\d+/)' '0/'
-    }
+      | str replace -r '(?P<nums>\d+/)' '0/'
   )
 
   let nmap_output = sudo nmap -oX nmap.xml -sn $ipinfo --max-parallelism 10

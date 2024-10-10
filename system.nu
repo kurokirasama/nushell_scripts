@@ -533,3 +533,21 @@ export def cblue [] {
     ^bluetoothctl connect $chosen
   }
 }
+
+#sys disks 2
+export def "sys disks2" [] {
+  let fields = [id path uuid partuuid]
+
+  $fields
+  | par-each {|field|
+      ls $"/dev/disk/by-($field)"
+      | insert device {|x| $x.name|path expand}
+      | update name {path basename}
+      | select name device
+      | rename $field
+  }
+  | reduce --fold (sys disks) {|it acc|
+      $acc
+      | join $it device
+  }
+}
