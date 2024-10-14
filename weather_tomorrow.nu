@@ -3,16 +3,31 @@
 # - Air polution condition using airvisual api (deprecated)
 # - Street address using google maps api
 # - Version 2.0
-export def --env weather [--home(-h),--ubb(-b),--no_plot] {
-    if not $home {
-        if not $ubb {
-            get_weather (get_location) --plot (not $no_plot)
-        } else {
+export def --env weather [
+    --coordinates(-c):string    #lat,lng of location of interest
+    --address(-a):string        #address of interest, it can be only city and country
+    --home(-h)
+    --ubb(-b)
+    --no_plot(-n)
+] {
+    match [$home,$ubb,($coordinates | is-not-empty),($address | is-not-empty)] {
+        [true,false,false,false] => {
+            get_weather (get_location -h) --plot (not $no_plot)
+            },
+        [false,true,false,false] => {
             get_weather (get_location -b) --plot (not $no_plot)
-        }
-    } else {
-        get_weather (get_location -h) --plot (not $no_plot)
-    }
+            },
+        [false,false,true,false] => {
+            get_weather $coordinates --plot (not $no_plot)
+            },
+        [false,false,false,true] => {
+            get_weather (maps loc-from-address $address | get 0 | get lat lng | str join ",") --plot (not $no_plot)
+            },
+        [false,false,false,false] => {
+            get_weather (get_location) --plot (not $no_plot)
+            },
+        _ => {return-error "flag combination not allowed!"}
+    }    
 } 
 
 # Get weather for right command prompt
