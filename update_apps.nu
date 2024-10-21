@@ -54,12 +54,12 @@ export def "apps-update nushell-external-plugins" [] {
   plugin add ~/.cargo/bin/nu_plugin_highlight
   plugin add ~/.cargo/bin/nu_plugin_port_scan
   plugin add ~/.cargo/bin/nu_plugin_image
-  plugin add ~/.cargo/bin/nu_plugin_plot
+  # plugin add ~/.cargo/bin/nu_plugin_plot
 
   plugin use ~/.cargo/bin/nu_plugin_highlight
   plugin use ~/.cargo/bin/nu_plugin_port_scan
   plugin use ~/.cargo/bin/nu_plugin_image
-  plugin use ~/.cargo/bin/nu_plugin_plot
+  # plugin use ~/.cargo/bin/nu_plugin_plot
 }
 
 #update nu config (after nushell update)
@@ -116,7 +116,7 @@ export def patch-font [file? = "Monocraft.ttc"] {
 }
 
 #update-upgrade system
-export def supgrade [--old(-o),--apps(-a)] {
+export def supgrade [--old(-o),--apps(-a),--cargo_aps(-c)] {
   if not $old {
     print (echo-g "updating and upgrading...")
     sudo nala upgrade -y
@@ -137,8 +137,10 @@ export def supgrade [--old(-o),--apps(-a)] {
   print (echo-g "updating rust...")
   rustup update
 
-  print (echo-g "updating cargo apps...")
-  cargo install-update -a
+  if $cargo_aps {
+    print (echo-g "updating cargo apps...")
+    cargo install-update -a
+  }
 
   if $apps {
     print (echo-g "updating off apt apps...")

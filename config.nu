@@ -43,23 +43,10 @@ $env.config.cursor_shape.emacs = "blink_line"
 $env.config.highlight_resolved_externals = true
 
 #hooks
-$env.config.hooks = {
+let hooks = {
     pre_prompt: [
         {||
-            $env.GIT_STATUS = (
-                try {
-                    if (ls .git | length) > 0 and (git status -s | str length) > 0 {
-                        git status -s | lines | length
-                    } else {
-                        0
-                    }   
-                } catch {
-                    0
-                }
-            )
-
-            $env.CLOUD = (
-                if $env.PWD =~ "rclone/" {
+            $env.CLOUD = if $env.PWD =~ "rclone/" {
                     match ($env.PWD | split row "/rclone/" | get 1 | split row "/" | get 0) {
                         $s if ($s | str starts-with "g") => {"f2df"},
                         "onedrive" => {"f8c9"},
@@ -80,16 +67,15 @@ $env.config.hooks = {
                         _ => {"e712"}
                     } 
                 } 
-            )
+        },
+        {
+            condition: {".git" | path exists},
+            code: "$env.GIT_STATUS = if (git status -s | str length) > 0 {git status -s | lines | length} else {0}"
         },
         {||
-            $env.NETWORK = (
-                $env.NETWORK | upsert status (check-link https://www.google.com)
-            )
+            $env.NETWORK = $env.NETWORK | upsert status (check-link https://www.google.com)
             
-            $env.NETWORK = (
-                $env.NETWORK | upsert color (if $env.NETWORK.status {'#00ff00'} else {'#ffffff'})
-            )
+            $env.NETWORK = $env.NETWORK | upsert color (if $env.NETWORK.status {'#00ff00'} else {'#ffffff'})
         }
     ]
     pre_execution: [
@@ -105,11 +91,9 @@ $env.config.hooks = {
             let update = (open ~/.autolister.json | get updated | into datetime) + $interval < $now
             let autolister_file = open ~/.autolister.json
             
-            if $update {
-                if (sys host | get hostname) != "rayen" {
-                    ## list mounted drives and download directory
-                    nu ($env.MY_ENV_VARS.nu_scripts | path join autolister.nu)
-                }
+            if $update and ((sys host | get hostname) != "rayen") {
+                ## list mounted drives and download directory
+                nu ($env.MY_ENV_VARS.nu_scripts | path join autolister.nu)
             
                 $autolister_file
                 | upsert updated $now
@@ -187,17 +171,17 @@ $env.config.hooks = {
                 | append {directory: $env.PWD,size: $pwd_size, updated: $now}
                 | save -f ~/.pwd_sizes.json
             }
-        }
+        },
         {|before, after| 
             try {print (ls | sort-by -i type name | grid -c)}           
-        }
+        },
         {|_, dir|
             zoxide add -- $dir
-        }
+        },
         {
             condition: {".autouse.nu" | path exists},
             code: "source .autouse.nu"
-        }
+        },
         {
             condition: {"venv" | path exists},
             code: "overlay use venv/bin/activate.nu"
@@ -208,6 +192,8 @@ $env.config.hooks = {
        table
     }
   }
+
+$env.config.hooks = $hooks
 
 #menus
 let new_menus_names = ["alias_menu"]
@@ -357,7 +343,7 @@ let new_keybinds = [
     }
 ]
 
-$env.config.keybindings = $env.config.keybindings | where name not-in $new_keybinds_names | append $new_keybinds
+# $env.config.keybindings = $env.config.keybindings | where name not-in $new_keybinds_names | append $new_keybinds
 
 #for fun
 # try {
