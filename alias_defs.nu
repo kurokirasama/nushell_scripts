@@ -1,3 +1,8 @@
+#rm last
+export def rml [] {
+  ls | sort-by modified | last | rm-pipe
+}
+
 #tokei wrapper
 export def tokei [] {
   ^tokei | grep -v '=' | from tsv

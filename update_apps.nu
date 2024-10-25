@@ -54,12 +54,12 @@ export def "apps-update nushell-external-plugins" [] {
   plugin add ~/.cargo/bin/nu_plugin_highlight
   plugin add ~/.cargo/bin/nu_plugin_port_scan
   plugin add ~/.cargo/bin/nu_plugin_image
-  # plugin add ~/.cargo/bin/nu_plugin_plot
+  plugin add ~/.cargo/bin/nu_plugin_plot
 
   plugin use ~/.cargo/bin/nu_plugin_highlight
   plugin use ~/.cargo/bin/nu_plugin_port_scan
   plugin use ~/.cargo/bin/nu_plugin_image
-  # plugin use ~/.cargo/bin/nu_plugin_plot
+  plugin use ~/.cargo/bin/nu_plugin_plot
 }
 
 #update nu config (after nushell update)

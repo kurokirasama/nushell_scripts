@@ -1696,16 +1696,21 @@ export def google_ai [
         }
       } | url join
 
-      $answer = http post -t application/json $url_request $request --allow-errors
+      $answer = http post -t application/json $url_request $request --allow-errors -ef
     }
   }
 
-  if ($answer | is-empty) or ($answer == null) {
+  if ($answer | is-empty) or ($answer == null) or ($answer | describe) == nothing {
     return-error "something went wrong with the server!"
   }
   
+  let answer = $answer
   if ($model =~ "gemini") {
-    return $answer.candidates.content.parts.0.text.0
+    try {
+      return $answer.candidates.content.parts.0.text.0
+    } catch {
+      return $answer
+    }
   } else if ($model =~ "bison") {
     return $answer.candidates.output.0
   }
@@ -1893,7 +1898,7 @@ export def "ai trans" [
 export def "ai trans-sub" [
   file?
   --from:string = "en-US" #from which language you are translating
-  --ai(-a)        #use ai to make the translations
+  --ai(-a)        #use gpt to make the translations
   --gpt4(-g)      #use gpt4
   --gemini(-G)    #use gemini
   --notify(-n)    #notify to android via join/tasker
