@@ -72,10 +72,9 @@ let hooks = {
             condition: {".git" | path exists},
             code: "$env.GIT_STATUS = if (git status -s | str length) > 0 {git status -s | lines | length} else {0}"
         },
-        {||
-            $env.NETWORK = $env.NETWORK | upsert status (check-link https://www.google.com)
-            
-            $env.NETWORK = $env.NETWORK | upsert color (if $env.NETWORK.status {'#00ff00'} else {'#ffffff'})
+        {
+            condition: {(wifi-info -w) !~ $env.MY_ENV_VARS.not_home_wifi},
+            code: "$env.NETWORK.status = check-link https://www.google.com;$env.NETWORK.color = if $env.NETWORK.status {'#00ff00'} else {'#ffffff'}"
         }
     ]
     pre_execution: [
@@ -175,8 +174,8 @@ let hooks = {
         {|before, after| 
             try {print (ls | sort-by -i type name | grid -c)}           
         },
-        {|_, dir|
-            zoxide add -- $dir
+        {|_, after|
+            zoxide add -- $after
         },
         {
             condition: {".autouse.nu" | path exists},

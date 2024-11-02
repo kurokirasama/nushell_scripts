@@ -949,17 +949,17 @@ export def "apps-update ox" [] {
   #download plugins
   let git_token = $env.MY_ENV_VARS.api_keys.github.api_key
 
-  cd $env.MY_ENV_VARS.ox_plugins
+  # cd $env.MY_ENV_VARS.ox_plugins
   
-  {
-    scheme: "https",
-    host: "api.github.com",
-    path: $"/repos/curlpipe/ox/contents/plugins",
-  } 
-  | url join
-  | http get $in -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
-  | get download_url 
-  | each {|url| aria2c --allow-overwrite=true $url}
+  # {
+  #   scheme: "https",
+  #   host: "api.github.com",
+  #   path: $"/repos/curlpipe/ox/contents/plugins",
+  # } 
+  # | url join
+  # | http get $in -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
+  # | get download_url 
+  # | each {|url| aria2c --allow-overwrite=true $url}
 
   #updating help in programmer system message
   # if (sys host | get hostname) == "deathnote" {
