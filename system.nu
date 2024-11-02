@@ -551,3 +551,67 @@ export def "sys disks2" [] {
       | join $it device
   }
 }
+
+# Creates a tree of processes from the ps command.
+#
+# Any table can be piped in, so long as every row has a `pid` and `ppid` column.
+# If there is no input, then the standard `ps` is invoked.
+export def "ps tree" [
+  --root-pids (-p): list<int> # root of process tree
+]: [
+  table -> table,
+] {
+  mut procs = $in
+
+  # get a snapshot to use to build the whole tree as it was at the time of this call
+  if $procs == null {
+    $procs = ps
+  }
+
+  let procs = $procs
+
+  let roots = if $root_pids == null {
+    $procs | where ppid? == null or ppid not-in $procs.pid
+  } else {
+    $procs | where pid in $root_pids
+  }
+
+  $roots
+  | insert children {|proc|
+    $procs
+    | where ppid == $proc.pid
+    | each {|child|
+      $procs
+      | ps tree -p [$child.pid]
+      | get 0
+    }
+  }
+}
+
+#get only parents processes
+export def "ps parents" [pid?: int] {
+  let pid = $pid | default $nu.pid
+
+  let all_processes = (ps)
+  let current_process = ($all_processes | where pid == $pid)
+  
+  def get-parents [ processes, parents ] {
+    let next_parent_pid = ($parents | first | get ppid)
+    let next_parent_process = ($processes | where pid == $next_parent_pid)
+    
+    match $next_parent_process {
+      [] => { return $parents}
+      
+      # Found a parent - Recurse
+      _ => {
+        let parents = [
+          ...$next_parent_process
+          ...$parents
+        ]
+        get-parents $processes $parents
+      }
+    }
+  }
+
+  get-parents $all_processes $current_process
+}

@@ -230,7 +230,7 @@ let new_keybinds_names = ["alias_menu"
     "insert_sudo" 
     "completion_menu" 
     "ide_completion_menu" 
-    "fuzzy_select_fs"
+    "copy_command"
 ]
 
 let new_keybinds = [
@@ -319,16 +319,6 @@ let new_keybinds = [
                 { send: menunext }
                 { edit: complete }
             ]
-        }
-    },
-    {
-        name: fuzzy_select_fs
-        modifier: alt
-        keycode: char_z
-        mode: [emacs, vi_normal, vi_insert]
-        event: {
-            send: executehostcommand
-            cmd: "commandline edit --insert (fuzzy-dispatcher)"
         }
     },
     {

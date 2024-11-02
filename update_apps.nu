@@ -811,6 +811,11 @@ export def "apps-update maestral" [] {
   pipx upgrade maestral
 }
 
+#update guake
+export def "apps-update guake" [] {
+  pipx upgrade guake
+}
+
 #update whisper
 export def "apps-update whisper" [] {
   if (sys host | get os_version) == 20.04 {
