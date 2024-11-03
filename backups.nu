@@ -114,10 +114,10 @@ export def "nushell-syntax-2-sublime" [
   
   $file | save -f ~/.config/sublime-text/Packages/User/nushell.sublime-syntax
 
-  cp ~/.config/sublime-text/Packages/User/nushell.sublime-syntax ~/Dropbox/Development/linux/sublime/nushell_sublime_syntax/
+  cp ~/.config/sublime-text/Packages/User/nushell.sublime-syntax $env.MY_ENV_VARS.nushell_syntax_public
 
   if $push {
-    cd ~/Dropbox/Development/linux/sublime/nushell_sublime_syntax/
+    cd $env.MY_ENV_VARS.nushell_syntax_public
     ai git-push -G
   }
 }

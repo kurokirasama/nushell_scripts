@@ -1,3 +1,16 @@
+#get $in input if necessary
+export def get-input [
+  inp #in variable
+  var #input variable
+  --name(-n) #get name of $inp
+] {
+  if $name {
+    if ($var | is-empty) {$inp | get name} else {$var}
+  } else {
+    if ($var | is-empty) {$inp} else {$var}
+  }
+}
+
 #range to list
 export def range2list [] {
   each {||}
@@ -305,4 +318,19 @@ export def const-table [
     } else {
       $in
     }
+}
+
+#list of lists into table
+export def lists2table [
+  list?:list
+  --column_name(-c):string = "c"
+] {
+  let list = get-input $in $list
+  mut matrix = $list | get 0 | wrap $"($column_name)0"
+
+  for i in 1..(($list | length) - 1) {
+      $matrix = ($matrix | merge ($list | get $i | wrap $"($column_name)($i)"))
+  }
+
+  return $matrix
 }

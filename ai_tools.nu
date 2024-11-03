@@ -590,12 +590,17 @@ export def "ai git-push" [
         }
       }
     } catch {
-      input (echo-g "Something happened with chatgpt. Enter your commit message or leave empty to stop: ")
+      input (echo-g $"Something happened with ($model). Enter your commit message or leave empty to stop: ")
     }
   )
 
   if ($commit | is-empty) {
     return-error "Execution stopped by the user!"
+  }
+
+  #errors now give a record instead of empty string
+  if ($commit | typeof) != "string" {
+    input (echo-g $"Something happened with ($model). Enter your commit message or leave empty to stop: ")
   }
 
   print (echo-g "resulting commit message:")
