@@ -1545,14 +1545,14 @@ export def google_ai [
 
     print (echo-c "chat with gemini ended..." "purple" -b)
 
-    let sav = input (echo-c "would you like to save the conversation in local drive? (y/n): " "green")
+    let sav = input (echo-c "would you like to save the conversation in local drive? (y/n): " "yellow")
     if $sav == "y" {
       let filename = input (echo-g "enter filename (default: gemini_chat): ")
       let filename = if ($filename | is-empty) {"gemini_chat"} else {$filename}
       save_gemini_chat $contents $filename $count
     }
 
-    let sav = input (echo-c "would you like to save the conversation in obsidian? (y/n): " "green")
+    let sav = input (echo-c "would you like to save the conversation in obsidian? (y/n): " "yellow")
     if $sav == "y" {
       mut filename = input (echo-g "enter note title: ")
       while ($filename | is-empty) {
@@ -1561,7 +1561,7 @@ export def google_ai [
       save_gemini_chat $contents $filename $count -o
     }
 
-    let sav = input (echo-c "would you like to save this in the conversations database? (y/n): " "green")
+    let sav = input (echo-c "would you like to save this in the conversations database? (y/n): " "yellow")
     if $sav == "y" {
       print (echo-g "summarizing conversation...")
       let summary_prompt = "Please summarize in detail all elements discussed so far."
