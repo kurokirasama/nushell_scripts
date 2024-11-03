@@ -1444,11 +1444,11 @@ export def google_ai [
       return-error "no saved conversations exist!"
     }
 
-    print (echo-g "starting chat with gemini...")
-    print (echo-c "enter empty prompt to exit" "green")
+    print (echo-c "starting chat with gemini..." "purple" -b)
+    print (echo-c "enter empty prompt to exit" "purple")
 
     let chat_char = "❱ "
-    let answer_color = "#FFFF00"
+    let answer_color = "#00FF00"
 
     let chat_prompt = (
       if $database {
@@ -1543,7 +1543,7 @@ export def google_ai [
       $chat_prompt = (input $chat_char)
     }
 
-    print (echo-g "chat with gemini ended...")
+    print (echo-c "chat with gemini ended..." "purple" -b)
 
     let sav = input (echo-c "would you like to save the conversation in local drive? (y/n): " "green")
     if $sav == "y" {

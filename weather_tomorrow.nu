@@ -36,16 +36,21 @@ export def --env get_weather_by_interval [INTERVAL_WEATHER:duration] {
     
     if ($weather_runtime_file | path exists) {
         let last_runtime_data = open $weather_runtime_file
+        let LAST_WEATHER_TIME = $last_runtime_data | get last_weather_time
+        let not_update = ($LAST_WEATHER_TIME | into datetime) + ($INTERVAL_WEATHER | into duration) >= (date now)
 
-        if not $env.NETWORK.status {
+        if not $not_update {
+            $env.MY_ENV_VARS.NETWORK.status = try {
+                  http get https://www.google.com | ignore;true
+                } catch {
+                  false
+                }
+            $env.MY_ENV_VARS.NETWORK.color = if $env.MY_ENV_VARS.NETWORK.status {'#00ff00'} else {'#ffffff'}
+        }
+
+        if not $env.MY_ENV_VARS.NETWORK.status or $not_update {
             return ($last_runtime_data | get weather)
         } 
-
-        let LAST_WEATHER_TIME = $last_runtime_data | get last_weather_time
-    
-        if ($LAST_WEATHER_TIME | into datetime) + ($INTERVAL_WEATHER | into duration) >= (date now) {
-            return ($last_runtime_data | get weather)
-        }
     
         let WEATHER = get_weather_for_prompt (get_location)
 

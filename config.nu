@@ -71,10 +71,6 @@ let hooks = {
         {
             condition: {".git" | path exists},
             code: "$env.GIT_STATUS = if (git status -s | str length) > 0 {git status -s | lines | length} else {0}"
-        },
-        {
-            condition: {(wifi-info -w) !~ $env.MY_ENV_VARS.not_home_wifi},
-            code: "$env.NETWORK.status = check-link https://www.google.com;$env.NETWORK.color = if $env.NETWORK.status {'#00ff00'} else {'#ffffff'}"
         }
     ]
     pre_execution: [
