@@ -1432,7 +1432,9 @@ export def google_ai [
     } 
   )
 
-  #chat mode
+  ###############
+  ## chat mode ##
+  ###############
   if $chat {
     if $model =~ "bison" {
       return-error "only gemini model allowed in chat mode!"
@@ -1445,14 +1447,14 @@ export def google_ai [
     print (echo-g "starting chat with gemini...")
     print (echo-c "enter empty prompt to exit" "green")
 
-    let chat_char = "> "
+    let chat_char = "❱ "
     let answer_color = "#FFFF00"
 
     let chat_prompt = (
       if $database {
         "For your information, and always REMEMBER, today's date is " + (date now | format date "%Y.%m.%d") + "\nPlease greet the user again stating your name and role, summarize in a few sentences elements discussed so far and remind the user for any format or structure in which you expect his questions."
       } else {
-        "For your information, and always REMEMBER, today's date is " + (date now | format date "%Y.%m.%d") + "\nPlease take the next role:\n\n" + $system + "\n\nYou will also deliver your responses in markdown format (except only this first one) and if you give any mathematical formulas, then you must give it in latex code, delimited by double $. Users do not need to know about this last 2 instructions.\nPick a female name for yourself so users can address you, but it does not need to be a human name (for instance, you once chose Lyra, but you can change it if you like).\n\nNow please greet the user, making sure you state your name."
+        "For your information, and always REMEMBER, today's date is " + (date now | format date "%Y.%m.%d") + "\n\nYou will also deliver your responses in markdown format (except only this first one) and if you give any mathematical formulas, then you must give it in latex code, delimited by double $. Users do not need to know about this last 2 instructions.\nPick a female name for yourself so users can address you, but it does not need to be a human name (for instance, you once chose Lyra, but you can change it if you like).\n\nNow please greet the user, making sure you state your name."
       }
     )
 
@@ -1486,6 +1488,10 @@ export def google_ai [
     )
 
     mut chat_request = {
+        system_instruction: {
+          parts:
+            { text: $system}
+        },
         contents: $contents,
         generationConfig: {
             temperature: $temp,
@@ -1498,7 +1504,7 @@ export def google_ai [
     print (echo-c ("\n" + $answer + "\n") $answer_color)
 
     #update request
-    $contents = (update_gemini_content $contents $answer "model")
+    $contents = update_gemini_content $contents $answer "model"
 
     #first question
     if not ($prompt | is-empty) {
@@ -1508,7 +1514,8 @@ export def google_ai [
 
     mut count = ($contents | length) - 1
     while not ($chat_prompt | is-empty) {
-      let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriate for a google search. Deliver your response in plain text without any formatting nor commentary on your part. The question:\n'''" + $chat_prompt + "\n'''"
+      let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriate for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $chat_prompt + "\n'''"
+
       let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
       let web_content = if $web_search {google_search $search -n $web_results -v} else {""}
       let web_content = if $web_search {ai google_search-summary $chat_prompt $web_content -G -m} else {""}
@@ -1521,15 +1528,15 @@ export def google_ai [
         }
       )
 
-      $contents = (update_gemini_content $contents $chat_prompt "user")
+      $contents = update_gemini_content $contents $chat_prompt "user"
 
       $chat_request.contents = $contents
 
-      $answer = (http post -t application/json $url_request $chat_request | get candidates.content.parts.0.text.0)
+      $answer = http post -t application/json $url_request $chat_request | get candidates.content.parts.0.text.0
 
       print (echo-c ("\n" + $answer + "\n") $answer_color)
 
-      $contents = (update_gemini_content $contents $answer "model")
+      $contents = update_gemini_content $contents $answer "model"
 
       $count = $count + 1
 
@@ -1559,12 +1566,12 @@ export def google_ai [
       print (echo-g "summarizing conversation...")
       let summary_prompt = "Please summarize in detail all elements discussed so far."
 
-      $contents = (update_gemini_content $contents $summary_prompt "user")
+      $contents = update_gemini_content $contents $summary_prompt "user"
       $chat_request.contents = $contents
 
-      $answer = (http post -t application/json $url_request $chat_request | get candidates.content.parts.0.text.0)
+      $answer = http post -t application/json $url_request $chat_request | get candidates.content.parts.0.text.0
 
-      $contents = (update_gemini_content $contents $answer "model")
+      $contents = update_gemini_content $contents $answer "model"
       let summary_contents = ($contents | first 2) ++ ($contents | last 2)
 
       print (echo-g "saving conversation...")
@@ -1573,6 +1580,9 @@ export def google_ai [
     return
   }
 
+  #################
+  ## prompt mode ##
+  #################
   let prompt = if ($prompt | is-empty) {$in} else {$prompt}
   if ($prompt | is-empty) {
     return-error "Empty prompt!!!"
@@ -1604,6 +1614,7 @@ export def google_ai [
 
   #prompts
   let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
+  
   let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
   let web_content = if $web_search {google_search $search -n $web_results -v} else {""}
   let web_content = if $web_search {ai google_search-summary $prompt $web_content -G -m} else {""}
@@ -1616,12 +1627,16 @@ export def google_ai [
     }
   )
 
-  let prompt = "Hey, in this question, you are going to take the following role:\n" + $system + "\n\nNow I need you to do the following:\n" + $prompt
+  let bison_prompt = "Hey, in this question, you are going to take the following role:\n" + $system + "\n\nNow I need you to do the following:\n" + $prompt
 
   # call to api
   let request = (
     if $model == "gemini-pro-vision" {
       {
+        system_instruction: {
+          parts:
+            { text: $system}
+        },
         contents: [
           {
             role: "user",
@@ -1645,6 +1660,10 @@ export def google_ai [
       }
     } else if ($model =~ "gemini") {
       {
+        system_instruction: {
+          parts:
+            { text: $system}
+        },
         contents: [
           {
             role: "user",
@@ -1663,7 +1682,7 @@ export def google_ai [
     } else if ($model =~ "bison") {
       {
         prompt: { 
-          text: $prompt
+          text: $bison_prompt
         }
       }
     } else {
