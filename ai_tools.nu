@@ -564,8 +564,6 @@ export def askai [
 
 #alias for bard
 export alias bard = askai -c -G -W 2
-#alias for chatgpt
-export alias chatgpt = askai -c -g -W 2
 
 #generate a git commit message via chatgpt and push the changes
 #
@@ -2436,6 +2434,7 @@ export def "ai fix-json" [
 #
 #Available models at https://docs.anthropic.com/en/docs/about-claude/models
 # - claude-3-5-sonnet-latest: text & images & audio -> text, 200000 tokens input, 8192 tokens output
+# - claude-3-5-haiku-20241022: text -> text, 200000 tokens input, 8192 tokens output
 # - claude-3-opus-latest: text & images & audio -> text, 200000 (tokens) input, 4096 tokens output
 # - claude-3-sonnet-20240229: text & images & audio -> text, 200000 (tokens) input, 4096 tokens output
 # - claude-3-haiku-20240307: text & images & audio -> text, 200000 (tokens) input, 4096 tokens output
@@ -2452,7 +2451,7 @@ export def "ai fix-json" [
 # - --select_preprompt > --pre_prompt
 export def claude_ai [
     query?: string                                # the query to Chat GPT
-    --model(-m):string = "claude-3-haiku-20240307" # the model claude-3-opus-latest, claude-3-5-sonnet-latest, etc
+    --model(-m):string = "claude-3-5-haiku-20241022" # the model claude-3-opus-latest, claude-3-5-sonnet-latest, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --anthropic_version(-v):string = "2023-06-01" #anthropic version
     --temp(-t): float = 0.9             # the temperature of the model
@@ -2560,7 +2559,7 @@ export def claude_ai [
   let model = if $model == "claude-3.5" {"claude-3-5-sonnet-latest"} else {$model}
   let model = if $model == "claude-vision" {"claude-3-5-sonnet-latest"} else {$model}
 
-  let max_tokens = if $model == "claude-3-5-sonnet-latest" {8192} else {4096}
+  let max_tokens = if $model =~ "claude-3-5" {8192} else {4096}
 
   # call to api
   let header = {x-api-key: $env.MY_ENV_VARS.api_keys.anthropic.api_key, anthropic-version: $anthropic_version}
