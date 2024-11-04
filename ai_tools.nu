@@ -200,8 +200,8 @@ export def "chatpdf list" [] {
 # - --select_system > --list_system > --system
 # - --select_preprompt > --pre_prompt
 export def chat_gpt [
-    prompt?: string                     # the query to Chat GPT
-    --model(-m):string = "gpt-4o-mini"  # the model gpt-4o-mini, gpt-4, etc
+    query?: string                     # the query to Chat GPT
+    --model(-m):string = "gpt-4o-mini" # the model gpt-4o-mini, gpt-4, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9       # the temperature of the model
     --image(-i):string            # filepath of image file for gpt-4-vision
@@ -212,8 +212,8 @@ export def chat_gpt [
     --select_preprompt: string    # directly select pre_prompt
     --document:string   #use provided document to retrieve answer
 ] {
-  let prompt = get-input $in $prompt
-  if ($prompt | is-empty) {
+  let query = get-input $in $query
+  if ($query | is-empty) {
     return-error "Empty prompt!!!"
   }
   
@@ -246,12 +246,12 @@ export def chat_gpt [
   let system_messages = $system_messages_files | path parse | get stem
 
   mut ssystem = ""
-  if ($list_system and ($select_system | is-empty)) {
+  if $list_system {
     let selection = ($system_messages | input list -f (echo-g "Select system message: "))
-    $ssystem = (open ($system_messages_files | find $selection | get 0 | ansi strip))
+    $ssystem = (open ($system_messages_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
   } else if (not ($select_system | is-empty)) {
     try {
-      $ssystem = (open ($system_messages_files | find $select_system | get 0 | ansi strip))
+      $ssystem = (open ($system_messages_files | find ("/" + $select_system + ".md") | get 0 | ansi strip))
     } 
   }
   let system = if ($ssystem | is-empty) {$system} else {$ssystem}
@@ -261,27 +261,27 @@ export def chat_gpt [
   let pre_prompts = $pre_prompt_files | path parse | get stem
 
   mut preprompt = ""
-  if ($pre_prompt and ($select_preprompt | is-empty)) {
+  if $pre_prompt {
     let selection = ($pre_prompts | input list -f (echo-g "Select pre-prompt: "))
-    $preprompt = (open ($pre_prompt_files | find $selection | get 0 | ansi strip))
+    $preprompt = (open ($pre_prompt_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
   } else if (not ($select_preprompt | is-empty)) {
     try {
-      $preprompt = (open ($pre_prompt_files | find $select_preprompt | get 0 | ansi strip))
+      $preprompt = (open ($pre_prompt_files | find ("/" + $select_preprompt + ".md") | get 0 | ansi strip))
     }
   }
 
   #build prompt
   let prompt = (
     if ($document | is-not-empty) {
-      $preprompt + "\n# DOCUMENT\n\n" + (open $document) + "\n\n# INPUT\n\n'''\n" + $prompt + "\n'''" 
+      $preprompt + "\n# DOCUMENT\n\n" + (open $document) + "\n\n# INPUT\n\n'''\n" + $query + "\n'''" 
     } else if ($preprompt | is-empty) and $delim_with_backquotes {
-      "'''" + "\n" + $prompt + "\n" + "'''"
+      "'''" + "\n" + $query + "\n" + "'''"
     } else if ($preprompt | is-empty) {
-      $prompt
+      $query
     } else if $delim_with_backquotes {
-      $preprompt + "\n" + "'''" + "\n" + $prompt + "\n" + "'''"
+      $preprompt + "\n" + "'''" + "\n" + $query + "\n" + "'''"
     } else {
-      $preprompt + $prompt
+      $preprompt + $query
     } 
   )
 
@@ -363,9 +363,9 @@ export def askai [
   --teacher(-T)    # use teacher s.m with temp 0.95, else use assistant with temp 0.9
   --engineer(-E)   # use prompt_engineer s.m. with temp 0.8, else use assistant with temp 0.9
   --rubb(-R)       # use rubb s.m. with temperature 0.65, else use assistant with temp 0.9
-  --academic(-A)   # use academic writer improver s.m with temp 0.78
+  --academic(-A)   # use academic writer improver s.m with temp 0.78, and its preprompt
   --biblical(-B)   #use biblical assistant s.m with temp 0.85
-  --summarizer(-S) #use simple summarizer s.m with temp 0.70
+  --summarizer(-S) #use simple summarizer s.m with temp 0.70 and its preprompt
   --list_system(-l)       # select s.m from list (takes precedence over flags)
   --list_preprompt(-p)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
   --delimit_with_quotes(-q) = true #add '''  before and after prompt
@@ -500,9 +500,9 @@ export def askai [
   if $claude {
     let answer = (
       if $vision {
-        claude_ai $prompt -t $temp -l $list_system -m claude-3.5 -p $list_preprompt -d true -i $image --select_preprompt $pre_prompt --select_system $system 
+        claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-vision -d true -i $image --select_preprompt $pre_prompt --select_system $system 
       } else {
-          claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-3.5 -d true  --select_preprompt $pre_prompt --select_system $system --document $document
+        claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-3.5 -d true  --select_preprompt $pre_prompt --select_system $system --document $document
       }
     )
 
@@ -1369,6 +1369,11 @@ export def google_ai [
 ] {
   #api parameters
   let apikey = $env.MY_ENV_VARS.api_keys.google.gemini
+  let query = get-input $in $query
+
+  if ($query | is-empty) {
+    return-error "Empty prompt!!!"
+  }
 
   let safetySettings = (
     if ($safety_settings | is-empty) {
@@ -2432,7 +2437,7 @@ export def "ai fix-json" [
 # - --select_system > --list_system > --system
 # - --select_preprompt > --pre_prompt
 export def claude_ai [
-    prompt?: string                                # the query to Chat GPT
+    query?: string                                # the query to Chat GPT
     --model(-m):string = "claude-3-haiku-20240307" # the model claude-3-opus-latest, claude-3-5-sonnet-latest, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --anthropic_version(-v):string = "2023-06-01" #anthropic version
@@ -2445,8 +2450,9 @@ export def claude_ai [
     --select_preprompt: string          # directly select pre_prompt
     --document:string                   #uses provided document to retrieve the answer
 ] {
-  let prompt = get-input $in $prompt
-  if ($prompt | is-empty) {
+  let query = get-input $in $query
+
+  if ($query | is-empty) {
     return-error "Empty prompt!!!"
   }
   
@@ -2479,12 +2485,12 @@ export def claude_ai [
   let system_messages = $system_messages_files | path parse | get stem
 
   mut ssystem = ""
-  if ($list_system and ($select_system | is-empty)) {
+  if $list_system {
     let selection = ($system_messages | input list -f (echo-g "Select system message: "))
-    $ssystem = (open ($system_messages_files | find $selection | get 0 | ansi strip))
+    $ssystem = (open ($system_messages_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
   } else if (not ($select_system | is-empty)) {
     try {
-      $ssystem = (open ($system_messages_files | find $select_system | get 0 | ansi strip))
+      $ssystem = (open ($system_messages_files | find ("/" + $select_system + ".md") | get 0 | ansi strip))
     } 
   }
   let system = if ($ssystem | is-empty) {$system} else {$ssystem}
@@ -2494,27 +2500,27 @@ export def claude_ai [
   let pre_prompts = $pre_prompt_files | path parse | get stem
 
   mut preprompt = ""
-  if ($pre_prompt and ($select_preprompt | is-empty)) {
+  if $pre_prompt {
     let selection = ($pre_prompts | input list -f (echo-g "Select pre-prompt: "))
-    $preprompt = (open ($pre_prompt_files | find $selection | get 0 | ansi strip))
+    $preprompt = (open ($pre_prompt_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
   } else if (not ($select_preprompt | is-empty)) {
     try {
-      $preprompt = (open ($pre_prompt_files | find $select_preprompt | get 0 | ansi strip))
+      $preprompt = (open ($pre_prompt_files | find ("/" + $select_preprompt + ".md") | get 0 | ansi strip))
     }
   }
 
   #build prompt
   let prompt = (
     if ($document | is-not-empty) {
-      $preprompt + "\n# DOCUMENT\n\n" + (open $document) + "\n\n# INPUT\n\n'''\n" + $prompt + "\n'''" 
+      $preprompt + "\n# DOCUMENT\n\n" + (open $document) + "\n\n# INPUT\n\n'''\n" + $query + "\n'''" 
     } else if ($preprompt | is-empty) and $delim_with_backquotes {
-      "'''" + "\n" + $prompt + "\n" + "'''"
+      "'''" + "\n" + $query + "\n" + "'''"
     } else if ($preprompt | is-empty) {
-      $prompt
+      $query
     } else if $delim_with_backquotes {
-      $preprompt + "\n" + "'''" + "\n" + $prompt + "\n" + "'''"
+      $preprompt + "\n" + "'''" + "\n" + $query + "\n" + "'''"
     } else {
-      $preprompt + $prompt
+      $preprompt + $query
     } 
   )
 
