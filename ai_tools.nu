@@ -92,7 +92,7 @@ export def "chatpdf del" [
   let url = "https://api.chatpdf.com/v1/sources/delete"
   let data = {"sources": [($database | get $selection)]}
   
-  let header = ["x-api-key", ($api_key)] 
+  let header = ["x-api-key" $api_key] 
   let response = http post $url -t application/json $data -H $header
   
   $database | reject $selection | save -f $database_file
@@ -1255,6 +1255,7 @@ export def "ai elevenlabs-tts" [
 
   let site = "https://api.elevenlabs.io/v1/"
   let header = [xi-api-key $env.MY_ENV_VARS.api_keys.elevenlabs.api_key]
+  let record_header = {xi-api-key: $env.MY_ENV_VARS.api_keys.elevenlabs.api_key, Accept: "audio/mpeg"}
   let url = $site + $endpoint
 
   ## get_endpoints
@@ -1304,10 +1305,8 @@ export def "ai elevenlabs-tts" [
     host: "api.elevenlabs.io",
     path: $"v1/text-to-speech/($voice_id)",
   } | url join
-
-  let header2 = ["Accept" "audio/mpeg"]
   
-  http post $url_request $data -t application/json -H $header -H $header2 | save -f ($output + ".mp3")
+  http post $url_request $data -t application/json -H $record_header | save -f ($output + ".mp3")
 
   print (echo-g $"saved into ($output).mp3")
 }
