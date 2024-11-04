@@ -93,7 +93,7 @@ export def "chatpdf del" [
   let data = {"sources": [($database | get $selection)]}
   
   let header = ["x-api-key", ($api_key)] 
-  let response = (http post $url -t application/json $data -H $header)
+  let response = http post $url -t application/json $data -H $header
   
   $database | reject $selection | save -f $database_file
 }
@@ -140,7 +140,7 @@ export def "chatpdf ask" [
     ]
   }
 
-  let answer = (http post -t application/json -H $header $url $request) 
+  let answer = http post -t application/json -H $header $url $request
 
   return $answer.content
 }
@@ -200,16 +200,16 @@ export def "chatpdf list" [] {
 # - --select_system > --list_system > --system
 # - --select_preprompt > --pre_prompt
 export def chat_gpt [
-    prompt?: string                               # the query to Chat GPT
-    --model(-m):string = "gpt-4o-mini"     # the model gpt-4o-mini, gpt-4, etc
+    prompt?: string                     # the query to Chat GPT
+    --model(-m):string = "gpt-4o-mini"  # the model gpt-4o-mini, gpt-4, etc
     --system(-s):string = "You are a helpful assistant." # system message
-    --temp(-t): float = 0.9                       # the temperature of the model
-    --image(-i):string                        # filepath of image file for gpt-4-vision
-    --list_system(-l)                             # select system message from list
-    --pre_prompt(-p)                              # select pre-prompt from list
+    --temp(-t): float = 0.9       # the temperature of the model
+    --image(-i):string            # filepath of image file for gpt-4-vision
+    --list_system(-l)             # select system message from list
+    --pre_prompt(-p)              # select pre-prompt from list
     --delim_with_backquotes(-d)   # to delimit prompt (not pre-prompt) with triple backquotes (')
-    --select_system: string                       # directly select system message    
-    --select_preprompt: string                    # directly select pre_prompt
+    --select_system: string       # directly select system message    
+    --select_preprompt: string    # directly select pre_prompt
     --document:string   #use provided document to retrieve answer
 ] {
   let prompt = get-input $in $prompt
@@ -321,7 +321,7 @@ export def chat_gpt [
           }
         ],
         temperature: $temp,
-        max_tokens: 4000
+        max_tokens: 16384
       }
     } else {
       {
@@ -381,6 +381,7 @@ export def askai [
   --web_search(-w) #include web search results into the prompt
   --web_results(-W):int = 5 #how many web results to include
   --document(-d):string  # answer question from provided document
+  --claude(-C)  #use anthropic claude 3.5
 ] {
   let prompt = if $fast {
     open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
@@ -468,7 +469,7 @@ export def askai [
       google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -W $web_results --select_preprompt $pre_prompt --document $document
     } else {
       # chat_gpt $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d $delimit_with_quotes
-      print (echo-g "in progress")
+      print (echo-g "in progress for chatgpt and claude")
     }
     return
   }
@@ -484,6 +485,24 @@ export def askai [
           true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d true -w $web_search -W $web_results --select_preprompt $pre_prompt --select_system $system --document $document},
           false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m gemini-1.5-pro -d true -w $web_search -W $web_results --select_preprompt $pre_prompt --select_system $system --document $document},
         }
+      }
+    )
+
+    if $fast {
+      $answer | save -f ($env.MY_ENV_VARS.chatgpt | path join answer.md)
+      return
+    } else {
+      return $answer  
+    } 
+  }
+
+  #use claude
+  if $claude {
+    let answer = (
+      if $vision {
+        claude_ai $prompt -t $temp -l $list_system -m claude-3.5 -p $list_preprompt -d true -i $image --select_preprompt $pre_prompt --select_system $system 
+      } else {
+          claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-3.5 -d true  --select_preprompt $pre_prompt --select_system $system --document $document
       }
     )
 
@@ -1271,7 +1290,7 @@ export def "ai elevenlabs-tts" [
 
   let header2 = ["Accept" "audio/mpeg"]
   
-  http post $url_request $data --content-type application/json -H $header -H header2 | save -f ($output + ".mp3")
+  http post $url_request $data -t application/json -H $header -H $header2 | save -f ($output + ".mp3")
 
   print (echo-g $"saved into ($output).mp3")
 }
@@ -2392,4 +2411,167 @@ export def "ai fix-json" [
 
   if $copy {$response | to json | xsel --input --clipboard}
   return $response
+}
+
+#single call to anthropic claude ai LLM api wrapper
+#
+#Available models at https://docs.anthropic.com/en/docs/about-claude/models
+# - claude-3-5-sonnet-latest: text & images & audio -> text, 200000 tokens input, 8192 tokens output
+# - claude-3-opus-latest: text & images & audio -> text, 200000 (tokens) input, 4096 tokens output
+# - claude-3-sonnet-20240229: text & images & audio -> text, 200000 (tokens) input, 4096 tokens output
+# - claude-3-haiku-20240307: text & images & audio -> text, 200000 (tokens) input, 4096 tokens output
+# - claude-vision: claude-3-5-sonnet-latest for image use
+#
+#system messages are available in:
+#   [$env.MY_ENV_VARS.chatgpt_config system] | path join
+#
+#pre_prompts are available in:
+#   [$env.MY_ENV_VARS.chatgpt_config prompt] | path join
+#
+#Note that:
+# - --select_system > --list_system > --system
+# - --select_preprompt > --pre_prompt
+export def claude_ai [
+    prompt?: string                                # the query to Chat GPT
+    --model(-m):string = "claude-3-haiku-20240307" # the model claude-3-opus-latest, claude-3-5-sonnet-latest, etc
+    --system(-s):string = "You are a helpful assistant." # system message
+    --anthropic_version(-v):string = "2023-06-01" #anthropic version
+    --temp(-t): float = 0.9             # the temperature of the model
+    --image(-i):string                  # filepath of image file for gemini-pro-vision
+    --list_system(-l) = false           # select system message from list
+    --pre_prompt(-p) = false            # select pre-prompt from list
+    --delim_with_backquotes(-d) = false # to delimit prompt (not pre-prompt) with triple backquotes (')
+    --select_system: string             # directly select system message    
+    --select_preprompt: string          # directly select pre_prompt
+    --document:string                   #uses provided document to retrieve the answer
+] {
+  let prompt = get-input $in $prompt
+  if ($prompt | is-empty) {
+    return-error "Empty prompt!!!"
+  }
+  
+  if ($model == "claude-vision") and ($image | is-empty) {
+    return-error "claude-vision needs and image file!"
+  }
+
+  if ($model == "claude-vision") and (not ($image | path expand | path exists)) {
+    return-error "image file not found!" 
+  }
+
+  let extension = (
+    if $model == "claude-vision" {
+      $image | path parse | get extension
+    } else {
+      ""
+    }
+  )
+
+  let image = (
+    if $model == "claude-vision" {
+      open ($image | path expand) | encode base64
+    } else {
+      ""
+    }
+  )
+
+  #select system message from database
+  let system_messages_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join system) | sort-by name | get name
+  let system_messages = $system_messages_files | path parse | get stem
+
+  mut ssystem = ""
+  if ($list_system and ($select_system | is-empty)) {
+    let selection = ($system_messages | input list -f (echo-g "Select system message: "))
+    $ssystem = (open ($system_messages_files | find $selection | get 0 | ansi strip))
+  } else if (not ($select_system | is-empty)) {
+    try {
+      $ssystem = (open ($system_messages_files | find $select_system | get 0 | ansi strip))
+    } 
+  }
+  let system = if ($ssystem | is-empty) {$system} else {$ssystem}
+
+  #select pre-prompt from database
+  let pre_prompt_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join prompt) | sort-by name | get name
+  let pre_prompts = $pre_prompt_files | path parse | get stem
+
+  mut preprompt = ""
+  if ($pre_prompt and ($select_preprompt | is-empty)) {
+    let selection = ($pre_prompts | input list -f (echo-g "Select pre-prompt: "))
+    $preprompt = (open ($pre_prompt_files | find $selection | get 0 | ansi strip))
+  } else if (not ($select_preprompt | is-empty)) {
+    try {
+      $preprompt = (open ($pre_prompt_files | find $select_preprompt | get 0 | ansi strip))
+    }
+  }
+
+  #build prompt
+  let prompt = (
+    if ($document | is-not-empty) {
+      $preprompt + "\n# DOCUMENT\n\n" + (open $document) + "\n\n# INPUT\n\n'''\n" + $prompt + "\n'''" 
+    } else if ($preprompt | is-empty) and $delim_with_backquotes {
+      "'''" + "\n" + $prompt + "\n" + "'''"
+    } else if ($preprompt | is-empty) {
+      $prompt
+    } else if $delim_with_backquotes {
+      $preprompt + "\n" + "'''" + "\n" + $prompt + "\n" + "'''"
+    } else {
+      $preprompt + $prompt
+    } 
+  )
+
+  # default models
+  let input_model = $model
+  let model = if $model == "claude-3.5" {"claude-3-5-sonnet-latest"} else {$model}
+  let model = if $model == "claude-vision" {"claude-3-5-sonnet-latest"} else {$model}
+
+  let max_tokens = if $model == "claude-3-5-sonnet-latest" {8192} else {4096}
+
+  # call to api
+  let header = {x-api-key: $env.MY_ENV_VARS.api_keys.anthropic.api_key, anthropic-version: $anthropic_version}
+  let site = "https://api.anthropic.com/v1/messages"
+  let image_url = ("data:image/" + $extension + ";base64," + $image)
+  
+  let request = (
+    if $input_model == "claude-vision" {
+      {
+        system: $system,
+        model: $model,
+        messages: [
+          {
+            role: "user"
+            content: [
+              {
+                "type": "text",
+                "text": $prompt
+              },
+              {
+                "type": "image_url",
+                "image_url": 
+                  {
+                    "url": $image_url
+                  }
+              }
+            ]
+          }
+        ],
+        temperature: $temp,
+        max_tokens: $max_tokens
+      }
+    } else {
+      {
+        model: $model,
+        messages: [
+          {
+            role: "user",
+            content: $prompt
+          }
+        ],
+        max_tokens: $max_tokens,
+        system: $system,
+        temperature: $temp
+      }
+    }
+  )
+
+  let answer = http post -t application/json -H $header $site $request
+  return $answer.content.text.0
 }
