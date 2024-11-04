@@ -160,13 +160,15 @@ export def "7z max" [
   --delete(-d)      #delete files after compression
 ] {
   if ($rest | is-empty) {
-    return-error "no files to compress specified"
+    return-error "no files to compress!!"
   }
-  if ($delete | is-empty) or (not $delete) {
-    7z a -t7z -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" ...$rest
+
+  if $delete {
+    7z a -t7z -sdel -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" ...$rest
     return
   }
-  7z a -t7z -sdel -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" ...$rest
+  
+  7z a -t7z -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" ...$rest
 }
 
 #rm trough pipe

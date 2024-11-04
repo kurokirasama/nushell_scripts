@@ -210,6 +210,8 @@ export def chat_gpt [
     --delim_with_backquotes(-d)   # to delimit prompt (not pre-prompt) with triple backquotes (')
     --select_system: string       # directly select system message    
     --select_preprompt: string    # directly select pre_prompt
+    --web_search(-w) = false #include $web_results web search results in the prompt
+    --web_results(-W):int = 5     #number of web results to include
     --document:string   #use provided document to retrieve answer
 ] {
   let query = get-input $in $query
@@ -283,6 +285,21 @@ export def chat_gpt [
     } else {
       $preprompt + $query
     } 
+  )
+
+  #search prompts
+  let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
+  
+  let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
+  let web_content = if $web_search {google_search $search -n $web_results -v} else {""}
+  let web_content = if $web_search {ai google_search-summary $prompt $web_content -G -m} else {""}
+  
+  let prompt = (
+    if $web_search {
+      $prompt + "\n\n You can complement your answer with the following up to date information about my question I obtained from a google search, in markdown format:\n" + $web_content
+    } else {
+      $prompt
+    }
   )
 
   # default models
@@ -500,9 +517,9 @@ export def askai [
   if $claude {
     let answer = (
       if $vision {
-        claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-vision -d true -i $image --select_preprompt $pre_prompt --select_system $system 
+        claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-vision -d true -i $image --select_preprompt $pre_prompt --select_system $system -w $web_search -W $web_results
       } else {
-        claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-3.5 -d true  --select_preprompt $pre_prompt --select_system $system --document $document
+        claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-3.5 -d true  --select_preprompt $pre_prompt --select_system $system --document $document -w $web_search -W $web_results
       }
     )
 
@@ -525,14 +542,14 @@ export def askai [
       }
     } else {
       match [$gpt4,$list_system,$list_preprompt] {
-        [true,true,false] => {chat_gpt $prompt -t $temp -l -m gpt-4 --select_preprompt $pre_prompt},
-        [true,false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4 --select_preprompt $pre_prompt},
-        [false,true,false] => {chat_gpt $prompt -t $temp -l --select_preprompt $pre_prompt},
-        [false,false,false] => {chat_gpt $prompt -t $temp --select_system $system --select_preprompt $pre_prompt},
-        [true,true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4 -p -d},
-        [true,false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4 -p -d},
-        [false,true,true] => {chat_gpt $prompt -t $temp -l -p -d},
-        [false,false,true] => {chat_gpt $prompt -t $temp --select_system $system -p -d}
+        [true,true,false] => {chat_gpt $prompt -t $temp -l -m gpt-4 --select_preprompt $pre_prompt -w $web_search -W $web_results},
+        [true,false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4 --select_preprompt $pre_prompt -w $web_search -W $web_results},
+        [false,true,false] => {chat_gpt $prompt -t $temp -l --select_preprompt $pre_prompt -w $web_search -W $web_results},
+        [false,false,false] => {chat_gpt $prompt -t $temp --select_system $system --select_preprompt $pre_prompt -w $web_search -W $web_results},
+        [true,true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4 -p -d -w $web_search -W $web_results},
+        [true,false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4 -p -d -w $web_search -W $web_results},
+        [false,true,true] => {chat_gpt $prompt -t $temp -l -p -d -w $web_search -W $web_results},
+        [false,false,true] => {chat_gpt $prompt -t $temp --select_system $system -p -d -w $web_search -W $web_results}
       }
     }
   )
@@ -1369,11 +1386,6 @@ export def google_ai [
 ] {
   #api parameters
   let apikey = $env.MY_ENV_VARS.api_keys.google.gemini
-  let query = get-input $in $query
-
-  if ($query | is-empty) {
-    return-error "Empty prompt!!!"
-  }
 
   let safetySettings = (
     if ($safety_settings | is-empty) {
@@ -1402,6 +1414,9 @@ export def google_ai [
 
   let for_bison_beta = if ($model =~ "bison") {"3"} else {""}
   let for_bison_gen = if ($model =~ "bison") {":generateText"} else {":generateContent"}
+
+  let input_model = $model
+  let model = if $model == "gemini-pro-vision" {"gemini-1.5-pro"} else {$model}
 
   let url_request = {
       scheme: "https",
@@ -1468,11 +1483,11 @@ export def google_ai [
       return-error "no saved conversations exist!"
     }
 
-    print (echo-c "starting chat with gemini..." "purple" -b)
-    print (echo-c "enter empty prompt to exit" "purple")
+    print (echo-c "starting chat with gemini..." "green" -b)
+    print (echo-c "enter empty prompt to exit" "green")
 
     let chat_char = "❱ "
-    let answer_color = "#00FF00"
+    let answer_color = "#FFFFFF"
 
     let chat_prompt = (
       if $database {
@@ -1525,7 +1540,7 @@ export def google_ai [
 
     mut answer = http post -t application/json $url_request $chat_request | get candidates.content.parts.0.text.0 
 
-    print (echo-c ("\n" + $answer + "\n") $answer_color)
+    print (echo-c ("\n" + $answer + "\n") $answer_color -b)
 
     #update request
     $contents = update_gemini_content $contents $answer "model"
@@ -1558,7 +1573,7 @@ export def google_ai [
 
       $answer = http post -t application/json $url_request $chat_request | get candidates.content.parts.0.text.0
 
-      print (echo-c ("\n" + $answer + "\n") $answer_color)
+      print (echo-c ("\n" + $answer + "\n") $answer_color -b)
 
       $contents = update_gemini_content $contents $answer "model"
 
@@ -1567,16 +1582,16 @@ export def google_ai [
       $chat_prompt = (input $chat_char)
     }
 
-    print (echo-c "chat with gemini ended..." "purple" -b)
+    print (echo-c "chat with gemini ended..." "green" -b)
 
-    let sav = input (echo-c "would you like to save the conversation in local drive? (y/n): " "yellow")
+    let sav = input (echo-c "would you like to save the conversation in local drive? (y/n): " "green")
     if $sav == "y" {
       let filename = input (echo-g "enter filename (default: gemini_chat): ")
       let filename = if ($filename | is-empty) {"gemini_chat"} else {$filename}
       save_gemini_chat $contents $filename $count
     }
 
-    let sav = input (echo-c "would you like to save the conversation in obsidian? (y/n): " "yellow")
+    let sav = input (echo-c "would you like to save the conversation in obsidian? (y/n): " "green")
     if $sav == "y" {
       mut filename = input (echo-g "enter note title: ")
       while ($filename | is-empty) {
@@ -1585,7 +1600,7 @@ export def google_ai [
       save_gemini_chat $contents $filename $count -o
     }
 
-    let sav = input (echo-c "would you like to save this in the conversations database? (y/n): " "yellow")
+    let sav = input (echo-c "would you like to save this in the conversations database? (y/n): " "green")
     if $sav == "y" {
       print (echo-g "summarizing conversation...")
       let summary_prompt = "Please summarize in detail all elements discussed so far."
@@ -1612,16 +1627,16 @@ export def google_ai [
     return-error "Empty prompt!!!"
   }
   
-  if ($model == "gemini-pro-vision") and ($image | is-empty) {
+  if ($input_model == "gemini-pro-vision") and ($image | is-empty) {
     return-error "gemini-pro-vision needs and image file!"
   }
 
-  if ($model == "gemini-pro-vision") and (not ($image | path expand | path exists)) {
+  if ($input_model == "gemini-pro-vision") and (not ($image | path expand | path exists)) {
     return-error "image file not found!" 
   }
 
   let extension = (
-    if $model == "gemini-pro-vision" {
+    if $input_model == "gemini-pro-vision" {
       $image | path parse | get extension
     } else {
       ""
@@ -1629,14 +1644,14 @@ export def google_ai [
   )
 
   let image = (
-    if $model == "gemini-pro-vision" {
+    if $input_model == "gemini-pro-vision" {
       open ($image | path expand) | encode base64
     } else {
       ""
     }
   )
 
-  #prompts
+  #search prompts
   let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
   
   let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
@@ -1655,7 +1670,7 @@ export def google_ai [
 
   # call to api
   let request = (
-    if $model == "gemini-pro-vision" {
+    if $input_model == "gemini-pro-vision" {
       {
         system_instruction: {
           parts:
@@ -1670,7 +1685,7 @@ export def google_ai [
               },
               {
                   inline_data: {
-                    mime_type:  "image/jpeg",
+                    mime_type:  ("image/" + $extension),
                     data: $image
                 }
               }
@@ -2448,6 +2463,8 @@ export def claude_ai [
     --delim_with_backquotes(-d) = false # to delimit prompt (not pre-prompt) with triple backquotes (')
     --select_system: string             # directly select system message    
     --select_preprompt: string          # directly select pre_prompt
+    --web_search(-w) = false #include $web_results web search results in the prompt
+    --web_results(-W):int = 5     #number of web results to include
     --document:string                   #uses provided document to retrieve the answer
 ] {
   let query = get-input $in $query
@@ -2524,6 +2541,21 @@ export def claude_ai [
     } 
   )
 
+  #search prompts
+  let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
+  
+  let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
+  let web_content = if $web_search {google_search $search -n $web_results -v} else {""}
+  let web_content = if $web_search {ai google_search-summary $prompt $web_content -G -m} else {""}
+  
+  let prompt = (
+    if $web_search {
+      $prompt + "\n\n You can complement your answer with the following up to date information about my question I obtained from a google search, in markdown format:\n" + $web_content
+    } else {
+      $prompt
+    }
+  )
+
   # default models
   let input_model = $model
   let model = if $model == "claude-3.5" {"claude-3-5-sonnet-latest"} else {$model}
@@ -2534,33 +2566,33 @@ export def claude_ai [
   # call to api
   let header = {x-api-key: $env.MY_ENV_VARS.api_keys.anthropic.api_key, anthropic-version: $anthropic_version}
   let site = "https://api.anthropic.com/v1/messages"
-  let image_url = ("data:image/" + $extension + ";base64," + $image)
   
   let request = (
     if $input_model == "claude-vision" {
       {
-        system: $system,
         model: $model,
         messages: [
           {
-            role: "user"
+            role: "user",
             content: [
               {
-                "type": "text",
-                "text": $prompt
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: ("image/" + $extension),
+                  data: $image,
+                }
               },
               {
-                "type": "image_url",
-                "image_url": 
-                  {
-                    "url": $image_url
-                  }
+                type: "text", 
+                text: $prompt
               }
             ]
           }
         ],
-        temperature: $temp,
-        max_tokens: $max_tokens
+        max_tokens: $max_tokens,
+        system: $system,
+        temperature: $temp
       }
     } else {
       {
@@ -2578,6 +2610,10 @@ export def claude_ai [
     }
   )
 
-  let answer = http post -t application/json -H $header $site $request
-  return $answer.content.text.0
+  try {
+    let answer = http post -t application/json -H $header $site $request
+    return $answer.content.text.0
+  } catch {
+    return (http post -t application/json -H $header $site $request -e)
+  }
 }
