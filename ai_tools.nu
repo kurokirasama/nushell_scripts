@@ -26,10 +26,23 @@ export def "ai help" [] {
       "- ai trans"
       "- ai google_search-summary"
       "- ai trans-subs"
+      "- claude_ai"
     ]
     | str join "\n"
     | nu-highlight
   ) 
+}
+
+#calculate aprox words per tokens
+#100 tokens about 60-80 words
+export def token2word [
+  tokens:int
+  --min(-m):int = 60
+  --max(-M):int = 80
+  --rate(-r):int = 100
+] {
+  let token_units = $tokens / $rate
+  math prod-list [$token_units $token_units] [$min $max]
 }
 
 #upload a file to chatpdf server
@@ -571,15 +584,16 @@ export alias bard = askai -c -G -W 2
 export def "ai git-push" [
   --gpt4(-g) # use gpt-4o instead of gpt-4o-mini
   --gemini(-G) #use google gemini-1.5-pro model
+  --claude(-C) #use antropic claude-3-5-sonnet-latest
 ] {
   if $gpt4 and $gemini {
     return-error "select only one model!"
   }
 
-  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {700000}
-  let max_words_short = if $gpt4 {85000} else if (not $gemini) {10000} else {700000}
+  let max_words = if $gemini {700000} else if claude {150000} else {100000}
+  let max_words_short = if $gemini {700000} else if claude {150000} else {100000}
 
-  let model = if $gemini {"gemini"} else {"chatgpt"}
+  let model = if $gemini {"gemini"} else if $claude {"claude"} else {"chatgpt"}
 
   print (echo-g $"asking ($model) to summarize the differences in the repository...")
   let question = (git diff | str replace "\"" "'" -a)
@@ -725,6 +739,7 @@ export def "ai media-summary" [
   --lang(-l):string = "Spanish" # language of the summary
   --gpt4(-g)             # to use gpt-4o instead of gpt-4o-mini
   --gemini(-G)           # use google gemini-1.5-pro instead of gpt
+  --claude(-C)           # use anthropic claude
   --notify(-n)           # notify to android via join/tasker
   --upload(-u)           # upload extracted audio to gdrive
   --type(-t): string = "meeting" # meeting, youtube, class or instructions
@@ -788,9 +803,9 @@ export def "ai media-summary" [
   #definitions
   let output = $"($title)_summary.md"
 
-  # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gpt4 {85000} else if (not $gemini) {10000} else {700000}
-  let n_words = (wc -w $the_subtitle | awk '{print $1}' | into int)
+  # dealing with the case when the transcription files has too many words for chatgpt AQUI
+  let max_words = if $gemini {700000} else if claude {150000} else {100000}
+  let n_words = wc -w $the_subtitle | awk '{print $1}' | into int
 
   if $n_words > $max_words {
     print (echo-g $"splitting transcription of ($title)...")
@@ -806,7 +821,7 @@ export def "ai media-summary" [
     $files | each {|split_file|
       let t_input = (open ($split_file | get name))
       let t_output = ($split_file | get name | path parse | get stem)
-      ai transcription-summary $t_input $t_output -g $gpt4 -t $type -G $gemini
+      ai transcription-summary $t_input $t_output -g $gpt4 -t $type -G $gemini -C $claude
     }
 
     let temp_output = $"($title)_summaries.md"
@@ -822,15 +837,17 @@ export def "ai media-summary" [
     }
 
     let prompt = (open $temp_output)
-    let model = if $gemini {"gemini"} else {"chatgpt"}
+    let model = if $gemini {"gemini"} else if $claude {"claude"} else {"chatgpt"}
 
     print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
     if $gpt4 {
       chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-4
-    } else if (not $gemini) {
-      chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d
-    } else {
+    } else if $gemini {
       google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m gemini-1.5-pro
+    } else if $claude {
+      claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-3.5
+    } else {
+      chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d
     }
     | save -f $output
 
@@ -840,7 +857,8 @@ export def "ai media-summary" [
     return
   }
   
-  ai transcription-summary (open $the_subtitle) $output -g $gpt4 -t $type -G $gemini
+  ai transcription-summary (open $the_subtitle) $output -g $gpt4 -t $type -G $gemini -C $claude
+
   if $upload {cp $output $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory}
   if $notify {"summary finished!" | tasker send-notification}
 }
@@ -851,32 +869,37 @@ export def "ai transcription-summary" [
   output                #output name without extension
   --gpt4(-g) = false    #whether to use gpt-4o
   --gemini(-G) = false  #use google gemini-1.5-pro
-  --type(-t): string = "meeting" # meeting, youtube or class
+  --claude(-C) = false  #use anthropic claide
+  --type(-t): string = "meeting" # meeting, youtube, class or instructions
   --notify(-n)          #notify to android via join/tasker
 ] {
   let output_file = $"($output | path parse | get stem).md"
-  let model = if $gemini {"gemini"} else {"chatgpt"}
+  let model = if $gemini {"gemini"} else if $claude {"claude"} else {"chatgpt"}
 
   let system_prompt = match $type {
     "meeting" => {"meeting_summarizer"},
     "youtube" => {"ytvideo_summarizer"},
     "class" => {"class_transcriptor"},
+    "instructions" => {"instructions_extractor"},
     _ => {return-error "not a valid type!"}
   }
 
   let pre_prompt = match $type {
-    "meeting" => {"summarize_transcription"},
-    "youtube" => {"summarize_ytvideo"},
-    "class" => {"process_class"}
+    "meeting" => {"consolidate_transcription"},
+    "youtube" => {"consolidate_ytvideo"},
+    "class" => {"consolidate_class"},
+    "instructions" => {"extract_instructions"}
   }
 
   print (echo-g $"asking ($model) for a summary of the file transcription...")
   if $gpt4 {
     chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-4
-  } else if (not $gemini) {
-    chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d
-  } else {
+  } else if $gemini {
     google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m gemini-1.5-pro
+  } else if $claude {
+    claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-3.5
+  } else {
+    chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d
   }
   | save -f $output_file
 

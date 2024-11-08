@@ -536,7 +536,7 @@ export def "media merge-videos-auto" [
     "" | save -f $list
   }
   
-  ls $"*.($ext)" 
+  ls ($"*.($ext)" | into glob) 
   | where type == file 
   | get name
   | each {|file|
@@ -544,7 +544,7 @@ export def "media merge-videos-auto" [
     }
 
   print (echo-g "merging videos...")
-  myffmpeg -f concat -safe 0 -i list.txt -c copy $"($output)"
+  myffmpeg -f concat -safe 0 -i list.txt -c copy $"($output).($ext)"
       
   print (echo-g "done!")
   notify-send "video merge done!"

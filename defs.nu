@@ -256,8 +256,8 @@ export def reset-alpine-auth [] {
 
 #run matlab in cli
 export def matlab-cli [
-  --background(-b)    #send process to the background
-  --input(-i):string  #input m-file to run, must be in the same directory
+  --background(-b)    #send process to the background, select input m-file from list
+  --input(-i):string  #input m-file to run in background mode, must be in the same directory
   --output(-o):string #output file for log without extension
   --log_file(-l):string = "log24" #log file in foreground mode
   --kill(-k)          #kill current matlab processes
@@ -278,6 +278,7 @@ export def matlab-cli [
     matlab -nosplash -nodesktop -softwareopengl -sd ($env.PWD) -logfile ("~/Dropbox/matlab" | path join $"($log_file).txt" | path expand) -r "setenv('SHELL', '/bin/bash');"
     return
   } 
+
   let log = (date now | format date "%Y.%m.%d_%H.%M.%S") + "_log.txt"
 
   let input = (
