@@ -590,8 +590,8 @@ export def "ai git-push" [
     return-error "select only one model!"
   }
 
-  let max_words = if $gemini {700000} else if claude {150000} else {100000}
-  let max_words_short = if $gemini {700000} else if claude {150000} else {100000}
+  let max_words = if $gemini {700000} else if $claude {150000} else {100000}
+  let max_words_short = if $gemini {700000} else if $claude {150000} else {100000}
 
   let model = if $gemini {"gemini"} else if $claude {"claude"} else {"chatgpt"}
 
@@ -786,7 +786,7 @@ export def "ai media-summary" [
     "meeting" => {"consolidate_transcription"},
     "youtube" => {"consolidate_ytvideo"},
     "class" => {"consolidate_class"},
-    "instructions" => {"extract_instructions"}
+    "instructions" => {"extract_instructions"} #crear consolidate_instructions
   }
 
   if $upload and $media_type in ["video" "audio" "url"] {
@@ -804,7 +804,7 @@ export def "ai media-summary" [
   let output = $"($title)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt AQUI
-  let max_words = if $gemini {700000} else if claude {150000} else {100000}
+  let max_words = if $gemini {700000} else if $claude {150000} else {100000}
   let n_words = wc -w $the_subtitle | awk '{print $1}' | into int
 
   if $n_words > $max_words {
@@ -840,6 +840,7 @@ export def "ai media-summary" [
     let model = if $gemini {"gemini"} else if $claude {"claude"} else {"chatgpt"}
 
     print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
+
     if $gpt4 {
       chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-4
     } else if $gemini {
@@ -885,9 +886,9 @@ export def "ai transcription-summary" [
   }
 
   let pre_prompt = match $type {
-    "meeting" => {"consolidate_transcription"},
-    "youtube" => {"consolidate_ytvideo"},
-    "class" => {"consolidate_class"},
+    "meeting" => {"summarize_transcription"},
+    "youtube" => {"summarize_ytvideo"},
+    "class" => {"process_class"},
     "instructions" => {"extract_instructions"}
   }
 

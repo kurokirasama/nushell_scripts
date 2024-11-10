@@ -191,30 +191,51 @@ let hooks = {
 $env.config.hooks = $hooks
 
 #menus
-let new_menus_names = ["alias_menu"]
-let alias_menu = {
-    name: alias_menu
-    only_buffer_difference: false
-    marker: "👀 "
-    type: {
-      layout: columnar
-      columns: 1
-      col_width: 20
-      col_padding: 2
+let new_menus_names = ["alias_menu" "my_history_menu"]
+let menus = [ {
+        name: alias_menu
+        only_buffer_difference: false
+        marker: "👀 "
+        type: {
+          layout: columnar
+          columns: 1
+          col_width: 20
+          col_padding: 2
+        }
+        style: {
+          text: green
+          selected_text: green_reverse
+          description_text: yellow
+        }
+        source: { |buffer, position|
+          scope aliases
+          | where name == $buffer
+          | each { |it| {value: $it.expansion }}
+        }
+    },
+    {
+      name: my_history_menu
+      only_buffer_difference: false
+      marker: ''
+      type: { layout: ide }
+      style: {}
+      source: {|buffer, position|
+        {
+          # only history of current directory
+          value: (
+            atuin history list --reverse false --cwd --cmd-only --print0
+            | split row (char nul) | uniq
+            | par-each {$in | nu-highlight}
+            | str join (char nul)
+            | fzf --read0 --ansi -q $buffer --height 40%
+            | ansi strip
+          )
+        }
+      }
     }
-    style: {
-      text: green
-      selected_text: green_reverse
-      description_text: yellow
-    }
-    source: { |buffer, position|
-      scope aliases
-      | where name == $buffer
-      | each { |it| {value: $it.expansion }}
-    }
-}
+]
 
-$env.config.menus = $env.config.menus | where name not-in $new_menus_names | append $alias_menu
+$env.config.menus = $env.config.menus | where name not-in $new_menus_names | append $menus
 
 #keybindings
 let new_keybinds_names = ["alias_menu" 
@@ -226,6 +247,7 @@ let new_keybinds_names = ["alias_menu"
     "completion_menu" 
     "ide_completion_menu" 
     "copy_command"
+    "my_history_menu"
 ]
 
 let new_keybinds = [
@@ -293,7 +315,7 @@ let new_keybinds = [
     {
         name: completion_menu
         modifier: control
-        keycode: char_n
+        keycode: char_i
         mode: [emacs vi_normal vi_insert]
         event: {
             until: [
@@ -325,10 +347,17 @@ let new_keybinds = [
             send: executehostcommand
             cmd: "commandline | xsel --input --clipboard; commandline edit --append ' # copied'"
         }
+    },
+    {
+        name: my_history_menu
+        modifier: alt
+        keycode: char_r
+        mode: [emacs, vi_insert, vi_normal]
+        event: { send: menu name: my_history_menu }
     }
 ]
 
-$env.config.keybindings = $env.config.keybindings | where name not-in $new_keybinds_names | append $new_keybinds
+$env.config.keybindings = $env.config.keybindings | append $new_keybinds # where name not-in $new_keybinds
 
 #for fun
 # try {

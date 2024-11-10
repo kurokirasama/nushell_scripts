@@ -456,6 +456,24 @@ export def verify [
   $not xor $res
 }
 
+#flatten a record keys
+#
+#Example:
+# flatten-keys $env.config '$env.config'
+def flatten-keys [rec: record, root: string] {
+  $rec | columns | each {|key|    
+    let is_record = (
+      $rec | get $key | describe --detailed | get type | $in == record
+    )
+ 
+    # Recusively return each key plus its subkeys
+    [$'($root).($key)'] ++  match $is_record {
+      true  => (flatten-keys ($rec | get $key) $'($root).($key)')
+      false => []
+    }
+   } | flatten
+} 
+
 #################################################################################################
 ## appimages
 #################################################################################################
