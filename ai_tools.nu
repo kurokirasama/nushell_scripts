@@ -397,6 +397,7 @@ export def askai [
   --rubb(-R)       # use rubb s.m. with temperature 0.65, else use assistant with temp 0.9
   --biblical(-B)   # use biblical assistant s.m with temp 0.85
   --math_teacher(-M) # use undergraduate and postgraduate math teacher s.m. with temp 0.95
+  --google_assistant(-O) # use gOogle assistant (with web search) s.m with temp 0.7
   --academic(-A)   # use academic writer improver s.m with temp 0.78, and its preprompt
   --summarizer(-S) #use simple summarizer s.m with temp 0.70 and its preprompt
   --linux_expert(-L) #use linux expert s.m with temp temp 0.85
@@ -441,17 +442,18 @@ export def askai [
     
   let temp = (
     if ($temperature | is-empty) {
-      match [$programmer,$teacher,$engineer,$rubb,$academic,$biblical,$summarizer,$linux_expert,$math_teacher] {
-        [true,false,false,false,false,false,false,false,false] => 0.75,
-        [false,true,false,false,false,false,false,false,false] => 0.95,
-        [false,false,true,false,false,false,false,false,false] => 0.8,
-        [false,false,false,true,false,false,false,false,false] => 0.65,
-        [false,false,false,false,true,false,false,false,false] => 0.78,
-        [false,false,false,false,false,true,false,false,false] => 0.85,
-        [false,false,false,false,false,false,true,false,false] => 0.7,
-        [false,false,false,false,false,false,false,true,false] => 0.85,
-        [false,false,false,false,false,false,false,false,true] => 0.95,
-        [false,false,false,false,false,false,false,false,false] => 0.9
+      match [$programmer,$teacher,$engineer,$rubb,$academic,$biblical,$summarizer,$linux_expert,$math_teacher,$google_assistant] {
+        [true,false,false,false,false,false,false,false,false,false] => 0.75,
+        [false,true,false,false,false,false,false,false,false,false] => 0.95,
+        [false,false,true,false,false,false,false,false,false,false] => 0.8,
+        [false,false,false,true,false,false,false,false,false,false] => 0.65,
+        [false,false,false,false,true,false,false,false,false,false] => 0.78,
+        [false,false,false,false,false,true,false,false,false,false] => 0.85,
+        [false,false,false,false,false,false,true,false,false,false] => 0.7,
+        [false,false,false,false,false,false,false,true,false,false] => 0.85,
+        [false,false,false,false,false,false,false,false,true,false] => 0.95,
+        [false,false,false,false,false,false,false,false,false,true] => 0.7,
+        [false,false,false,false,false,false,false,false,false,false] => 0.9
         _ => {return-error "only one system message flag allowed"},
       }
    } else {
@@ -483,6 +485,8 @@ export def askai [
         "linux_expert"
       } else if $math_teacher {
         "math_teacher"
+      } else if $google_assistant {
+        "google_assistant"
       } else {
         "assistant"
       }
