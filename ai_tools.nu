@@ -198,6 +198,8 @@ export def "chatpdf list" [] {
 # - gpt-4o (128000 tokens)
 # - gpt-4-turbo (128000 tokens)
 # - gpt-4-vision (128000 tokens), points to gpt-4-turbo. 
+# - o1-preview (128000 tokens)
+# - o1-mini (128000 tokens)
 # - gpt-4o-mini (128000 tokens)
 # - gpt-4-32k (32768 tokens)
 # - gpt-3.5-turbo (16385 tokens)
@@ -214,7 +216,7 @@ export def "chatpdf list" [] {
 # - --select_preprompt > --pre_prompt
 export def chat_gpt [
     query?: string                     # the query to Chat GPT
-    --model(-m):string = "gpt-4o-mini" # the model gpt-4o-mini, gpt-4, etc
+    --model(-m):string = "gpt-4o-mini" # the model gpt-4o-mini, gpt-4o = gpt-4, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9       # the temperature of the model
     --image(-i):string            # filepath of image file for gpt-4-vision
@@ -371,7 +373,7 @@ export def chat_gpt [
     }
   )
 
-  let answer = http post -t application/json -H $header $site $request  
+  let answer = http post -t application/json -H $header $site $request -e
   return $answer.choices.0.message.content
 }
 
@@ -390,11 +392,12 @@ export def askai [
   prompt?:string  # string with the prompt, can be piped
   system?:string  # string with the system message. It has precedence over the s.m. flags
   --programmer(-P) # use programmer s.m with temp 0.75, else use assistant with temp 0.9
-  --teacher(-T)    # use teacher s.m with temp 0.95, else use assistant with temp 0.9
+  --teacher(-T)    # use school teacher s.m with temp 0.95, else use assistant with temp 0.9
   --engineer(-E)   # use prompt_engineer s.m. with temp 0.8, else use assistant with temp 0.9
   --rubb(-R)       # use rubb s.m. with temperature 0.65, else use assistant with temp 0.9
+  --biblical(-B)   # use biblical assistant s.m with temp 0.85
+  --math_teacher(-M) # use undergraduate and postgraduate math teacher s.m. with temp 0.95
   --academic(-A)   # use academic writer improver s.m with temp 0.78, and its preprompt
-  --biblical(-B)   #use biblical assistant s.m with temp 0.85
   --summarizer(-S) #use simple summarizer s.m with temp 0.70 and its preprompt
   --linux_expert(-L) #use linux expert s.m with temp temp 0.85
   --list_system(-l)       # select s.m from list (takes precedence over flags)
@@ -438,16 +441,17 @@ export def askai [
     
   let temp = (
     if ($temperature | is-empty) {
-      match [$programmer,$teacher,$engineer,$rubb,$academic,$biblical,$summarizer,$linux_expert] {
-        [true,false,false,false,false,false,false,false] => 0.75,
-        [false,true,false,false,false,false,false,false] => 0.95,
-        [false,false,true,false,false,false,false,false] => 0.8,
-        [false,false,false,true,false,false,false,false] => 0.65,
-        [false,false,false,false,true,false,false,false] => 0.78,
-        [false,false,false,false,false,true,false,false] => 0.85,
-        [false,false,false,false,false,false,true,false] => 0.7,
-        [false,false,false,false,false,false,false,true] => 0.85,
-        [false,false,false,false,false,false,false,false] => 0.9
+      match [$programmer,$teacher,$engineer,$rubb,$academic,$biblical,$summarizer,$linux_expert,$math_teacher] {
+        [true,false,false,false,false,false,false,false,false] => 0.75,
+        [false,true,false,false,false,false,false,false,false] => 0.95,
+        [false,false,true,false,false,false,false,false,false] => 0.8,
+        [false,false,false,true,false,false,false,false,false] => 0.65,
+        [false,false,false,false,true,false,false,false,false] => 0.78,
+        [false,false,false,false,false,true,false,false,false] => 0.85,
+        [false,false,false,false,false,false,true,false,false] => 0.7,
+        [false,false,false,false,false,false,false,true,false] => 0.85,
+        [false,false,false,false,false,false,false,false,true] => 0.95,
+        [false,false,false,false,false,false,false,false,false] => 0.9
         _ => {return-error "only one system message flag allowed"},
       }
    } else {
@@ -477,6 +481,8 @@ export def askai [
         "document_expert"
       } else if $linux_expert {
         "linux_expert"
+      } else if $math_teacher {
+        "math_teacher"
       } else {
         "assistant"
       }
