@@ -393,12 +393,13 @@ export def askai [
   system?:string  # string with the system message. It has precedence over the s.m. flags
   --programmer(-P) # use programmer s.m with temp 0.75, else use assistant with temp 0.9
   --teacher(-T)    # use school teacher s.m with temp 0.95, else use assistant with temp 0.9
-  --engineer(-E)   # use prompt_engineer s.m. with temp 0.8, else use assistant with temp 0.9
   --rubb(-R)       # use rubb s.m. with temperature 0.65, else use assistant with temp 0.9
-  --biblical(-B)   # use biblical assistant s.m with temp 0.85
+  --biblical(-B)   # use biblical assistant s.m with temp 0.78
   --math_teacher(-M) # use undergraduate and postgraduate math teacher s.m. with temp 0.95
   --google_assistant(-O) # use gOogle assistant (with web search) s.m with temp 0.7
+  --engineer(-E)   # use prompt_engineer s.m. with temp 0.8 and its preprompt
   --academic(-A)   # use academic writer improver s.m with temp 0.78, and its preprompt
+  --fix_bug(-F)   # use programmer s.m. with temp 0.75 and fix_code_bug preprompt
   --summarizer(-S) #use simple summarizer s.m with temp 0.70 and its preprompt
   --linux_expert(-L) #use linux expert s.m with temp temp 0.85
   --list_system(-l)       # select s.m from list (takes precedence over flags)
@@ -439,33 +440,34 @@ export def askai [
   if $vision and ($image | is-empty) {
     return-error "vision models need and image file!"
   }
-    
-  let temp = (
-    if ($temperature | is-empty) {
-      match [$programmer,$teacher,$engineer,$rubb,$academic,$biblical,$summarizer,$linux_expert,$math_teacher,$google_assistant] {
-        [true,false,false,false,false,false,false,false,false,false] => 0.75,
-        [false,true,false,false,false,false,false,false,false,false] => 0.95,
-        [false,false,true,false,false,false,false,false,false,false] => 0.8,
-        [false,false,false,true,false,false,false,false,false,false] => 0.65,
-        [false,false,false,false,true,false,false,false,false,false] => 0.78,
-        [false,false,false,false,false,true,false,false,false,false] => 0.85,
-        [false,false,false,false,false,false,true,false,false,false] => 0.7,
-        [false,false,false,false,false,false,false,true,false,false] => 0.85,
-        [false,false,false,false,false,false,false,false,true,false] => 0.95,
-        [false,false,false,false,false,false,false,false,false,true] => 0.7,
-        [false,false,false,false,false,false,false,false,false,false] => 0.9
-        _ => {return-error "only one system message flag allowed"},
-      }
-   } else {
+  
+  let temp = if ($temperature | is-empty) {
+    if $programmer or $fix_bug {
+      0.75
+    } else if $teacher or $math_teacher {
+      0.95
+    } else if $engineer {
+      0.8
+    } else if $rubb {
+      0.65
+    } else if $academic or $biblical {
+      0.78
+    } else if $linux_expert {
+      0.85
+    } else if $summarizer or $google_assistant {
+      0.7
+    } else {
+      0.9
+    }
+  } else {
     $temperature
-   }
-  )
-
+  }
+  
   let system = (
     if ($system | is-empty) {
       if $list_system {
         ""
-      } else if $programmer {
+      } else if $programmer or $fix_bug {
         "programmer"
       } else if $teacher {
         "school_teacher"
@@ -501,7 +503,11 @@ export def askai [
     } else if $summarizer {
       "simple_summary"
     } else if ($document | is-not-empty) {
-        "document_answer"
+      "document_answer"
+    } else if $engineer {
+      "meta_prompt"
+    } else if $fix_bug {
+      "fix_code_bug"
     } else {
       "empty"
     }
