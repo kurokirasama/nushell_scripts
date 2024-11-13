@@ -159,7 +159,7 @@ export def countdown [
 }
 
 #check validity of a link
-export def check-link [link?,timeout?:int] {
+export def check-link [link?,timeout?:duration] {
   let link = get-input $in $link
 
   if ($timeout | is-empty) {

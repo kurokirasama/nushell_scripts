@@ -143,7 +143,7 @@ export def dec2base [
 	} 
 
 	let newNumber = ($number - ($number mod $base)) / $base
-	return ([(dec2base $newNumber $base) ($chars | get ($number mod $base))] | str join)
+	return ([(dec2base ($newNumber | into int) $base) ($chars | get ($number mod $base))] | str join)
 }
 
 #Custom base representation number to decimal

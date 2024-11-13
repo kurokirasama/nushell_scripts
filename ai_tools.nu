@@ -398,6 +398,7 @@ export def askai [
   --math_teacher(-M) # use undergraduate and postgraduate math teacher s.m. with temp 0.95
   --google_assistant(-O) # use gOogle assistant (with web search) s.m with temp 0.7
   --engineer(-E)   # use prompt_engineer s.m. with temp 0.8 and its preprompt
+  --writer       # use writing_expert s.m with temp 0.95
   --academic(-A)   # use academic writer improver s.m with temp 0.78, and its preprompt
   --fix_bug(-F)   # use programmer s.m. with temp 0.75 and fix_code_bug preprompt
   --summarizer(-S) #use simple summarizer s.m with temp 0.70 and its preprompt

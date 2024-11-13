@@ -96,7 +96,7 @@ def get_location [--home(-h),--ubb(-b)] {
     let online = ( 
         locations 
         | each {|url| 
-            check-link ($url | get location) 2
+            check-link ($url | get location) 2sec
           } 
         | wrap online
     )

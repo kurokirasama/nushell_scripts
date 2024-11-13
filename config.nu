@@ -361,7 +361,7 @@ let new_keybinds = [
     }
 ]
 
-$env.config.keybindings = $env.config.keybindings | append $new_keybinds # where name not-in $new_keybinds
+$env.config.keybindings = $env.config.keybindings | where name not-in $new_keybinds | append $new_keybinds
 
 #for fun
 # try {
