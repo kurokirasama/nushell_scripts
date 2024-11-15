@@ -326,7 +326,7 @@ export def get-files [
           }
       } else {
         if $full_path {
-          ls -f **/*
+          ls -f "**/*"
         } else {
           ls **/*
         }

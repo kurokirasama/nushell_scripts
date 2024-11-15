@@ -334,3 +334,16 @@ export def lists2table [
 
   return $matrix
 }
+
+#checks to see if the elements in the first list are contained in the second list
+#analog to polars is-in
+#
+#Example:
+#
+# let a = [[a]; [a] [b] [c] [d]]
+# let b = [[a]; [a] [c]]
+# $a | is-in $b
+export def is-in [subset:list, all?:list] {
+  let all = get-input $in $all
+  $all | each {|x| $x in $subset}
+}

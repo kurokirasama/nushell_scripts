@@ -46,19 +46,13 @@ export def "apps-update nushell-plugins" [] {
 #
 #nu_plugin_net nu_plugin_highlight nu_plugin_units nu_plugin_port_scan nu_plugin_image
 export def "apps-update nushell-external-plugins" [] {
-  cargo install-update nu_plugin_highlight
   cargo install --git https://github.com/Euphrasiologist/nu_plugin_plot
   cargo install --git https://github.com/FMotalleb/nu_plugin_port_scan.git
-  cargo install --git https://github.com/FMotalleb/nu_plugin_image.git
 
-  # plugin add ~/.cargo/bin/nu_plugin_highlight
   # plugin add ~/.cargo/bin/nu_plugin_port_scan
-  # plugin add ~/.cargo/bin/nu_plugin_image
   # plugin add ~/.cargo/bin/nu_plugin_plot
 
-  # plugin use ~/.cargo/bin/nu_plugin_highlight
   # plugin use ~/.cargo/bin/nu_plugin_port_scan
-  # plugin use ~/.cargo/bin/nu_plugin_image
   # plugin use ~/.cargo/bin/nu_plugin_plot
 }
 

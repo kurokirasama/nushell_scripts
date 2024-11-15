@@ -82,7 +82,7 @@ def get-files [--full(-f),--dir(-d):string,--full_path(-F)] {
         }
     } else {
       if $full_path {
-        ls -f **/*
+        ls -f "**/*"
       } else {
         ls **/*
       }
