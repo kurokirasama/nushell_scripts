@@ -72,38 +72,23 @@ def lister [file] {
 }
 
 #get list of files recursively
-def get-files [--full(-f),--dir(-d):string,--full_path(-F)] {
-  if $full {
-    if not ($dir | is-empty) {
-      if $full_path {
-        ls -f $"($dir)/**/*"
-        } else {
-          ls $"($dir)/**/*"
-        }
+def get-files [
+    dir?
+    --recursive(-f)
+    --full-paths(-F)
+    --sort-by-date(-t)
+] {
+    let dir = $dir | default "."
+    let pattern = if $recursive { "**/*" | into glob } else { "*" | into glob }
+    cd $dir
+
+    ls --full-paths=$full_paths $pattern
+    | where type == file 
+    | if $sort_by_date {
+        sort-by -i modified
     } else {
-      if $full_path {
-        ls -f "**/*"
-      } else {
-        ls **/*
-      }
+        sort-by -i name
     }
-  } else {
-    if not ($dir | is-empty) {
-      if $full_path {
-        ls -f $"($dir)"
-      } else {
-        ls $"($dir)"
-      }
-    } else {
-      if $full_path {
-        ls -f
-      } else {
-        ls
-      }
-    }
-  } 
-  | where type == file 
-  | sort-by -i name
 }
 
 #green echo
