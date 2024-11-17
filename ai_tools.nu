@@ -1965,7 +1965,7 @@ export def "ai trans" [
   --gemini(-G)  #use gemini instead of gpt
   --copy(-c)    #copy output to clipboard
   --fast(-f)    #use prompt.md and answer.md to read question and write answer
-  --verbose(-v) #show gemini api attempts
+  --not_verbose(-n) #do not show translating message
 ] {
   let prompt = if $fast {
     open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
@@ -1978,7 +1978,7 @@ export def "ai trans" [
   let system_prompt = "You are a reliable and knowledgeable language assistant specialized in " + $destination + "translation. Your expertise and linguistic skills enable you to provide accurate and natural translations  to " + $destination + ". You strive to ensure clarity, coherence, and cultural sensitivity in your translations, delivering high-quality results. Your goal is to assist and facilitate effective communication between languages, making the translation process seamless and accessible for users. With your assistance, users can confidently rely on your expertise to convey their messages accurately in" + $destination + "."
   let prompt = "Please translate the following text to " + $destination + ", and return only the translated text as the output, without any additional comments or formatting. Keep the same capitalization in every word the same as the original text and keep the same punctuation too. Do not add periods at the end of the sentence if they are not present in the original text. Keep any markdown formatting characters intact. The text to translate is:\n" + $prompt
 
-  print (echo-g $"translating to ($destination)...")
+  if not $not_verbose {print (echo-g $"translating to ($destination)...")}
   let translated = (
     if $gemini {
       google_ai $prompt -t 0.5 -s $system_prompt -m gemini-1.5-pro
@@ -2030,11 +2030,11 @@ export def "ai trans-sub" [
           let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
           let translated = (
             if $ai and $gemini {
-              $fixed_line | ai trans -G
+              $fixed_line | ai trans -Gn
             } else if $ai and $gpt4 {
-              $fixed_line | ai trans -g
+              $fixed_line | ai trans -gn
             } else if $ai {
-              $fixed_line | ai trans
+              $fixed_line | ai trans -n
             } else {
               $fixed_line | trans --from $from
             }
@@ -2051,7 +2051,8 @@ export def "ai trans-sub" [
           $line.item | save --append $new_file
           "\n" | save --append $new_file
         }
-        print -n (echo-g $"\r($line.index / $lines * 100 | math round -p 3)%")
+        progress_bar $line.index $lines
+        # print -n (echo-g $"\r($line.index / $lines * 100 | math round -p 3)%")
       }
 
     return 
