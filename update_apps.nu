@@ -49,10 +49,10 @@ export def "apps-update nushell-external-plugins" [] {
   cargo install --git https://github.com/Euphrasiologist/nu_plugin_plot
   cargo install --git https://github.com/FMotalleb/nu_plugin_port_scan.git
 
-  # plugin add ~/.cargo/bin/nu_plugin_port_scan
+  plugin add ~/.cargo/bin/nu_plugin_port_scan
   # plugin add ~/.cargo/bin/nu_plugin_plot
 
-  # plugin use ~/.cargo/bin/nu_plugin_port_scan
+  plugin use ~/.cargo/bin/nu_plugin_port_scan
   # plugin use ~/.cargo/bin/nu_plugin_plot
 }
 

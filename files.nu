@@ -31,12 +31,19 @@ export def is-column [name] {
 
 #wrapper for describe
 export def typeof [--full(-f)] {
-  describe 
-  | if not $full { 
-      split row '<' | get 0 
-    } else { 
-      $in 
-    }
+  let inp = $in
+  let type = $inp
+    | describe 
+    | if not $full { 
+        split row '<' | get 0 
+      } else { 
+        $in 
+      }
+
+  if $type == list and ($in | columns | is-not-empty) {
+    return "table"
+  }
+  return $type
 }
 
 #open text file
@@ -313,11 +320,11 @@ export def le [] {
 export def get-files [
     dir?
     --recursive(-f)
-    --full-paths(-F)
-    --sort-by-date(-t)
+    --full_paths(-F)
+    --sort_by_date(-t)
 ] {
     let dir = $dir | default "."
-    let pattern = if $recursive { "**/*" | into glob } else { "*" | into glob }
+    let pattern = if $recursive { "**/*" } else { "*" } | into glob
     cd $dir
 
     ls --full-paths=$full_paths $pattern
@@ -423,7 +430,7 @@ export def autolister [user?] {
 }
 
 #list all files and save it to json in Dropbox/Directorios
-export def lister [file] {
+export def lister [file:string] {
   let file = (["~/Dropbox/Directorios" $"($file).json"] | path join | path expand)
 
   let df = (try {
@@ -440,7 +447,7 @@ export def lister [file] {
     return
   }
 
-  let last = $df | reject name | polars into-df
+  let last = $df | reject name | update size {into int} | polars into-df
 
   let df = (
     $df
@@ -467,7 +474,12 @@ export def lister [file] {
     | polars rename [parent stem] [path file]
   )
 
-  $first | polars append $second | polars append $last | polars into-nu | save -f $file
+  $first 
+  | polars append $second 
+  | polars append $last 
+  | polars into-nu 
+  | update size {into filesize} 
+  | save -f $file
 }
 
 #create anime dirs according to files

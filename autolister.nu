@@ -21,65 +21,67 @@ def main [user:string = "kira"] {
 }
 
 #list all files and save it to json in Dropbox/Directorios
-def lister [file] {
-	let file = "~/Dropbox/Directorios" | path join $"($file).json" | path expand
+export def lister [file:string] {
+  let file = (["~/Dropbox/Directorios" $"($file).json"] | path join | path expand)
 
-	let df = (try {
-				get-files -f -F 
-			} catch {
-				[]
-			})
+  let df = (try {
+      get-files -f -F 
+    } catch {
+      []
+    }
+  )
 
-	if ($df | length) == 0 {
-		if $file =~ "Downloads" and ($file | path expand | path exists) { 
+  if ($df | length) == 0 {
+    if $file =~ "Downloads" and ($file | path expand | path exists) { 
       rm $file
     }
-		return
-	}
+    return
+  }
 
-	let last = $df | reject name | polars into-df
+  let last = $df | reject name | update size {into int} | polars into-df
 
-	let df = (
-		$df
-		| each {|file| 
-				$file
-				| get name 
-				| parse $"{origin}/($env.USER)/{location}/{rest}"
-		  }
-		| flatten
-	) 
+  let df = (
+    $df
+    | each {|file| 
+      $file
+      | get name 
+      | parse $"{origin}/($env.USER)/{location}/{rest}"
+      }
+    | flatten
+  ) 
 
-	let first = $df | select origin location | polars into-df
+  let first = $df | select origin location | polars into-df
 
-	let second = (
-		$df 
-		| select rest 
-		| each {|file| 
-			$file 
-			| get rest 
-			| path parse -e ''
-		  } 
-		| polars into-df 
-		| polars drop extension 
-		| polars rename [parent stem] [path file]
-	)
+  let second = (
+    $df 
+    | select rest 
+    | each {|file| 
+      $file 
+      | get rest 
+      | path parse -e ''
+      } 
+    | polars into-df 
+    | polars drop extension 
+    | polars rename [parent stem] [path file]
+  )
 
-	$first 
-	| polars append $second 
-	| polars append $last 
-	| polars into-nu 
-	| save -f $file
+  $first 
+  | polars append $second 
+  | polars append $last 
+  | polars into-nu 
+  | update size {into filesize} 
+  | save -f $file
 }
 
 #get list of files recursively
 def get-files [
     dir?
     --recursive(-f)
-    --full-paths(-F)
-    --sort-by-date(-t)
+    --full_paths(-F)
+    --sort_by_date(-t)
 ] {
     let dir = $dir | default "."
-    let pattern = if $recursive { "**/*" | into glob } else { "*" | into glob }
+    let pattern = if $recursive { "**/*" } else { "*" } | into glob
     cd $dir
 
     ls --full-paths=$full_paths $pattern
