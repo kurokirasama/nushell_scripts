@@ -645,3 +645,22 @@ export def svg2pdf [
   let pdf_output = get-input ($svg_file | path parse | get stem) $pdf_output 
   rsvg-convert -f pdf -o $pdf_output $svg_file
 }
+
+#rename file via pattern replace
+export def rename-file [
+  old_pattern:string #pattern to replace 
+  new_pattern:string #new pattern
+  files_pattern:string #pattern for listing target files or dirs
+] {
+  let files = ls ($files_pattern | into glob)
+  let total = $files | length
+
+  $files
+  | get name
+  | enumerate 
+  | each {|file|      
+      mv $file.item ($file.item | str replace $old_pattern $new_pattern)
+
+      progress_bar ($file.index + 1) $total
+  }
+}

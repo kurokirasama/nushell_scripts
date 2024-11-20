@@ -694,7 +694,7 @@ export def "media compress-video" [
       } catch {
         print (echo-r "failed myffmpeg...")
         print (echo-g "trying ffmpeg...")
-        ffmpeg -i $file -map 0:v -map 0:a -map 0:s? -vcodec $vcodec -c:a aac -c:s mov_text $"($name)_($append).mp4"
+        ffmpeg -i $file -map 0:v -map 0:a -map 0:s? -vcodec $vcodec -crf $crf -c:a aac -c:s mov_text $"($name)_($append).mp4"
       }
     },
     _ => {return-error "file extension not allowed"}

@@ -2068,11 +2068,11 @@ export def "ai trans-sub" [
         let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
         let translated = (
           if $ai and $gemini {
-            $fixed_line | ai trans -G
+            $fixed_line | ai trans -Gn
           } else if $ai and $gpt4 {
-            $fixed_line | ai trans -g
+            $fixed_line | ai trans -gn
           } else if $ai {
-            $fixed_line | ai trans
+            $fixed_line | ai trans -n
           } else {
             $fixed_line | trans --from $from
           }
@@ -2090,7 +2090,8 @@ export def "ai trans-sub" [
         $line.item | save --append $new_file
         "\n" | save --append $new_file
       }
-      print -n (echo-g $"\r(($line.index + $start) / $lines * 100 | math round -p 3)%")
+      # print -n (echo-g $"\r(($line.index + $start) / $lines * 100 | math round -p 3)%")
+      progress_bar $line.index $lines
     }
 
   if $notify {"translation finished!" | tasker send-notification}

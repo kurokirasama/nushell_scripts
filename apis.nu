@@ -56,7 +56,7 @@ export def trans [
     path: "/get",
     params: {
         q: $to_translate,
-        langpair: ($from + "%7C" + $to),
+        langpair: ($from + "|" + $to),
         of: "json",
         key: $apikey,
         de: $user
@@ -380,7 +380,7 @@ export def google_search [
       }
     } 
     | url join
-    | http get $in
+    | http get $in -e
 
     if "items" not-in ($response | columns) {
       return-error "empty search result!"
