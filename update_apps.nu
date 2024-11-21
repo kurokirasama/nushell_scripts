@@ -26,8 +26,7 @@ export def "apps-update nushell" [
 
 #update nushell default plugins
 export def "apps-update nushell-plugins" [] {
-  cargo install-update nu_plugin_inc nu_plugin_gstat nu_plugin_query nu_plugin_formats 
-  cargo install nu_plugin_polars
+  cargo install-update nu_plugin_inc nu_plugin_gstat nu_plugin_query nu_plugin_formats nu_plugin_polars
 
   plugin add ~/.cargo/bin/nu_plugin_inc
   plugin add ~/.cargo/bin/nu_plugin_gstat
@@ -50,10 +49,10 @@ export def "apps-update nushell-external-plugins" [] {
   cargo install --git https://github.com/FMotalleb/nu_plugin_port_scan.git
 
   plugin add ~/.cargo/bin/nu_plugin_port_scan
-  plugin add ~/.cargo/bin/nu_plugin_plot
+  # plugin add ~/.cargo/bin/nu_plugin_plot
 
   plugin use ~/.cargo/bin/nu_plugin_port_scan
-  plugin use ~/.cargo/bin/nu_plugin_plot
+  # plugin use ~/.cargo/bin/nu_plugin_plot
 }
 
 #update nu config (after nushell update)

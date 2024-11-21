@@ -1,9 +1,14 @@
 #short help
-export def ? [...search] {
+export def ? [...search,--find(-f)] {
   let search = $search | str join " "
   if ($search | is-empty) {
     return (help commands)
   } 
+
+  if $find {
+    help ...(help -f $search | ansi-strip-table | get name | input list -f (echo-g "Select command:"))
+    return
+  }
 
   if $search =~ "commands" {
    if $search =~ "my" {

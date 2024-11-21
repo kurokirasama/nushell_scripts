@@ -1900,7 +1900,7 @@ export def "gcal ai" [
   #get data to make query to gcal
   let gcal_query = (
     if $gemini {
-      google_ai $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d true
+      google_ai $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d true -m gemini-1.5-pro
     } else if $gpt4 {
       chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d -m gpt-4
     } else {
