@@ -252,6 +252,8 @@ let new_keybinds_names = ["alias_menu"
     "ide_completion_menu" 
     "copy_command"
     "my_history_menu"
+    "change_dir_with_fzf"
+    "select_file_fzf"
 ]
 
 let new_keybinds = [
@@ -358,6 +360,28 @@ let new_keybinds = [
         keycode: char_r
         mode: [emacs, vi_insert, vi_normal]
         event: { send: menu name: my_history_menu }
+    },
+    {
+        name: change_dir_with_fzf
+        modifier: alt
+        keycode: char_c
+        mode: emacs
+        event: {
+          send: executehostcommand,
+          cmd: "cd (ls | where type == dir | each { |it| $it.name | str prepend (ansi -e { fg: '#5555FF' attr: b})} | input list -f (echo-g 'Select dir:'))"
+        }
+    },
+    {
+        name: select_file_fzf
+        modifier: alt
+        keycode: char_f
+        mode: emacs
+        event: [
+          {
+            send: executehostcommand
+            cmd: "let file = ls | where type == file | sort-by name | get name | input list -f (echo-g 'Select file:');commandline edit --append $'`($file)`';commandline set-cursor --end"
+          }
+        ]
     }
 ]
 

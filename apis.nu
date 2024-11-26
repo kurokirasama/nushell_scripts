@@ -56,7 +56,7 @@ export def trans [
     path: "/get",
     params: {
         q: $to_translate,
-        langpair: ($from + "|" + $to),
+        langpair: ($from + "%7C" + $to),
         of: "json",
         key: $apikey,
         de: $user
@@ -376,7 +376,7 @@ export def google_search [
       params: {
           key: $apikey,
           cx: $cx
-          q: ($query | url encode)
+          q: ($query | str replace -a " " "+")
       }
     } 
     | url join
