@@ -2662,3 +2662,122 @@ export def claude_ai [
     return (http post -t application/json -H $header $site $request -e)
   }
 }
+
+#ollama wrapper
+export def o_llama [
+  query?: string
+  --model(-m): string
+  --system(-s):string = "You are a helpful assistant." # system message
+  --temp(-t): float = 0.9                       # the temperature of the model
+  --image(-i):string                        # filepath of image file for gemini-pro-vision
+  --list_system(-l) = false            # select system message from list
+  --pre_prompt(-p) = false             # select pre-prompt from list
+  --delim_with_backquotes(-d) = false # to delimit prompt (not pre-prompt) with triple backquotes (')
+  --select_system: string                       # directly select system message    
+  --select_preprompt: string                    # directly select pre_prompt
+  --chat(-c)     #starts chat mode (text only, gemini only)
+  --database(-D) = false #continue a chat mode conversation from database
+  --web_search(-w) = false #include $web_results web search results in the prompt
+  --web_results(-W):int = 5 #number of web results to include
+  --max_retries(-r):int = 5 #max number of retries in case of server-side errors 
+  --verbose(-v) = false     #show the attempts to call the gemini api
+  --document:string         #uses provided document to retrieve the answer
+] {
+  let model = if ($model | is-empty) {
+      ollama list | detect columns  | get NAME | input list -f (echo-g "Select model:")
+    } else {
+      ollama list | detect columns | where NAME =~ $model | get NAME.0
+    }
+
+
+  #select system message from database
+  let system_messages_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join system) | sort-by name | get name
+  let system_messages = $system_messages_files | path parse | get stem
+
+  mut ssystem = ""
+  if $list_system {
+    let selection = ($system_messages | input list -f (echo-g "Select system message: "))
+    $ssystem = (open ($system_messages_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
+  } else if (not ($select_system | is-empty)) {
+    try {
+      $ssystem = (open ($system_messages_files | find ("/" + $select_system + ".md") | get 0 | ansi strip))
+    } 
+  }
+  let system = if ($ssystem | is-empty) {$system} else {$ssystem}
+
+  #select pre-prompt from database
+  let pre_prompt_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join prompt) | sort-by name | get name
+  let pre_prompts = $pre_prompt_files | path parse | get stem
+
+  mut preprompt = ""
+  if $pre_prompt {
+    let selection = ($pre_prompts | input list -f (echo-g "Select pre-prompt: "))
+    $preprompt = (open ($pre_prompt_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
+  } else if (not ($select_preprompt | is-empty)) {
+    try {
+      $preprompt = (open ($pre_prompt_files | find ("/" + $select_preprompt + ".md") | get 0 | ansi strip))
+    }
+  }
+
+  #build prompt
+  let prompt = (
+    if ($document | is-not-empty) {
+      $preprompt + "\n# DOCUMENT\n\n" + (open $document) + "\n\n# INPUT\n\n'''\n" + $query + "\n'''" 
+    } else if ($preprompt | is-empty) and $delim_with_backquotes {
+      "'''" + "\n" + $query + "\n" + "'''"
+    } else if ($preprompt | is-empty) {
+      $query
+    } else if $delim_with_backquotes {
+      $preprompt + "\n" + "'''" + "\n" + $query + "\n" + "'''"
+    } else {
+      $preprompt + $query
+    } 
+  )
+
+  #############
+  # chat mode #
+  #############
+  if $chat {
+
+    return
+  }
+
+  ###############
+  # prompt mode #
+  ###############
+  let prompt = if ($prompt | is-empty) {$in} else {$prompt}
+  if ($prompt | is-empty) {
+    return-error "Empty prompt!!!"
+  }
+
+  #search prompts
+  let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
+  
+  let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
+  let web_content = if $web_search {google_search $search -n $web_results -v} else {""}
+  let web_content = if $web_search {ai google_search-summary $prompt $web_content -G -m} else {""}
+  
+  let prompt = (
+    if $web_search {
+      $prompt + "\n\n You can complement your answer with the following up to date information about my question I obtained from a google search, in markdown format:\n" + $web_content
+    } else {
+      $prompt
+    }
+  )
+
+  #API CALL  
+  let data = {
+    model: $model,
+    prompt: $prompt,
+    stream: false
+  }
+  
+  let url = "http://localhost:11434/api/generate"
+  let response = http post $url --content-type application/json $data
+  
+  if ($response | get error? | is-empty) {
+    $response | get response
+  } else {
+    return-error $"Error: ($response | get error)"
+  }
+}
