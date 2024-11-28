@@ -38,7 +38,7 @@ export def quick-ubuntu-and-tools-update-module [
     return-error "destination path doesn't exists!!"
   }
   
-  copy-yandex-and-commit
+  copy-yandex-and-commit -G $gemini
   
   print (echo-g "updating private repository...")
   if $force {
@@ -83,7 +83,7 @@ export def upload-debs-to-gdrive [] {
 }
 
 #update yandex.disk repository
-export def copy-yandex-and-commit [] {
+export def copy-yandex-and-commit [--gemini(-G) = false] {
   print (echo-g "updating Yandex.Disk repository...")
   cp -pu $env.MY_ENV_VARS.ips ~/software/Yandex.Disk/Android_Devices/Apps/Termux/
   cp -pu ($env.MY_ENV_VARS.tasker_server.devices.main.file | path parse | get parent | path join "*.json" | into glob) ~/software/Yandex.Disk/Android_Devices/Common/Download/
@@ -93,5 +93,9 @@ export def copy-yandex-and-commit [] {
   cp -pu ($env.MY_ENV_VARS.appImages | path join "fontforge.AppImage") ~/software/Yandex.Disk/Backups/appimages
 
   cd ~/software/Yandex.Disk/
-  ai git-push -G
+  if $gemini {
+    ai git-push -G
+  } else {
+    ai git-push -g
+  }
 }

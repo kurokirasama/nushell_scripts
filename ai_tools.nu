@@ -419,6 +419,8 @@ export def askai [
   --web_results(-W):int = 5 #how many web results to include
   --document(-d):string  # answer question from provided document
   --claude(-C)  #use anthropic claude 3.5
+  --ollama(-o)  #use ollama models
+  --ollama_model(-m):string #select ollama model to use
 ] {
   let prompt = if $fast {
     open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
@@ -518,6 +520,8 @@ export def askai [
   if $chat {
     if $gemini {
       google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -W $web_results --select_preprompt $pre_prompt --document $document
+    } else if $ollama {
+      print (echo-g "in progress for ollama")
     } else {
       # chat_gpt $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d $delimit_with_quotes
       print (echo-g "in progress for chatgpt and claude")
@@ -554,6 +558,24 @@ export def askai [
         claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-vision -d true -i $image --select_preprompt $pre_prompt --select_system $system -w $web_search -W $web_results
       } else {
         claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-3.5 -d true  --select_preprompt $pre_prompt --select_system $system --document $document -w $web_search -W $web_results
+      }
+    )
+
+    if $fast {
+      $answer | save -f ($env.MY_ENV_VARS.chatgpt | path join answer.md)
+      return
+    } else {
+      return $answer  
+    } 
+  }
+
+  #use ollama
+  if $ollama {
+    let answer = (
+      if $vision {
+        o_llama $prompt -t $temp -l $list_system -p $list_preprompt -m $ollama_model -d true -i $image --select_preprompt $pre_prompt --select_system $system -w $web_search -W $web_results
+      } else {
+        o_llama $prompt -t $temp -l $list_system -p $list_preprompt -m $ollama_model -d true  --select_preprompt $pre_prompt --select_system $system --document $document -w $web_search -W $web_results
       }
     )
 
@@ -2679,10 +2701,10 @@ export def o_llama [
   --database(-D) = false #continue a chat mode conversation from database
   --web_search(-w) = false #include $web_results web search results in the prompt
   --web_results(-W):int = 5 #number of web results to include
-  --max_retries(-r):int = 5 #max number of retries in case of server-side errors 
   --verbose(-v) = false     #show the attempts to call the gemini api
   --document:string         #uses provided document to retrieve the answer
 ] {
+
   let model = if ($model | is-empty) {
       ollama list | detect columns  | get NAME | input list -f (echo-g "Select model:")
     } else {
@@ -2765,19 +2787,23 @@ export def o_llama [
     }
   )
 
-  #API CALL  
+  #API CALL (pending vision)
   let data = {
     model: $model,
+    system: $system,
     prompt: $prompt,
-    stream: false
+    stream: false,
+    options: {
+      temperature: $temp
+    }
   }
   
   let url = "http://localhost:11434/api/generate"
   let response = http post $url --content-type application/json $data
   
-  if ($response | get error? | is-empty) {
-    $response | get response
-  } else {
-    return-error $"Error: ($response | get error)"
-  }
+  if ($response | get error? | is-not-empty) {
+    return-error $"Error: ($response.error)"
+  } 
+
+  return $response.response
 }
