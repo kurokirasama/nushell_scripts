@@ -254,6 +254,7 @@ let new_keybinds_names = ["alias_menu"
     "my_history_menu"
     "change_dir_with_fzf"
     "select_file_fzf"
+    "delete_one_word_backward"
 ]
 
 let new_keybinds = [
@@ -382,6 +383,13 @@ let new_keybinds = [
             cmd: "let file = ls | where type == file | sort-by name | get name | input list -f (echo-g 'Select file:');commandline edit --append $'`($file)`';commandline set-cursor --end"
           }
         ]
+    },
+    {
+        name: delete_one_word_backward
+        modifier: alt
+        keycode: backspace
+        mode: [emacs, vi_insert, vi_normal]
+        event: { edit: backspaceword }
     }
 ]
 
