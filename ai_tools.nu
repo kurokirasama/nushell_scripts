@@ -1846,7 +1846,7 @@ export def google_ai [
     try {
       return $answer.candidates.content.parts.0.text.0
     } catch {
-      $answer | save -f gemini_error.jsom
+      $answer | to json | save -f gemini_error.json
       return-error "something went wrong with the api! error saved in gemini_error.json"
     }
   } else if ($model =~ "bison") {
@@ -2312,7 +2312,7 @@ export def "ai analyze_paper" [
   --ollama(-o) #use ollama instead of gemini
   --ollama_model(-m):string #ollama model to use
   --output(-o):string #output filename without extension
-  --no_clean(-N)  #do not clean text
+  --clean(-c)  #clean text
   --verbose(-v)   #show gemini attempts
   --notify(-n)    #send notification when finished
 ] {
@@ -2338,7 +2338,7 @@ export def "ai analyze_paper" [
     print (echo-g "converting pdf to text...")
     pdftotext $file 
   } else {
-    mv $file ($name + ".txt")
+    mv -f $file ($name + ".txt")
   }
 
   let raw_data = open ($name + ".txt")
@@ -2346,7 +2346,7 @@ export def "ai analyze_paper" [
   let output = if ($output | is-empty) {$name + ".md"} else {$output + ".md"}
 
   print (echo-g "cleaning text...")
-  let data = if $no_clean {$raw_data} else {ai clean-text $raw_data -g $gpt4 -o $ollama -m $ollama_model}
+  let data = if not $clean {$raw_data} else {ai clean-text $raw_data -g $gpt4 -o $ollama -m $ollama_model}
   $data | save -f ($name + ".txt")
 
   print (echo-g "analyzing paper...")
