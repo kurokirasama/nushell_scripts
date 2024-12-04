@@ -620,3 +620,23 @@ export def "ps parents" [pid?: int] {
 
   get-parents $all_processes $current_process
 }
+
+#current used keybindinds
+export def get-used-keybindings [] {
+  let $keybindings = $env.config.keybindings | update modifier {split row '_' | sort | str join '_'}
+
+  let $modifiers = $keybindings |  get modifier | uniq --count | sort-by count -r | update count null | transpose -idr
+
+  $keybindings 
+  | select keycode modifier 
+  | group-by keycode --to-table 
+  | update items {|i| 
+      $i.items.modifier 
+      | reduce -f $modifiers {|value acc| 
+          update $value '✅'
+        }
+    } 
+  | flatten 
+  | sort-by group 
+  | table --abbreviated 1000
+}

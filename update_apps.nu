@@ -975,3 +975,8 @@ export def "apps-update rustc" [] {
   rustup update
   # rustup self uninstall
 }
+
+#update ollama
+export def "apps-update ollama" [] {
+  curl -fsSL https://ollama.com/install.sh | sh
+}

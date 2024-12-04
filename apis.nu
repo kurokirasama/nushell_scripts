@@ -56,7 +56,7 @@ export def trans [
     path: "/get",
     params: {
         q: $to_translate,
-        langpair: ($from + "%7C" + $to),
+        langpair: ($from + "|" + $to),
         of: "json",
         key: $apikey,
         de: $user

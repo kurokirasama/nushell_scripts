@@ -1,3 +1,8 @@
+#create virtual env
+export def create-virtualenv [dir_name:string = "venv"] {
+  python3 -m virtualenv $dir_name
+}
+
 export def activate [] {
   print ("'overlay use venv/bin/activate.nu' copied to clipboard!")
   "overlay use venv/bin/activate.nu" | xsel --input --clipboard
