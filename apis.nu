@@ -225,15 +225,32 @@ export def "maps eta" [
 export def "maps loc-from-address" [address] {
   let mapsAPIkey = $env.MY_ENV_VARS.api_keys.google.general
   
-  let url = $"https://maps.google.com/maps/api/geocode/json?address=($address)&key=($mapsAPIkey)"
+  let url = {
+    scheme: "https"
+    host: "maps.google.com"
+    path: "/maps/api/geocode/json"
+    params: {
+        address: $address
+        key: $mapsAPIkey
+    }
+  } | url join
 
-  return (http get $url | get results | get geometry | get location | flatten)
+  return (http get $url | get results.geometry.location | flatten)
 }
 
 #get address from geo-coordinates
 export def "maps address-from-loc" [latitude:number,longitude:number] {
   let mapsAPIkey = $env.MY_ENV_VARS.api_keys.google.general
-  let url = $"https://maps.googleapis.com/maps/api/geocode/json?latlng=($latitude),($longitude)&key=($mapsAPIkey)"
+
+  let url = {
+    scheme: "https"
+    host: "maps.google.com"
+    path: "/maps/api/geocode/json"
+    params: {
+        latlng: $"($latitude),($longitude)"
+        key: $mapsAPIkey
+    }
+  } | url join
 
   let response = http get $url
 
