@@ -72,7 +72,7 @@ export def show_banner [] {
 }
 
 #neofetch but nu
-export def nufetch [--table(-t)] {
+export def nufetch [--full_table(-f),--table(-t)] {
   if not $table {
     show_banner
     return 
@@ -123,13 +123,16 @@ export def nufetch [--table(-t)] {
         | str join " "
       }
     )
-  let wm = (
-    if $env.XDG_CURRENT_DESKTOP == "ubuntu:GNOME" {
-      "Mutter"
+  let wm = if XDG_CURRENT_DESKTOP in ($env | columns) {
+      if $env.XDG_CURRENT_DESKTOP == "ubuntu:GNOME" {
+        "Mutter"
+      } else {
+        wmctrl -m | lines | first | split row ": " | last
+      }
     } else {
       wmctrl -m | lines | first | split row ": " | last
     }
-  )
+
   let terminal = (
     xdotool getactivewindow | xargs -I {} xprop -id {} WM_CLASS 
     | split row '='
@@ -143,7 +146,7 @@ export def nufetch [--table(-t)] {
   let info = {} 
 
   $info
-  | upsert user $env.USERNAME
+  | upsert user $env.USER
   | upsert hostname $s.host.hostname
   | upsert os $os
   | upsert host $host
@@ -153,7 +156,7 @@ export def nufetch [--table(-t)] {
   | upsert snapPackages ((snap list  | lines | length) - 1)
   | upsert shell $shell
   | upsert resolution $screen_res
-  | upsert de $env.XDG_CURRENT_DESKTOP
+  | upsert de $env.XDG_SESSION_TYPE
   | upsert wm $wm
   | upsert wmTheme $wmtheme
   | upsert theme $theme
@@ -164,7 +167,7 @@ export def nufetch [--table(-t)] {
   | upsert gpu $gpus
   | upsert disk $disk
   | upsert memory $mem
-  | table -e
+  | if $full_table {table -e} else {$in}
 }
 
 #helper for displaying left prompt

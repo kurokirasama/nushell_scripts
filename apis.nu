@@ -222,7 +222,7 @@ export def "maps eta" [
 }
 
 #get geo-coordinates from address
-export def "maps loc-from-address" [address] {
+export def "maps loc-from-address" [address:string] {
   let mapsAPIkey = $env.MY_ENV_VARS.api_keys.google.general
   
   let url = {
@@ -235,7 +235,7 @@ export def "maps loc-from-address" [address] {
     }
   } | url join
 
-  return (http get $url | get results.geometry.location | flatten)
+  return (http get $url | get results.geometry.location)
 }
 
 #get address from geo-coordinates
@@ -629,4 +629,165 @@ export def "obs create" [
   if ($response.message? | is-not-empty) {
     return ($response.message)
   }
+}
+
+# fetch and base64 encode audio URLs
+def audiourl [voice text] {
+    # url encode text and prepend url
+    let enc_url = $text | url encode | prepend $voice | str join ""
+    # fetch and base64 encode audio url
+    let base64 = try { http get -m 5sec $enc_url | encode base64 } catch { |e| return ($e.json | from json | wrap error) }
+    # wrap result for json output
+    return ($base64 | prepend "data:audio/mp3;base64," | str join "" | wrap audioUrl | merge ($enc_url | wrap originalUrl))
+}
+
+# get TikTok TTS audio from weilnet
+def weilnet [voice text] {
+    # setup body json
+    let body = $text | wrap text | merge ($voice | wrap voice) | to json -r
+    # make http post request, fallback to weilbyte
+    let req_json = try {
+        http post -m 6sec -H [content-type application/json] "https://tiktok-tts.weilnet.workers.dev/api/generation" $body
+    } catch {
+        return (weilbyte $voice $text)
+    }
+    # prepend audio info and rename column
+    let json = try {
+        $req_json | upsert data { |row| $row.data | prepend "data:audio/mp3;base64," | str join ""} | rename -c {data: audioUrl}
+    } catch {
+        return (weilbyte $voice $text)
+    }
+    # output json result
+    return $json
+}
+
+# get TikTok TTS audio from weilbyte
+def weilbyte [voice text] {
+    # setup body json
+    let body = $text | wrap text | merge ($voice | wrap voice) | to json -r
+    # make http post request and bas64 encode result, fallback to gesserit
+    let base64 = try {
+        http post -m 6sec -H [content-type application/json] "https://tiktok-tts.weilbyte.dev/api/generate" $body | encode base64
+    } catch {
+        return (cursecode $voice $text)
+    }
+    # wrap result for json otuput
+    return ($base64 | prepend "data:audio/mp3;base64," | str join "" | wrap audioUrl)
+}
+
+# get TikTok TTS audio from cursecode
+def cursecode [voice text] {
+    # setup body json
+    let body = $text | wrap text | merge ($voice | wrap voice) | to json -r
+    # make http post request, fallback to weilnet
+    let req_json = try {
+        http post -m 6sec -H [content-type application/json] "https://tts.cursecode.me/api/tts" $body
+    } catch {
+        return (gesserit $voice $text)
+    }
+    # rename column
+    let json = try { $req_json | rename -c { audio: audioUrl } } catch { return (gesserit $voice $text) }
+    # output json result
+    return $json
+}
+
+# get TikTok TTS audio from gesserit
+def gesserit [voice text] {
+    # setup body json
+    let body = $text | wrap text | merge ($voice | wrap voice) | to json -r
+    # make http post request, fallback to lazypy
+    let json = try { http post -m 6sec "https://gesserit.co/api/tiktok-tts" $body } catch { return (lazypy $voice "TikTok" $text) }
+    # output json result
+    return $json
+}
+
+# get TTS audio from uberduck
+def uberduck [voice text] {
+    # setup body json
+    let body = $text | wrap text | merge ($voice | wrap voice) | to json -r
+    # make http post request
+    let audio_json = try {
+        http post -m 10sec -H [content-type application/json] "https://www.uberduck.ai/splash-tts" $body
+    } catch {
+        |e| return ($e.json | from json | wrap error)
+    }
+    let audio_url = try { $audio_json | get response.path } catch { |e| return ($e.json | from json | wrap error) }
+    # fetch and base64 encode result
+    let base64 = try { http get -m 5sec ($audio_url) | encode base64 } catch { |e| return ($e.json | from json | wrap error) }
+    # wrap result for json otuput
+    return ($base64 | prepend "data:audio/wav;base64," | str join "" | wrap audioUrl | merge $audio_json)
+}
+
+# get TTS audio from lazypy
+def lazypy [voice service text] {
+    # create body using url build-query
+    let body = $text | wrap text | merge ($service | wrap service) | merge ($voice | wrap voice) | url build-query
+    # post body to lazypy and get audio_url
+    let audio_json = try {
+        http post -m 10sec -H [content-type application/x-www-form-urlencoded] "https://lazypy.ro/tts/request_tts.php" $body
+    } catch {
+        |e| return ($e.json | from json | wrap error)
+    }
+    # return response if success is not true
+    if ($audio_json | get success) != true {
+        return ($audio_json | wrap error)
+    }
+    let audio_url = try { $audio_json | get audio_url } catch { |e| return ($e.json | from json | wrap error) }
+    # fetch and base64 encode result
+    let base64 = try { http get -m 5sec $audio_url | encode base64 } catch { |e| return ($e.json | from json | wrap error) }
+    return ($base64 | prepend "data:audio/mp3;base64," | str join "" | wrap audioUrl | merge $audio_json)
+}
+
+# gets JSON list of TTS voices
+export def "nutts list" [] {
+  let list = try {
+    http get "https://raw.githubusercontent.com/simoniz0r/nuTTS/main/tts_list.json"
+  } catch {
+    |e| return-error ($e.json | from json | wrap error)
+  }
+  return $list
+}
+
+# gets TTS audio for given service, returns base64 encoded audio
+#
+# results are output in JSON format
+export def nutts [
+    text?:string # text to speek
+    service?:string # service voice is from
+    voice?:string # voice ID for TTS
+    --output(-o):string = "output" #output filename
+] {
+  let text = get-input $in $text
+  # decode text
+  let detext = $text | url decode
+
+  let service = if ($service | is-empty) {
+    nutts list 
+    | columns 
+    | input list -f (echo-g "Select service: ")
+    } else {
+      $service
+    }
+
+  let voice = if ($voice | is-empty) {
+    nutts list 
+    | get $service
+    | get voices.vid
+    | input list -f (echo-g "Select voice: ")
+    } else {
+      $voice
+    } 
+  
+  # route based on service
+  match ($service | str downcase) {
+      audiourl => { audiourl $voice $detext },
+      tiktok => { weilnet $voice $detext },
+      uberduck => { uberduck $voice $detext },
+      _ => { lazypy $voice $service $detext }
+  }
+  | get audioUrl 
+  | parse "data:audio/mp3;base64,{audio}" 
+  | get audio.0 
+  | decode base64 
+  | save -f $"($output).mp3"
 }
