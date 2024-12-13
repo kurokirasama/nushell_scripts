@@ -1406,7 +1406,9 @@ export def tts [
 #single call to google ai LLM api wrapper and chat mode
 #
 #Available models at https://ai.google.dev/models:
-# - gemini-1.5-pro: text & images & audio -> text, 1048576 (tokens), 2 RPM
+# - gemini-2.0-flash-exp: Audio, images, video, and text -> Audio, images, and text, 1048576 (tokens), 10 RPM
+# - gemini-1.5-pro: Audio, images, video, and text -> text, 2097152 (tokens),  2 RPM
+# - gemini-1.5-flash: Audio, images, video, and text -> text, 1048576 (tokens), 15 RPM
 # - Gemini Pro (gemini-pro): text -> text, 15 RPM
 # - Gemini Pro Vision (gemini-pro-vision): text & images -> text, 12288 (tokens), 60 RP 
 # - PaLM2 Bison (text-bison-001): text -> text
@@ -1810,7 +1812,7 @@ export def google_ai [
   while ($retry_counter <= $max_retries) and $error {
     if $verbose {print ($"attempt #($retry_counter)...")}
     try {
-      $answer = http post -t application/json $url_request $request --allow-errors
+      $answer = http post -t application/json $url_request $request -e
       $error = false
     }
     $retry_counter = $retry_counter + 1
@@ -1819,10 +1821,24 @@ export def google_ai [
 
   if ($answer | is-empty) or ($answer == null) {
     try {
-      $answer = http post -t application/json $url_request $request --allow-errors
+      $answer = http post -t application/json $url_request $request -e
     } 
 
     if (($answer | is-empty) or ($answer == null)) and ($model == "gemini-1.5-pro") {
+      let model = "gemini-2.0-flash-exp"
+      let url_request = {
+        scheme: "https",
+        host: "generativelanguage.googleapis.com",
+        path: ("/v1beta" + $for_bison_beta +  "/models/" + $model + $for_bison_gen),
+        params: {
+            key: $apikey,
+        }
+      } | url join
+
+      $answer = http post -t application/json $url_request $request -e
+    }
+
+    if (($answer | is-empty) or ($answer == null)) and ($model == "gemini-2.0-flash-exp") {
       let model = "gemini-1.5-flash"
       let url_request = {
         scheme: "https",
@@ -1833,7 +1849,7 @@ export def google_ai [
         }
       } | url join
 
-      $answer = http post -t application/json $url_request $request --allow-errors -ef
+      $answer = http post -t application/json $url_request $request -e
     }
   }
 
