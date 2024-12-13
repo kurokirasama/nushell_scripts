@@ -392,6 +392,7 @@ export def askai [
   prompt?:string  # string with the prompt, can be piped
   system?:string  # string with the system message. It has precedence over the s.m. flags
   --programmer(-P) # use programmer s.m with temp 0.75, else use assistant with temp 0.9
+  --nushell_programmer(-N) # use bash-nushell programmer s.m with temp 0.75, else use assistant with temp 0.9
   --teacher(-T)    # use school teacher s.m with temp 0.95, else use assistant with temp 0.9
   --rubb(-R)       # use rubb s.m. with temperature 0.65, else use assistant with temp 0.9
   --biblical(-B)   # use biblical assistant s.m with temp 0.78
@@ -446,7 +447,7 @@ export def askai [
   }
   
   let temp = if ($temperature | is-empty) {
-    if $programmer or $fix_bug {
+    if $programmer or $fix_bug or $nushell_programmer {
       0.75
     } else if $teacher or $math_teacher {
       0.95
@@ -473,6 +474,8 @@ export def askai [
         ""
       } else if $programmer or $fix_bug {
         "programmer"
+      } else if $nushell_programmer {
+        "bash_nushell_programmer_with_nushell_docs"
       } else if $teacher {
         "school_teacher"
       } else if $engineer {
