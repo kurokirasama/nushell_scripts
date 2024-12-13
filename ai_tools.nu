@@ -411,7 +411,7 @@ export def askai [
   --vision(-v)            # use gpt-4-vision/gemini-pro-vision
   --image(-i):string      # filepath of the image to prompt to vision models
   --fast(-f) # get prompt from prompt.md file and save response to answer.md
-  --gemini(-G) #use google gemini instead of chatgpt. gemini-1.5-flash for chat, gemini-1.5-pro otherwise
+  --gemini(-G) #use google gemini instead of chatgpt. gemini-1.5-flash for chat, gemini-2.0 otherwise
   --bison(-b)  #use google bison instead of chatgpt (needs --gemini)
   --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt4
   --database(-D) #load chat conversation from database
@@ -539,7 +539,7 @@ export def askai [
       } else {
           match $bison {
           true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d true -w $web_search -W $web_results --select_preprompt $pre_prompt --select_system $system --document $document --web_model $web_model},
-          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m gemini-1.5-pro -d true -w $web_search -W $web_results --select_preprompt $pre_prompt --select_system $system --document $document --web_model $web_model},
+          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m gemini-2.0 -d true -w $web_search -W $web_results --select_preprompt $pre_prompt --select_system $system --document $document --web_model $web_model},
         }
       }
     )
@@ -627,7 +627,7 @@ export alias bard = askai -c -G -W 2
 #Inspired by https://github.com/zurawiki/gptcommit
 export def "ai git-push" [
   --gpt4(-g) # use gpt-4o instead of gpt-4o-mini
-  --gemini(-G) #use google gemini-1.5-pro model
+  --gemini(-G) #use google gemini-2.0 model
   --claude(-C) #use antropic claude-3-5-sonnet-latest
 ] {
   if $gpt4 and $gemini {
@@ -671,12 +671,12 @@ export def "ai git-push" [
         },
         [false,true] => {
           try {
-            google_ai $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true -m gemini-1.5-pro
+            google_ai $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true -m gemini-2.0
           } catch {
             try {
-              google_ai $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true -m gemini-1.5-pro
+              google_ai $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true -m gemini-2.0
             } catch {
-              google_ai $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d true -m gemini-1.5-pro
+              google_ai $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d true -m gemini-2.0
             }
           }
         }
@@ -782,7 +782,7 @@ export def "ai media-summary" [
   file:string            # video, audio or subtitle file (vtt, srt, txt, url) file name with extension
   --lang(-l):string = "Spanish" # language of the summary
   --gpt4(-g)             # to use gpt-4o instead of gpt-4o-mini
-  --gemini(-G)           # use google gemini-1.5-pro instead of gpt
+  --gemini(-G)           # use google gemini-2.0 instead of gpt
   --claude(-C)           # use anthropic claude
   --ollama(-o)           # use ollama
   --ollama_model(-m):string #ollama model to use
@@ -890,7 +890,7 @@ export def "ai media-summary" [
     if $gpt4 {
       chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-4
     } else if $gemini {
-      google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m gemini-1.5-pro
+      google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m gemini-2.0
     } else if $claude {
       claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-3.5
     } else if $ollama {
@@ -917,7 +917,7 @@ export def "ai transcription-summary" [
   prompt                #transcription text
   output                #output name without extension
   --gpt4(-g) = false    #whether to use gpt-4o
-  --gemini(-G) = false  #use google gemini-1.5-pro
+  --gemini(-G) = false  #use google gemini-2.0
   --claude(-C) = false  #use anthropic claide
   --ollama(-o) = false  #use ollama
   --ollama_model(-m):string #ollama model to use
@@ -946,7 +946,7 @@ export def "ai transcription-summary" [
   if $gpt4 {
     chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-4
   } else if $gemini {
-    google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m gemini-1.5-pro
+    google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m gemini-2.0
   } else if $claude {
     claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-3.5
   } else if $ollama {
@@ -1441,7 +1441,7 @@ export def tts [
 # - --select_preprompt > --pre_prompt
 export def google_ai [
     query?: string                               # the query to Gemini
-    --model(-m):string = "gemini-1.5-flash" # the model gemini-1.5-flash, gemini-pro-vision, gemini-1.5-pro, etc
+    --model(-m):string = "gemini-1.5-flash" # the model gemini-1.5-flash, gemini-pro-vision, gemini-2.0, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9                       # the temperature of the model
     --image(-i):string                        # filepath of image file for gemini-pro-vision
@@ -1492,7 +1492,8 @@ export def google_ai [
   let for_bison_gen = if ($model =~ "bison") {":generateText"} else {":generateContent"}
 
   let input_model = $model
-  let model = if $model == "gemini-pro-vision" {"gemini-1.5-pro"} else {$model}
+  let model = if $model == "gemini-pro-vision" {"gemini-2.0-flash-exp"} else {$model}
+  let model = if $model == "gemini-2.0" {"gemini-2.0-flash-exp"} else {$model}
 
   let url_request = {
       scheme: "https",
@@ -1824,8 +1825,8 @@ export def google_ai [
       $answer = http post -t application/json $url_request $request -e
     } 
 
-    if (($answer | is-empty) or ($answer == null)) and ($model == "gemini-1.5-pro") {
-      let model = "gemini-2.0-flash-exp"
+    if (($answer | is-empty) or ($answer == null)) and ($model == "gemini-2.0-flash-exp") {
+      let model = "gemini-1.5-pro"
       let url_request = {
         scheme: "https",
         host: "generativelanguage.googleapis.com",
@@ -1838,7 +1839,7 @@ export def google_ai [
       $answer = http post -t application/json $url_request $request -e
     }
 
-    if (($answer | is-empty) or ($answer == null)) and ($model == "gemini-2.0-flash-exp") {
+    if (($answer | is-empty) or ($answer == null)) and ($model == "gemini-1.5-pro") {
       let model = "gemini-1.5-flash"
       let url_request = {
         scheme: "https",
@@ -1955,7 +1956,7 @@ export def "gcal ai" [
     } else if $gpt4 {
       chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d -m gpt-4
     } else if $gemini {
-      google_ai $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d true -m gemini-1.5-pro
+      google_ai $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d true -m gemini-2.0
     } else {
       chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d
     }
@@ -2004,7 +2005,7 @@ export def "gcal ai" [
       let prompt = "if the next text is using a naming convention, rewrite it in normal writing in the original language, i.e., separate words by a space. Only return your response without any commentary on your part, in plain text without any formatting. The text: " + ($gcal_query | get title)
 
       let title = if $gemini {
-        google_ai $prompt -m gemini-1.5-pro
+        google_ai $prompt -m gemini-2.0
       } else if gpt4 {
          chat_gpt -m gpt-4
       } else if $ollama {
@@ -2050,7 +2051,7 @@ export def "ai trans" [
     if $ollama {
       o_llama $prompt -t 0.5 -s $system_prompt -m $ollama_model
     } else if $gemini {
-      google_ai $prompt -t 0.5 -s $system_prompt -m gemini-1.5-pro
+      google_ai $prompt -t 0.5 -s $system_prompt -m gemini-2.0
     } else if $gpt4 {
       chat_gpt $prompt -t 0.5 -s $system_prompt -m gpt-4
     } else {
@@ -2284,7 +2285,7 @@ export def "ai debunk" [
   let consolidation = if $ollama {
     o_llama $all_arguments --select_system debunker --select_preprompt consolidate_refutation -d true -m $ollama_model
   } else {
-    google_ai $all_arguments --select_system debunker --select_preprompt consolidate_refutation -d true -m gemini-1.5-pro
+    google_ai $all_arguments --select_system debunker --select_preprompt consolidate_refutation -d true -m gemini-2.0
   }
 
   return $consolidation
@@ -2372,7 +2373,7 @@ export def "ai analyze_paper" [
     } else if $ollama {
       o_llama $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -m $ollama_model -v $verbose
     } else {
-      google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -m gemini-1.5-pro -v $verbose
+      google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -m gemini-2.0 -v $verbose
     }
 
   print (echo-g "summarizing paper...")
@@ -2382,7 +2383,7 @@ export def "ai analyze_paper" [
     } else if $ollama {
       o_llama $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -m $ollama_model -v $verbose
     } else {
-      google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -m gemini-1.5-pro -v $verbose 
+      google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -m gemini-2.0 -v $verbose 
   }
 
   let paper_wisdom = $analysis + "\n\n" + $summary
@@ -2394,7 +2395,7 @@ export def "ai analyze_paper" [
   } else if $ollama {
     o_llama $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -m $ollama_model -v $verbose 
   } else {
-    google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -m gemini-1.5-pro -v $verbose    
+    google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -m gemini-2.0 -v $verbose    
   }
 
   $paper_wisdom + "\n\n# CONSOLIDATED SUMMARY\n\n" + $consolidated_summary | save -f $output
@@ -2417,7 +2418,7 @@ export def "ai clean-text" [
   } else if $ollama {
     o_llama $raw_data --select_system text_cleaner --select_preprompt clean_text -d true -m $ollama_model
   } else {
-    google_ai $raw_data --select_system text_cleaner --select_preprompt clean_text -d true -m gemini-1.5-pro
+    google_ai $raw_data --select_system text_cleaner --select_preprompt clean_text -d true -m gemini-2.0
   }
 
   return $data
@@ -2426,7 +2427,7 @@ export def "ai clean-text" [
 # analyze religious text using ai
 export def "ai analyze_religious_text" [
   data? #file record with name field or plain text
-  --gpt4(-g) #use gpt-4o to consolidate the debunk instead of gemini-1.5-pro
+  --gpt4(-g) #use gpt-4o to consolidate the debunk instead of gemini-2.0
   --ollama(-o) #usa ollama model
   --ollama_model(-m):string #ollama model to use
   --web_results(-w) #use web search results as input for the refutations
@@ -2515,7 +2516,7 @@ export def "ai analyze_religious_text" [
   } else if $ollama {
     o_llama $all_info --select_system biblical_assistant --select_preprompt consolidate_religious_text_analysus -d true -m $ollama_model -v $verbose
   } else {
-    google_ai $all_info --select_system biblical_assistant --select_preprompt consolidate_religious_text_analysus -d true -m gemini-1.5-pro -v $verbose 
+    google_ai $all_info --select_system biblical_assistant --select_preprompt consolidate_religious_text_analysus -d true -m gemini-2.0 -v $verbose 
   }
 
   if $notify {"analysis finished!" | tasker send-notification}
