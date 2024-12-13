@@ -347,3 +347,30 @@ export def is-in [subset:list, all?:list] {
   let all = get-input $in $all
   $all | each {|x| $x in $subset}
 }
+
+#make null all values of a record, recursively
+export def nullify-record [r?:record] {
+    let r = get-input $in $r
+
+    if ($r | describe | str contains 'record') {
+        $r | items { |key, value|            
+            let new_value = if ($value | describe | str contains 'record') {
+                nullify-record $value
+            } else if ($value | describe | str contains 'list') {
+                if ($value | length) > 0 and ($value | first | describe | str contains 'record') {
+                    $value | each { |v| nullify-record $v }
+                } else {
+                    null
+                }
+            } else {
+                null
+            }
+            {key: $key, value: $new_value}
+        } 
+        | reduce -f {} { |it, acc| 
+            $acc | merge { $it.key: $it.value } 
+        }
+    } else {
+        null
+    }
+}

@@ -423,6 +423,7 @@ export def askai [
   --claude(-C)  #use anthropic claude 3.5
   --ollama(-o)  #use ollama models
   --ollama_model(-m):string #select ollama model to use
+  --embed(-e) #make embedding instead of generate or chat
 ] {
   let prompt = if $fast {
     open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
@@ -577,9 +578,9 @@ export def askai [
   if $ollama {
     let answer = (
       if $vision {
-        o_llama $prompt -t $temp -l $list_system -p $list_preprompt -m $ollama_model -d true -i $image --select_preprompt $pre_prompt --select_system $system -w $web_search -W $web_results --web_model $web_model
+        o_llama $prompt -t $temp -l $list_system -p $list_preprompt -m $ollama_model -d true -i $image --select_preprompt $pre_prompt --select_system $system -w $web_search -W $web_results --web_model $web_model -e $embed
       } else {
-        o_llama $prompt -t $temp -l $list_system -p $list_preprompt -m $ollama_model -d true  --select_preprompt $pre_prompt --select_system $system --document $document -w $web_search -W $web_results --web_model $web_model
+        o_llama $prompt -t $temp -l $list_system -p $list_preprompt -m $ollama_model -d true  --select_preprompt $pre_prompt --select_system $system --document $document -w $web_search -W $web_results --web_model $web_model -e $embed
       }
     )
 
@@ -2758,12 +2759,15 @@ export def o_llama [
   --web_model:string = "gemini" #model to summarize web results
   --verbose(-v) = false     #show the attempts to call the gemini api
   --document:string         #uses provided document to retrieve the answer
+  --embed(-e) = false      #make embedding instead of generate or chat
 ] {
   let model = if ($model | is-empty) {
       ollama list | detect columns  | get NAME | input list -f (echo-g "Select model:")
     } else {
       ollama list | detect columns | where NAME =~ $model | get NAME.0
     }
+
+  let embed = if ($model =~ "embed") {true} else {$embed}
 
   #select system message from database
   let system_messages_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join system) | sort-by name | get name
@@ -2841,22 +2845,35 @@ export def o_llama [
   )
 
   #API CALL (pending vision)
-  let data = {
-    model: $model,
-    system: $system,
-    prompt: $prompt,
-    stream: false,
-    options: {
-      temperature: $temp
+  let data = if $embed {
+    {
+      model: $model,
+      input: $prompt
+    }
+  } else {
+    {
+      model: $model,
+      system: $system,
+      prompt: $prompt,
+      stream: false,
+      options: {
+        temperature: $temp
+      }
     }
   }
   
-  let url = "http://localhost:11434/api/generate"
+  let endpoint = if $embed {"embed"} else {"generate"}
+  let url = "http://localhost:11434/api/" + $endpoint
+
   let response = http post $url --content-type application/json $data
   
   if ($response | get error? | is-not-empty) {
     return-error $"Error: ($response.error)"
   } 
+
+  if $embed {
+    return $response.embeddings.0
+  }
 
   return $response.response
 }
