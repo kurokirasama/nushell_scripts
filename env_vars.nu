@@ -84,11 +84,10 @@ $env.PATH = (
   | flatten
   | append '/usr/local/Polyspace/R2019b/bin' 
   | append '/usr/local/go/bin' 
-  | append '/home/kira/go/bin/'
-  | append '/home/kira/Yandex.Disk/Comandos_bash_for_nushell'
-  | append $"/home/kira/R/x86_64-pc-linux-gnu-library/(ls /home/kira/R/x86_64-pc-linux-gnu-library | sort-by name | last | get name | split row "/" | last)/rush/exec"
+  | append ('~/go/bin/' | path expand)
+  | append ($"~/R/x86_64-pc-linux-gnu-library/(ls /home/kira/R/x86_64-pc-linux-gnu-library | sort-by name | last | get name | split row "/" | last)/rush/exec" | path expand)
   | append "/usr/local/texlive/2022/bin/x86_64-linux"
-  | append "/home/kira/.cargo/bin"
+  | append ("~/.cargo/bin" | path expand)
   | uniq
 )
 
@@ -115,8 +114,8 @@ $env.MY_ENV_VARS = (
   | upsert home_wifi "some_wifi"
   | upsert termux_ip "ip"
   | upsert mail "mail1@gmail.com"
-  | upsert mail_ubb "mail2@gmail.com"
-  | upsert mail_lmgg "mail4@gmail.com"
+  | upsert mail_2 "mail2@gmail.com"
+  | upsert mail_3 "mail4@gmail.com"
   | upsert l_prompt "short"
   | upsert data "/some/folder"
   | upsert download_dir "/some/folder"
@@ -130,7 +129,7 @@ $env.MY_ENV_VARS = (
 
 #for cmdg
 $env.PAGER = "less"
-$env.VISUAL = "nano"
+$env.VISUAL = "ox"
 
 #api_keys
 $env.MY_ENV_VARS = (

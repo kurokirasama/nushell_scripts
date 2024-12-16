@@ -67,6 +67,14 @@ let hooks = {
                         _ => {"e712"}
                     } 
                 } 
+        },
+        {
+            condition: {".git" | path exists},
+            code: "$env.GIT_STATUS = if (git status -s | str length) > 0 {git status -s | lines | length} else {0}"
+        },
+        {
+            condition: {not (".git" | path exists)},
+            code: "$env.GIT_STATUS = 0"
         }
     ]
     pre_execution: [
@@ -176,14 +184,6 @@ let hooks = {
         {
             condition: {"venv" | path exists},
             code: "overlay use venv/bin/activate.nu"
-        },
-        {
-            condition: {".git" | path exists},
-            code: "$env.GIT_STATUS = if (git status -s | str length) > 0 {git status -s | lines | length} else {0}"
-        },
-        {
-            condition: {not (".git" | path exists)},
-            code: "$env.GIT_STATUS = 0"
         }
       ]
     }
