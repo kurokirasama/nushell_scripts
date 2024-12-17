@@ -1010,3 +1010,18 @@ export def "media images-2-video" [
     ffmpeg -framerate $framerate -i $files_pattern $"($output).mp4"
   }
 }
+
+#auto remove black bars/banner from video
+export def "media auto-crop-banner" [
+  input: path
+  output: path
+] {
+    let crop_params = ffmpeg -hide_banner -i $input -t 1 -vf cropdetect -f null - o+e>|
+      | lines
+      | filter {|line| 'crop=' in $line}
+      | first
+      | split row " "
+      | last
+
+    ffmpeg -hide_banner -i $input -vf $crop_params $output
+}

@@ -67,7 +67,7 @@ export def op [
       "md"|"Rmd" => {glow $file},
       "nu" => {open --raw $file | nu-highlight | bat},
       "R"|"c"|"m"|"py"|"sh" => {bat $file},
-      "csv"|"json"|"sqlite"|"xls"|"xlsx" => {open $file},
+      "csv"|"json"|"sqlite"|"xls"|"xlsx"|"tsv" => {open $file},
       _ => {bat $file}
     }
   }
