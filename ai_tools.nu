@@ -1964,7 +1964,7 @@ export def "gcal ai" [
     } else {
       chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d
     }
-    | from json
+    | ai fix-json
   )
 
   let method = $gcal_query | get method 
@@ -2010,7 +2010,7 @@ export def "gcal ai" [
 
       let title = if $gemini {
         google_ai $prompt -m gemini-2.0
-      } else if gpt4 {
+      } else if $gpt4 {
          chat_gpt -m gpt-4
       } else if $ollama {
         o_llama $prompt -m $ollama_model
@@ -2574,7 +2574,7 @@ export def "ai fix-json" [
 # - --select_preprompt > --pre_prompt
 export def claude_ai [
     query?: string                                # the query to Chat GPT
-    --model(-m):string = "claude-3-5-haiku-20241022" # the model claude-3-opus-latest, claude-3-5-sonnet-latest, etc
+    --model(-m):string = "claude-3-5-haiku-latest" # the model claude-3-opus-latest, claude-3-5-sonnet-latest, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --anthropic_version(-v):string = "2023-06-01" #anthropic version
     --temp(-t): float = 0.9             # the temperature of the model

@@ -68,6 +68,7 @@ export def op [
       "nu" => {open --raw $file | nu-highlight | bat},
       "R"|"c"|"m"|"py"|"sh" => {bat $file},
       "csv"|"json"|"sqlite"|"xls"|"xlsx"|"tsv" => {open $file},
+      "doc"|"docx"|"pdf" => {openf $file},
       _ => {bat $file}
     }
   }
