@@ -258,7 +258,7 @@ export def rand-select [
 	let xs = if ($x | is-empty) {$in} else {$x} 
 
 	match ($xs | typeof) {
-		"list"|"range" => {
+		"list" => {
 				let len = $xs | length
 				let idx = randi ($len - 1)
 				let selection = $xs | get $idx
@@ -269,6 +269,15 @@ export def rand-select [
 					return ($selection)
 				}
 			},
+        "range" => {
+                $xs 
+                | range2list 
+                | if $index {
+                    rand-select -i
+                  } else {
+                    rand-select
+                  }
+            },
 		"table" => {
 				let col = $xs | columns | rand-select
 				let selection = $xs | get $col | rand-select -i

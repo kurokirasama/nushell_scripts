@@ -380,7 +380,7 @@ let new_keybinds = [
         event: [
           {
             send: executehostcommand
-            cmd: "let file = ls | where type == file | sort-by name | get name | input list -f (echo-g 'Select file:');commandline edit --append $'`($file)`';commandline set-cursor --end"
+            cmd: "let file = ls | where type == file | sort-by name | get name | input list -f (echo-g 'Select file:');commandline edit --append $'\'($file)\'';commandline set-cursor --end"
           }
         ]
     },

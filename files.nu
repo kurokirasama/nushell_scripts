@@ -13,11 +13,15 @@ export def echo-r [string:string] {
 }
 
 #custom color echo
-export def echo-c [string:string,color:string,--bold(-b)] {
+def echo-c [
+    text:string #text to print
+    color:string  #color of text
+    --bold(-b)    #print in bold
+] {
   if $bold {
-    echo $"(ansi -e { fg: ($color) attr: b })($string)(ansi reset)"
+    echo $"(ansi -e { fg: ($color) attr: b })($text)(ansi reset)"
   } else {
-    echo $"(ansi -e { fg: ($color)})($string)(ansi reset)"
+    echo $"(ansi -e { fg: ($color)})($text)(ansi reset)"
   }
 }
 
