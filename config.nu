@@ -217,26 +217,26 @@ let menus = [ {
           | each { |it| {value: $it.expansion }}
         }
     },
-    {
-      name: my_history_menu
-      only_buffer_difference: false
-      marker: ''
-      type: { layout: ide }
-      style: {}
-      source: {|buffer, position|
-        {
-          # only history of current directory
-          value: (
-            atuin history list --reverse false --cwd --cmd-only --print0
-            | split row (char nul) | uniq
-            | par-each {$in | nu-highlight}
-            | str join (char nul)
-            | fzf --read0 --ansi -q $buffer --height 40%
-            | ansi strip
-          )
-        }
-      }
-    }
+    # {
+    #   name: my_history_menu
+    #   only_buffer_difference: false
+    #   marker: ''
+    #   type: { layout: ide }
+    #   style: {}
+    #   source: {|buffer, position|
+    #     {
+    #       # only history of current directory
+    #       value: (
+    #         atuin history list --reverse false --cwd --cmd-only --print0
+    #         | split row (char nul) | uniq
+    #         | par-each {$in | nu-highlight}
+    #         | str join (char nul)
+    #         | fzf --read0 --ansi -q $buffer --height 40%
+    #         | ansi strip
+    #       )
+    #     }
+    #   }
+    # }
 ]
 
 $env.config.menus = $env.config.menus | where name not-in $new_menus_names | append $menus

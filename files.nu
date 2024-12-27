@@ -13,7 +13,7 @@ export def echo-r [string:string] {
 }
 
 #custom color echo
-def echo-c [
+export def echo-c [
     text:string #text to print
     color:string  #color of text
     --bold(-b)    #print in bold

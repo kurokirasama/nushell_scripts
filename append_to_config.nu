@@ -29,6 +29,6 @@ use /path/to/nushell_scripts/weather_tomorrow.nu [weather,get_weather_by_interva
 use /path/to/nushell_scripts/alias_defs.nu *
 # use /path/to/nushell_scripts/polars_aliases.nu *
 source-env /path/to/nushell_scripts/env_vars.nu
-source ~/.local/share/atuin/init.nu
+# source ~/.local/share/atuin/init.nu
 source ~/.cache/carapace/init.nu
 source-env /path/to/nushell_scripts/config.nu

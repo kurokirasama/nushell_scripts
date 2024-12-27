@@ -432,7 +432,7 @@ export def google_search [
       }
     )
 
-    $content = $content ++ $processed_content
+    $content = $content ++ [$processed_content]
   }
 
   let final_content = $content | wrap "content"

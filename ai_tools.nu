@@ -2216,7 +2216,7 @@ export def "ai google_search-summary" [
       }
     }
 
-    $content = $content ++ $summarized_content
+    $content = $content ++ [$summarized_content]
   }
 
   let content = $content | wrap content
