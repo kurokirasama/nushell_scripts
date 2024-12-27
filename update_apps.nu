@@ -980,3 +980,8 @@ export def "apps-update rustc" [] {
 export def "apps-update ollama" [] {
   curl -fsSL https://ollama.com/install.sh | sh
 }
+
+#update atuin
+export def "apps-update atuin" [] {
+  curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
+}
