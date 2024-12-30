@@ -3,13 +3,13 @@
 ######################################################
 
 #green echo
-export def echo-g [string:string] {
-  echo $"(ansi -e { fg: '#00ff00' attr: b })($string)(ansi reset)"
+export def echo-g [text:string] {
+  echo $"(ansi -e { fg: '#00ff00' attr: b })($text)(ansi reset)"
 }
 
 #red echo
-export def echo-r [string:string] {
-  echo $"(ansi -e { fg: '#ff0000' attr: b })($string)(ansi reset)"
+export def echo-r [text:string] {
+  echo $"(ansi -e { fg: '#ff0000' attr: b })($text)(ansi reset)"
 }
 
 #custom color echo

@@ -29,6 +29,11 @@ export def "math fac" [num: int] {
 
 ## Mine ##
 
+#generate error output
+export def return-error [msg] {
+  error make -u {msg: $"(echo-r $msg)"}
+}
+
 #Calculate roots of the quadratic function: ax^2+bx+x
 export def "math qroots" [
 	a 	# x^2

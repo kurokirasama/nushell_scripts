@@ -178,8 +178,8 @@ let hooks = {
             zoxide add -- $after
         },
         {
-            condition: {".autouse.nu" | path exists},
-            code: "source .autouse.nu"
+            condition: {"autouse.nu" | path exists},
+            code: "source autouse.nu"
         },
         {
             condition: {"venv" | path exists},

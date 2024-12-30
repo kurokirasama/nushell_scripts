@@ -334,11 +334,6 @@ export def fix-docker [] {
   newgrp docker
 }
 
-#generate error output
-export def return-error [msg] {
-  error make -u {msg: $"(echo-r $msg)"}
-}
-
 #get monitors
 export def get-monitors [] {
   xrandr | lines | range 1..5 | parse -r '(\S+)\s+(\S+).*'
