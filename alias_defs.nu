@@ -80,6 +80,6 @@ export def --wrapped m [
   let output = ($rest | str join "::" | split row '-i::' | get 1 | split row '::' | first | path parse | get stem) + "." + $output_format
 
   let pdfit = if $output_format == "pdf" {"--pdfFit"} else {[]}
-  let rest = $rest ++ $pdfit
+  let rest = $rest ++ [$pdfit]
   mmdc -p $env.MY_ENV_VARS.mermaid_puppetter_config ...$rest -o $output -b transparent
 }
