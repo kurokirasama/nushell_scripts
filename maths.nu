@@ -400,7 +400,7 @@ export def "math prod-list" [
 
 	mut prod = []
 	for i in 0..($n1 - 1) {
-		$prod = $prod ++ (($list1 | get $i) * ($list2 | get $i))
+		$prod = $prod ++ [(($list1 | get $i) * ($list2 | get $i))]
 	}
 
 	return $prod

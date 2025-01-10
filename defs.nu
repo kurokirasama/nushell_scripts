@@ -474,6 +474,32 @@ def flatten-keys [rec: record, root: string] {
    } | flatten
 } 
 
+#generates nushell document for llm (gemini and claude)
+export def generate-nushell-doc [] {
+  cd ~/software/nushell.github.io
+  git pull
+  cd book/
+  get-files | cp-pipe ~/temp 
+
+  cd ~/temp
+  ["3rdpartyprompts.md" "installation.md" "design_notes.md" "background_task.md"] | each {|f|
+    rm -f $f
+  }
+
+  cd ~/temp
+  join-text-files md nushell_book
+  return
+  let doc = open nushell_book.md
+
+  cd ([$env.MY_ENV_VARS.chatgpt_config system] | path join)
+
+  let index = open bash_nushell_programmer_with_nushell_docs.md | lines | find-index "NUSHELL DOCUMENTATION" | get 1 | into int
+
+  let system_message = open bash_nushell_programmer_with_nushell_docs.md | lines | first ($index + 2) | to text
+
+  $system_message + $doc | save -f a.md
+}
+
 #################################################################################################
 ## appimages
 #################################################################################################
