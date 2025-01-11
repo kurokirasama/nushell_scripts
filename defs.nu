@@ -488,7 +488,7 @@ export def generate-nushell-doc [] {
 
   cd ~/temp
   join-text-files md nushell_book
-  return
+
   let doc = open nushell_book.md
 
   cd ([$env.MY_ENV_VARS.chatgpt_config system] | path join)
@@ -497,7 +497,10 @@ export def generate-nushell-doc [] {
 
   let system_message = open bash_nushell_programmer_with_nushell_docs.md | lines | first ($index + 2) | to text
 
-  $system_message + $doc | save -f a.md
+  $system_message + $doc | save -f bash_nushell_programmer_with_nushell_docs.md
+
+  cd ~/temp
+  rm *
 }
 
 #################################################################################################

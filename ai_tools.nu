@@ -1883,7 +1883,7 @@ def update_gemini_content [
 ] {
   let contents = if ($contents | is-empty) {$in} else {$contents}
   let parts = [[text];[$new]]
-  return ($contents ++ {role: $role, parts: $parts})
+  return ($contents ++ [{role: $role, parts: $parts}])
 }
 
 #save gemini conversation to plain text
