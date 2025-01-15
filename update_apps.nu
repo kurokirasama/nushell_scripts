@@ -897,7 +897,7 @@ export def "apps-update tiv" [] {
 }
 
 #update mermaid filter
-export def "apps-update mermaid" [] {
+export def "apps-update mermaid-filter" [] {
   sudo npm update --global mermaid-filter
 }
 
@@ -938,34 +938,6 @@ export def "apps-update obsidian" [] {
 #update ox
 export def "apps-update ox" [] {
   cargo install --git https://github.com/curlpipe/ox ox
-
-  #download plugins
-  let git_token = $env.MY_ENV_VARS.api_keys.github.api_key
-
-  # cd $env.MY_ENV_VARS.ox_plugins
-  
-  # {
-  #   scheme: "https",
-  #   host: "api.github.com",
-  #   path: $"/repos/curlpipe/ox/contents/plugins",
-  # } 
-  # | url join
-  # | http get $in -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
-  # | get download_url 
-  # | each {|url| aria2c --allow-overwrite=true $url}
-
-  #updating help in programmer system message
-  # if (sys host | get hostname) == "deathnote" {
-  #   cd /home/kira/software/ox.wiki
-  #   git pull
-  #   let ox_config = open Configuration.md
-
-  #   let p_system_file = [$env.MY_ENV_VARS.chatgpt_config system programmer.md] | path join
-  #   let r_line = grp "ox editor lua scripting reference" $p_system_file | get line.0 | into int
-  #   let p_system = open $p_system_file | lines | first $r_line | to text
-
-  #   $p_system ++ "\n" ++ $ox_config | save -f $p_system_file
-  # }
 }
 
 #update rustc
@@ -984,4 +956,11 @@ export def "apps-update ollama" [] {
 #update atuin
 export def "apps-update atuin" [] {
   curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
+}
+
+#update ghostty
+export def "apps-update ghostty" [] {
+  cd ~/software/ghostty/
+  git pull
+  zig build -p ~/.local -Doptimize=ReleaseFast
 }
