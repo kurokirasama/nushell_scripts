@@ -374,3 +374,9 @@ export def nullify-record [r?:record] {
         null
     }
 }
+
+#select columns by pattern
+export def select-pattern [pattern:string] {
+  $in | 
+  select ...($in | columns | where $it like $pattern)
+}
