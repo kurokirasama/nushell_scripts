@@ -55,7 +55,7 @@ export def quick-ubuntu-and-tools-update-module [
   }
 
   if $update_scripts {copy-scripts-and-commit -G $gemini}
-  if $upload_debs {upload-debs-to-gdrive}
+  if $upload_debs {upload-debs-to-mega}
 }
 
 #alias for short call
@@ -79,6 +79,27 @@ export def upload-debs-to-gdrive [] {
     cd $env.MY_ENV_VARS.debs; cd ..
     7z max debs debs/
     mv -f debs.7z $env.MY_ENV_VARS.gdrive_debs
+  }
+}
+
+#upload deb files to mega
+export def upload-debs-to-mega [] {
+  let mounted = ($env.MY_ENV_VARS.mega_debs | path expand | path exists)
+  if not $mounted {
+    print (echo-g "mounting mega...")
+    rmount $env.MY_ENV_VARS.mega_mount_point
+    sleep 4sec
+  }
+
+  let old_deb_date = ls ([$env.MY_ENV_VARS.mega_debs debs.7z] | path join) | get modified | get 0
+
+  let last_deb_date = ls $env.MY_ENV_VARS.debs | sort-by modified | last | get modified 
+
+  if $last_deb_date > $old_deb_date {   
+    print (echo-g "updating deb files to mega...") 
+    cd $env.MY_ENV_VARS.debs; cd ..
+    7z max debs debs/
+    mv -up debs.7z $env.MY_ENV_VARS.mega_debs
   }
 }
 

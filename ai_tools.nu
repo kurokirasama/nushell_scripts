@@ -1496,8 +1496,8 @@ export def google_ai [
   let for_bison_gen = if ($model =~ "bison") {":generateText"} else {":generateContent"}
 
   let input_model = $model
-  let model = if $model == "gemini-pro-vision" {"gemini-2.0-flash-exp"} else {$model}
-  let model = if $model == "gemini-2.0" {"gemini-2.0-flash-exp"} else {$model}
+  let model = if $model == "gemini-pro-vision" {"gemini-2.0-flash-001"} else {$model}
+  let model = if $model == "gemini-2.0" {"gemini-2.0-flash-001"} else {$model}
 
   let url_request = {
       scheme: "https",
@@ -1829,7 +1829,7 @@ export def google_ai [
       $answer = http post -t application/json $url_request $request -e
     } 
 
-    if (($answer | is-empty) or ($answer == null)) and ($model == "gemini-2.0-flash-exp") {
+    if (($answer | is-empty) or ($answer == null)) and ($model == "gemini-2.0-flash-001") {
       let model = "gemini-1.5-pro"
       let url_request = {
         scheme: "https",
