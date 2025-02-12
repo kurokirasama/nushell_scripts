@@ -38,7 +38,7 @@ $env.config.recursion_limit = 500
 $env.config.completions.algorithm = "prefix" #fuzzy
 $env.config.completions.use_ls_colors = true
 $env.config.float_precision = 4;
-$env.config.filesize.metric = true
+$env.config.filesize.unit = "metric"
 $env.config.cursor_shape.emacs = "blink_line"
 $env.config.highlight_resolved_externals = true
 

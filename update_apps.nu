@@ -1,7 +1,6 @@
 #update nushell
 export def "apps-update nushell" [
   --repo(-r)    #install from repo instead of cargo
-  --plugins(-p) #install e3rd party plugins
 ] {
   print (echo-g "deleting plugins...")
   plugin list | get filename | each {|p| plugin rm $p}
@@ -28,17 +27,23 @@ export def "apps-update nushell" [
 export def "apps-update nushell-plugins" [] {
   cargo install-update nu_plugin_inc nu_plugin_gstat nu_plugin_query nu_plugin_formats nu_plugin_polars
 
-  plugin add ~/.cargo/bin/nu_plugin_inc
-  plugin add ~/.cargo/bin/nu_plugin_gstat
-  plugin add ~/.cargo/bin/nu_plugin_query
-  plugin add ~/.cargo/bin/nu_plugin_formats
-  plugin add ~/.cargo/bin/nu_plugin_polars
+  print (echo-g "now run:")
+  print ([
+    "plugin add ~/.cargo/bin/nu_plugin_inc"
+    "plugin add ~/.cargo/bin/nu_plugin_gstat"
+    "plugin add ~/.cargo/bin/nu_plugin_query"
+    "plugin add ~/.cargo/bin/nu_plugin_formats"
+    "plugin add ~/.cargo/bin/nu_plugin_polars"
+  ] | str join "\n")
 
-  plugin use ~/.cargo/bin/nu_plugin_inc
-  plugin use ~/.cargo/bin/nu_plugin_gstat
-  plugin use ~/.cargo/bin/nu_plugin_query
-  plugin use ~/.cargo/bin/nu_plugin_formats
-  plugin use ~/.cargo/bin/nu_plugin_polars
+  print (echo-g "then run:")
+  print ([
+    "plugin use ~/.cargo/bin/nu_plugin_inc"
+    "plugin use ~/.cargo/bin/nu_plugin_gstat"
+    "plugin use ~/.cargo/bin/nu_plugin_query"
+    "plugin use ~/.cargo/bin/nu_plugin_formats"
+    "plugin use ~/.cargo/bin/nu_plugin_polars"
+  ] | str join "\n")
 }
 
 #update nushell 3rd party plugins
@@ -48,11 +53,17 @@ export def "apps-update nushell-external-plugins" [] {
   cargo install --git https://github.com/Euphrasiologist/nu_plugin_plot
   cargo install --git https://github.com/FMotalleb/nu_plugin_port_scan.git
 
-  plugin add ~/.cargo/bin/nu_plugin_port_scan
-  # plugin add ~/.cargo/bin/nu_plugin_plot
+  print (echo-g "now run:")
+  print ([
+    "plugin add ~/.cargo/bin/nu_plugin_port_scan"
+    "plugin add ~/.cargo/bin/nu_plugin_plot"
+  ] | str join "\n")
 
-  plugin use ~/.cargo/bin/nu_plugin_port_scan
-  # plugin use ~/.cargo/bin/nu_plugin_plot
+  print (echo-g "then run:")
+  print ([
+    "plugin use ~/.cargo/bin/nu_plugin_port_scan"
+    "plugin use ~/.cargo/bin/nu_plugin_plot"
+  ] | str join "\n")
 }
 
 #update nu config (after nushell update)

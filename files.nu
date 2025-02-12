@@ -209,7 +209,7 @@ export def cp-pipe [
   to: string  #target directory
   --force(-f) #force copy
 ] {
-  let files = $in | get name | ansi-strip-table
+  let files = $in | select name | ansi-strip-table | get name
   let number = ($files | length) - 1
 
   for i in 0..$number {    
@@ -233,7 +233,7 @@ export def mv-pipe [
   to: string  #target directory
   --force(-f) #force rewrite of file
 ] {
-  let files = $in | get name | ansi-strip-table
+  let files = $in | select name | ansi-strip-table | get name
   let number = ($files | length) - 1
 
   for i in 0..$number {
