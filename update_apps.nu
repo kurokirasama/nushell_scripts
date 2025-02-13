@@ -975,3 +975,8 @@ export def "apps-update ghostty" [] {
   git pull
   zig build -p ~/.local -Doptimize=ReleaseFast
 }
+
+#update reader
+export def "apps-update reader" [] {
+  go install github.com/mrusme/reader@latest
+}
