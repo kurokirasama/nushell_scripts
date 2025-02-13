@@ -84,7 +84,7 @@ export def upload-debs-to-gdrive [] {
 
 #upload deb files to mega
 export def upload-debs-to-mega [] {
-  let mounted = ($env.MY_ENV_VARS.mega_debs | path expand | path exists)
+  let mounted = $env.MY_ENV_VARS.mega_debs | path join debs.7z | path expand | path exists
   if not $mounted {
     print (echo-g "mounting mega...")
     rmount $env.MY_ENV_VARS.mega_mount_point
