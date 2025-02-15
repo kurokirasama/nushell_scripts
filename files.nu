@@ -36,16 +36,17 @@ export def is-column [name] {
 #wrapper for describe
 export def typeof [--full(-f)] {
   let inp = $in
-  let type = $inp
-    | describe 
-    | if not $full { 
-        split row '<' | get 0 
-      } else { 
-        $in 
-      }
+  mut type = $inp | describe
 
-  if $type == list and ($in | columns | is-not-empty) {
-    return "table"
+  if not $full {
+    $type = $inp | describe | split row '<' | get 0
+  }
+
+  if $type == "list" {
+    # Check if the list has column names, indicating it's effectively a table
+    if ($inp | first | describe) == "record" {
+      return "table"
+    }
   }
   return $type
 }
@@ -127,21 +128,22 @@ export def openm [
 #send to printer
 export def print-file [file?,--n_copies(-n):int] {
   let file = get-input $in $file -n | ansi strip
-  
-  match ($file | length) {
-    1 => {
+    
+  match ($file | typeof) {
+    "string" => {
             if ($n_copies | is-empty) {
               lp $file
             } else {
               lp -n $n_copies $file
             }
       },
-    _ => {
+    "list" => {
             $file
             | each {|name| 
                 print-file $name
               }
-      }
+      },
+    _ => {return-error $"($file | typeof) not allowed!"}
   }
 }
 
@@ -188,7 +190,7 @@ export def "7z max" [
 #Example
 #ls *.txt | first 5 | rm-pipe
 export def rm-pipe [] {
-  let files = $in | get name | ansi-strip-table
+  let files = $in | select name | ansi-strip-table | get name
   
   if ($files | is-empty) {return}
 
