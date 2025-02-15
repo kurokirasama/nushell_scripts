@@ -10,16 +10,20 @@ export def ? [...search,--find(-f)] {
     return
   }
 
-  if $search =~ "commands" {
-   if $search =~ "my" {
-     help commands | where category == default
-   } else {
-     help commands 
-   }
-  } else if (which $search | get type | get 0) =~ "external" {
-    usage (which $search | get command | get 0)
-  } else {
-    help (which $search | get command | get 0)
+  try {
+    if $search =~ "commands" {
+     if $search =~ "my" {
+       help commands | where category == default
+     } else {
+       help commands 
+     }
+    } else if (which $search | get type | get 0) =~ "external" {
+      usage (which $search | get command | get 0)
+    } else {
+      help (which $search | get command | get 0)
+    }
+  } catch {
+    usage $search
   }
 }
 
