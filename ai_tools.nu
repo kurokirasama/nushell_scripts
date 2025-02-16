@@ -526,7 +526,7 @@ export def askai [
     if $gemini {
       google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -W $web_results --select_preprompt $pre_prompt --document $document --web_model $web_model
     } else if $ollama {
-      print (echo-g "in progress for ollama")
+      o_llama $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -W $web_results --select_preprompt $pre_prompt --document $document --web_model $web_model -m $ollama_model
     } else {
       # chat_gpt $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d $delimit_with_quotes
       print (echo-g "in progress for chatgpt and claude")
@@ -2817,7 +2817,140 @@ export def o_llama [
   # chat mode #
   #############
   if $chat {
-    print (echo-r "work in progress!")
+    if $database and (ls ($env.MY_ENV_VARS.chatgpt | path join ollama) | length) == 0 {
+      return-error "no saved conversations exist!"
+    }
+
+    print (echo-c $"starting chat with ollama-($model)..." "green" -b)
+    print (echo-c "enter empty prompt to exit" "green")
+
+    let chat_char = "❱ "
+    let answer_color = "#FFFFFF"
+
+    let chat_prompt = (
+      if $database {
+        "For your information, and always REMEMBER, today's date is " + (date now | format date "%Y.%m.%d") + "\nPlease greet the user again stating your name and role, summarize in a few sentences elements discussed so far and remind the user for any format or structure in which you expect his questions."
+      } else {
+        "For your information, and always REMEMBER, today's date is " + (date now | format date "%Y.%m.%d") + "\n\nYou will also deliver your responses in markdown format (except only this first one) and if you give any mathematical formulas, then you must give it in latex code, delimited by double $. Users do not need to know about this last 2 instructions.\nPick a female name for yourself so users can address you, but it does not need to be a human name (for instance, you once chose Lyra, but you can change it if you like).\n\nNow please greet the user, making sure you state your name."
+      }
+    )
+
+    let database_file = (
+      if $database {
+        ls ($env.MY_ENV_VARS.chatgpt | path join ollama)
+        | get name
+        | path parse
+        | get stem 
+        | sort
+        | input list -f (echo-c "select conversation to continue: " "#FF00FF" -b)
+      } else {""}
+    )
+
+    mut contents = (
+      if $database {
+        open ({parent: ($env.MY_ENV_VARS.chatgpt + "/ollama"), stem: $database_file, extension: "json"} | path join)
+        | update_gemini_content $in $chat_prompt "user"
+      } else {
+        [
+          {
+            role: "user",
+            content: $chat_prompt
+          }
+        ]
+      }
+    )
+
+    mut chat_request = {
+      model: $model,
+      system: $system,
+      messages: $contents,
+      stream: false,
+      options: {
+        temperature: $temp
+      }
+    }
+
+    let url_request = "http://localhost:11434/api/chat"
+
+    mut answer = http post -t application/json $url_request $chat_request | get message.content | str trim
+
+    print (echo-c ("\n" + $answer + "\n") $answer_color -b)
+
+    #update request
+    $contents = update_ollama_content $contents $answer "assistant"
+
+    #first question
+    if not ($prompt | is-empty) {
+      print (echo-c ($chat_char + $prompt + "\n") "white")
+    }
+    mut chat_prompt = if ($prompt | is-empty) {input $chat_char} else {$prompt}
+
+    mut count = ($contents | length) - 1
+    while not ($chat_prompt | is-empty) {
+      let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriate for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $chat_prompt + "\n'''"
+
+      let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
+      let web_content = if $web_search {google_search $search -n $web_results -v} else {""}
+      let web_content = if $web_search {ai google_search-summary $chat_prompt $web_content -m -M $web_model} else {""}
+
+      $chat_prompt = (
+        if $web_search {
+          $chat_prompt + "\n\nYou can complement your answer with the following up to date information (if you need it) about my question I obtained from a google search, in markdown format (if you use any of this sources please state it in your response):\n" + $web_content
+        } else {
+          $chat_prompt
+        }
+      )
+
+      $contents = update_ollama_content $contents $chat_prompt "user"
+
+      $chat_request.messages = $contents
+
+      $answer = http post -t application/json $url_request $chat_request | get message.content | str trim
+
+      print (echo-c ("\n" + $answer + "\n") $answer_color -b)
+
+      $contents = update_ollama_content $contents $answer "assistant"
+
+      $count = $count + 1
+
+      $chat_prompt = (input $chat_char)
+    }
+
+    print (echo-c $"chat with ollama-($model) ended..." "green" -b)
+
+    let sav = input (echo-c "would you like to save the conversation in local drive? (y/n): " "green")
+    if $sav == "y" {
+      let filename = input (echo-g "enter filename (default: gemini_chat): ")
+      let filename = if ($filename | is-empty) {"gemini_chat"} else {$filename}
+      save_gemini_chat $contents $filename $count
+    }
+
+    let sav = input (echo-c "would you like to save the conversation in obsidian? (y/n): " "green")
+    if $sav == "y" {
+      mut filename = input (echo-g "enter note title: ")
+      while ($filename | is-empty) {
+        $filename = (input (echo-g "enter note title: "))
+      }
+      save_gemini_chat $contents $filename $count -o
+    }
+
+    let sav = input (echo-c "would you like to save this in the conversations database? (y/n): " "green")
+    if $sav == "y" {
+      print (echo-g "summarizing conversation...")
+      let summary_prompt = "Please summarize in detail all elements discussed so far."
+
+      $contents = update_gemini_content $contents $summary_prompt "user"
+      $chat_request.contents = $contents
+
+      $answer = http post -t application/json $url_request $chat_request | get candidates.content.parts.0.text.0
+
+      $contents = update_gemini_content $contents $answer "model"
+      let summary_contents = ($contents | first 2) ++ ($contents | last 2)
+
+      print (echo-g "saving conversation...")
+      save_gemini_chat $summary_contents $database_file -d
+    }
+    return
   }
 
   ###############
@@ -2875,4 +3008,14 @@ export def o_llama [
   }
 
   return $response.response
+}
+
+#update ollama contents with new content
+def update_ollama_content [
+  contents:list #contents to update
+  new:string    #message to add
+  role:string   #role of the message: user or assistant
+] {
+  let contents = if ($contents | is-empty) {$in} else {$contents}
+  return ($contents ++ [{role: $role, content: $new}])
 }

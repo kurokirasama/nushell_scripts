@@ -86,6 +86,7 @@ export def "nushell-syntax-2-sublime" [
     | find bash & nushell 
     | get 0 
     | ansi strip
+    | path expand
     | ls $in 
     | find -v Readme 
     | get name 
@@ -103,7 +104,7 @@ export def "nushell-syntax-2-sublime" [
   let personal_external = "    (?x: " + $personal_external + ")"
   let operators = "    (?x: and | or | mod | in | not-in | not | xor | bit-or | bit-xor | bit-and | bit-shl | bit-shr | starts-with | ends-with)"
 
-  let new_commands = [] ++ $builtin ++ $custom ++ $plugins ++ $keywords ++ $aliases ++ $personal_external ++ $operators
+  let new_commands = [] ++ [$builtin] ++ [$custom] ++ [$plugins] ++ [$keywords] ++ [$aliases] ++ [$personal_external] ++ [$operators]
  
   mut file = open ~/.config/sublime-text/Packages/User/nushell.sublime-syntax | lines
   let idx = $file | indexify | find '(?x:' | get index | drop | enumerate
