@@ -624,7 +624,7 @@ export def askai [
 }
 
 #alias for bard
-export alias bard = askai -c -G -W 2
+export alias bard = askai -cGW 2
 
 #generate a git commit message via chatgpt and push the changes
 #
@@ -2920,9 +2920,9 @@ export def o_llama [
 
     let sav = input (echo-c "would you like to save the conversation in local drive? (y/n): " "green")
     if $sav == "y" {
-      let filename = input (echo-g "enter filename (default: gemini_chat): ")
-      let filename = if ($filename | is-empty) {"gemini_chat"} else {$filename}
-      save_gemini_chat $contents $filename $count
+      let filename = input (echo-g "enter filename (default: ollama_chat): ")
+      let filename = if ($filename | is-empty) {"ollama_chat"} else {$filename}
+      save_ollama_chat $contents $filename $count
     }
 
     let sav = input (echo-c "would you like to save the conversation in obsidian? (y/n): " "green")
@@ -2931,7 +2931,7 @@ export def o_llama [
       while ($filename | is-empty) {
         $filename = (input (echo-g "enter note title: "))
       }
-      save_gemini_chat $contents $filename $count -o
+      save_ollama_chat $contents $filename $count -o
     }
 
     let sav = input (echo-c "would you like to save this in the conversations database? (y/n): " "green")
@@ -2939,16 +2939,16 @@ export def o_llama [
       print (echo-g "summarizing conversation...")
       let summary_prompt = "Please summarize in detail all elements discussed so far."
 
-      $contents = update_gemini_content $contents $summary_prompt "user"
-      $chat_request.contents = $contents
+      $contents = update_ollama_content $contents $summary_prompt "user"
+      $chat_request.messages = $contents
 
-      $answer = http post -t application/json $url_request $chat_request | get candidates.content.parts.0.text.0
+      $answer = http post -t application/json $url_request $chat_request | get message.content | str trim
 
-      $contents = update_gemini_content $contents $answer "model"
+      $contents = update_ollama_content $contents $answer "assistant"
       let summary_contents = ($contents | first 2) ++ ($contents | last 2)
 
       print (echo-g "saving conversation...")
-      save_gemini_chat $summary_contents $database_file -d
+      save_ollama_chat $summary_contents $database_file -d
     }
     return
   }
@@ -3010,6 +3010,9 @@ export def o_llama [
   return $response.response
 }
 
+#alias for ollama chat
+export alias ochat = askai -coW 2
+
 #update ollama contents with new content
 def update_ollama_content [
   contents:list #contents to update
@@ -3019,3 +3022,48 @@ def update_ollama_content [
   let contents = if ($contents | is-empty) {$in} else {$contents}
   return ($contents ++ [{role: $role, content: $new}])
 }
+
+#save gemini conversation to plain text
+def save_ollama_chat [
+  contents
+  filename
+  count?:int = 1  
+  --obsidian(-o)  #save note to obsidian
+  --database(-d)  #save to local database
+] {
+  if $obsidian and $database {
+    return-error "only one of these flags allowed"
+  }
+  let filename = if ($filename | is-empty) {input (echo-g "enter filename: ")} else {$filename}
+
+  let plain_text = (
+    $contents 
+    | flatten 
+    | flatten 
+    | skip $count
+    | each {|row| 
+        if $row.role =~ "assistant" {
+          $row.content + "\n"
+        } else {
+          "> **" + $row.content + "**\n"
+        }
+      }
+    | to text
+  )
+  
+  if $obsidian {
+    obs create $filename $plain_text -v "AI/AI_Ollama"
+    return 
+  } 
+
+  if $database {    
+    $contents | save -f ([$env.MY_ENV_VARS.chatgpt ollama $"($filename).json"] | path join)
+
+    return
+  }
+
+  $plain_text | save -f ([$env.MY_ENV_VARS.download_dir $"($filename).txt"] | path join)
+  
+  mv -f ([$env.MY_ENV_VARS.download_dir $"($filename).txt"] | path join) ([$env.MY_ENV_VARS.download_dir $"($filename).md"] | path join)
+}
+
