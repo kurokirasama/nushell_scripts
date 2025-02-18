@@ -3125,9 +3125,17 @@ export def stable_diffusion [
           output_format: $output_format,
           aspect_ratio: $aspect_ratio
           negative_prompt: $negative_prompt
-        } | to json
+        }
 
-        http post -t multipart/form-data -H $header $site $request | save -f $"($output).($output_format)"
+        let response = http post -t multipart/form-data -H $header $site $request -ef
+
+        if $response.status != 200 {
+          return-error $"status: ($response.status)\n($response.body.name)\n($response.body.errors.0)"
+        } 
+
+        print (echo-g $"saving image in ($output).($output_format)")
+        $response | get something? | save -f $"($output).($output_format)"
+        return        
       },
 
   #   "edit" => {
