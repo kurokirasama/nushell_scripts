@@ -855,6 +855,8 @@ export def "apps-update nchat" [] {
   
   ^mkdir -p build; cd build; cmake -DHAS_WHATSAPP=ON -DHAS_TELEGRAM=OFF ..; make -s
   sudo make install
+  cd ~/software/nchat
+  sudo rm -rf build/
 }
 
 #update ffmpeg with cuda

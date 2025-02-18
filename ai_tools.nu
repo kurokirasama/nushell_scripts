@@ -1164,8 +1164,8 @@ export def dall_e [
         let mask = media crop-image $mask --name
 
         #translate prompt if not in english
-        let english = chat_gpt --select_preprompt is_in_english $prompt | from json | get english | into bool
-        let prompt = if $english {chat_gpt --select_preprompt translate_dalle_prompt -d $prompt} else {$prompt}
+        let english = google_ai --select_preprompt is_in_english $prompt | from json | get english | into bool
+        let prompt = if $english {google_ai --select_preprompt translate_dalle_prompt -d $prompt} else {$prompt}
 
         let site = "https://api.openai.com/v1/images/edits"
 
@@ -1219,10 +1219,10 @@ export def dall_e [
   }
 }
 
-#fast call to the dall-e wrapper
+#fast call to the dall-e and stable diffusion wrapper
 #
-#For more personalization and help check `? dall_e`
-export def askdalle [
+#For more personalization and help check `? dall_e` or `? stable_diffusion`
+export def askimage [
   prompt?:string  #string with the prompt, can be piped
   --dalle3(-d)    #use dall-e-3 instead of dall-e-2 (default)
   --edit(-e)      #use edition mode instead of generation
@@ -3071,3 +3071,124 @@ def save_ollama_chat [
   mv -f ([$env.MY_ENV_VARS.download_dir $"($filename).txt"] | path join) ([$env.MY_ENV_VARS.download_dir $"($filename).md"] | path join)
 }
 
+#single call to stable diffusion models
+#
+#generation task:
+# models: 
+#  - ultra: 8 credits, 1 megapixel output resolution, 1024x1024
+#  - core: 3 credits, 1.5 megapixel output resolution
+#  - sd3, sd3.5: 1 megapixel output resolution, 1024x1024
+#     - SD 3.5 & 3.0 Large: 6.5 credits
+#     - SD 3.5 & 3.0 Large Turbo: 4 credits
+#     - SD 3.5 & 3.0 Medium: 3 credits
+export def stable_diffusion [
+    prompt?: string                     # the query to the models
+    --model(-m):string = "ultra"        # the model: ultra, core, sd3, sd3.5?
+    --task(-t):string = "generation"    # the method to use: generation, 
+    --output_format(-o):string = "png"  # image output format
+    --aspect_ratio(-a):string = "1:1"   # image output aspect_ratio
+    --negative_prompt(-n):string        # negative_prompt
+    --image(-i):string                  # image base for editing and variation
+    --mask(-k):string                   # masked image for editing
+] {
+  let prompt = get-input $in $prompt
+  let negative_prompt = get-input $env.MY_ENV_VARS.negative_prompt $negative_prompt
+
+  #error checking
+  if ($prompt | is-empty) and ($task =~ "generation|edit") {
+    return-error "Empty prompt!!!"
+  }
+
+  let output = (google_ai --select_preprompt dalle_image_name -d true $prompt | from json | get name) + "_SD"
+
+  #methods
+  let header = {authorization: $"Bearer ($env.MY_ENV_VARS.api_keys.stable_diffusion)", accept: "image/*"}
+
+  match $task {
+    "generation" => {
+        if $model not-in ["ultra" "core" "sd3" "sd3.5"] {
+          return-error "wrong model for generation task!"
+        }
+
+        #translate prompt if not in english
+        let english = google_ai --select_preprompt is_in_english -d true $prompt | from json | get english | into bool
+        let prompt = if $english {google_ai --select_system ai_art_creator --select_preprompt translate_dalle_prompt -d true $prompt} else {$prompt}
+        let prompt = google_ai --select_system ai_art_creator --select_preprompt improve_dalle_prompt -d true $prompt
+
+        print (echo-g "improved prompt: ")
+        print ($prompt)
+
+        let site = "https://api.stability.ai/v2beta/stable-image/generate/" + $model
+
+        let request = {
+          prompt: $prompt,
+          output_format: $output_format,
+          aspect_ratio: $aspect_ratio
+          negative_prompt: $negative_prompt
+        } | to json
+
+        http post -t multipart/form-data -H $header $site $request | save -f $"($output).($output_format)"
+      },
+
+  #   "edit" => {
+  #       if $model == "dall-e-3" {
+  #         return-error "Dall-e-3 doesn't allow edits!!!"
+  #       }
+
+  #       if ($image | is-empty) or ($mask | is-empty) {
+  #         return-error "image and mask needed for editing!!!"
+  #       }
+
+  #       let header = $"Authorization: Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"
+
+  #       let image = media crop-image $image --name        
+  #       let mask = media crop-image $mask --name
+
+  #       #translate prompt if not in english
+  #       let english = google_ai --select_preprompt is_in_english $prompt | from json | get english | into bool
+  #       let prompt = if $english {google_ai --select_preprompt translate_dalle_prompt -d $prompt} else {$prompt}
+
+  #       let site = "https://api.openai.com/v1/images/edits"
+
+  #       let answer = bash -c ("curl -s " + $site + " -H '" + $header + "' -F model='" + $model + "' -F n=" + ($number | into string) + " -F size='" + $size + "' -F image='@" + $image + "' -F mask='@" + $mask + "' -F prompt='" + $prompt + "'")
+
+  #       $answer
+  #       | from json
+  #       | get data.url
+  #       | enumerate
+  #       | each {|img| 
+  #           print (echo-g $"downloading image ($img.index | into string)...")
+  #           http get $img.item | save -f $"($output)_($img.index).png"
+  #         }
+  #     },
+
+  #   "variation" => {
+  #       if $model == "dall-e-3" {
+  #         return-error "Dall-e-3 doesn't allow variations!!!"
+  #       }
+
+  #       if ($image | is-empty) {
+  #         return-error "image needed for variation!!!"
+  #       }
+
+  #       let header = $"Authorization: Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"
+
+  #       let image = media crop-image $image --name        
+
+  #       let site = "https://api.openai.com/v1/images/variations"
+
+  #       let answer = bash -c ("curl -s " + $site + " -H '" + $header + "' -F model='" + $model + "' -F n=" + ($number | into string) + " -F size='" + $size + "' -F image='@" + $image + "'")
+
+  #       $answer
+  #       | from json
+  #       | get data.url
+  #       | enumerate
+  #       | each {|img| 
+  #           print (echo-g $"downloading image ($img.index | into string)...")
+  #           http get $img.item | save -f $"($output)_($img.index).png"
+  #         }
+  #     },
+    
+  #   _ => {return-error $"$(task) not available!!!"}
+  }
+}
