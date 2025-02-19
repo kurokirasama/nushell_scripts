@@ -1222,18 +1222,20 @@ export def dall_e [
 #fast call to the dall-e and stable diffusion wrapper
 #
 #For more personalization and help check `? dall_e` or `? stable_diffusion`
-export def askimage [
+export def askaimage [
   prompt?:string  #string with the prompt, can be piped
   --dalle3(-d)    #use dall-e-3 instead of dall-e-2 (default)
+  --stable-diffusion(-s) #use stable diffusion models instead of openai's
   --edit(-e)      #use edition mode instead of generation
-  --variation(-v) #use variation mode instead of generation
+  --variation(-v) #use variation mode instead of generation (dalle only)
+  --upscale(-u)   #use up scaling mode instead of generation (stable diffusion only)
   --fast(-f)      #get prompt from ~/Yandex.Disk/ChatGpt/prompt.md
-  --image(-i):string #image to use in edition mode or variation
+  --image(-i):string #image to use in edition, variation or up-scaling tasks
   --mask(-k):string  #mask to use in edition mode
   --output(-o):string #filename for output images, default used if not present
-  --number(-n):int = 1 #number of images to generate
-  --size(-s):string = "1792x1024" #size of the output image
-  --quality(-q):string = "standard" #quality of the output image: standard or hd
+  --number(-n):int = 1 #number of images to generate (dalle only)
+  --size(-S):string = "1792x1024" #size of the output image (dalle only)
+  --quality(-q):string = "standard" #quality of the output image: standard or hd (dalle only)
 ] {
   let prompt = if $fast {
     open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
@@ -1241,6 +1243,13 @@ export def askimage [
     get-input $in $prompt
   }
 
+  #stable diffusion
+  if $stable_diffusion {
+    print (echo-r "work in progress!")
+    return
+  }
+
+  #dalle
   match [$dalle3,$edit,$variation] {
     [true,false,false]  => {
         dall_e $prompt -o $output -m "dall-e-3" -t "generation" -n $number -s $size -q $quality -i $image -k $mask
@@ -3073,29 +3082,48 @@ def save_ollama_chat [
 
 #single call to stable diffusion models
 #
-#generation task:
+#generation task (default):
 # models: 
-#  - ultra: 8 credits, 1 megapixel output resolution, 1024x1024
-#  - core: 3 credits, 1.5 megapixel output resolution
-#  - sd3, sd3.5: 1 megapixel output resolution, 1024x1024
+#   - ultra: 8 credits, 1MP output resolution, 1024x1024 (default)
+#   - core: 3 credits, 1.5MP output resolution
+#   - sd3, sd3.5: 1MP output resolution, 1024x1024
 #     - SD 3.5 & 3.0 Large: 6.5 credits
 #     - SD 3.5 & 3.0 Large Turbo: 4 credits
 #     - SD 3.5 & 3.0 Medium: 3 credits
+#
+#upscale task:
+# models: 
+#   - conservative: 25 credits, 64x64 to 1MP input, up to 4k 5MP output (default)
+#   - creative: 25 credits, 64x64 to 1MP input, up to 4k 5MP output
+#   - fast: 1 credit, up to 4x but max 16 MP output, suitable for enhancing the quality of compressed images
 export def stable_diffusion [
     prompt?: string                     # the query to the models
-    --model(-m):string = "ultra"        # the model: ultra, core, sd3, sd3.5?
-    --task(-t):string = "generation"    # the method to use: generation, 
+    --model(-m):string                  # the model to use, depending on the task
+    --task(-t):string = "generate"    # the method to use: generation, 
     --output_format(-o):string = "png"  # image output format
     --aspect_ratio(-a):string = "1:1"   # image output aspect_ratio
     --negative_prompt(-n):string        # negative_prompt
-    --image(-i):string                  # image base for editing and variation
+    --image(-i):string                  # image path for up-scaling and editing
     --mask(-k):string                   # masked image for editing
 ] {
   let prompt = get-input $in $prompt
   let negative_prompt = get-input $env.MY_ENV_VARS.negative_prompt $negative_prompt
 
+  let model = if ($model | is-empty) {
+    match $task {
+      "generate" => {"ultra"},
+      "upscale" => {"conservative"}
+      "edit" => {"ultra"}
+      "control" => {"ultra"}
+    }
+  } else {
+    $model
+  }
+
+  let site = "https://api.stability.ai/v2beta/stable-image/" + $task + "/" + $model
+
   #error checking
-  if ($prompt | is-empty) and ($task =~ "generation|edit") {
+  if ($prompt | is-empty) and ($task =~ "generation|upscale|edit") {
     return-error "Empty prompt!!!"
   }
 
@@ -3105,7 +3133,7 @@ export def stable_diffusion [
   let header = {authorization: $"Bearer ($env.MY_ENV_VARS.api_keys.stable_diffusion)", accept: "image/*"}
 
   match $task {
-    "generation" => {
+    "generate" => {
         if $model not-in ["ultra" "core" "sd3" "sd3.5"] {
           return-error "wrong model for generation task!"
         }
@@ -3117,8 +3145,6 @@ export def stable_diffusion [
 
         print (echo-g "improved prompt: ")
         print ($prompt)
-
-        let site = "https://api.stability.ai/v2beta/stable-image/generate/" + $model
 
         let request = {
           prompt: $prompt,
@@ -3137,6 +3163,42 @@ export def stable_diffusion [
         $response | get something? | save -f $"($output).($output_format)"
         return        
       },
+
+    "upscale" => {
+        if $model not-in ["conservative" "creative" "fast"] {
+          return-error "wrong model for upscale task!"
+        }
+
+        if ($image | is-empty) {
+          return-error "image needed for up-scaling!!!"
+        }
+
+        #translate prompt if not in english
+        let english = google_ai --select_preprompt is_in_english -d true $prompt | from json | get english | into bool
+        let prompt = if $english {google_ai --select_system ai_art_creator --select_preprompt translate_dalle_prompt -d true $prompt} else {$prompt}
+        let prompt = google_ai --select_system ai_art_creator --select_preprompt improve_dalle_prompt -d true $prompt
+
+        print (echo-g "improved prompt: ")
+        print ($prompt)
+
+        let request = {
+          image: (open -r $image), #maybe add into binary
+          prompt: $prompt,
+          output_format: $output_format,
+          negative_prompt: $negative_prompt
+        }
+
+        let response = http post -t multipart/form-data -H $header $site $request -ef
+
+        if $response.status != 200 {
+          return-error $"status: ($response.status)\n($response.body.name)\n($response.body.errors.0)"
+        } 
+
+        print (echo-g $"saving image in ($output).($output_format)")
+        $response | get something? | save -f $"($output).($output_format)"
+        return 
+
+      },  
 
   #   "edit" => {
   #       if $model == "dall-e-3" {
