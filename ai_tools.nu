@@ -3093,9 +3093,9 @@ def save_ollama_chat [
 #
 #upscale task:
 # models: 
-#   - conservative: 25 credits, 64x64 to 1MP input, up to 4k 5MP output (default)
-#   - creative: 25 credits, 64x64 to 1MP input, up to 4k 5MP output
-#   - fast: 1 credit, up to 4x but max 16 MP output, suitable for enhancing the quality of compressed images
+#   - conservative (just up-scaling): 25 credits, 64x64 to 1MP input, up to 4k 5MP output (default)
+#   - creative (upscale and re-imagining): 25 credits, 64x64 to 1MP input, up to 4k 5MP output
+#   - fast (just up-scaling): 1 credit, up to 4x but max 16 MP output, suitable for enhancing the quality of compressed images
 export def stable_diffusion [
     prompt?: string                     # the query to the models
     --model(-m):string                  # the model to use, depending on the task
@@ -3112,9 +3112,9 @@ export def stable_diffusion [
   let model = if ($model | is-empty) {
     match $task {
       "generate" => {"ultra"},
-      "upscale" => {"conservative"}
-      "edit" => {"ultra"}
-      "control" => {"ultra"}
+      "upscale" => {"conservative"},
+      "edit" => {"ultra"}, #change
+      "control" => {"ultra"} #change
     }
   } else {
     $model
