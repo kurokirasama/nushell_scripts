@@ -982,3 +982,19 @@ export def "apps-update ghostty" [] {
 export def "apps-update reader" [] {
   go install github.com/mrusme/reader@latest
 }
+
+#update mega-get
+export def "apps-update mega-get" [] {
+  cd ~/Downloads/
+  if (sys host | get os_version) == "20.04" {
+    aria2c https://mega.nz/linux/repo/xUbuntu_20.04/amd64/megacmd-xUbuntu_20.04_amd64.deb
+    sudo apt install ("megacmd-xUbuntu_20.04_amd64.deb" | path expand)
+    mv -u megacmd-xUbuntu_20.04_amd64.deb $env.MY_ENV_VARS.debs
+
+    return
+  } 
+  
+  aria2c https://mega.nz/linux/repo/xUbuntu_24.04/amd64/megacmd-xUbuntu_24.04_amd64.deb
+  sudo apt install ("megacmd-xUbuntu_24.04_amd64.deb" | path expand)
+  mv -u megacmd-xUbuntu_24.04_amd64.deb $env.MY_ENV_VARS.debs
+}
