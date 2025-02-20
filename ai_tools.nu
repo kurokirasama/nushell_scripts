@@ -866,11 +866,11 @@ export def "ai media-summary" [
   
     bash -c $split_command
 
-    let files = (ls | find split | where name !~ summary | ansi-strip-table)
+    let files = ls | find split | where name !~ summary | ansi-strip-table
 
     $files | each {|split_file|
-      let t_input = (open ($split_file | get name))
-      let t_output = ($split_file | get name | path parse | get stem)
+      let t_input = open ($split_file | get name)
+      let t_output = $split_file | get name | path parse | get stem
       ai transcription-summary $t_input $t_output -g $gpt4 -t $type -G $gemini -C $claude -o $ollama -m $ollama_model
     }
 

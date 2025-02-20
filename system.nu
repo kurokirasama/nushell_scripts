@@ -6,7 +6,7 @@ export def ? [...search,--find(-f)] {
   } 
 
   if $find {
-    help ...(help -f $search | ansi-strip-table | get name | input list -f (echo-g "Select command:"))
+    help ...(help -f $search | get name | ansi strip | input list -f (echo-g "Select command:"))
     return
   }
 

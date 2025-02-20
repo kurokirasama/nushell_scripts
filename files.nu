@@ -190,16 +190,15 @@ export def "7z max" [
 #Example
 #ls *.txt | first 5 | rm-pipe
 export def rm-pipe [] {
-  let files = $in | select name | ansi-strip-table | get name
+  let files = $in | get name | ansi strip
   
-  if ($files | is-empty) {return}
+  if ($files | is-empty) {return-error "no files provided!"}
 
   let number = ($files | length) - 1
 
-  for i in 0..$number {     
-    ^rm -rf ($files | get $i) | ignore
-
-    progress_bar ($i + 1) ($number + 1)
+  for i in 0..$number {
+    progress_bar ($i + 1) ($number + 1)     
+    rm -rf ($files | get $i) | ignore
   }
 }
 
@@ -211,19 +210,18 @@ export def cp-pipe [
   to: string  #target directory
   --force(-f) #force copy
 ] {
-  let files = $in | select name | ansi-strip-table | get name
+  let files = $in | get name | ansi strip
   let number = ($files | length) - 1
 
   for i in 0..$number {    
-    let file = $files | get $i 
-    
+    progress_bar ($i + 1) ($number + 1)
+
     if $force {
-      cp -fr $file ($to | path expand)
-    } else {
-      cp -ur $file ($to | path expand)
+      cp -fr ($files | get $i) ($to | path expand)
+      continue
     }
 
-    progress_bar ($i + 1) ($number + 1)
+    cp -ur ($files | get $i) ($to | path expand)
   } 
 }
 
@@ -235,19 +233,18 @@ export def mv-pipe [
   to: string  #target directory
   --force(-f) #force rewrite of file
 ] {
-  let files = $in | select name | ansi-strip-table | get name
+  let files = $in | get name | ansi strip
   let number = ($files | length) - 1
 
   for i in 0..$number {
-    let file = $files | get $i 
+    progress_bar ($i + 1) ($number + 1)
 
     if $force {
-      mv -f $file ($to | path expand)
-    } else {
-      mv -u $file ($to | path expand)
-    }
-
-    progress_bar ($i + 1) ($number + 1)
+      mv -f ($files | get $i) ($to | path expand)
+      continue
+    } 
+    
+    mv -u ($files | get $i) ($to | path expand)    
   }
 }
 
