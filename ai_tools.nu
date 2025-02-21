@@ -1419,7 +1419,7 @@ export def tts [
 #single call to google ai LLM api wrapper and chat mode
 #
 #Available models at https://ai.google.dev/models:
-# - gemini-2.0-flash-exp: Audio, images, video, and text -> Audio, images, and text, 1048576 (tokens), 10 RPM
+# - gemini-2.0-flash: Audio, images, video, and text -> Audio, images, and text, 1048576 (tokens), 10 RPM
 # - gemini-1.5-pro: Audio, images, video, and text -> text, 2097152 (tokens),  2 RPM
 # - gemini-1.5-flash: Audio, images, video, and text -> text, 1048576 (tokens), 15 RPM
 # - Gemini Pro (gemini-pro): text -> text, 15 RPM
