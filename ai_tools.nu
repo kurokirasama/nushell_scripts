@@ -3127,6 +3127,14 @@ export def stable_diffusion [
     return-error "Empty prompt!!!"
   }
 
+  #translate prompt if not in english
+  let english = google_ai --select_preprompt is_in_english -d true $prompt | from json | get english | into bool
+  let prompt = if $english {google_ai --select_system ai_art_creator --select_preprompt translate_dalle_prompt -d true $prompt} else {$prompt}
+  let prompt = google_ai --select_system ai_art_creator --select_preprompt improve_dalle_prompt -d true $prompt
+
+  print (echo-g "improved prompt: ")
+  print ($prompt)
+
   let output = (google_ai --select_preprompt dalle_image_name -d true $prompt | from json | get name) + "_SD"
 
   #methods
@@ -3137,14 +3145,6 @@ export def stable_diffusion [
         if $model not-in ["ultra" "core" "sd3" "sd3.5"] {
           return-error "wrong model for generation task!"
         }
-
-        #translate prompt if not in english
-        let english = google_ai --select_preprompt is_in_english -d true $prompt | from json | get english | into bool
-        let prompt = if $english {google_ai --select_system ai_art_creator --select_preprompt translate_dalle_prompt -d true $prompt} else {$prompt}
-        let prompt = google_ai --select_system ai_art_creator --select_preprompt improve_dalle_prompt -d true $prompt
-
-        print (echo-g "improved prompt: ")
-        print ($prompt)
 
         let request = {
           prompt: $prompt,
@@ -3172,14 +3172,6 @@ export def stable_diffusion [
         if ($image | is-empty) {
           return-error "image needed for up-scaling!!!"
         }
-
-        #translate prompt if not in english
-        let english = google_ai --select_preprompt is_in_english -d true $prompt | from json | get english | into bool
-        let prompt = if $english {google_ai --select_system ai_art_creator --select_preprompt translate_dalle_prompt -d true $prompt} else {$prompt}
-        let prompt = google_ai --select_system ai_art_creator --select_preprompt improve_dalle_prompt -d true $prompt
-
-        print (echo-g "improved prompt: ")
-        print ($prompt)
 
         let request = {
           image: (open -r $image), #maybe add into binary
