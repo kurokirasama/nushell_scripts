@@ -3265,8 +3265,7 @@ export def stable_diffusion [
 
 #run private gpt
 export def run-private-gpt [] {
+  print (echo-g 'open http://0.0.0.0:8001')
   cd ~/software/private-gpt/
   bash -c "PGPT_PROFILES=ollama make run"
-
-  print (echo-g 'open http://0.0.0.0:8001')
 }
