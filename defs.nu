@@ -163,17 +163,18 @@ export def check-link [link?,timeout?:duration] {
   let link = get-input $in $link
 
   if ($timeout | is-empty) {
-    try {
+    let response = try {
       http get $link | ignore;true
     } catch {
       false
     }
-  } else {
-    try {
-      http get $link -m $timeout | ignore;true
-    } catch {
-      false
-    }
+    return $response
+  }
+  
+  try {
+    http get $link -m $timeout | ignore;true
+  } catch {
+    false
   }
 }
 
