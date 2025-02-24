@@ -168,7 +168,7 @@ export def "7z folders" [
 # 7z max filename * "-v3g"
 # both
 # 7z max filename * "-v3g -sdel"
-export def "7z max" [
+export def --wrapped "7z max" [
   filename: string  #existing or not existing 7z filename
   ...rest           #files to compress and extra flags for 7z (add flags between quotes)
   --delete(-d)      #delete files after compression

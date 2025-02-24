@@ -42,7 +42,7 @@ export def "gcal add" [
 # agenda --full
 # agenda "--details=all"
 # agenda --full "--details=all"
-export def "gcal agenda" [
+export def --wrapped "gcal agenda" [
   --full(-f)  #show all calendars
   ...rest     #extra flags for gcalcli between quotes (specified full needed)
 ] {
@@ -58,7 +58,7 @@ export def "gcal agenda" [
 # semana --full
 # semana "--details=all"
 # semana --full "--details=all"
-export def "gcal semana" [
+export def --wrapped "gcal semana" [
   --full(-f) #show all calendars (export default: 0)
   ...rest    #extra flags for gcalcli between quotes (specified full needed)
 ] {
@@ -74,7 +74,7 @@ export def "gcal semana" [
 # mes --full
 # mes "--details=all"
 # mes --full "--details=all"
-export def "gcal mes" [
+export def --wrapped "gcal mes" [
   --full(-f)  #show all calendars (export default: 0)
   ...rest     #extra flags for gcalcli between quotes (specified full needed)
 ] {

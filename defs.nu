@@ -129,8 +129,8 @@ export def nu-sloc [] {
 }
 
 #web search in terminal
-export def gg [...search: string] {
-  ddgr -n 5 ($search | str join ' ')
+export def --wrapped gg [...search: string] {
+  ddgr -n 5 ...$search
 }
 
 #countdown alarm 
@@ -175,76 +175,6 @@ export def check-link [link?,timeout?:duration] {
     http get $link -m $timeout | ignore;true
   } catch {
     false
-  }
-}
-
-#send email via Gmail with signature files (posfix configuration required)
-#
-#Examples:
-#-Body from cli:
-#  send-gmail test@gmail.com "the subject" --body "the body"
-#  echo "the body" | send-gmail test@gmail.com "the subject"
-#-Body from a file:
-#  open file.txt | send-gmail test@gmail.com "the subject"
-#-Attachments:
-# send-gmail test@gmail.com "the subject" --body "the body" this_file.txt
-# echo "the body" | send-gmail test@gmail.com "the subject" this_file.txt,other_file.pdf
-# open file.txt | send-gmail test@gmail.com "the subject" this_file.txt,other_file.pdf,other.srt
-export def send-gmail [
-  to:string       #email to
-  subject:string  #email subject
-  --body:string   #email body, use double quotes to use escape characters like \n
-  --from:string   #email from, export default: $MY_ENV_VARS.mail
-  ...attachments  #email attachments file names list (in current directory), separated by comma
-] {
-  let inp = if ($in | is-empty) { "" } else { $in | into string }
-  let from = get-input $env.MY_ENV_VARS.mail $from
-
-  if ($body | is-empty) and ($inp | is-empty) {
-    return-error "body unexport defined!!"
-  } 
-  if not (($from | str contains "@") and ($to | str contains "@")) {
-    return-error "missing @ in email-from or email-to!!"
-  } 
-
-  let signature_file = (
-    match $from {
-      ($env.MY_ENV_VARS.mail) => {
-        [$env.MY_ENV_VARS.nu_scripts "send-gmail_kurokirasama_signature"] | path join
-      },
-      ($env.MY_ENV_VARS.mail_ubb) => {
-        [$env.MY_ENV_VARS.nu_scripts "send-gmail_ubb_signature"] | path join
-      },
-      ($env.MY_ENV_VARS.mail_lmgg) => {
-        [$env.MY_ENV_VARS.nu_scripts "send-gmail_lmgg_signature"] | path join
-      },
-      _ => {
-        [$env.MY_ENV_VARS.nu_scripts "send-gmail_other_signature"] | path join
-      }
-    }
-  )
-
-  let signature = (open $signature_file)
-
-  let BODY = (
-    if ($inp | is-empty) { 
-      $"($body)\n" + $signature 
-    } else { 
-      $"($inp)\n" + $signature 
-    } 
-  )
-
-  if ($attachments | is-empty) {
-    echo $BODY | mail -r $from -s $subject $to
-  } else {
-    let ATTACHMENTS = ($attachments 
-      | split row ","
-      | each {|file| 
-          [$env.PWD $file] | path join
-        } 
-      | str join " --attach="
-    )
-    bash -c $"\'echo ($BODY) | mail --attach=($ATTACHMENTS) -r ($from) -s \"($subject)\" ($to) --debug-level 10\'"
   }
 }
 
@@ -310,7 +240,12 @@ export def wget-all [
 #my pdflatex
 export def my-pdflatex [file?] {
   let tex = get-input $in $file -n
-  texfot pdflatex -interaction=nonstopmode -synctex=1 ($tex | path parse | get stem)
+  let file_base_name = $tex | path parse | get stem
+  texfot pdflatex -interaction=nonstopmode -synctex=1 $file_base_name
+  bibtex $file
+  sleep 0.1sec
+  texfot pdflatex --shell-escape -interaction=nonstopmode -synctex=1 $file_base_name
+  texfot pdflatex --shell-escape -interaction=nonstopmode -synctex=1 $file_base_name
 }
 
 #pandoc md compiler

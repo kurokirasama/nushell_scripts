@@ -253,11 +253,13 @@ export def get-aliases [] {
 #get code of custom command
 export def code [...command,--raw(-r)] {
   let command = $command | str join " "
-  if not $raw {
-    view source $command | nu-highlight
-  } else {
-    view source $command
-  }
+  
+  if $raw {
+    view source $command 
+    return
+  } 
+
+  view source $command | nu-highlight
 }
 
 #stop network applications
