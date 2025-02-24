@@ -30,6 +30,11 @@ export def "media help" [] {
   ) 
 }
 
+#cuda ffmpeg
+export def --wrapped myffmpeg [...rest] {
+  /home/kira/software/nvidia/ffmpeg/./ffmpeg -hwaccel cuda ...$rest
+}
+
 #video info
 export def "media video-info" [file?] {
   let video = if ($file | is-empty) {$in | get name} else {$file}

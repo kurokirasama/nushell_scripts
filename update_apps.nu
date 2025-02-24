@@ -882,7 +882,8 @@ export def "apps-update myffmpeg" [--force(-f)] {
 
   print (echo-g "updating ffmpeg...")
   git pull
-  ./configure --enable-nonfree --enable-cuda-nvcc --enable-libnpp --extra-cflags=-I/usr/local/cuda/include --extra-ldflags=-L/usr/local/cuda/lib64
+  ./configure --enable-nonfree --enable-cuda-nvcc --enable-libnpp --enable-gpl --enable-libx264 --enable-libx265 --extra-cflags=-I/usr/local/cuda/include --extra-ldflags=-L/usr/local/cuda/lib64
+  bash -c "make -j $(nproc)"
   ./ffmpeg -h
 }
 
