@@ -31,7 +31,7 @@ export def "media help" [] {
 }
 
 #cuda ffmpeg
-export def --wrapped myffmpeg [...rest] {
+export def --wrapped my-ffmpeg [...rest] {
   /home/kira/software/nvidia/ffmpeg/./ffmpeg -hwaccel cuda ...$rest
 }
 
@@ -104,7 +104,7 @@ export def "media remove-noise" [
 
   if $ext !~ "wav" {
     print (echo-g "converting input file to wav format...")
-    myffmpeg -loglevel 1 -i $file $"($filename).wav"
+    my-ffmpeg -loglevel 1 -i $file $"($filename).wav"
   }
 
   let output = (
@@ -116,7 +116,7 @@ export def "media remove-noise" [
   ) 
 
   print (echo-g "extracting noise segment...")
-  myffmpeg -loglevel 1 -i $"($filename).wav" -acodec pcm_s16le -ar 128k -vn -ss $start -t $end $"tmpSeg($filename).wav"
+  my-ffmpeg -loglevel 1 -i $"($filename).wav" -acodec pcm_s16le -ar 128k -vn -ss $start -t $end $"tmpSeg($filename).wav"
 
   print (echo-g "creating noise profile...")
   sox $"tmpSeg($filename).wav" -n noiseprof $"tmp($filename).prof"
@@ -167,16 +167,16 @@ export def "media remove-audio-noise" [
   let outputA = $"tmp($filename)-clean.wav"
 
   print (echo-g "extracting video...")
-  myffmpeg -loglevel 1 -i $"($file)" -vcodec copy -an $"tmp($file)"
+  my-ffmpeg -loglevel 1 -i $"($file)" -vcodec copy -an $"tmp($file)"
 
   print (echo-g "extracting audio...")
-  myffmpeg -loglevel 1 -i $"($file)" -acodec pcm_s16le -ar 128k -vn $"tmp($filename).wav"
+  my-ffmpeg -loglevel 1 -i $"($file)" -acodec pcm_s16le -ar 128k -vn $"tmp($filename).wav"
 
   media remove-noise $"tmp($filename).wav" $start $end $noiseLevel $outputA --delete false
 
   if $merge {
     print (echo-g "merging clean audio with video file...")
-    myffmpeg -loglevel 1 -i $file -i $outputA -map 0:v -map 1:a -c:v copy -c:a aac -b:a 128k $output
+    my-ffmpeg -loglevel 1 -i $file -i $outputA -map 0:v -map 1:a -c:v copy -c:a aac -b:a 128k $output
   }
 
   print (echo-g "done!")
@@ -221,7 +221,7 @@ export def "media screen-record" [
     
       try {
         print (echo-g "trying myffmpeg...")
-        myffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -acodec aac -strict experimental $"($file).mp4"
+        my-ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -acodec aac -strict experimental $"($file).mp4"
       } catch {
         print (echo-r "myffmpeg failed...")
         ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -acodec aac -strict experimental $"($file).mp4"
@@ -232,7 +232,7 @@ export def "media screen-record" [
 
       try {
         print (echo-g "trying myffmpeg...")
-        myffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $blue -f pulse -ac 2 -i $alsa -filter_complex amerge=inputs=2 -acodec aac -strict experimental $"($file).mp4"
+        my-ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $blue -f pulse -ac 2 -i $alsa -filter_complex amerge=inputs=2 -acodec aac -strict experimental $"($file).mp4"
       } catch {
         print (echo-r "myffmpeg failed...")
         ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $blue -f pulse -ac 2 -i $alsa -filter_complex amerge=inputs=2 -acodec aac -strict experimental $"($file).mp4"
@@ -255,7 +255,7 @@ export def "media remove-audio" [
 
   try {
     echo-g "trying myffmpeg..."
-    myffmpeg -n -loglevel 0 -i $input_file -c copy -an $output_file
+    my-ffmpeg -n -loglevel 0 -i $input_file -c copy -an $output_file
   } catch {
     echo-r "trying ffmpeg..."
     ffmpeg -n -loglevel 0 -i $input_file -c copy -an $output_file
@@ -279,7 +279,7 @@ export def "media cut-video" [
 
   try {
     echo-g "trying myffmpeg..."
-    myffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
+    my-ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
   } catch {
     echo-r "trying ffmpeg..."
     ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
@@ -479,7 +479,7 @@ export def "media cut-audio" [
   --notify(-n)    #notify to android via join/tasker
 ] {  
   try {
-    myffmpeg -ss $start -i $"($infile)" -t $duration -c copy $"($outfile)"
+    my-ffmpeg -ss $start -i $"($infile)" -t $duration -c copy $"($outfile)"
   } catch {
     ffmpeg -ss $start -i $"($infile)" -t $duration -c copy $"($outfile)"
   }
@@ -517,7 +517,7 @@ export def "media merge-videos" [
   --notify(-n) #notify to android via join/tasker
 ] {
   print (echo-g "merging videos...")
-  myffmpeg -f concat -safe 0 -i $"($list)" -c copy $"($output)"
+  my-ffmpeg -f concat -safe 0 -i $"($list)" -c copy $"($output)"
   
   print (echo-g "done!")
   notify-send "video merge done!"
@@ -549,7 +549,7 @@ export def "media merge-videos-auto" [
     }
 
   print (echo-g "merging videos...")
-  myffmpeg -f concat -safe 0 -i list.txt -c copy $"($output).($ext)"
+  my-ffmpeg -f concat -safe 0 -i list.txt -c copy $"($output).($ext)"
       
   print (echo-g "done!")
   notify-send "video merge done!"
@@ -655,7 +655,7 @@ export def "media compress-video" [
     "avi" => {
       try {
         print (echo-g "trying myffmpeg...")
-        myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+        my-ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
       } catch {
         print (echo-r "failed myffmpeg...")
         print (echo-g "trying ffmpeg...")
@@ -665,7 +665,7 @@ export def "media compress-video" [
     "mp4" => {
       try {
         print (echo-g "trying myffmpeg...")
-        myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+        my-ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
       } catch {
         print (echo-r "failed myffmpeg...")
         print (echo-g "trying ffmpeg...")
@@ -675,7 +675,7 @@ export def "media compress-video" [
     "h264" => {
       try {
         print (echo-g "trying myffmpeg...")
-        myffmpeg -i $file -map 0:v -map 0:a -map 0:s? -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+        my-ffmpeg -i $file -map 0:v -map 0:a -map 0:s? -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
       } catch {
         print (echo-r "failed myffmpeg...")
         print (echo-g "trying ffmpeg...")
@@ -685,7 +685,7 @@ export def "media compress-video" [
     "webm" => {
       try {
         print (echo-g "trying myffmpeg...")
-        myffmpeg -i $file -map 0:v -map 0:a -map 0:s? -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
+        my-ffmpeg -i $file -map 0:v -map 0:a -map 0:s? -vcodec $vcodec -crf $crf -c:a aac $"($name)_($append).mp4"
       } catch {
         print (echo-r "failed myffmpeg...")
         print (echo-g "trying ffmpeg...")
@@ -695,7 +695,7 @@ export def "media compress-video" [
     "mkv" => {
       try {
         print (echo-g "trying myffmpeg...")
-        myffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac -c:s mov_text $"($name)_($append).mp4"
+        my-ffmpeg -i $file -vcodec $vcodec -crf $crf -c:a aac -c:s mov_text $"($name)_($append).mp4"
       } catch {
         print (echo-r "failed myffmpeg...")
         print (echo-g "trying ffmpeg...")
@@ -1010,7 +1010,7 @@ export def "media images-2-video" [
   --output(-o):string = "output"  # file name of the output video
 ] {
   try {
-    myffmpeg -framerate $framerate -i $files_pattern $"($output).mp4"
+    my-ffmpeg -framerate $framerate -i $files_pattern $"($output).mp4"
   } catch {
     ffmpeg -framerate $framerate -i $files_pattern $"($output).mp4"
   }
