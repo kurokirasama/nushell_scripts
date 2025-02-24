@@ -750,7 +750,7 @@ export def "apps-update vivaldi" [] {
     | ansi strip 
   )
 
-  if ($release_url | length) == 0 {
+  if ($release_url | is-empty) {
     return-error "no releases found!"
   }
 
