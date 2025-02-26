@@ -562,7 +562,7 @@ export def askai [
       if $vision {
         claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-vision -d true -i $image --select_preprompt $pre_prompt --select_system $system -w $web_search -W $web_results --web_model $web_model
       } else {
-        claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-3.5 -d true  --select_preprompt $pre_prompt --select_system $system --document $document -w $web_search -W $web_results --web_model $web_model
+        claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-3.7 -d true  --select_preprompt $pre_prompt --select_system $system --document $document -w $web_search -W $web_results --web_model $web_model
       }
     )
 
@@ -896,7 +896,7 @@ export def "ai media-summary" [
     } else if $gemini {
       google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m gemini-2.0
     } else if $claude {
-      claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-3.5
+      claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-3.7
     } else if $ollama {
       o_llama $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $ollama_model
     } else {
@@ -952,7 +952,7 @@ export def "ai transcription-summary" [
   } else if $gemini {
     google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m gemini-2.0
   } else if $claude {
-    claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-3.5
+    claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-3.7
   } else if $ollama {
     o_llama $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $ollama_model
   } else {
@@ -2569,6 +2569,7 @@ export def "ai fix-json" [
 #single call to anthropic claude ai LLM api wrapper
 #
 #Available models at https://docs.anthropic.com/en/docs/about-claude/models
+# - claude-3-7-sonnet-latest: text & images & audio -> text, 200000 tokens input, 8192 tokens output
 # - claude-3-5-sonnet-latest: text & images & audio -> text, 200000 tokens input, 8192 tokens output
 # - claude-3-5-haiku-20241022: text -> text, 200000 tokens input, 8192 tokens output
 # - claude-3-opus-latest: text & images & audio -> text, 200000 (tokens) input, 4096 tokens output
@@ -2693,10 +2694,11 @@ export def claude_ai [
 
   # default models
   let input_model = $model
+  let model = if $model == "claude-3.7" {"claude-3-7-sonnet-latest"} else {$model}
   let model = if $model == "claude-3.5" {"claude-3-5-sonnet-latest"} else {$model}
   let model = if $model == "claude-vision" {"claude-3-5-sonnet-latest"} else {$model}
 
-  let max_tokens = if $model =~ "claude-3-5" {8192} else {4096}
+  let max_tokens = if $model =~ "claude-3-" {8192} else {4096}
 
   # call to api
   let header = {x-api-key: $env.MY_ENV_VARS.api_keys.anthropic.api_key, anthropic-version: $anthropic_version}
@@ -3256,8 +3258,10 @@ export def stable_diffusion [
 }
 
 #run private gpt
-export def run-private-gpt [] {
+export def run-private-gpt [
+  profile:string = "ollama"
+] {
   print (echo-g 'open http://0.0.0.0:8001')
   cd ~/software/private-gpt/
-  bash -c "PGPT_PROFILES=ollama make run"
+  bash -c $"PGPT_PROFILES=($profile) make run"
 }

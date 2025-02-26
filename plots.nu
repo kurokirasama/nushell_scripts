@@ -7,7 +7,7 @@ export def png-plot [ip?] {
 
 #plot download-upload speed
 export def speedtest-plot [] {
-  bash -c "fast --single-line --upload |  stdbuf -o0 awk '{print $2 \" \" $6}' | ttyplot -2 -t 'Download/Upload speed' -u Mbps"
+  bash -c "export PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome;fast --single-line --upload |  stdbuf -o0 awk '{print $2 \" \" $6}' | ttyplot -2 -t 'Download/Upload speed' -u Mbps"
 }
 
 #plot data table using gnuplot
