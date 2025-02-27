@@ -638,8 +638,8 @@ export def "ai git-push" [
     return-error "select only one model!"
   }
 
-  let max_words = if $gemini {700000} else if $claude {150000} else {100000}
-  let max_words_short = if $gemini {700000} else if $claude {150000} else {100000}
+  let max_words = if $gemini {800000} else if $claude {150000} else {100000}
+  let max_words_short = if $gemini {800000} else if $claude {150000} else {100000}
 
   let model = if $gemini {"gemini"} else if $claude {"claude"} else {"chatgpt"}
 
@@ -1420,6 +1420,7 @@ export def tts [
 #
 #Available models at https://ai.google.dev/models:
 # - gemini-2.0-flash: Audio, images, video, and text -> Audio, images, and text, 1048576 (tokens), 10 RPM
+# - gemini-2.0-flash-lite Audio, images, video, and text -> Audio, images, and text, 1048576 (tokens), 10 RPM
 # - gemini-1.5-pro: Audio, images, video, and text -> text, 2097152 (tokens),  2 RPM
 # - gemini-1.5-flash: Audio, images, video, and text -> text, 1048576 (tokens), 15 RPM
 # - Gemini Pro (gemini-pro): text -> text, 15 RPM
@@ -1809,6 +1810,7 @@ export def google_ai [
         ],
         generationConfig: {
             temperature: $temp,
+            maxOutputTokens: 8192
         },
         safetySettings: $safetySettings
       }
@@ -1823,53 +1825,88 @@ export def google_ai [
     } 
   )
 
-  mut retry_counter = 0
   mut answer = []
-  mut error = true
+  mut index_model = -1
+  let models = ["gemini-2.0-flash" "gemini-2.0-flash-lite" "gemini-1.5-flash" "gemini-1.5-pro"]
+  
+  if $verbose {print ("retrieving from gemini models...")}
 
-  while ($retry_counter <= $max_retries) and $error {
-    if $verbose {print ($"attempt #($retry_counter)...")}
+  try {
+    $answer = http post -t application/json $url_request $request -e
+  }
+  
+  $index_model += 1
+  if (($answer | is-empty) or ($answer == null)) and ($model == ($models | get $index_model)) {
+    let model = $models | get $index_model
+
+    let url_request = {
+      scheme: "https",
+      host: "generativelanguage.googleapis.com",
+      path: ("/v1beta" + $for_bison_beta +  "/models/" + $model + $for_bison_gen),
+      params: {
+          key: $apikey,
+      }
+    } | url join
+
     try {
-      $answer = http post -t application/json $url_request $request -e
-      $error = false
+      $answer = http post -t application/json $url_request $request
     }
-    $retry_counter = $retry_counter + 1
-    sleep 1sec
   }
 
-  if ($answer | is-empty) or ($answer == null) {
+  $index_model += 1
+  if (($answer | is-empty) or ($answer == null)) and ($model == ($models | get $index_model)) {
+    let model = $models | get $index_model
+
+    let url_request = {
+      scheme: "https",
+      host: "generativelanguage.googleapis.com",
+      path: ("/v1beta" + $for_bison_beta +  "/models/" + $model + $for_bison_gen),
+      params: {
+          key: $apikey,
+      }
+    } | url join
+
     try {
-      $answer = http post -t application/json $url_request $request -e
-    } 
-
-    if (($answer | is-empty) or ($answer == null)) and ($model == "gemini-2.0-flash") {
-      let model = "gemini-1.5-pro"
-      let url_request = {
-        scheme: "https",
-        host: "generativelanguage.googleapis.com",
-        path: ("/v1beta" + $for_bison_beta +  "/models/" + $model + $for_bison_gen),
-        params: {
-            key: $apikey,
-        }
-      } | url join
-
-      $answer = http post -t application/json $url_request $request -e
-    }
-
-    if (($answer | is-empty) or ($answer == null)) and ($model == "gemini-1.5-pro") {
-      let model = "gemini-1.5-flash"
-      let url_request = {
-        scheme: "https",
-        host: "generativelanguage.googleapis.com",
-        path: ("/v1beta" + $for_bison_beta +  "/models/" + $model + $for_bison_gen),
-        params: {
-            key: $apikey,
-        }
-      } | url join
-
-      $answer = http post -t application/json $url_request $request -e
+      $answer = http post -t application/json $url_request $request
     }
   }
+
+  $index_model += 1
+  if (($answer | is-empty) or ($answer == null)) and ($model == ($models | get $index_model)) {
+    let model = $models | get $index_model
+
+    let url_request = {
+      scheme: "https",
+      host: "generativelanguage.googleapis.com",
+      path: ("/v1beta" + $for_bison_beta +  "/models/" + $model + $for_bison_gen),
+      params: {
+          key: $apikey,
+      }
+    } | url join
+
+    try {
+      $answer = http post -t application/json $url_request $request
+    }
+  }
+
+  $index_model += 1
+  if (($answer | is-empty) or ($answer == null)) and ($model == ($models | get $index_model)) {
+    let model = $models | get $index_model
+
+    let url_request = {
+      scheme: "https",
+      host: "generativelanguage.googleapis.com",
+      path: ("/v1beta" + $for_bison_beta +  "/models/" + $model + $for_bison_gen),
+      params: {
+          key: $apikey,
+      }
+    } | url join
+
+    try {
+      $answer = http post -t application/json $url_request $request 
+    }
+  }
+
 
   if ($answer | is-empty) or ($answer == null) or ($answer | describe) == nothing {
     return-error "something went wrong with the server!"
@@ -3258,10 +3295,12 @@ export def stable_diffusion [
 }
 
 #run private gpt
-export def run-private-gpt [
+export def --env run-private-gpt [
   profile:string = "ollama"
 ] {
   print (echo-g 'open http://0.0.0.0:8001')
   cd ~/software/private-gpt/
-  bash -c $"PGPT_PROFILES=($profile) make run"
+  
+  $env.PGPT_PROFILES = $profile
+  poetry run python -m private_gpt
 }
