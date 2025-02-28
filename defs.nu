@@ -444,6 +444,37 @@ export def return-error [msg] {
   error make -u {msg: $"(echo-r $msg)"}
 }
 
+#generate an unique md from all files in current directory recursively
+export def generate-md-from-dir [output_file = "output.md"] {
+  # Initialize output file
+  "" | save $output_file
+
+  ls **/* 
+  | where type == file 
+  | where name !~ "png|jpg"
+  | where name != $output_file
+  | each { |it|
+    let filepath = $it.name
+    let file_content = open $filepath
+
+    # Create the section header
+    let section_header = $"\n# ($filepath)\n"
+    $section_header | save -a $output_file
+
+    # Create the code block
+    let code_block_start = "\n```\n"
+    $code_block_start | save -a $output_file
+
+    $file_content | save -a $output_file
+
+    let code_block_end = "\n```\n"
+    $code_block_end | save -a $output_file
+
+    print $"Generated section for ($filepath)"
+  }
+  print $"All file contents copied to ($output_file)"
+}
+
 #################################################################################################
 ## appimages
 #################################################################################################
