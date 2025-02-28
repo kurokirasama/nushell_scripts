@@ -185,6 +185,11 @@ let hooks = {
             condition: {"venv" | path exists},
             code: "overlay use venv/bin/activate.nu"
         }
+        ,
+        {
+            condition: {".venv" | path exists},
+            code: "overlay use .venv/bin/activate.nu"
+        }
       ]
     }
     display_output: {||
