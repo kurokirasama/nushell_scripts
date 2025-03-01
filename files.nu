@@ -2,6 +2,11 @@
 # here because they are needed in this file
 ######################################################
 
+#generate error output
+export def return-error [msg] {
+  error make -u {msg: $"(echo-r $msg)"}
+}
+
 #green echo
 export def echo-g [text:string] {
   echo $"(ansi -e { fg: '#00ff00' attr: b })($text)(ansi reset)"
@@ -192,7 +197,7 @@ export def --wrapped "7z max" [
 export def rm-pipe [] {
   let files = $in | get name | ansi strip
   
-  if ($files | is-empty) {return-error "no files provided!"}
+  if ($files | is-empty) {return "no files provided!"}
 
   let number = ($files | length) - 1
 

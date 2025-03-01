@@ -439,11 +439,6 @@ export def generate-nushell-doc [] {
   rm *
 }
 
-#generate error output
-export def return-error [msg] {
-  error make -u {msg: $"(echo-r $msg)"}
-}
-
 #generate an unique md from all files in current directory recursively
 export def generate-md-from-dir [output_file = "output.md"] {
   # Initialize output file
