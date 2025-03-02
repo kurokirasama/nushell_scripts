@@ -195,15 +195,17 @@ export def --wrapped "7z max" [
 #Example
 #ls *.txt | first 5 | rm-pipe
 export def rm-pipe [] {
-  let files = $in | get name | ansi strip
+  let files = $in 
   
   if ($files | is-empty) {return "no files provided!"}
 
-  let number = if ($files | typeof) == "record" {
-    0
+  let files = if ($files | typeof) == "record" {
+    $files | transpose | transpose -r
   } else {
-    ($files | length) - 1
-  }
+    $files
+  } | get name | ansi strip
+
+  let number = ($files | length) - 1
 
   for i in 0..$number {
     progress_bar ($i + 1) ($number + 1)     
@@ -219,12 +221,14 @@ export def cp-pipe [
   to: string  #target directory
   --force(-f) #force copy
 ] {
-  let files = $in | get name | ansi strip
-  let number = if ($files | typeof) == "record" {
-    0
+  let files = $in
+  let files = if ($files | typeof) == "record" {
+    $files | transpose | transpose -r
   } else {
-    ($files | length) - 1
-  }
+    $files
+  } | get name | ansi strip
+
+  let number = ($files | length) - 1
 
   for i in 0..$number {    
     progress_bar ($i + 1) ($number + 1)
@@ -246,12 +250,14 @@ export def mv-pipe [
   to: string  #target directory
   --force(-f) #force rewrite of file
 ] {
-  let files = $in | get name | ansi strip
-  let number = if ($files | typeof) == "record" {
-    0
+  let files = $in 
+  let files = if ($files | typeof) == "record" {
+    $files | transpose | transpose -r
   } else {
-    ($files | length) - 1
-  }
+    $files
+  } | get name | ansi strip
+
+  let number = ($files | length) - 1
 
   for i in 0..$number {
     progress_bar ($i + 1) ($number + 1)
