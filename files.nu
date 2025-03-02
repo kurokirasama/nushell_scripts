@@ -199,7 +199,11 @@ export def rm-pipe [] {
   
   if ($files | is-empty) {return "no files provided!"}
 
-  let number = ($files | length) - 1
+  let number = if ($files | typeof) == "record" {
+    0
+  } else {
+    ($files | length) - 1
+  }
 
   for i in 0..$number {
     progress_bar ($i + 1) ($number + 1)     
@@ -216,7 +220,11 @@ export def cp-pipe [
   --force(-f) #force copy
 ] {
   let files = $in | get name | ansi strip
-  let number = ($files | length) - 1
+  let number = if ($files | typeof) == "record" {
+    0
+  } else {
+    ($files | length) - 1
+  }
 
   for i in 0..$number {    
     progress_bar ($i + 1) ($number + 1)
@@ -239,7 +247,11 @@ export def mv-pipe [
   --force(-f) #force rewrite of file
 ] {
   let files = $in | get name | ansi strip
-  let number = ($files | length) - 1
+  let number = if ($files | typeof) == "record" {
+    0
+  } else {
+    ($files | length) - 1
+  }
 
   for i in 0..$number {
     progress_bar ($i + 1) ($number + 1)

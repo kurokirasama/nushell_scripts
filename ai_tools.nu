@@ -2901,7 +2901,7 @@ export def o_llama [
     mut contents = (
       if $database {
         open ({parent: ($env.MY_ENV_VARS.chatgpt + "/ollama"), stem: $database_file, extension: "json"} | path join)
-        | update_gemini_content $in $chat_prompt "user"
+        | update_ollama_content $in $chat_prompt "user"
       } else {
         [
           {
