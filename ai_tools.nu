@@ -3311,6 +3311,7 @@ export def private_gpt [
   prompt?: string
   --base-url(-u): string = "http://0.0.0.0:8001" #url of the private gpt service
   --context-filter(-f) #use context filter and select documents
+  --summarize(-s) #use the summarize endpoint
   --chat(-c)     #starts chat mode
   --database(-D) = false #continue a chat mode conversation from database
   --web-search(-w) = false #include $web_results web search results in the prompt
@@ -3322,7 +3323,7 @@ export def private_gpt [
     return-error "private-gpt not running!\n Start the process via run-private-gpt"
   }
 
-  let all_documents_info = private_gpt list-documents | get data | flatten
+  let all_documents_info = private_gpt list-documents $base_url | get data | flatten
   let document_list_names = if $context_filter {
       $all_documents_info 
       | get file_name 
@@ -3498,33 +3499,30 @@ export def private_gpt [
   )
 
   #API CALL 
-  let data = if $context_filter {
-    {
+  let data = {
       prompt: $prompt,
       stream: false,
       use_context: true,
-      context_filter: $document_ids #AQUI
+      context_filter: {
+        docs_ids: $document_ids
+      }
     }
-  } else {
-    {
-      prompt: $prompt,
-      stream: false,
-      use_context: true
-    }
-  }
-  
-  let url = $base_url + "/v1/completions"
+
+  let data = if $context_filter {$data} else {$data | reject context_filter}
+
+  let url = $base_url + if $summarize {"/v1/summarize"} else {"/v1/completions"}
 
   let response = http post $url --content-type application/json $data -e
   
-  if ($response | get error? | is-not-empty) {
-    return-error $"Error: ($response.error)"
-  } 
-
   try {
-    $response.choices.message.content.0
+    if $summarize {
+      return $response.summary
+    } 
+    
+    return $response.choices.message.content.0
   } catch {
-    $response | save -f a.json
+    $response | save -f error.json
+    print (echo-r "error info saved in error.json")
   }
 }
 
