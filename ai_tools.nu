@@ -3311,10 +3311,10 @@ export def private_gpt [
   prompt?: string
   --base-url(-u): string = "http://0.0.0.0:8001" #url of the private gpt service
   --context-filter(-f) #use context filter and select documents
-  --summarize(-s) #use the summarize endpoint
-  --chat(-c)     #starts chat mode
-  --database(-D) = false #continue a chat mode conversation from database
-  --web-search(-w) = false #include $web_results web search results in the prompt
+  --summarize(-s)   #use the summarize endpoint
+  --chat(-c)        #starts chat mode
+  --database(-D)    #continue a chat mode conversation from database
+  --web-search(-w)  #include $web_results web search results in the prompt
   --web-results(-W):int = 5 #number of web results to include
   --web-model:string = "gemini" #model to summarize web results
 ] {
@@ -3525,6 +3525,9 @@ export def private_gpt [
     print (echo-r "error info saved in error.json")
   }
 }
+
+#private-gpt chat
+export alias pchat = private_gpt -c
 
 #get list of document of a private-gpt instance
 export def "private_gpt list-documents" [
