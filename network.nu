@@ -145,7 +145,7 @@ export def get-ips [
 
   let internal = (ip -json add 
     | from json 
-    | where ifname =~ $"($device)" 
+    | where ifname =~ $device 
     | select addr_info 
     | flatten | find -v inet6 
     | flatten 

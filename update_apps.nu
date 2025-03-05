@@ -141,6 +141,9 @@ export def supgrade [--old(-o),--apps(-a),--cargo_aps(-c)] {
   print (echo-g "updating rust...")
   rustup update
 
+  print (echo-g "updating snap packages...")
+  sudo snap refresh
+
   if $cargo_aps {
     print (echo-g "updating cargo apps...")
     cargo install-update -a
