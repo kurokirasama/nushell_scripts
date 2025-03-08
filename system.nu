@@ -644,11 +644,3 @@ export def get-used-keybindings [] {
   | sort-by group 
   | table --abbreviated 1000
 }
-
-#backup gnome extension config
-export def "extensions backup" [
-  output_file:string = "gnome_shell_extensions_backup_24.04.txt"
-] {
-  let file = $env.MY_ENV_VARS.linux_backup | path join extensions | path join 24.04 | path join $output_file
-  dconf dump /org/gnome/shell/extensions/ | save -f $file
-}

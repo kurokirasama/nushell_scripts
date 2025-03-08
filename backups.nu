@@ -33,14 +33,15 @@ export def "nchat restore" [] {
 }
 
 #backup gnome extensions settings
-export def "gnome-settings backup" [] {
-  dconf dump /org/gnome/shell/extensions/ 
-  | save -f ([$env.MY_ENV_VARS.linux_backup extensions gnome_shell_extensions_backup.txt] | path join)
+export def "gnome-extensions backup" [output_file:string = "gnome_shell_extensions_backup_24.04.txt"] {
+  let file = $env.MY_ENV_VARS.linux_backup | path join extensions | path join 24.04 | path join $output_file
+  dconf dump /org/gnome/shell/extensions/ | save -f $file
 }
 
 #restore gnome extensions settings
-export def "gnome-settings restore" [] {
-  bash -c $"dconf load /org/gnome/shell/extensions/ < ([$env.MY_ENV_VARS.linux_backup extensions/gnome_shell_extensions_backup.txt] | path join)"
+export def "gnome-extensions restore" [output_file:string = "gnome_shell_extensions_backup_24.04.txt"] {
+  let file = $env.MY_ENV_VARS.linux_backup | path join extensions | path join 24.04 | path join $output_file
+  bash -c $"dconf load /org/gnome/shell/extensions/ < ($file)"
 }
 
 #backup libre office settings
