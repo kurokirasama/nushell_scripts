@@ -834,11 +834,7 @@ export def "apps-update whisper" [] {
 
 #update yewtube
 export def "apps-update yewtube" [] {
-  if (sys host | get os_version) == 20.04 {
-    pip3 install --user yewtube --upgrade
-  } else {
     pipx upgrade yewtube
-  }
 }
 
 #update yt-dlp (youtube-dl fork)

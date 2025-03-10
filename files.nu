@@ -49,7 +49,7 @@ export def typeof [--full(-f)] {
 
   if $type == "list" {
     # Check if the list has column names, indicating it's effectively a table
-    if ($inp | first | describe) == "record" {
+    if ($inp | first | typeof) == "record" {
       return "table"
     }
   }
