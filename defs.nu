@@ -470,6 +470,11 @@ export def generate-md-from-dir [output_file = "output.md"] {
   print $"All file contents copied to ($output_file)"
 }
 
+#Calculates a past datetime by subtracting a duration from the current time.
+export def ago []: [ duration -> datetime ] {
+  (date now) - $in
+}
+
 #################################################################################################
 ## appimages
 #################################################################################################
