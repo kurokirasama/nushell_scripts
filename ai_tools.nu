@@ -2924,7 +2924,13 @@ export def o_llama [
 
     let url_request = "http://localhost:11434/api/chat"
 
-    mut answer = http post -t application/json $url_request $chat_request | get message.content | str trim
+    mut answer = http post -t application/json $url_request $chat_request -e 
+
+    if ($answer | get error? | is-not-empty) {
+      return-error $"Error: ($answer.error)"
+    } 
+
+    $answer = $answer | get message.content | str trim
 
     print (echo-c ("\n" + $answer + "\n") $answer_color -b)
 
@@ -3049,8 +3055,8 @@ export def o_llama [
   let endpoint = if $embed {"embed"} else {"generate"}
   let url = "http://localhost:11434/api/" + $endpoint
 
-  let response = http post $url --content-type application/json $data
-  
+  let response = http post $url --content-type application/json $data -e 
+    
   if ($response | get error? | is-not-empty) {
     return-error $"Error: ($response.error)"
   } 
