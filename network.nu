@@ -74,6 +74,10 @@ export def wifi-info [
     | indexify
   )
 
+  if ($info | is-empty) {
+    return "no wifi connected!"
+  }
+
   let the_row = $info | where in-use == "❱"
   let the_row_index = $the_row | get index.0
   let the_row = $the_row | update cells {|value| 
