@@ -3304,7 +3304,8 @@ export def stable_diffusion [
 export def --env run-private-gpt [
   profile:string = "ollama"
 ] {
-  print (echo-g 'open http://0.0.0.0:8001')
+  print (echo-g 'open http://127.0.0.1:8001 to run in this machine' )
+  print (echo-g $"open http://(get-ips | get internal):80 from a device in the same network")
   cd ~/software/private-gpt/
   
   $env.PGPT_PROFILES = $profile
