@@ -99,7 +99,7 @@ export def upload-debs-to-mega [] {
     print (echo-g "updating deb files to mega...") 
     cd $env.MY_ENV_VARS.debs; cd ..
     7z max debs debs/
-    mv -up debs.7z $env.MY_ENV_VARS.mega_debs
+    mv -fp debs.7z $env.MY_ENV_VARS.mega_debs
   }
 }
 
