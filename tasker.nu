@@ -349,3 +349,14 @@ export def "tasker set-clipboard" [
 
 	http get $"($server)/command?setclipboard=($text)" | ignore
 }
+
+#get location via tasker http server
+export def "tasker get-location" [
+	--device(-d):string = "main"
+	--select_device(-s)
+] {
+	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
+	let server = get-tasker-server $device $select_device
+
+	http get $"($server)/command?getlocation=getlocation"
+}
