@@ -190,27 +190,38 @@ export def "tasker-join sms" [
   	| ignore
 }
 
+def get-tasker-server [device: string, select_device: bool] {
+  let device = (
+    if not $select_device {
+      $device
+    } else {
+      $env.MY_ENV_VARS.tasker_server.devices
+      | columns
+      | input list -f (echo-g "select device:")
+    }
+  )
+
+  let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
+  let server = open ($env.MY_ENV_VARS.tasker_server.devices | get $device | get file ) | get $device_name
+  return $server
+}
+
 #say via tasker http server
 export def "tasker tts" [
 	text?:string
+	--volume(-v):string #set up volume first
 	--device(-d):string = "main"  #main, 
 	--language(-l):string = "spa" #language of tts (spa, eng)
 	--select_device(-s)
 ] {
 	let text = get-input $in $text
-
-	let device = (
-		if not $select_device {
-			$device
-		} else {
-			$env.MY_ENV_VARS.tasker_server.devices
-			| columns
-			| input list -f (echo-g "select device:") 
-		} 
-	)
 	
+	if ($volume | is-not-empty) {
+		tasker media-volume $volume -d $device
+	}
+
 	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
-	let server = open ($env.MY_ENV_VARS.tasker_server.devices | get $device | get file ) | get $device_name
+	let server = get-tasker-server $device $select_device
 
 	http get $"($server)/command?say=($text | url encode)&language=($language)" | ignore
 }
@@ -225,19 +236,9 @@ export def "tasker send-notification" [
 	let text = get-input $in $text
 	let title = get-input ("from " + $env.HOST) $title
 	
-	let device = (
-		if not $select_device {
-			$device
-		} else {
-			$env.MY_ENV_VARS.tasker_server.devices
-			| columns
-			| input list -f (echo-g "select device:") 
-		} 
-	)
-	
 	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
-	let server = open ($env.MY_ENV_VARS.tasker_server.devices | get $device | get file ) | get $device_name
-
+	let server = get-tasker-server $device $select_device
+	
 	http get $"($server)/command?notification=($text | url encode)&title=($title | url encode)"  --allow-errors | ignore
 }
 
@@ -249,19 +250,9 @@ export def "tasker sms" [
 	--select_device(-s)
 ] {
 	let sms = get-input $in $text
-
-	let device = (
-		if not $select_device {
-			$device
-		} else {
-			$env.MY_ENV_VARS.tasker_server.devices
-			| columns
-			| input list -f (echo-g "select device:") 
-		} 
-	)
 	
 	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
-	let server = open ($env.MY_ENV_VARS.tasker_server.devices | get $device | get file ) | get $device_name
+	let server = get-tasker-server $device $select_device
 
 	http get $"($server)/command?sms=($text | url encode)&phone=($phone)" | ignore
 }
@@ -274,19 +265,9 @@ export def "tasker phone-call" [
 ] {
 	let phone = get-input $in $phone
 	let title = "phone call started from " + $env.HOST + " to " + $phone
-
-	let device = (
-		if not $select_device {
-			$device
-		} else {
-			$env.MY_ENV_VARS.tasker_server.devices
-			| columns
-			| input list -f (echo-g "select device:") 
-		} 
-	)
 	
 	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
-	let server = open ($env.MY_ENV_VARS.tasker_server.devices | get $device | get file ) | get $device_name
+	let server = get-tasker-server $device $select_device
 
 	http get $"($server)/command?call=($phone | url encode)&title=($title | url encode)" | ignore
 }
@@ -310,19 +291,9 @@ export def "tasker phone-info" [
 	--conky(-c) #return output for conky display
 ] {
 	let phone = get-input $in $phone
-
-	let device = (
-		if not $select_device {
-			$device
-		} else {
-			$env.MY_ENV_VARS.tasker_server.devices
-			| columns
-			| input list -f (echo-g "select device:") 
-		} 
-	)
 	
 	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
-	let server = open ($env.MY_ENV_VARS.tasker_server.devices | get $device | get file ) | get $device_name
+	let server = get-tasker-server $device $select_device
 	let response = http get $"($server)/command?info=info" -f
 
 	if $response.status == 200 {
@@ -334,18 +305,47 @@ export def "tasker phone-info" [
 export def "tasker autosync" [
 	--device(-d):string = "main"
 	--select_device(-s)
+] {	
+	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
+	let server = get-tasker-server $device $select_device
+	http get $"($server)/command?autosync=autosync" -f
+}
+
+#set up media volume via tasker http server
+export def "tasker media-volume" [
+	volume?:string
+	--device(-d):string = "main"
+	--select_device(-s)
 ] {
-	let device = (
-		if not $select_device {
-			$device
-		} else {
-			$env.MY_ENV_VARS.tasker_server.devices
-			| columns
-			| input list -f (echo-g "select device:") 
-		} 
-	)
+	let volume = get-input $in $volume
 	
 	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
-	let server = open ($env.MY_ENV_VARS.tasker_server.devices | get $device | get file ) | get $device_name
-	http get $"($server)/command?autosync=autosync" -f
+	let server = get-tasker-server $device $select_device
+
+	http get $"($server)/command?mediavolume=($volume)" | ignore
+}
+
+#get clipboard via tasker http server
+export def "tasker get-clipboard" [
+	--device(-d):string = "main"
+	--select_device(-s)
+] {
+	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
+	let server = get-tasker-server $device $select_device
+
+	http get $"($server)/command?getclipboard=getclipboard"
+}
+
+#get clipboard via tasker http server
+export def "tasker set-clipboard" [
+	text?:string
+	--device(-d):string = "main"
+	--select_device(-s)
+] {
+	let text = get-input $in $text
+
+	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
+	let server = get-tasker-server $device $select_device
+
+	http get $"($server)/command?setclipboard=($text)" | ignore
 }
