@@ -791,3 +791,45 @@ export def nutts [
   | decode base64 
   | save -f $"($output).mp3"
 }
+
+#seach google contact info
+#
+# Usage example:
+# search-contacts "John" --count 5
+# search-contacts "example.com" --fields "names,emailAddresses"
+export def gg-contacts [
+    search_term: string   # The term to search for in contacts
+    --count(-c): int = 10 # Number of results to return (default 10)
+    --fields(-f): string = "names,emailAddresses,phoneNumbers"  # Fields to include
+] {
+    let oauth_token = $env.MY_ENV_VARS.api_keys.google.contacts
+
+    let url = {
+        scheme: "https",
+        host: "people.googleapis.com",
+        path: "/v1/people:searchContacts",
+        params: {
+            query: ($search_term | url encode),
+            readMask: $fields,
+            pageSize: $count
+        }
+    } | url join
+
+    let response = http get $url -H [Authorization $"Bearer ($oauth_token)"] -H [Accept application/json] -e
+    
+    if ($response | get -i results | is-empty) {
+      if ($response.error.status == "UNAUTHENTICATED") {
+        print (echo-g "get Access token at https://bit.ly/3DMItbs and replace value in $env.MY_ENV_VARS.api_keys.google.contacts") 
+      }
+      return-error $"code ($response.error.code)\n($response.error.message)\nstatus: ($response.error.status)"
+    }
+    
+    $response.results 
+    | each {|p| 
+        {
+          name: $p.person.names.displayName.0, 
+          phone: (try {$p.person.phoneNumbers.value.0} catch {""}), 
+          email: ( try {$p.person.emailAddresses.value.0} catch {""})
+        }
+      }
+}
