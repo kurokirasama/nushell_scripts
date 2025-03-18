@@ -2,7 +2,7 @@
 export def "ai help" [] {
   print (
     echo ["This set of tools need a few dependencies installed:"
-      "ffmpeg, whisper, yt-dlp, gcalcli."
+      "ffmpeg, whisper, yt-dlp, gcalcli, private-gpt, ollama"
       ""
       "METHODS"
       "- chat_gpt"
@@ -389,8 +389,8 @@ export def chat_gpt [
 #
 #For more personalization use `chat_gpt` or `gemini`
 export def askai [
-  prompt?:string  # string with the prompt, can be piped
-  system?:string  # string with the system message. It has precedence over the s.m. flags
+  prompt?:string   # string with the prompt, can be piped
+  system?:string   # string with the system message. It has precedence over the s.m. flags
   --programmer(-P) # use programmer s.m with temp 0.75, else use assistant with temp 0.9
   --nushell_programmer(-N) # use bash-nushell programmer s.m with temp 0.75, else use assistant with temp 0.9
   --teacher(-T)    # use school teacher s.m with temp 0.95, else use assistant with temp 0.9
@@ -399,9 +399,9 @@ export def askai [
   --math_teacher(-M) # use undergraduate and postgraduate math teacher s.m. with temp 0.95
   --google_assistant(-O) # use gOogle assistant (with web search) s.m with temp 0.7
   --engineer(-E)   # use prompt_engineer s.m. with temp 0.8 and its preprompt
-  --writer       # use writing_expert s.m with temp 0.95
+  --writer         # use writing_expert s.m with temp 0.95
   --academic(-A)   # use academic writer improver s.m with temp 0.78, and its preprompt
-  --fix_bug(-F)   # use programmer s.m. with temp 0.75 and fix_code_bug preprompt
+  --fix_bug(-F)    # use programmer s.m. with temp 0.75 and fix_code_bug preprompt
   --summarizer(-S) #use simple summarizer s.m with temp 0.70 and its preprompt
   --linux_expert(-L) #use linux expert s.m with temp temp 0.85
   --list_system(-l)       # select s.m from list (takes precedence over flags)
@@ -411,11 +411,11 @@ export def askai [
   --gpt4(-g)              # use gpt-4o instead of gpt-4o-mini (default)
   --vision(-v)            # use gpt-4-vision/gemini-pro-vision
   --image(-i):string      # filepath of the image to prompt to vision models
-  --fast(-f) # get prompt from prompt.md file and save response to answer.md
+  --fast(-f)   #get prompt from prompt.md file and save response to answer.md
   --gemini(-G) #use google gemini instead of chatgpt. gemini-1.5-flash for chat, gemini-2.0 otherwise
   --bison(-b)  #use google bison instead of chatgpt (needs --gemini)
   --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt4
-  --database(-D) #load chat conversation from database
+  --database(-D)   #load chat conversation from database
   --web_search(-w) #include web search results into the prompt
   --web_results(-W):int = 5 #how many web results to include
   --web_model:string = "gemini" #model to summarize web results
@@ -630,7 +630,7 @@ export alias bard = askai -cGW 2
 #
 #Inspired by https://github.com/zurawiki/gptcommit
 export def "ai git-push" [
-  --gpt4(-g) # use gpt-4o instead of gpt-4o-mini
+  --gpt4(-g)   #use gpt-4o instead of gpt-4o-mini
   --gemini(-G) #use google gemini-2.0 model
   --claude(-C) #use antropic claude-3-5-sonnet-latest
 ] {
@@ -971,8 +971,8 @@ export def "ai transcription-summary" [
 #es: spanish
 #fr: french
 export def "ai yt-get-transcription" [
-  url?:string       # video url
-  --lang = "en"     # language of the summary (default english)
+  url?:string   #video url
+  --lang = "en" #language of the summary (default english)
 ] {
   #deleting previous temp file
   if ((ls | find yt_temp | length) > 0) {rm yt_temp* | ignore}
@@ -1023,10 +1023,10 @@ export def "ai yt-get-transcription" [
 #
 #`? trans` and `whisper --help` for more info on languages
 export def "ai generate-subtitles" [
-  file                               #input video file
-  --language(-l) = "en-US/English"   #language of input video file, mymmemory/whisper
-  --translate(-t) = false            #to translate to spanish
-  --notify(-n)                       #notify to android via join/tasker
+  file                             #input video file
+  --language(-l) = "en-US/English" #language of input video file, mymmemory/whisper
+  --translate(-t) = false          #to translate to spanish
+  --notify(-n)                     #notify to android via join/tasker
 ] {
   let filename = $file | path parse | get stem
 
@@ -1234,7 +1234,7 @@ export def askaimage [
   --mask(-k):string  #mask to use in edition mode
   --output(-o):string #filename for output images, default used if not present
   --number(-n):int = 1 #number of images to generate (dalle only)
-  --size(-S):string = "1792x1024" #size of the output image (dalle only)
+  --size(-S):string = "1792x1024"   #size of the output image (dalle only)
   --quality(-q):string = "standard" #quality of the output image: standard or hd (dalle only)
 ] {
   let prompt = if $fast {
@@ -1315,7 +1315,7 @@ export def "ai openai-tts" [
 export def "ai elevenlabs-tts" [
   prompt?:string                    #text to convert to speech
   --model(-m):string = "Eleven English v1" #model of the output
-  --voice(-v):string = "Dorothy"      #voice selection
+  --voice(-v):string = "Dorothy"    #voice selection
   --output(-o):string = "speech"    #output file name
   --endpoint(-e):string = "text-to-speech" #request endpoint  
   --select_endpoint(-E)             #select endpoint from list  
@@ -1454,22 +1454,22 @@ export def tts [
 # - --select_system > --list_system > --system
 # - --select_preprompt > --pre_prompt
 export def google_ai [
-    query?: string                               # the query to Gemini
+    query?: string                          # the query to Gemini
     --model(-m):string = "gemini-1.5-flash" # the model gemini-1.5-flash, gemini-pro-vision, gemini-2.0, etc
     --system(-s):string = "You are a helpful assistant." # system message
-    --temp(-t): float = 0.9                       # the temperature of the model
-    --image(-i):string                        # filepath of image file for gemini-pro-vision
-    --list_system(-l) = false            # select system message from list
-    --pre_prompt(-p) = false             # select pre-prompt from list
+    --temp(-t): float = 0.9             # the temperature of the model
+    --image(-i):string                  # filepath of image file for gemini-pro-vision
+    --list_system(-l) = false           # select system message from list
+    --pre_prompt(-p) = false            # select pre-prompt from list
     --delim_with_backquotes(-d) = false # to delimit prompt (not pre-prompt) with triple backquotes (')
-    --select_system: string                       # directly select system message    
-    --select_preprompt: string                    # directly select pre_prompt
-    --safety_settings:table #table with safety setting configuration (default all:BLOCK_NONE)
+    --select_system: string             # directly select system message    
+    --select_preprompt: string          # directly select pre_prompt
+    --safety_settings:table  #table with safety setting configuration (default all:BLOCK_NONE)
     --chat(-c)     #starts chat mode (text only, gemini only)
-    --database(-D) = false #continue a chat mode conversation from database
+    --database(-D) = false   #continue a chat mode conversation from database
     --web_search(-w) = false #include $web_results web search results in the prompt
     --web_results(-W):int = 5     #number of web results to include
-    --web_model:string = "gemini"  #model to summarize web results
+    --web_model:string = "gemini" #model to summarize web results
     --max_retries(-r):int = 5 #max number of retries in case of server-side errors 
     --verbose(-v) = false     #show the attempts to call the gemini api
     --document:string         #uses provided document to retrieve the answer
@@ -2291,7 +2291,7 @@ export def "ai google_search-summary" [
 
 # debunk input using ai
 export def "ai debunk" [
-  data? #file record with name field or plain text
+  data?        #file record with name field or plain text
   --ollama(-o) #use ollama model instead of gemini
   --ollama_model(-m):string #ollama model to use
   --web_results(-w) #use web search results as input for the refutations
@@ -2349,8 +2349,8 @@ export def "ai debunk" [
 export def debunk-table [
   data
   --system_message(-s): string = "debunker"
-  --web_results(-w) = true #use web search results to write the refutation
-  --ollama(-o) = false #use ollama model
+  --web_results(-w) = true  #use web search results to write the refutation
+  --ollama(-o) = false      #use ollama model
   --ollama_model(-m):string #ollama model to use
 ] {
   let data = (
@@ -2378,14 +2378,14 @@ export def debunk-table [
 
 #analyze and summarize paper using ai
 export def "ai analyze_paper" [
-  paper? # filename of the input paper
-  --gpt4(-g) # use gpt-4o instead of gemini
+  paper?       #filename of the input paper
+  --gpt4(-g)   #use gpt-4o instead of gemini
   --ollama(-o) #use ollama instead of gemini
   --ollama_model(-m):string #ollama model to use
-  --output(-o):string #output filename without extension
-  --clean(-c)  #clean text
-  --verbose(-v)   #show gemini attempts
-  --notify(-n)    #send notification when finished
+  --output(-o):string       #output filename without extension
+  --clean(-c)   #clean text
+  --verbose(-v) #show gemini attempts
+  --notify(-n)  #send notification when finished
 ] {
   let paper = get-input $in $paper
 
@@ -2460,8 +2460,8 @@ export def "ai analyze_paper" [
 
 #clean text using ai
 export def "ai clean-text" [
-  text? #raw text to clean
-  --gpt4(-g) = false #use gpt4 instead of gemini
+  text?                #raw text to clean
+  --gpt4(-g) = false   #use gpt4 instead of gemini
   --ollama(-o) = false #use ollama instead of gemini
   --ollama_model(-m):string #ollama model to use
 ] {
@@ -2480,8 +2480,8 @@ export def "ai clean-text" [
 
 # analyze religious text using ai
 export def "ai analyze_religious_text" [
-  data? #file record with name field or plain text
-  --gpt4(-g) #use gpt-4o to consolidate the debunk instead of gemini-2.0
+  data?        #file record with name field or plain text
+  --gpt4(-g)   #use gpt-4o to consolidate the debunk instead of gemini-2.0
   --ollama(-o) #usa ollama model
   --ollama_model(-m):string #ollama model to use
   --web_results(-w) #use web search results as input for the refutations
@@ -2624,10 +2624,10 @@ export def "ai fix-json" [
 # - --select_system > --list_system > --system
 # - --select_preprompt > --pre_prompt
 export def claude_ai [
-    query?: string                                # the query to Chat GPT
+    query?: string                                 # the query to Chat GPT
     --model(-m):string = "claude-3-5-haiku-latest" # the model claude-3-opus-latest, claude-3-5-sonnet-latest, etc
     --system(-s):string = "You are a helpful assistant." # system message
-    --anthropic_version(-v):string = "2023-06-01" #anthropic version
+    --anthropic_version(-v):string = "2023-06-01"        #anthropic version
     --temp(-t): float = 0.9             # the temperature of the model
     --image(-i):string                  # filepath of image file for gemini-pro-vision
     --list_system(-l) = false           # select system message from list
@@ -2635,9 +2635,9 @@ export def claude_ai [
     --delim_with_backquotes(-d) = false # to delimit prompt (not pre-prompt) with triple backquotes (')
     --select_system: string             # directly select system message    
     --select_preprompt: string          # directly select pre_prompt
-    --web_search(-w) = false #include $web_results web search results in the prompt
+    --web_search(-w) = false      #include $web_results web search results in the prompt
     --web_results(-W):int = 5     #number of web results to include
-    --web_model:string = "gemini"  #model to summarize web results
+    --web_model:string = "gemini" #model to summarize web results
     --document:string             #uses provided document to retrieve the answer
 ] {
   let query = get-input $in $query
@@ -2797,21 +2797,21 @@ export def o_llama [
   query?: string
   --model(-m):string
   --system(-s):string = "You are a helpful assistant." # system message
-  --temp(-t): float = 0.9                       # the temperature of the model
-  --image(-i):string                        # filepath of image file for gemini-pro-vision
-  --list_system(-l) = false            # select system message from list
-  --pre_prompt(-p) = false             # select pre-prompt from list
+  --temp(-t): float = 0.9             # the temperature of the model
+  --image(-i):string                  # filepath of image file for gemini-pro-vision
+  --list_system(-l) = false           # select system message from list
+  --pre_prompt(-p) = false            # select pre-prompt from list
   --delim_with_backquotes(-d) = false # to delimit prompt (not pre-prompt) with triple backquotes (')
-  --select_system: string                       # directly select system message    
-  --select_preprompt: string                    # directly select pre_prompt
-  --chat(-c)     #starts chat mode (text only, gemini only)
+  --select_system: string             # directly select system message    
+  --select_preprompt: string          # directly select pre_prompt
+  --chat(-c)             #starts chat mode (text only, gemini only)
   --database(-D) = false #continue a chat mode conversation from database
-  --web_search(-w) = false #include $web_results web search results in the prompt
+  --web_search(-w) = false  #include $web_results web search results in the prompt
   --web_results(-W):int = 5 #number of web results to include
   --web_model:string = "gemini" #model to summarize web results
-  --verbose(-v) = false     #show the attempts to call the gemini api
-  --document:string         #uses provided document to retrieve the answer
-  --embed(-e) = false      #make embedding instead of generate or chat
+  --verbose(-v) = false #show the attempts to call the gemini api
+  --document:string     #uses provided document to retrieve the answer
+  --embed(-e) = false   #make embedding instead of generate or chat
 ] {
   let model = if ($model | is-empty) {
       ollama list | detect columns  | get NAME | input list -f (echo-g "Select model:")
@@ -3142,14 +3142,14 @@ def save_ollama_chat [
 #   - creative (upscale and re-imagining): 25 credits, 64x64 to 1MP input, up to 4k 5MP output
 #   - fast (just up-scaling): 1 credit, up to 4x but max 16 MP output, suitable for enhancing the quality of compressed images
 export def stable_diffusion [
-    prompt?: string                     # the query to the models
-    --model(-m):string                  # the model to use, depending on the task
-    --task(-t):string = "generate"    # the method to use: generation, 
-    --output_format(-o):string = "png"  # image output format
-    --aspect_ratio(-a):string = "1:1"   # image output aspect_ratio
-    --negative_prompt(-n):string        # negative_prompt
-    --image(-i):string                  # image path for up-scaling and editing
-    --mask(-k):string                   # masked image for editing
+    prompt?: string                     #the query to the models
+    --model(-m):string                  #the model to use, depending on the task
+    --task(-t):string = "generate"      #the method to use: generation, 
+    --output_format(-o):string = "png"  #image output format
+    --aspect_ratio(-a):string = "1:1"   #image output aspect_ratio
+    --negative_prompt(-n):string        #negative_prompt
+    --image(-i):string                  #image path for up-scaling and editing
+    --mask(-k):string                   #masked image for editing
 ] {
   let prompt = get-input $in $prompt
   let negative_prompt = get-input $env.MY_ENV_VARS.negative_prompt $negative_prompt
@@ -3302,6 +3302,8 @@ export def stable_diffusion [
 
 #run private gpt
 #
+#https://github.com/zylon-ai/private-gpt
+#
 #If using non modified version of private-gpt, the default url is http://0.0.0.0:8001
 export def run-private-gpt [
   profile:string = "ollama"
@@ -3320,6 +3322,8 @@ export def run-private-gpt [
 
 
 #single call private-gpt wrapper
+#
+#https://github.com/zylon-ai/private-gpt
 export def private_gpt [
   prompt?: string
   --base-url(-u): string = "http://127.0.0.1:8001" #url of the private gpt service
