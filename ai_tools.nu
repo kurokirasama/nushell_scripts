@@ -3301,12 +3301,18 @@ export def stable_diffusion [
 }
 
 #run private gpt
-export def --env run-private-gpt [
+#
+#If using non modified version of private-gpt, the default url is http://0.0.0.0:8001
+export def run-private-gpt [
   profile:string = "ollama"
+  --server-url(-u):string = "127.0.0.1"
+  --private-gpt-path(-p):string = "~/software/private-gpt/"
 ] {
-  print (echo-g 'open http://127.0.0.1:8001 to run in this machine' )
-  print (echo-g $"open http://(get-ips | get internal):80 from a device in the same network")
-  cd ~/software/private-gpt/
+  print (echo-g $"open http://($server_url):8001 to run in this machine")
+  print (echo-g $"open http://(get-ips | get internal):80 from a device in the same network if using nginx")
+  print (echo-g $"open http://(get-ips | get internal):8001 from a device in the same network if not using nginx")
+
+  cd $private_gpt_path
   
   $env.PGPT_PROFILES = $profile
   poetry run python -m private_gpt
@@ -3316,7 +3322,7 @@ export def --env run-private-gpt [
 #single call private-gpt wrapper
 export def private_gpt [
   prompt?: string
-  --base-url(-u): string = "http://0.0.0.0:8001" #url of the private gpt service
+  --base-url(-u): string = "http://127.0.0.1:8001" #url of the private gpt service
   --context-filter(-f) #use context filter and select documents
   --summarize(-s)   #use the summarize endpoint
   --chat(-c)        #starts chat mode
@@ -3534,11 +3540,11 @@ export def private_gpt [
 }
 
 #private-gpt chat
-export alias pchat = private_gpt -c
+export alias pgptchat = private_gpt -c
 
 #get list of document of a private-gpt instance
 export def "private_gpt list-documents" [
-  base_url: string = "http://0.0.0.0:8001" #url of the private gpt service
+  base_url: string = "http://127.0.0.1:8001" #url of the private gpt service
 ] {
   http get ($base_url + "/v1/ingest/list")
 }

@@ -475,6 +475,24 @@ export def ago []: [ duration -> datetime ] {
   (date now) - $in
 }
 
+#download file with filename
+def "http download" [url:string] {
+  let attachmentName  = http head $url
+    | transpose -dr
+    | get -i content-disposition
+    | parse "attachment; filename={filename}"
+    | get filename?.0?
+
+  let filename = if ($attachmentName | is-empty) {
+      # use the end of the URL path
+      ($url | url parse | get path | path parse | do {$"($in.stem).($in.extension)"})
+    } else {
+      $attachmentName
+    }
+  
+  http get --raw $url | save $filename
+}
+
 #################################################################################################
 ## appimages
 #################################################################################################
