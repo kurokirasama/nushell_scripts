@@ -226,7 +226,7 @@ export def matlab-cli [
   
   let output = if ($output | is-empty) {$log} else {$output + ".txt"}
 
-  bash -c ($"matlab -batch \"" + "setenv('SHELL', '/bin/bash'); " + $"($input)\"" + $" > ($output) &")
+  job spawn {matlab -batch ("setenv('SHELL', '/bin/bash'); " + $input) | save -f $output} | ignore
 }
 
 #get files all at once from webpage using wget
