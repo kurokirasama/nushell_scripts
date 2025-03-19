@@ -251,7 +251,7 @@ export def get-aliases [] {
 }
 
 #get code of custom command
-export def code [...command,--raw(-r)] {
+export def view-code [...command,--raw(-r)] {
   let command = $command | str join " "
   
   if $raw {

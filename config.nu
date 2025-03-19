@@ -263,6 +263,7 @@ let new_keybinds_names = ["alias_menu"
     "change_dir_with_fzf"
     "select_file_fzf"
     "delete_one_word_backward"
+    "insert_view_code"
 ]
 
 let new_keybinds = [
@@ -398,6 +399,19 @@ let new_keybinds = [
         keycode: backspace
         mode: [emacs, vi_insert, vi_normal]
         event: { edit: backspaceword }
+    },
+    {
+        name: insert_view_code
+        modifier: alt
+        keycode: char_v
+        mode: [emacs, vi_insert, vi_normal]
+        event: [
+                { edit: MoveToStart }
+                { edit: InsertString,
+                  value: "view-code "
+                }
+                { edit: MoveToEnd }
+               ]
     }
 ]
 

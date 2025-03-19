@@ -69,10 +69,6 @@ export def "media sub-sync" [
     cp $file $"($file).backup"
   }
 
-  # let t1 = if ($t1 | is-empty) {"@"} else {$t1}  
-  # let d2 = if ($d2 | is-empty) {""} else {$d2}
-  # let t2 = if ($d2 | is-empty) {""} else {if ($t2 | is-empty) {"@"} else {$t2}}
-
   let t1 = get-input "@" $t1
   let d2 = get-input "" $d2
   let t2 = if ($d2 | is-empty) {""} else {get-input "@" $t2}
