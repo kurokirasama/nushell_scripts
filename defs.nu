@@ -77,7 +77,7 @@ export def get-phone-number [search:string] {
 export def mcx [file?] {
   let file = get-input $in $file
 
-  bash -c $'mcomix "($file)" 2>/dev/null &'
+  job spawn {mcomix $file} | ignore
 }
 
 #jdownloader downloads info
