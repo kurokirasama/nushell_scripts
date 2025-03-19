@@ -342,7 +342,7 @@ export def fix-docker [] {
 
 #get monitors
 export def get-monitors [] {
-  xrandr | lines | range 1..5 | parse -r '(\S+)\s+(\S+).*'
+  xrandr | lines | slice 1..5 | parse -r '(\S+)\s+(\S+).*'
 }
 
 # Show some history stats similar to how atuin does it

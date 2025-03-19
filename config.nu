@@ -1,3 +1,6 @@
+#backtracing errors
+$env.NU_BACKTRACE = 1
+
 #color config
 $env.config.color_config.shape_internalcall = if TERMINUS_SUBLIME in $env {
         "light_cyan_bold"

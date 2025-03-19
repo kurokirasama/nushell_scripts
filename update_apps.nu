@@ -1,6 +1,7 @@
 #update nushell
 export def "apps-update nushell" [
   --repo(-r)    #install from repo instead of cargo
+  --force(-f)   #force cargo installation instead of update
 ] {
   print (echo-g "deleting plugins...")
   plugin list | get filename | each {|p| plugin rm $p}
@@ -12,7 +13,11 @@ export def "apps-update nushell" [
   if $repo {
     bash scripts/install-all.sh
   } else {
-    cargo install-update nu 
+    if $force {
+      cargo install nu
+    } else {
+      cargo install-update nu 
+    }
   }
 
   cargo clean
@@ -24,8 +29,14 @@ export def "apps-update nushell" [
 }
 
 #update nushell default plugins
-export def "apps-update nushell-plugins" [] {
-  cargo install-update nu_plugin_inc nu_plugin_gstat nu_plugin_query nu_plugin_formats nu_plugin_polars
+export def "apps-update nushell-plugins" [--force(-f)] {
+  if $force {
+    cargo install nu_plugin_inc nu_plugin_gstat nu_plugin_query nu_plugin_formats
+    cargo install nu_plugin_polars --locked
+  } else {
+    cargo install-update nu_plugin_inc nu_plugin_gstat nu_plugin_query nu_plugin_formats 
+    cargo install-update nu_plugin_polars --locked
+  }
 
   print (echo-g "now run:")
   print ([
@@ -49,19 +60,19 @@ export def "apps-update nushell-plugins" [] {
 #update nushell 3rd party plugins
 #
 #nu_plugin_net nu_plugin_highlight nu_plugin_units nu_plugin_port_scan nu_plugin_image
-export def "apps-update nushell-external-plugins" [] {
-  cargo install --git https://github.com/Euphrasiologist/nu_plugin_plot
-  cargo install --git https://github.com/FMotalleb/nu_plugin_port_scan.git
+export def "apps-update nushell-plugins-external" [] {
+  cargo install --git https://github.com/Euphrasiologist/nu_plugin_plot.git
+  cargo install --git https://github.com/FMotalleb/nu_plugin_port_extension.git
 
   print (echo-g "now run:")
   print ([
-    "plugin add ~/.cargo/bin/nu_plugin_port_scan"
+    "plugin add ~/.cargo/bin/nu_plugin_port_extension"
     "plugin add ~/.cargo/bin/nu_plugin_plot"
   ] | str join "\n")
 
   print (echo-g "then run:")
   print ([
-    "plugin use ~/.cargo/bin/nu_plugin_port_scan"
+    "plugin use ~/.cargo/bin/nu_plugin_port_extension"
     "plugin use ~/.cargo/bin/nu_plugin_plot"
   ] | str join "\n")
 }
