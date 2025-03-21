@@ -1,35 +1,59 @@
 #ai tools
 export def "ai help" [] {
-  print (
-    echo ["This set of tools need a few dependencies installed:"
-      "ffmpeg, whisper, yt-dlp, gcalcli, private-gpt, ollama"
-      ""
-      "METHODS"
-      "- chat_gpt"
-      "- askai"
-      "- ai audio2text"
-      "- ai video2text"
-      "- ai screen2text"
-      "- ai audio2summary"
-      "- ai transcription-summary"
-      "- ai yt-summary"
-      "- ai media-summary"
-      "- ai generate-subtitles"
-      "- ai git-push"
-      "- ai google_search-summary"
-      "- dall_e" 
-      "- askdalle"
-      "- ai tts"
-      "- tts"
-      "- google_ai"
-      "- gcal ai"
-      "- ai trans"
-      "- ai trans-subs"
-      "- claude_ai"
-    ]
-    | str join "\n"
-    | nu-highlight
-  ) 
+  let commands_description = [
+    { name: "chat_gpt", description: "Single call chatgpt wrapper" },
+    { name: "askai", description: "Fast call to chat_gpt and gemini wrappers" },
+    { name: "ai audio2text", description: "Audio to text transcription via whisper" },
+    { name: "ai video2text", description: "Video to text transcription" },
+    { name: "ai media-summary", description: "Get a summary of a video, audio, subtitle file or youtube video url via ai" },
+    { name: "ai transcription-summary", description: "Resume video transcription text via gpt" },
+    { name: "ai yt-get-transcription", description: "Get transcription of youtube video url" },
+    { name: "ai generate-subtitles", description: "Generate subtitles of video file via whisper and mymemmory/openai api" },
+    { name: "ai generate-subtitles-pipe", description: "Generate subtitles of video file via whisper and mymemmory api for piping" },
+    { name: "ai git-push", description: "Generate a git commit message via chatgpt and push the changes" },
+    { name: "ai google_search-summary", description: "Summarize the output of google_search via ai" },
+    { name: "dall_e", description: "Single call to openai dall-e models" },
+    { name: "askaimage", description: "Fast call to the dall-e and stable diffusion wrapper" },
+    { name: "ai openai-tts", description: "Openai text-to-speech wrapper" },
+    { name: "ai elevenlabs-tts", description: "Elevenlabs text-to-speech wrapper" },    
+    { name: "tts", description: "Fast call to `ai tts`'s with most parameters as default"},
+    { name: "google_ai", description: "Single call to google ai LLM api wrapper and chat mode" },
+    { name: "gcal ai", description: "Gcal via ai" },
+    { name: "ai trans", description: "Ai translation via gpt or gemini apis" },
+    { name: "ai trans-sub", description: "Translate subtitle to Spanish via mymemmory, openai or gemini apis" },
+    { name: "claude_ai", description: "Single call to anthropic claude ai LLM api wrapper" },
+    { name: "run-private-gpt", description: "Run private gpt instance" },
+    { name: "private_gpt", description: "Single call private-gpt wrapper" },
+    { name: "pgptchat", description: "Alias for private_gpt -c (chat)" },
+    { name: "o_llama", description: "Single call ollama wrapper"},
+    { name: "ochat", description: "Alias for ollama chat" },
+    { name: "bard", description: "Alias for askai -cGW 2 (chat with gemini)"},
+    { name: "ai fix-json", description: "Fix JSON input"},
+    { name: "ai clean-text", description: "Clean text using AI"},
+    { name: "ai debunk", description: "Debunk input using AI"},
+    { name: "ai analyze_paper", description: "Analyze and summarize paper using AI"},
+    { name: "debunk-table", description: "Helper function to debunk data in table form."},
+    { name: "update_gemini_content", description: "Helper function to update gemini contents with new content."},
+    { name: "save_gemini_chat", description: "Helper function to save gemini conversation to plain text."},
+    { name: "update_ollama_content", description: "Helper function to update ollama contents with new content"},
+    { name: "save_ollama_chat", description: "Helper function to save ollama conversation to plain text"},
+    { name: "chatpdf add", description: "Upload a file to chatpdf server"},
+    { name: "chatpdf del", description: "Delete a file from chatpdf server"},
+    { name: "chatpdf ask", description: "Chat with a pdf via chatpdf"},
+    { name: "askpdf", description: "Fast call to chatpdf ask"},
+    { name: "chatpdf list", description: "List uploaded documents"},
+  ]
+
+  let max_name_length = ($commands_description | get name | str length | math max)
+
+  let help_text = $commands_description
+    | each {|cmd|
+        let padded_name = ($cmd.name | fill -w ($max_name_length + 2) -a left)
+        $"($padded_name)  # ($cmd.description)"
+      }
+    | prepend "AI Tools Help:\n"
+
+  print ($help_text | str join "\n" | nu-highlight)
 }
 
 #calculate aprox words per tokens
@@ -836,7 +860,7 @@ export def "ai media-summary" [
     "meeting" => {"consolidate_transcription"},
     "youtube" => {"consolidate_ytvideo"},
     "class" => {"consolidate_class"},
-    "instructions" => {"extract_instructions"} #crear consolidate_instructions
+    "instructions" => {"consolidate_instructions"}
   }
 
   if $upload and $media_type in ["video" "audio" "url"] {
@@ -1226,6 +1250,7 @@ export def askaimage [
   prompt?:string  #string with the prompt, can be piped
   --dalle3(-d)    #use dall-e-3 instead of dall-e-2 (default)
   --stable-diffusion(-s) #use stable diffusion models instead of openai's
+  --google-models(-g):string #use google image generation models: gemini (free) or imagen (paid)
   --edit(-e)      #use edition mode instead of generation
   --variation(-v) #use variation mode instead of generation (dalle only)
   --upscale(-u)   #use up scaling mode instead of generation (stable diffusion only)
@@ -1243,6 +1268,17 @@ export def askaimage [
     get-input $in $prompt
   }
 
+  #stable diffusion
+  if ($google_models | is-not-empty) {
+    if $edit {
+      google_aimage $prompt -m $google_models -i $image -t edit
+      return
+    } 
+
+    google_aimage $prompt -m $google_models -n $number
+    return
+  }
+    
   #stable diffusion
   if $stable_diffusion {
     print (echo-r "work in progress!")
@@ -1419,6 +1455,8 @@ export def tts [
 #single call to google ai LLM api wrapper and chat mode
 #
 #Available models at https://ai.google.dev/models:
+# - gemini-2.0-pro-exp: Audio, images, video, and text -> text, 2048576 (tokens)
+# - gemini-2.0-flash-exp-image-generation: images and text -> image and text
 # - gemini-2.0-flash: Audio, images, video, and text -> Audio, images, and text, 1048576 (tokens), 10 RPM
 # - gemini-2.0-flash-lite Audio, images, video, and text -> Audio, images, and text, 1048576 (tokens), 10 RPM
 # - gemini-1.5-pro: Audio, images, video, and text -> text, 2097152 (tokens),  2 RPM
@@ -1511,7 +1549,7 @@ export def google_ai [
 
   let input_model = $model
   let model = if $model == "gemini-pro-vision" {"gemini-2.0-flash"} else {$model}
-  let model = if $model == "gemini-2.0" {"gemini-2.0-flash"} else {$model}
+  let model = if $model == "gemini-2.0" {"gemini-2.0-pro-exp"} else {$model}
 
   let url_request = {
       scheme: "https",
@@ -1529,7 +1567,7 @@ export def google_ai [
   mut ssystem = ""
   if $list_system {
     let selection = ($system_messages | input list -f (echo-g "Select system message: "))
-    $ssystem = (open ($system_messages_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
+    $ssystem = (($system_messages_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
   } else if (not ($select_system | is-empty)) {
     try {
       $ssystem = (open ($system_messages_files | find ("/" + $select_system + ".md") | get 0 | ansi strip))
@@ -1825,18 +1863,17 @@ export def google_ai [
     } 
   )
 
+  #trying different models in case of error
   mut answer = []
-  mut index_model = -1
-  let models = ["gemini-2.0-flash" "gemini-2.0-flash-lite" "gemini-1.5-flash" "gemini-1.5-pro"]
+  mut index_model = 0
+  let models = ["gemini-2.0-pro-exp" "gemini-1.5-pro" "gemini-2.0-flash" "gemini-2.0-flash-lite" "gemini-1.5-flash"]
+  let n_models = $models | length 
   
   if $verbose {print ("retrieving from gemini models...")}
 
-  try {
-    $answer = http post -t application/json $url_request $request -e
-  }
+  $answer = http post -t application/json $url_request $request -e
   
-  $index_model += 1
-  if (($answer | is-empty) or ($answer == null)) and ($model == ($models | get $index_model)) {
+  while (($answer | is-empty) or ($answer == null) or ($answer | get error? | is-not-empty) or ($answer | describe) == nothing) and ($index_model < $n_models) {
     let model = $models | get $index_model
 
     let url_request = {
@@ -1848,77 +1885,26 @@ export def google_ai [
       }
     } | url join
 
-    try {
-      $answer = http post -t application/json $url_request $request
-    }
+    $answer = http post -t application/json $url_request $request -e
+
+    $index_model += 1
   }
-
-  $index_model += 1
-  if (($answer | is-empty) or ($answer == null)) and ($model == ($models | get $index_model)) {
-    let model = $models | get $index_model
-
-    let url_request = {
-      scheme: "https",
-      host: "generativelanguage.googleapis.com",
-      path: ("/v1beta" + $for_bison_beta +  "/models/" + $model + $for_bison_gen),
-      params: {
-          key: $apikey,
-      }
-    } | url join
-
-    try {
-      $answer = http post -t application/json $url_request $request
-    }
-  }
-
-  $index_model += 1
-  if (($answer | is-empty) or ($answer == null)) and ($model == ($models | get $index_model)) {
-    let model = $models | get $index_model
-
-    let url_request = {
-      scheme: "https",
-      host: "generativelanguage.googleapis.com",
-      path: ("/v1beta" + $for_bison_beta +  "/models/" + $model + $for_bison_gen),
-      params: {
-          key: $apikey,
-      }
-    } | url join
-
-    try {
-      $answer = http post -t application/json $url_request $request
-    }
-  }
-
-  $index_model += 1
-  if (($answer | is-empty) or ($answer == null)) and ($model == ($models | get $index_model)) {
-    let model = $models | get $index_model
-
-    let url_request = {
-      scheme: "https",
-      host: "generativelanguage.googleapis.com",
-      path: ("/v1beta" + $for_bison_beta +  "/models/" + $model + $for_bison_gen),
-      params: {
-          key: $apikey,
-      }
-    } | url join
-
-    try {
-      $answer = http post -t application/json $url_request $request 
-    }
-  }
-
 
   if ($answer | is-empty) or ($answer == null) or ($answer | describe) == nothing {
     return-error "something went wrong with the server!"
+  }
+
+  if ($answer | get error? | is-not-empty) {
+    return-error $answer.error
   }
   
   let answer = $answer
   if ($model =~ "gemini") {
     try {
       return $answer.candidates.content.parts.0.text.0
-    } catch {
+    } catch {|e|
       $answer | to json | save -f gemini_error.json
-      return-error "something went wrong with the api! error saved in gemini_error.json"
+      return-error "something went wrong with the api! error saved in gemini_error.json\n($e.msg)"
     }
   } else if ($model =~ "bison") {
     return $answer.candidates.output.0
@@ -3300,6 +3286,188 @@ export def stable_diffusion [
   }
 }
 
+#single call to google ai LLM image generations api wrapper
+#
+#Available models at https://ai.google.dev/models:
+# - gemini-2.0-flash-exp-image-generation: images and text -> image and text
+# - imagen-3.0-generate-002: images and text -> image and text (paid)
+#
+#Gemini 2.0 excels in contextual image blending, while Imagen 3 prioritizes top-tier image quality and specialized editing capabilities
+#
+#You can adjust the following safety settings categories:
+# - HARM_CATEGORY_HARASSMENT
+# - HARM_CATEGORY_HATE_SPEECH
+# - HARM_CATEGORY_SEXUALLY_EXPLICIT
+# - HARM_CATEGORY_DANGEROUS_CONTENT
+#
+#The possible thresholds are:
+# - BLOCK_NONE
+# - BLOCK_ONLY_HIGH
+# - BLOCK_MEDIUM_AND_ABOVE  
+# - BLOCK_LOW_AND_ABOVE
+#
+#You must use the flag --safety_settings and provide a table with two columns:
+# - category and threshold
+export def google_aimage [
+    query?: string                     # the query to Gemini
+    --model(-m):string = "gemini"      #the model: gemini or imagen
+    --image(-i):string                 #file path of image file for edition task
+    --task(-t):string = "generation"   #task to do: generation or edit
+    --number-of-images(-n):int = 1     #numbers of images to generate: 1-4 (for imagen only)
+    --aspect-ratio(-a):string = "16:9" #aspect ratio: 1:1, 3:4, 4:3, 9:16 or 16:9 (for imagen only)
+    --person-generation(-p):string = "ALLOW_ADULT" #ALLOW_ADULT or DONT_ALLOW (imagen only)
+    --output(-o):string                #output filename
+] {
+  let prompt = get-input $in $query
+
+  #api parameters
+  let apikey = $env.MY_ENV_VARS.api_keys.google.gemini
+
+  if ($number_of_images > 4) and ($model =~ "imagen") {
+    return-error "Max. number of requested images is 4!!!"
+  }
+
+  if ($task =~ "edit") and ($model =~ "imagen") {
+    return-error "Editing mode not available form Imagen model!"
+  }
+
+  let safetySettings = [
+          {
+              category: "HARM_CATEGORY_HARASSMENT",
+              threshold: "BLOCK_NONE",
+          },
+          {
+              category: "HARM_CATEGORY_HATE_SPEECH",
+              threshold: "BLOCK_NONE"
+          },
+          {
+              category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+              threshold: "BLOCK_NONE",
+          },
+          {
+              category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+              threshold: "BLOCK_NONE",
+          },
+          {
+              category: "HARM_CATEGORY_CIVIC_INTEGRITY",
+              threshold: "BLOCK_NONE",
+          }
+      ]
+
+  let gen = if ($model =~ "imagen") {":predict"} else {":generateContent"}
+
+  let input_model = $model
+  let model = if $model == "gemini" {"gemini-2.0-flash-exp-image-generation"} else {$model}
+  let model = if $model == "imagen" {"imagen-3.0-generate-002"} else {$model}
+
+  let url_request = {
+      scheme: "https",
+      host: "generativelanguage.googleapis.com",
+      path: ("/v1beta/models/" + $model + $gen),
+      params: {
+          key: $apikey,
+      }
+    } | url join
+
+  let output = if ($output | is-empty) {
+      (google_ai --select_preprompt dalle_image_name -d true $prompt | from json | get name) + "_G"
+    } else {
+      $output
+    }
+
+  #translate prompt if not in english
+  let english = google_ai --select_preprompt is_in_english -d true $prompt | from json | get english | into bool
+  let prompt = if $english and $task == "generation" {google_ai --select_system ai_art_creator --select_preprompt translate_dalle_prompt -d true $prompt} else {$prompt}
+  let prompt = if $task == "generation" {
+      google_ai --select_system ai_art_creator --select_preprompt improve_dalle_prompt -d true $prompt
+    } else {
+      $prompt
+    }
+
+  print (echo-g "improved prompt: ")
+  print ($prompt)
+
+  match $task {
+    "generation" => {
+        let request = if ($model =~ "imagen") {
+          {
+            instances: [
+              {
+                prompt: $prompt
+              }
+            ],
+            parameters: {
+              sampleCount: $number_of_images,
+              aspect_ratio: $aspect_ratio,
+              person_generation: $person_generation
+            }
+          }
+        } else {
+          {
+            contents: [{
+              parts: [
+                {
+                  text: $prompt
+                }
+              ]
+            }],
+            generationConfig:{
+              responseModalities:["Text","Image"]
+            },
+            safetySettings: $safetySettings
+          }
+        }
+
+        let answer = http post -t application/json $url_request $request 
+        
+        if ($model =~ "imagen") {
+          $answer.predictions.bytesBase64Encoded
+          | enumerate 
+          | each {|img|
+              print (echo-g $"saving image ($img.index | into string)...")
+              $img.item 
+              | decode base64
+              | save -f ($output + $"_($img.index | into string).png")
+            }
+        } else {
+          $answer.candidates.content.parts.0.inlineData.data.0 
+          | decode base64 
+          | save -f ($output + ".png")
+        }
+      },
+
+    "edit" => {
+        let request = {
+            contents: [{
+              parts: [
+                {
+                  text: $prompt
+                },
+                {
+                  inline_data: {
+                    mime_type: "image/jpeg",
+                    data: (open ($image | path expand) | encode base64)
+                  }
+                }
+              ]
+            }],
+            generationConfig:{
+              responseModalities:["Text","Image"]
+            },
+            safetySettings: $safetySettings
+          }
+
+        let answer = http post -t application/json $url_request $request
+
+        $answer.candidates.content.parts.0.inlineData.data.0 
+        | decode base64 
+        | save -f ($output + ".png")
+      },
+    
+    _ => {return-error $"$(task) not available!!!"}
+  }
+
+}
 #run private gpt
 #
 #https://github.com/zylon-ai/private-gpt
@@ -3340,7 +3508,7 @@ export def private_gpt [
     return-error "private-gpt not running!\n Start the process via run-private-gpt"
   }
 
-  let all_documents_info = private_gpt list-documents $base_url | get data | flatten
+  let all_documents_info = private_gpt list $base_url | get data | flatten
   let document_list_names = if $context_filter {
       $all_documents_info 
       | get file_name 
@@ -3544,11 +3712,53 @@ export def private_gpt [
 }
 
 #private-gpt chat
-export alias pgptchat = private_gpt -c
+export alias pchat = private_gpt -c
 
 #get list of document of a private-gpt instance
-export def "private_gpt list-documents" [
+export def "private_gpt list" [
   base_url: string = "http://127.0.0.1:8001" #url of the private gpt service
 ] {
   http get ($base_url + "/v1/ingest/list")
+}
+
+#delete ingested documents of a private-gpt instance
+export def "private_gpt delete" [
+  base_url: string = "http://127.0.0.1:8001" #url of the private gpt service
+] {
+  let all_documents_info = private_gpt list $base_url | get data | flatten
+  let document_list_names = $all_documents_info 
+      | get file_name 
+      | uniq 
+      | sort 
+      | input list -m (echo-g "Select documents:")
+    
+  $all_documents_info 
+  | where file_name in $document_list_names 
+  | get doc_id
+  | each {|id|
+      http delete ($base_url + "/v1/ingest/" + $id)
+    }
+}
+
+#ingest files in a private-gpt instance
+export def "private_gpt ingest" [
+  file? #file path to ingest or list of file paths
+  base_url: string = "http://127.0.0.1:8001" #url of the private gpt service
+] {
+  let file = get-input $in $file 
+
+  match ($file | typeof) {
+    "string" => {
+        let url_request = $base_url + "/v1/ingest/file"
+        
+        curl -sX POST ($base_url + "/v1/ingest/file") -H "Content-Type: multipart/form-data" -F file=@($file | path expand) | ignore
+      },
+    "list" => {
+        $file
+        | each {|f|
+            $f | private_gpt ingest
+        }
+    }
+    _ => {return-error $"($file | typeof) type not allowed!"}
+  }
 }
