@@ -137,7 +137,7 @@ export def get-ips [
   
   let device = (
     if ($device | is-empty) {
-      if $host =~ $env.MY_ENV_VARS.hosts.2 {
+      if $host like $env.MY_ENV_VARS.hosts.2 {
         "eno1"
       } else {
         "wlo1"
@@ -149,7 +149,7 @@ export def get-ips [
 
   let internal = (ip -json add 
     | from json 
-    | where ifname =~ $device 
+    | where ifname like $device 
     | select addr_info 
     | flatten | find -v inet6 
     | flatten 
@@ -172,7 +172,7 @@ export def get-devices [
   let ipinfo = (
       ip -json add 
       | from json 
-      | where ifname =~ $"($device)" 
+      | where ifname like $"($device)" 
       | select addr_info 
       | flatten 
       | find -v inet6 
@@ -192,7 +192,7 @@ export def get-devices [
   let ips = ($nmap_output 
     | drop 1 
     | flatten 
-    | where addrtype =~ ipv4 
+    | where addrtype like ipv4 
     | select addr 
     | rename ip
   )
@@ -200,7 +200,7 @@ export def get-devices [
   let macs_n_names = (
     $nmap_output 
     | flatten 
-    | where addrtype =~ mac  
+    | where addrtype like mac  
     | reject addrtype 
     | rename mac name 
     | default null name

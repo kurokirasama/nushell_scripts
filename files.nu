@@ -366,9 +366,9 @@ export def get-files [
 #find file in dir recursively
 export def find-file [search,--directory(-d):string] {
   if ($directory | is-empty) {
-    get-files -f | find -n =~ $search
+    get-files -f | find -n $search
   } else {
-    get-files $directory -f | find -n =~ $search
+    get-files $directory -f | find -n $search
   }
 }
 
@@ -443,7 +443,7 @@ export def autolister [user?] {
   cd ~/Downloads
   lister ("Downloads" + "_" + $host)
 
-  let drives = sys disks | where mount =~ $"/media/($user)" 
+  let drives = sys disks | where mount like $"/media/($user)" 
 
   if ($drives | length) > 0 {
     $drives
@@ -468,7 +468,7 @@ export def lister [file:string] {
   )
 
   if ($df | length) == 0 {
-    if $file =~ "Downloads" and ($file | path expand | path exists) { 
+    if $file like "Downloads" and ($file | path expand | path exists) { 
       rm $file
     }
     return
@@ -608,7 +608,7 @@ export def replicate-tree [to:string] {
 
 #rename all files starting with certain prefix, enumerating them
 export def re-enamerate [prefix] {
-  let files = get-files | where name =~ $"^($prefix)" | sort-by modified
+  let files = get-files | where name like $"^($prefix)" | sort-by modified
   let n_files = $files | length
   let n_digits = ($n_files | math log 10) + 1 | math floor | into int
 

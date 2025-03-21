@@ -7,7 +7,7 @@ def main [user:string = "kira"] {
 	cd ~/Downloads
 	lister ("Downloads" + "_" + $host)
 
-	let drives = sys disks | where mount =~ $"/media/($user)"
+	let drives = sys disks | where mount like $"/media/($user)"
 
 	if ($drives | length) > 0 {
 		$drives
@@ -32,7 +32,7 @@ export def lister [file:string] {
   )
 
   if ($df | length) == 0 {
-    if $file =~ "Downloads" and ($file | path expand | path exists) { 
+    if $file like "Downloads" and ($file | path expand | path exists) { 
       rm $file
     }
     return

@@ -69,7 +69,7 @@ export def get-phone-number [search:string] {
   goobook dquery $search 
   | from ssv 
   | rename results 
-  | where results =~ '(?P<plus>\+)(?P<nums>\d+)'
+  | where results like '(?P<plus>\+)(?P<nums>\d+)'
   
 }
 
@@ -446,7 +446,7 @@ export def generate-md-from-dir [output_file = "output.md"] {
 
   ls **/* 
   | where type == file 
-  | where name !~ "png|jpg"
+  | where name not-like "png|jpg"
   | where name != $output_file
   | each { |it|
     let filepath = $it.name

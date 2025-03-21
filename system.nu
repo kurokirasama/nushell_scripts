@@ -11,13 +11,13 @@ export def ? [...search,--find(-f)] {
   }
 
   try {
-    if $search =~ "commands" {
-     if $search =~ "my" {
+    if $search like "commands" {
+     if $search like "my" {
        help commands | where category == default
      } else {
        help commands 
      }
-    } else if (which $search | get type | get 0) =~ "external" {
+    } else if (which $search | get type | get 0) like "external" {
       usage (which $search | get command | get 0)
     } else {
       help (which $search | get command | get 0)

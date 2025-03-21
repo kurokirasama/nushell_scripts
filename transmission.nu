@@ -122,7 +122,7 @@ export def "t remove-delete" [
 export def "t remove-done" [] {
   t list 
   | drop 1 
-  | where ETA =~ Done 
+  | where ETA like Done 
   | where Done == "100%"
   | get ID 
   | each {|id|

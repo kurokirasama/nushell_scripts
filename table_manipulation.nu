@@ -167,8 +167,8 @@ export def table-diff [
   $right: list<any>,
   --keys (-k): list<string> = [],
 ] {
-  let left = if ($left | describe) !~ '^table' { $left | wrap value } else { $left }
-  let right = if ($right | describe) !~ '^table' { $right | wrap value } else { $right }
+  let left = if ($left | describe) not-like '^table' { $left | wrap value } else { $left }
+  let right = if ($right | describe) not-like '^table' { $right | wrap value } else { $right }
   let left_selected = ($left | select ...$keys)
   let right_selected = ($right | select ...$keys)
   let left_not_in_right = (
@@ -200,7 +200,7 @@ export def multiwhere [maps: record]: table -> table {
     $maps
     | items {|key, val| { col: $key, val: $val } }
     | reduce --fold $inp {|map, acc|
-        $acc | filter {|x| ($x | get $map.col) =~ $map.val}
+        $acc | filter {|x| ($x | get $map.col) like $map.val}
     }
 }
 

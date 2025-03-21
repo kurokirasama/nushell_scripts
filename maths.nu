@@ -156,10 +156,10 @@ export def base2dec [
 	if $b < 1 or $b > 16 {
 		return-error "wrong base provided!"
 	}
-	if $b < 10 and ($s =~ $"[($b)-9]" or $s =~ '[a-f]') {
+	if $b < 10 and ($s like $"[($b)-9]" or $s like '[a-f]') {
 		return-error "malformed string according to its base"
 	}
-	if $s =~ '[g-z]' {
+	if $s like '[g-z]' {
 		return-error "malformed string!"
 	}
 
@@ -169,9 +169,9 @@ export def base2dec [
 
 	for i in 0..$length {
 		let digit = (
-			if ($s | get $i) =~ '[0-9]' {
+			if ($s | get $i) like '[0-9]' {
 				$s | get $i | into int
-			} else if ($s | get $i) =~ '[a-f]' {
+			} else if ($s | get $i) like '[a-f]' {
 				($s | get $i | into int) + 10
 			} else {
 				return-error "wrong character found!"

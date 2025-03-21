@@ -21,7 +21,7 @@ export def main [
 
   let internal = (ip -json add 
     | from json 
-    | where ifname =~ $"($device)" 
+    | where ifname like $"($device)" 
     | select addr_info 
     | flatten 
     | find -v inet6 

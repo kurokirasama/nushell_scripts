@@ -49,7 +49,7 @@ $env.config.highlight_resolved_externals = true
 let hooks = {
     pre_prompt: [
         {||
-            $env.CLOUD = if $env.PWD =~ "rclone/" {
+            $env.CLOUD = if $env.PWD like "rclone/" {
                     match ($env.PWD | split row "/rclone/" | get 1 | split row "/" | get 0) {
                         $s if ($s | str starts-with "g") => {"f2df"},
                         "onedrive" => {"f8c9"},
@@ -61,7 +61,7 @@ let hooks = {
                     }
                 } else {
                     match (sys host | get name) {
-                        $p if $p =~ "Debian*" => {"f306"},
+                        $p if $p like "Debian*" => {"f306"},
                         "Windows" => {"f17a"},
                         "Ubuntu"  => {"f31b"},
                         "CentOs" => {"f304"},
@@ -133,7 +133,7 @@ let hooks = {
                     (($last_record | get updated | get 0 | into datetime) + $interval > $now)
                 }
             )
-            let not_gdrive = not ($env.PWD =~ rclone)
+            let not_gdrive = not ($env.PWD like rclone)
             
             #calculating pwd_size
             let pwd_size = (

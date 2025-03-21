@@ -57,7 +57,7 @@ export def ytm [
   let songs = if not ($artist | is-empty) {
       $songs 
       | str downcase "artist"
-      | where "artist" =~ ($artist | str downcase)
+      | where "artist" like ($artist | str downcase)
     } else {
       $songs 
     }
@@ -110,7 +110,7 @@ export def "ytm online" [
   if not $list {
     $playlists | find -n music & likes
   } else {
-    let to_play = $playlists | where title =~ $playlist | first | get id
+    let to_play = $playlists | where title like $playlist | first | get id
 
     if ($to_play | length) > 0 {
       let songs = yt-api get-songs $to_play
@@ -119,7 +119,7 @@ export def "ytm online" [
         if not ($artist | is-empty) {
           $songs 
           | str downcase "artist"
-          | where "artist" =~ ($artist | str downcase)
+          | where "artist" like ($artist | str downcase)
         } else {
           $songs
         }
@@ -217,7 +217,7 @@ export def "yt-api get-songs" [
     | upsert title {|item| 
         $item.snippet.title
       }
-    | where title !~ "Deleted video|Private video"
+    | where title not-like "Deleted video|Private video"
     | upsert artist {|item| 
         $item.snippet.videoOwnerChannelTitle 
         | str replace ' - Topic' ''

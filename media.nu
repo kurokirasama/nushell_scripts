@@ -98,7 +98,7 @@ export def "media remove-noise" [
   let filename = $file | path parse | get stem
   let ext = $file | path parse | get extension
 
-  if $ext !~ "wav" {
+  if $ext not-like "wav" {
     print (echo-g "converting input file to wav format...")
     my-ffmpeg -loglevel 1 -i $file $"($filename).wav"
   }
@@ -120,14 +120,14 @@ export def "media remove-noise" [
   print (echo-g "cleaning noise from audio file...")
   sox $"($filename).wav" $output noisered $"tmp($filename).prof" $noiseLevel
 
-  if $outExt =~ "mp3" {
+  if $outExt like "mp3" {
     print (echo-g "converting output file to mp3 format...")
     ffmpeg -loglevel 1 -i $output -acodec libmp3lame -ab 128k -vn $"($output | path parse | get stem).mp3"
 
     mv $output $"tmp($output)"
   }
 
-  if $ext !~ "wav" {
+  if $ext not-like "wav" {
     mv $"($filename).wav" $"tmp($filename).wav"
   }
 
@@ -204,7 +204,7 @@ export def "media screen-record" [
         | str trim
         | parse "{name}: <{device}>"
       }
-      | where device =~ "alsa_input|bluez_" 
+      | where device like "alsa_input|bluez_" 
       | get device
     )
 
@@ -341,7 +341,7 @@ export def "media to" [
 ] {
   if ($file | is-empty) {
     #to aac or mp3
-    if $to =~ "aac" or $to =~ "mp3" {
+    if $to like "aac" or $to like "mp3" {
       let n_files = (bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.3gp" -not -name  "*.($to)"'
           | lines 
           | length
@@ -356,7 +356,7 @@ export def "media to" [
          | insert "ext" {|| 
              $in.name | path parse | get extension
            }  
-         | where ext =~ $to 
+         | where ext like $to 
          | length
        )
 
@@ -368,12 +368,12 @@ export def "media to" [
       }
 
     #to mp4
-    } else if $to =~ "mp4" {
+    } else if $to like "mp4" {
       let n_files = (ls **/*
           | insert "ext" {|f| 
               $f.name | path parse | get extension
             }  
-          | where ext =~ "avi|webm"
+          | where ext like "avi|webm"
           | length
       )
 
@@ -390,7 +390,7 @@ export def "media to" [
           | insert "ext" {|| 
               $in.name | path parse | get extension
             }  
-          | where ext =~ "mp4"
+          | where ext like "mp4"
           | length
         )
 
@@ -406,7 +406,7 @@ export def "media to" [
           | insert "ext" {|f| 
               $f.name | path parse | get extension
             }  
-          | where ext =~ "mkv"
+          | where ext like "mkv"
           | length
         )
 
@@ -423,7 +423,7 @@ export def "media to" [
             | insert "ext" {|| 
                 $in.name | path parse | get extension
               }  
-            | where ext =~ "mp4"
+            | where ext like "mp4"
             | length
           )
 
@@ -441,17 +441,17 @@ export def "media to" [
   let filename = ($file | path parse | get stem)
   let ext = ($file | path parse | get extension) 
 
-  if $to =~ "aac" or $to =~ "mp3" {
+  if $to like "aac" or $to like "mp3" {
     ffmpeg -n -loglevel 48 -i $file -c:a $to -b:a 64k $"($filename).($to)"
-  } else if $to =~ "mp4" {
+  } else if $to like "mp4" {
     if $copy {
-      if $ext =~ "mkv" {
+      if $ext like "mkv" {
         ffmpeg -n -loglevel 48 -i $file -c:v copy -c:a mp3 -c:s mov_text $"($filename).($to)"
       } else {
         ffmpeg -n -loglevel 48 -i $file -c:v copy -c:a mp3 $"($filename).($to)"
       }
     } else {
-      if $ext =~ "mkv" {
+      if $ext like "mkv" {
         ffmpeg -n -loglevel 48 -i $file -c:v $vcodec -c:a aac -c:s mov_text $"($filename).($to)"
       } else {
         ffmpeg -n -loglevel 48 -i $file -c:v $vcodec -c:a aac $"($filename).($to)"
@@ -711,7 +711,7 @@ export def "media delete-non-compressed" [
 ] {
   ls **/* 
   | where type == file 
-  | where name =~ $append 
+  | where name like $append 
   | each {|file| 
       $file 
       | get name 
@@ -723,7 +723,7 @@ export def "media delete-non-compressed" [
   | rm-pipe
 
   ls **/*
-  | where name =~ .webm
+  | where name like .webm
   | par-each {|file|
       let compressed = (
         $file
@@ -750,7 +750,7 @@ export def "media find" [
 ] {
   let database = (
     ls $env.MY_ENV_VARS.media_database 
-    | where name =~ ".json" 
+    | where name like ".json" 
     | openm
   )
   
@@ -769,7 +769,7 @@ export def "media find" [
   if $manga {
     $results | find -i manga
   } else if $no_manga {
-    $results | where path !~ Manga
+    $results | where path not-like Manga
   } else {
     $results
   }
@@ -807,12 +807,12 @@ export def "media myt" [file?, --reverse(-r)] {
 
 #delete non wanted media in mps (youtube download folder)
 export def "media delete-mps" [] {
-  if $env.MY_ENV_VARS.mps !~ $env.PWD {
+  if $env.MY_ENV_VARS.mps not-like $env.PWD {
     return-error "wrong directory to run this!"
   } 
 
   le
-  | where type == "file" and ext !~ "mp4|mkv|webm|part" 
+  | where type == "file" and ext not-like "mp4|mkv|webm|part" 
   | each {|it| 
       rm $"($it.name)" | ignore
     }     

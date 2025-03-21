@@ -46,23 +46,23 @@ def find-index [name: string,default? = -1] {
 }
 
 def extract-name [path] {
-	if $path =~ '^[0-9]' {
+	if $path like '^[0-9]' {
 		"transmission"
-	}	else if $path =~ 'jd2' {
+	}	else if $path like 'jd2' {
 		"jd"
-	} else if $path =~ 'maestral' {
+	} else if $path like 'maestral' {
 		"maestral"
-	} else if $path =~ 'cmdg' {
+	} else if $path like 'cmdg' {
 		"cmdg"
-	} else if $path =~ 'ssh' {
+	} else if $path like 'ssh' {
 		"ssh"
-	} else if $path =~ 'ssh' {
+	} else if $path like 'ssh' {
 		"nchat"
-	} else if $path =~ '^/usr/bin' {
+	} else if $path like '^/usr/bin' {
 		$path | split row '/' | get 3
-	} else if $path !~ '^/' {
+	} else if $path not-like '^/' {
 		$path | split row '/' | get 0
-	} else if $path =~ '^/opt' {
+	} else if $path like '^/opt' {
 		$path | split row '/' | get 2
 	} else {
 		$path | path parse | get stem

@@ -773,7 +773,7 @@ export def "apps-update vivaldi" [] {
 
   let current_version = (
     ls 
-    | where name =~ vivaldi 
+    | where name like vivaldi 
     | get 0 
     | get name 
     | split row _ 
@@ -900,7 +900,7 @@ export def "apps-update joplin" [] {
   wget -O - https://raw.githubusercontent.com/laurent22/joplin/dev/Joplin_install_and_update.sh | bash
 
   print (echo-g "updating jopling cli...")
-  bash -c "NPM_CONFIG_PREFIX=~/.joplin-bin npm install -g joplin"
+  bash -c "NPM_CONFIG_PREFIXlike/.joplin-bin npm install -g joplin"
   sudo rm -f /usr/bin/joplin
   bash -c "sudo ln -s ~/.joplin-bin/bin/joplin /usr/bin/joplin"
 }

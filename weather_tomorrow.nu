@@ -104,9 +104,9 @@ def get_location [--home(-h),--ubb(-b)] {
     let table = locations | merge $online | find true
 
     # if ip address in your home isn't precise, you can force a location
-    if ($wifi =~ $env.MY_ENV_VARS.home_wifi) or ($table | length) == 0 or $home { 
+    if ($wifi like $env.MY_ENV_VARS.home_wifi) or ($table | length) == 0 or $home { 
         $env.MY_ENV_VARS.home_loc 
-    } else if $ubb or ($wifi =~ $env.MY_ENV_VARS.work_wifi) {
+    } else if $ubb or ($wifi like $env.MY_ENV_VARS.work_wifi) {
          $env.MY_ENV_VARS.work_loc 
     } else { 
         let loc_json = (http get ($table | select 0).0.location)

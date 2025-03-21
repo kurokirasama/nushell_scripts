@@ -133,7 +133,7 @@ export def "maps eta" [
   let apikey = $env.MY_ENV_VARS.api_keys.google.general
 
   let origin_address = (
-    if $origin =~ '^(-?\d+\.\d+),(-?\d+\.\d+)$' {
+    if $origin like '^(-?\d+\.\d+),(-?\d+\.\d+)$' {
       {
         scheme: "https",
         host: "maps.googleapis.com",
@@ -153,7 +153,7 @@ export def "maps eta" [
   )
   
   let destination_address = (
-    if $destination =~ '^(-?\d+\.\d+),(-?\d+\.\d+)$' {
+    if $destination like '^(-?\d+\.\d+),(-?\d+\.\d+)$' {
        {
         scheme: "https",
         host: "maps.googleapis.com",

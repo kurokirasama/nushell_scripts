@@ -770,7 +770,7 @@ export def "ai audio2text" [
 
   if ($start | is-empty) or ($end | is-empty) {
     print (echo-g "generating temp file...")
-    if ($filename | path parse | get extension) =~ "mp3" {
+    if ($filename | path parse | get extension) like "mp3" {
       cp $filename $"($file)-clean.mp3"
     } else {
       ffmpeg -loglevel 1 -i $"($filename)" -acodec libmp3lame -ab 128k -vn $"($file)-clean.mp3"
@@ -872,7 +872,7 @@ export def "ai media-summary" [
   let the_subtitle = $"($title)-clean.txt"
 
   #removing existing temp files
-  ls | where name =~ "split|summaries" | rm-pipe
+  ls | where name like "split|summaries" | rm-pipe
 
   #definitions
   let output = $"($title)_summary.md"
@@ -890,7 +890,7 @@ export def "ai media-summary" [
   
     bash -c $split_command
 
-    let files = ls | find -n split | where name !~ summary
+    let files = ls | find -n split | where name not-like summary
 
     $files | each {|split_file|
       let t_input = open ($split_file | get name)
@@ -1029,7 +1029,7 @@ export def "ai yt-get-transcription" [
     let sub_url = (
       $subtitles_info 
       | get ($the_language | get 0) 
-      | where ext =~ "vtt" 
+      | where ext like "vtt" 
       | get url 
       | get 0
     )
@@ -1103,7 +1103,7 @@ export def dall_e [
   let prompt = get-input $in $prompt
 
   #error checking
-  if ($prompt | is-empty) and ($task =~ "generation|edit") {
+  if ($prompt | is-empty) and ($task like "generation|edit") {
     return-error "Empty prompt!!!"
   }
 
@@ -1544,8 +1544,8 @@ export def google_ai [
     }
   )
 
-  let for_bison_beta = if ($model =~ "bison") {"3"} else {""}
-  let for_bison_gen = if ($model =~ "bison") {":generateText"} else {":generateContent"}
+  let for_bison_beta = if ($model like "bison") {"3"} else {""}
+  let for_bison_gen = if ($model like "bison") {":generateText"} else {":generateContent"}
 
   let input_model = $model
   let model = if $model == "gemini-pro-vision" {"gemini-2.0-flash"} else {$model}
@@ -1608,7 +1608,7 @@ export def google_ai [
   ## chat mode ##
   ###############
   if $chat {
-    if $model =~ "bison" {
+    if $model like "bison" {
       return-error "only gemini model allowed in chat mode!"
     }
 
@@ -1830,7 +1830,7 @@ export def google_ai [
         },
         safetySettings: $safetySettings
       }
-    } else if ($model =~ "gemini") {
+    } else if ($model like "gemini") {
       {
         system_instruction: {
           parts:
@@ -1852,7 +1852,7 @@ export def google_ai [
         },
         safetySettings: $safetySettings
       }
-    } else if ($model =~ "bison") {
+    } else if ($model like "bison") {
       {
         prompt: { 
           text: $bison_prompt
@@ -1899,14 +1899,14 @@ export def google_ai [
   }
   
   let answer = $answer
-  if ($model =~ "gemini") {
+  if ($model like "gemini") {
     try {
       return $answer.candidates.content.parts.0.text.0
     } catch {|e|
       $answer | to json | save -f gemini_error.json
       return-error "something went wrong with the api! error saved in gemini_error.json\n($e.msg)"
     }
-  } else if ($model =~ "bison") {
+  } else if ($model like "bison") {
     return $answer.candidates.output.0
   }
 }
@@ -1941,7 +1941,7 @@ def save_gemini_chat [
     | flatten 
     | skip $count
     | each {|row| 
-        if $row.role =~ "model" {
+        if $row.role like "model" {
           $row.text + "\n"
         } else {
           "> **" + $row.text + "**\n"
@@ -2138,7 +2138,7 @@ export def "ai trans-sub" [
     | enumerate
     | each {|line|
         # print (echo $line.item)
-        if not ($line.item =~ "-->") and not ($line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
+        if not ($line.item like "-->") and not ($line.item like '^[0-9]+$') and ($line.item | str length) > 0 {
           let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
           let translated = (
             if $ai and $ollama {
@@ -2154,7 +2154,7 @@ export def "ai trans-sub" [
             }
           )
 
-          if ($translated | is-empty) or ($translated =~ "error:") {
+          if ($translated | is-empty) or ($translated like "error:") {
             return-error $"error while translating: ($translated)"
           } 
 
@@ -2178,7 +2178,7 @@ export def "ai trans-sub" [
   | last ($lines - $start)
   | enumerate
   | each {|line|
-      if not ($line.item =~ "-->") and not ($line.item =~ '^[0-9]+$') and ($line.item | str length) > 0 {
+      if not ($line.item like "-->") and not ($line.item like '^[0-9]+$') and ($line.item | str length) > 0 {
         let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
         let translated = (
           if $ai and $ollama {
@@ -2194,7 +2194,7 @@ export def "ai trans-sub" [
           }
         )
 
-        if $translated =~ "error:" {
+        if $translated like "error:" {
           return-error $"error while translating: ($translated)"
         } 
 
@@ -2721,7 +2721,7 @@ export def claude_ai [
   let model = if $model == "claude-3.5" {"claude-3-5-sonnet-latest"} else {$model}
   let model = if $model == "claude-vision" {"claude-3-5-sonnet-latest"} else {$model}
 
-  let max_tokens = if $model =~ "claude-3-" {8192} else {4096}
+  let max_tokens = if $model like "claude-3-" {8192} else {4096}
 
   # call to api
   let header = {x-api-key: $env.MY_ENV_VARS.api_keys.anthropic.api_key, anthropic-version: $anthropic_version}
@@ -2802,10 +2802,10 @@ export def o_llama [
   let model = if ($model | is-empty) {
       ollama list | detect columns  | get NAME | input list -f (echo-g "Select model:")
     } else {
-      ollama list | detect columns | where NAME =~ $model | get NAME.0
+      ollama list | detect columns | where NAME like $model | get NAME.0
     }
 
-  let embed = if ($model =~ "embed") {true} else {$embed}
+  let embed = if ($model like "embed") {true} else {$embed}
 
   #select system message from database
   let system_messages_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join system) | sort-by name | get name
@@ -3086,7 +3086,7 @@ def save_ollama_chat [
     | flatten 
     | skip $count
     | each {|row| 
-        if $row.role =~ "assistant" {
+        if $row.role like "assistant" {
           $row.content + "\n"
         } else {
           "> **" + $row.content + "**\n"
@@ -3154,7 +3154,7 @@ export def stable_diffusion [
   let site = "https://api.stability.ai/v2beta/stable-image/" + $task + "/" + $model
 
   #error checking
-  if ($prompt | is-empty) and ($task =~ "generation|upscale|edit") {
+  if ($prompt | is-empty) and ($task like "generation|upscale|edit") {
     return-error "Empty prompt!!!"
   }
 
@@ -3323,11 +3323,11 @@ export def google_aimage [
   #api parameters
   let apikey = $env.MY_ENV_VARS.api_keys.google.gemini
 
-  if ($number_of_images > 4) and ($model =~ "imagen") {
+  if ($number_of_images > 4) and ($model like "imagen") {
     return-error "Max. number of requested images is 4!!!"
   }
 
-  if ($task =~ "edit") and ($model =~ "imagen") {
+  if ($task like "edit") and ($model like "imagen") {
     return-error "Editing mode not available form Imagen model!"
   }
 
@@ -3354,7 +3354,7 @@ export def google_aimage [
           }
       ]
 
-  let gen = if ($model =~ "imagen") {":predict"} else {":generateContent"}
+  let gen = if ($model like "imagen") {":predict"} else {":generateContent"}
 
   let input_model = $model
   let model = if $model == "gemini" {"gemini-2.0-flash-exp-image-generation"} else {$model}
@@ -3389,7 +3389,7 @@ export def google_aimage [
 
   match $task {
     "generation" => {
-        let request = if ($model =~ "imagen") {
+        let request = if ($model like "imagen") {
           {
             instances: [
               {
@@ -3420,7 +3420,7 @@ export def google_aimage [
 
         let answer = http post -t application/json $url_request $request 
         
-        if ($model =~ "imagen") {
+        if ($model like "imagen") {
           $answer.predictions.bytesBase64Encoded
           | enumerate 
           | each {|img|
