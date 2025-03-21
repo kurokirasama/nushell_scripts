@@ -198,7 +198,7 @@ export def h [howmany = 100] {
 #search for specific process
 export def psn [name?: string] {
   let name = get-input $in $name
-  ps -l | find -i $name
+  ps -l | find -in $name
 }
 
 #kill specified process
@@ -318,9 +318,8 @@ export def umall [user?] {
 
   try {
     sys disks 
-    | find $"/media/($user)" 
+    | find -n $"/media/($user)" 
     | get mount
-    | ansi strip
     | each {|drive| 
         print (echo-g $"umounting ($drive)...")
         try {
@@ -405,7 +404,7 @@ export def um [
   --all(-a)
   --list(-l)
 ] {
-  let mounted = sys disks | find rclone | get mount | ansi strip
+  let mounted = sys disks | find -n rclone | get mount
   if ($mounted | length) == 0 {
     return-error "no mounted storages!"
   }

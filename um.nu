@@ -1,7 +1,7 @@
 #!/usr/bin/env nu
 
 export def main [] {
-  let mounted = sys disks | get mount | find rclone | ansi strip
+  let mounted = sys disks | get mount | find -n rclone
   
   if ($mounted | length) == 0 {
     return "no mounted storages!"

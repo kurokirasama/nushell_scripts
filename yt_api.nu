@@ -45,7 +45,7 @@ export def ytm [
   let to_play = if $list {
       $playlists | path parse | get stem | input list -f (echo-g "Select playlist:")
     } else {
-      $playlists | find $playlist | ansi strip | get 0 | path parse | get stem
+      $playlists | find -n $playlist | get 0 | path parse | get stem
     }
 
   if ($to_play | is-empty) {
@@ -108,7 +108,7 @@ export def "ytm online" [
 
   #--list|
   if not $list {
-    $playlists | find music & likes | ansi-strip-table
+    $playlists | find -n music & likes
   } else {
     let to_play = $playlists | where title =~ $playlist | first | get id
 
@@ -257,11 +257,7 @@ export def "yt-api download-music-playlists" [
         $sn.snippet.title
       }
     | rename -c {snippet: title}
-    | find music
-    | update title {|item|
-        $item.title 
-        | ansi strip
-      }
+    | find -n music
     | append {"id": "LM", "title": "all_likes"}
   )
 

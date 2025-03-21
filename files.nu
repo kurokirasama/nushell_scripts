@@ -366,9 +366,9 @@ export def get-files [
 #find file in dir recursively
 export def find-file [search,--directory(-d):string] {
   if ($directory | is-empty) {
-    get-files -f | find =~ $search
+    get-files -f | find -n =~ $search
   } else {
-    get-files $directory -f | find =~ $search
+    get-files $directory -f | find -n =~ $search
   }
 }
 

@@ -84,9 +84,8 @@ export def "nushell-syntax-2-sublime" [
 
   let personal_external = (
     $env.PATH 
-    | find bash & nushell 
-    | get 0 
-    | ansi strip
+    | find -n bash & nushell 
+    | get 0
     | path expand
     | ls $in 
     | find -v Readme 

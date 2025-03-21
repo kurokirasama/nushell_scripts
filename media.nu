@@ -194,15 +194,13 @@ export def "media screen-record" [
       if $os_version == "24.04" {
         pw-dump 
         | lines 
-        | find '"node.name"' 
-        | ansi strip 
+        | find -n '"node.name"' 
         | str trim 
         | parse "\"{name}\": \"{device}\"," 
       } else {
         pacmd list-sources 
         | lines 
-        | find "name:" 
-        | ansi strip 
+        | find -n "name:"
         | str trim
         | parse "{name}: <{device}>"
       }
@@ -213,7 +211,7 @@ export def "media screen-record" [
     let bluetooth_not_connected = $devices | find blue | is-empty
 
     if $bluetooth_not_connected {
-      let device = $devices | find alsa_input | get 0 | ansi strip
+      let device = $devices | find -n alsa_input | get 0
     
       try {
         print (echo-g "trying myffmpeg...")
@@ -223,8 +221,8 @@ export def "media screen-record" [
         ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -acodec aac -strict experimental $"($file).mp4"
       }
     } else {
-      let alsa = $devices | find alsa_input | get 0 | ansi strip
-      let blue = $devices | find blue | get 0 | ansi strip
+      let alsa = $devices | find -n alsa_input | get 0
+      let blue = $devices | find -n blue | get 0
 
       try {
         print (echo-g "trying myffmpeg...")

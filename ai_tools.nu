@@ -289,10 +289,10 @@ export def chat_gpt [
   mut ssystem = ""
   if $list_system {
     let selection = ($system_messages | input list -f (echo-g "Select system message: "))
-    $ssystem = (open ($system_messages_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
+    $ssystem = (open ($system_messages_files | find -n ("/" + $selection + ".md") | get 0))
   } else if (not ($select_system | is-empty)) {
     try {
-      $ssystem = (open ($system_messages_files | find ("/" + $select_system + ".md") | get 0 | ansi strip))
+      $ssystem = (open ($system_messages_files | find -n ("/" + $select_system + ".md") | get 0))
     } 
   }
   let system = if ($ssystem | is-empty) {$system} else {$ssystem}
@@ -304,10 +304,10 @@ export def chat_gpt [
   mut preprompt = ""
   if $pre_prompt {
     let selection = ($pre_prompts | input list -f (echo-g "Select pre-prompt: "))
-    $preprompt = (open ($pre_prompt_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
+    $preprompt = (open ($pre_prompt_files | find -n ("/" + $selection + ".md") | get 0))
   } else if (not ($select_preprompt | is-empty)) {
     try {
-      $preprompt = (open ($pre_prompt_files | find ("/" + $select_preprompt + ".md") | get 0 | ansi strip))
+      $preprompt = (open ($pre_prompt_files | find -n ("/" + $select_preprompt + ".md") | get 0))
     }
   }
 
@@ -890,7 +890,7 @@ export def "ai media-summary" [
   
     bash -c $split_command
 
-    let files = ls | find split | where name !~ summary | ansi-strip-table
+    let files = ls | find -n split | where name !~ summary
 
     $files | each {|split_file|
       let t_input = open ($split_file | get name)
@@ -902,11 +902,11 @@ export def "ai media-summary" [
     print (echo-g $"combining the results into ($temp_output)...")
     touch $temp_output
 
-    let files = (ls | find split | find summary | enumerate)
+    let files = (ls | find -n split | find summary | enumerate)
 
     $files | each {|split_file|
       echo $"\n\nResumen de la parte ($split_file.index):\n\n" | save --append $temp_output
-      open ($split_file.item.name | ansi strip) | save --append $temp_output
+      open $split_file.item.name | save --append $temp_output
       echo "\n" | save --append $temp_output
     }
 
@@ -1567,10 +1567,10 @@ export def google_ai [
   mut ssystem = ""
   if $list_system {
     let selection = ($system_messages | input list -f (echo-g "Select system message: "))
-    $ssystem = (($system_messages_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
+    $ssystem = (($system_messages_files | find -n ("/" + $selection + ".md") | get 0))
   } else if (not ($select_system | is-empty)) {
     try {
-      $ssystem = (open ($system_messages_files | find ("/" + $select_system + ".md") | get 0 | ansi strip))
+      $ssystem = (open ($system_messages_files | find -n ("/" + $select_system + ".md") | get 0))
     } 
   }
   let system = if ($ssystem | is-empty) {$system} else {$ssystem}
@@ -1582,10 +1582,10 @@ export def google_ai [
   mut preprompt = ""
   if $pre_prompt {
     let selection = ($pre_prompts | input list -f (echo-g "Select pre-prompt: "))
-    $preprompt = (open ($pre_prompt_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
+    $preprompt = (open ($pre_prompt_files | find -n ("/" + $selection + ".md") | get 0))
   } else if (not ($select_preprompt | is-empty)) {
     try {
-      $preprompt = (open ($pre_prompt_files | find ("/" + $select_preprompt + ".md") | get 0 | ansi strip))
+      $preprompt = (open ($pre_prompt_files | find -n ("/" + $select_preprompt + ".md") | get 0))
     }
   }
 
@@ -2663,10 +2663,10 @@ export def claude_ai [
   mut ssystem = ""
   if $list_system {
     let selection = ($system_messages | input list -f (echo-g "Select system message: "))
-    $ssystem = (open ($system_messages_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
+    $ssystem = (open ($system_messages_files | find -n ("/" + $selection + ".md") | get 0))
   } else if (not ($select_system | is-empty)) {
     try {
-      $ssystem = (open ($system_messages_files | find ("/" + $select_system + ".md") | get 0 | ansi strip))
+      $ssystem = (open ($system_messages_files | find -n ("/" + $select_system + ".md") | get 0))
     } 
   }
   let system = if ($ssystem | is-empty) {$system} else {$ssystem}
@@ -2678,10 +2678,10 @@ export def claude_ai [
   mut preprompt = ""
   if $pre_prompt {
     let selection = ($pre_prompts | input list -f (echo-g "Select pre-prompt: "))
-    $preprompt = (open ($pre_prompt_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
+    $preprompt = (open ($pre_prompt_files | find -n ("/" + $selection + ".md") | get 0))
   } else if (not ($select_preprompt | is-empty)) {
     try {
-      $preprompt = (open ($pre_prompt_files | find ("/" + $select_preprompt + ".md") | get 0 | ansi strip))
+      $preprompt = (open ($pre_prompt_files | find -n ("/" + $select_preprompt + ".md") | get 0))
     }
   }
 
@@ -2814,10 +2814,10 @@ export def o_llama [
   mut ssystem = ""
   if $list_system {
     let selection = ($system_messages | input list -f (echo-g "Select system message: "))
-    $ssystem = (open ($system_messages_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
+    $ssystem = (open ($system_messages_files | find -n ("/" + $selection + ".md") | get 0))
   } else if (not ($select_system | is-empty)) {
     try {
-      $ssystem = (open ($system_messages_files | find ("/" + $select_system + ".md") | get 0 | ansi strip))
+      $ssystem = (open ($system_messages_files | find -n ("/" + $select_system + ".md") | get 0))
     } 
   }
   let system = if ($ssystem | is-empty) {$system} else {$ssystem}
@@ -2829,10 +2829,10 @@ export def o_llama [
   mut preprompt = ""
   if $pre_prompt {
     let selection = ($pre_prompts | input list -f (echo-g "Select pre-prompt: "))
-    $preprompt = (open ($pre_prompt_files | find ("/" + $selection + ".md") | get 0 | ansi strip))
+    $preprompt = (open ($pre_prompt_files | find -n ("/" + $selection + ".md") | get 0))
   } else if (not ($select_preprompt | is-empty)) {
     try {
-      $preprompt = (open ($pre_prompt_files | find ("/" + $select_preprompt + ".md") | get 0 | ansi strip))
+      $preprompt = (open ($pre_prompt_files | find -n ("/" + $select_preprompt + ".md") | get 0))
     }
   }
 

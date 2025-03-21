@@ -82,9 +82,8 @@ export def update-nu-config [] {
   #config
   let default = (
     ls ($env.MY_ENV_VARS.nushell_dir + "/**/*" | into glob) 
-      | find -i default_config 
+      | find -in default_config 
       | get name
-      | ansi strip
       | get 0
   )
   
@@ -97,10 +96,7 @@ export def update-nu-config [] {
   #env
   let default = (
     ls ($env.MY_ENV_VARS.nushell_dir + "/**/*" | into glob) 
-      | find -i default_env 
-      | update name {|n| 
-          $n.name | ansi strip
-        }
+      | find -in default_env 
       | get name
       | get 0
   )
@@ -269,7 +265,7 @@ export def get-github-latest [
     http get $assets_url.assets_url -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
     | select name browser_download_url
     | upsert version $assets_url.tag_name
-    | find $file_type 
+    | find -n $file_type 
   )
 
   if ($info | length) > 0 {
@@ -344,10 +340,9 @@ export def github-app-update [
         | get version
       } else {
         ls ($"*.($file_type)" | into glob)
-        | find $app
+        | find -n $app
         | get 0 
-        | get name 
-        | ansi strip
+        | get name
         | path parse
         | get stem
         | split row (if not $find_ {"_"} else {"-"}) 
@@ -503,7 +498,7 @@ export def "apps-update zoom" [] {
 
   print (echo-g "\ndownloading zoom...")
   aria2c --download-result=hide $release_url
-  sudo gdebi -n (ls *.deb | find zoom | get 0 | get name | ansi strip)
+  sudo gdebi -n (ls *.deb | find -n zoom | get 0 | get name)
 
   open ([$env.MY_ENV_VARS.debs zoom.json] | path join) 
   | upsert version $last_version 
@@ -531,9 +526,8 @@ export def "apps-update earth" [] {
   let new_version = (
     http get "https://support.google.com/earth/answer/40901#zippy=%2Cearth-version" 
     | query web -q a 
-    | find version 
+    | find -n version 
     | first
-    | ansi strip
   )
 
   let current_version = open ([$env.MY_ENV_VARS.debs earth.json] | path join) | get version
@@ -691,7 +685,7 @@ export def "apps-update nmap" [] {
     aria2c --download-result=hide $url
     sudo alien -v -k $new_file
 
-    let new_deb = ls *.deb | find nmap | get 0 | get name | ansi strip
+    let new_deb = ls *.deb | find -n nmap | get 0 | get name
 
     sudo gdebi -n $new_deb
     ls $new_file | rm-pipe | ignore
@@ -700,7 +694,7 @@ export def "apps-update nmap" [] {
     aria2c --download-result=hide $url
     sudo alien -v -k $new_file
 
-    let new_deb = (ls *.deb | find nmap | get 0 | get name | ansi strip)
+    let new_deb = (ls *.deb | find -n nmap | get 0 | get name)
 
     sudo gdebi -n $new_deb
     ls $new_file | rm-pipe | ignore
@@ -713,10 +707,9 @@ export def "apps-update ttyplot" [] {
 
   let current_version = (
     ls 
-    | find tty 
+    | find -n tty 
     | get name 
-    | get 0 
-    | ansi strip 
+    | get 0
     | split row _ 
     | get 1
   )
@@ -758,10 +751,9 @@ export def "apps-update vivaldi" [] {
   let release_url = (
     http get "https://vivaldi.com/download/"
     | query web -q .download-link -a href 
-    | find deb 
+    | find -n deb 
     | find amd64 
     | get 0
-    | ansi strip 
   )
 
   if ($release_url | is-empty) {
