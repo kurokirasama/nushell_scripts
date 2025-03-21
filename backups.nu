@@ -55,7 +55,7 @@ export def "libreoff restore" [] {
 }
 
 #filter commands for sublime syntax file
-def filter-command [type_of_command:string] {
+export def filter-command [type_of_command:string] {
   scope commands
   | where type == $type_of_command
   | get name 
@@ -75,15 +75,12 @@ export def "nushell-syntax-2-sublime" [
   let custom = filter-command custom
   let keywords = filter-command keyword
 
-  let aliases = (
-      scope aliases 
+  let aliases = scope aliases 
       | get name 
       | uniq
       | str join " | "
-  )   
 
-  let personal_external = (
-    $env.PATH 
+  let personal_external = $env.PATH 
     | find -n bash & nushell 
     | get 0
     | path expand
@@ -93,7 +90,8 @@ export def "nushell-syntax-2-sublime" [
     | path parse 
     | get stem
     | str join " | "
-  )
+
+  let operators = help operators | get operator | find -r "[a-z]" | str join " | "
 
   let extra_keywords = " | else | catch"
   let builtin = "    (?x: " + $builtin + ")"
@@ -102,7 +100,7 @@ export def "nushell-syntax-2-sublime" [
   let keywords = "    (?x: " + $keywords + $extra_keywords + ")"
   let aliases = "    (?x: " + $aliases + ")"
   let personal_external = "    (?x: " + $personal_external + ")"
-  let operators = "    (?x: and | or | mod | in | not-in | not | xor | bit-or | bit-xor | bit-and | bit-shl | bit-shr | starts-with | ends-with)"
+  let operators = "    (?x: " + $operators + ")"
 
   let new_commands = [] ++ [$builtin] ++ [$custom] ++ [$plugins] ++ [$keywords] ++ [$aliases] ++ [$personal_external] ++ [$operators]
  

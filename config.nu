@@ -1,5 +1,5 @@
 #backtracing errors
-$env.NU_BACKTRACE = 1
+$env.NU_BACKTRACE = 0
 
 #color config
 $env.config.color_config.shape_internalcall = if TERMINUS_SUBLIME in $env {
