@@ -83,3 +83,9 @@ export def --wrapped m [
   let rest = $rest ++ [$pdfit]
   mmdc -p $env.MY_ENV_VARS.mermaid_puppetter_config ...$rest -o $output -b transparent
 }
+
+#wrapper for timg
+export def timg [file?] {
+  let file = if ($file | is-empty) {$in | get name} else {$file}
+  ^timg $file 
+}
