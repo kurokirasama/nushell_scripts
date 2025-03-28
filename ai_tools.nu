@@ -26,8 +26,8 @@ export def "ai help" [] {
     { name: "ai elevenlabs-tts", description: "ElevenLabs text-to-speech wrapper" },
     { name: "tts", description: "Fast call to text-to-speech wrappers with defaults" },
     { name: "google_ai", description: "Single call wrapper for Google AI (Gemini/PaLM) models and chat mode" },
-    { name: "gcal ai", description: "Interact with Google Calendar using natural language via AI" },
-    { name: "g", description: "Alias for 'gcal ai -G' (uses Gemini)" },
+    { name: "ai gcal", description: "Interact with Google Calendar using natural language via AI" },
+    { name: "g", description: "Alias for 'ai gcal -G' (uses Gemini)" },
     { name: "ai trans", description: "AI translation via GPT, Gemini, or Ollama APIs" },
     { name: "ai trans-sub", description: "Translate subtitle files using AI or MyMemory" },
     { name: "claude_ai", description: "Single call wrapper for Anthropic Claude AI models" },
@@ -1989,7 +1989,7 @@ def save_gemini_chat [
 #- tell me my work events next week
 #- tell me my medical appointmenst in january 2024
 #- tell me my available times for a meeting next week
-export def "gcal ai" [
+export def "ai gcal" [
   ...request:string #query to gcal
   --gpt4(-g)        #uses gpt-4o
   --gemini(-G)      #uses gemini
@@ -2071,8 +2071,8 @@ export def "gcal ai" [
   }
 }
 
-#alias for gcal ai with gemini
-export alias g = gcal ai -G
+#alias for ai gcal with gemini
+export alias g = ai gcal -G
 
 #ai translation via gpt or gemini apis
 export def "ai trans" [
