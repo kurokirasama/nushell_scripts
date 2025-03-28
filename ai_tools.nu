@@ -1,58 +1,68 @@
 #ai tools
 export def "ai help" [] {
+  # Updated list reflecting the commands in the provided script
   let commands_description = [
-    { name: "chat_gpt", description: "Single call chatgpt wrapper" },
-    { name: "askai", description: "Fast call to chat_gpt and gemini wrappers" },
-    { name: "ai audio2text", description: "Audio to text transcription via whisper" },
-    { name: "ai video2text", description: "Video to text transcription" },
-    { name: "ai media-summary", description: "Get a summary of a video, audio, subtitle file or youtube video url via ai" },
-    { name: "ai transcription-summary", description: "Resume video transcription text via gpt" },
-    { name: "ai yt-get-transcription", description: "Get transcription of youtube video url" },
-    { name: "ai generate-subtitles", description: "Generate subtitles of video file via whisper and mymemmory/openai api" },
-    { name: "ai generate-subtitles-pipe", description: "Generate subtitles of video file via whisper and mymemmory api for piping" },
-    { name: "ai git-push", description: "Generate a git commit message via chatgpt and push the changes" },
-    { name: "ai google_search-summary", description: "Summarize the output of google_search via ai" },
-    { name: "dall_e", description: "Single call to openai dall-e models" },
-    { name: "askaimage", description: "Fast call to the dall-e and stable diffusion wrapper" },
-    { name: "ai openai-tts", description: "Openai text-to-speech wrapper" },
-    { name: "ai elevenlabs-tts", description: "Elevenlabs text-to-speech wrapper" },    
-    { name: "tts", description: "Fast call to `ai tts`'s with most parameters as default"},
-    { name: "google_ai", description: "Single call to google ai LLM api wrapper and chat mode" },
-    { name: "gcal ai", description: "Gcal via ai" },
-    { name: "ai trans", description: "Ai translation via gpt or gemini apis" },
-    { name: "ai trans-sub", description: "Translate subtitle to Spanish via mymemmory, openai or gemini apis" },
-    { name: "claude_ai", description: "Single call to anthropic claude ai LLM api wrapper" },
-    { name: "run-private-gpt", description: "Run private gpt instance" },
-    { name: "private_gpt", description: "Single call private-gpt wrapper" },
-    { name: "pgptchat", description: "Alias for private_gpt -c (chat)" },
-    { name: "o_llama", description: "Single call ollama wrapper"},
-    { name: "ochat", description: "Alias for ollama chat" },
-    { name: "bard", description: "Alias for askai -cGW 2 (chat with gemini)"},
-    { name: "ai fix-json", description: "Fix JSON input"},
-    { name: "ai clean-text", description: "Clean text using AI"},
-    { name: "ai debunk", description: "Debunk input using AI"},
-    { name: "ai analyze_paper", description: "Analyze and summarize paper using AI"},
-    { name: "debunk-table", description: "Helper function to debunk data in table form."},
-    { name: "update_gemini_content", description: "Helper function to update gemini contents with new content."},
-    { name: "save_gemini_chat", description: "Helper function to save gemini conversation to plain text."},
-    { name: "update_ollama_content", description: "Helper function to update ollama contents with new content"},
-    { name: "save_ollama_chat", description: "Helper function to save ollama conversation to plain text"},
-    { name: "chatpdf add", description: "Upload a file to chatpdf server"},
-    { name: "chatpdf del", description: "Delete a file from chatpdf server"},
-    { name: "chatpdf ask", description: "Chat with a pdf via chatpdf"},
-    { name: "askpdf", description: "Fast call to chatpdf ask"},
-    { name: "chatpdf list", description: "List uploaded documents"},
-  ]
+    { name: "ai help", description: "Show this help message" },
+    { name: "token2word", description: "Calculate approximate words from token count" },
+    { name: "chatpdf add", description: "Upload a PDF file to the chatpdf server" },
+    { name: "chatpdf del", description: "Delete a file from the chatpdf server" },
+    { name: "chatpdf ask", description: "Chat with a PDF via chatpdf" },
+    { name: "askpdf", description: "Fast call to chatpdf ask with options" },
+    { name: "chatpdf list", description: "List documents uploaded to chatpdf" },
+    { name: "chat_gpt", description: "Single call wrapper for OpenAI ChatGPT models" },
+    { name: "askai", description: "Fast call wrapper for ChatGPT, Gemini, Claude, and Ollama models" },
+    { name: "bard", description: "Alias for 'askai -cGW 2' (chat with Gemini 1.5)" },
+    { name: "ai git-push", description: "Generate a git commit message via AI and push changes" },
+    { name: "ai audio2text", description: "Audio to text transcription via Whisper" },
+    { name: "ai video2text", description: "Video to text transcription (extracts audio first)" },
+    { name: "ai media-summary", description: "Get an AI summary of a video, audio, subtitle file, or YouTube URL" },
+    { name: "ai transcription-summary", description: "Summarize transcription text using AI" },
+    { name: "ai yt-get-transcription", description: "Get transcription of a YouTube video URL" },
+    { name: "ai generate-subtitles", description: "Generate subtitles for a video file via Whisper and translation APIs" },
+    { name: "ai generate-subtitles-pipe", description: "Pipe version of ai generate-subtitles" },
+    { name: "dall_e", description: "Single call wrapper for OpenAI DALL-E models" },
+    { name: "askaimage", description: "Fast call wrapper for DALL-E, Stable Diffusion, and Google image models" },
+    { name: "ai openai-tts", description: "OpenAI text-to-speech wrapper" },
+    { name: "ai elevenlabs-tts", description: "ElevenLabs text-to-speech wrapper" },
+    { name: "tts", description: "Fast call to text-to-speech wrappers with defaults" },
+    { name: "google_ai", description: "Single call wrapper for Google AI (Gemini/PaLM) models and chat mode" },
+    { name: "gcal ai", description: "Interact with Google Calendar using natural language via AI" },
+    { name: "g", description: "Alias for 'gcal ai -G' (uses Gemini)" },
+    { name: "ai trans", description: "AI translation via GPT, Gemini, or Ollama APIs" },
+    { name: "ai trans-sub", description: "Translate subtitle files using AI or MyMemory" },
+    { name: "claude_ai", description: "Single call wrapper for Anthropic Claude AI models" },
+    { name: "ai google_search-summary", description: "Summarize Google search results using AI" },
+    { name: "ai debunk", description: "Debunk input text using AI analysis and web search" },
+    { name: "ai analyze_paper", description: "Analyze and summarize a scientific paper using AI" },
+    { name: "ai clean-text", description: "Clean and format raw text using AI" },
+    { name: "ai analyze_religious_text", description: "Analyze religious text for claims, references, and message using AI" },
+    { name: "ai fix-json", description: "Attempt to fix malformed JSON input using AI" },
+    { name: "o_llama", description: "Single call wrapper for local Ollama models (generate, chat, embed)" },
+    { name: "ochat", description: "Alias for 'askai -coW 2' (chat with Ollama)" },
+    { name: "stable_diffusion", description: "Single call wrapper for Stability AI Stable Diffusion models" },
+    { name: "google_aimage", description: "Single call wrapper for Google AI image generation models (Gemini/Imagen)" },
+    { name: "run-private-gpt", description: "Run a local private-gpt instance" },
+    { name: "private_gpt", description: "Interact with a running private-gpt instance (completions, summarize, chat)" },
+    { name: "pchat", description: "Alias for 'private_gpt -c' (chat with private-gpt)" },
+    { name: "private_gpt list", description: "List documents ingested by a private-gpt instance" },
+    { name: "private_gpt delete", description: "Delete documents ingested by a private-gpt instance" },
+    { name: "private_gpt ingest", description: "Ingest files into a private-gpt instance" },
+  ] | sort-by name # Sort alphabetically for easier reading
 
+  # Calculate the maximum length of the command names for padding
   let max_name_length = ($commands_description | get name | str length | math max)
 
+  # Format the help text with padding and descriptions
   let help_text = $commands_description
     | each {|cmd|
+        # Pad the command name to align descriptions
         let padded_name = ($cmd.name | fill -w ($max_name_length + 2) -a left)
+        # Format the line: "command_name    # description"
         $"($padded_name)  # ($cmd.description)"
       }
-    | prepend "AI Tools Help:\n"
+    | prepend "AI Tools Help:\n" # Add a header
 
+  # Print the formatted help text with syntax highlighting
   print ($help_text | str join "\n" | nu-highlight)
 }
 
