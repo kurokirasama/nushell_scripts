@@ -2150,7 +2150,7 @@ export def "ai trans-sub" [
     | each {|line|
         # print (echo $line.item)
         if not ($line.item like "-->") and not ($line.item like '^[0-9]+$') and ($line.item | str length) > 0 {
-          let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
+          let fixed_line = $line.item # | iconv -f UTF-8 -t ASCII//TRANSLIT
           let translated = (
             if $ai and $ollama {
               $fixed_line | ai trans -onm $ollama_model

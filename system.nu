@@ -318,7 +318,7 @@ export def umall [user?] {
 
   try {
     sys disks 
-    | find -n $"/media/($user)" 
+    | find -n $"/media/($user)" & mounts
     | get mount
     | each {|drive| 
         print (echo-g $"umounting ($drive)...")

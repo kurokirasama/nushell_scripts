@@ -229,7 +229,7 @@ def uv_class [uvIndex:number] {
         "Extreme" 
     }
 }
-#AQUIIII
+
 # air pollution
 def get_airCond [loc] {
     let apikey = $env.MY_ENV_VARS.api_keys.air_visual.api_key
