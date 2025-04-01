@@ -172,7 +172,7 @@ let hooks = {
             }
         },
         {|before, after| 
-            try {print (ls | sort-by -i type name | grid -c)}           
+            try {print (ls | sort-by -i type name | grid -ci)}           
         },
         {|_, after|
             zoxide add -- $after
@@ -192,9 +192,7 @@ let hooks = {
         }
       ]
     }
-    display_output: {||
-       table
-    }
+    display_output: {tee {table | print} | $env.last = $in}
   }
 
 $env.config.hooks = $hooks

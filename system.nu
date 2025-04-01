@@ -643,3 +643,8 @@ export def get-used-keybindings [] {
   | sort-by group 
   | table --abbreviated 1000
 }
+
+#get last command
+export def last-command [] {
+  $env.last
+}

@@ -2007,7 +2007,7 @@ export def "ai gcal" [
     } else if $gpt4 {
       chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d -m gpt-4
     } else if $gemini {
-      google_ai $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d true -m gemini-2.5
+      google_ai $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d true -m gemini-2.0
     } else {
       chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d
     }
@@ -2039,7 +2039,7 @@ export def "ai gcal" [
         } else if $gpt4 {
           chat_gpt $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -m gpt-4
         } else if $gemini {
-          google_ai $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -d false
+          google_ai $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -d false -m gemini-2.0
         } else {
           chat_gpt $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl
         }
@@ -2056,7 +2056,7 @@ export def "ai gcal" [
       let prompt = "if the next text is using a naming convention, rewrite it in normal writing in the original language, i.e., separate words by a space. Only return your response without any commentary on your part, in plain text without any formatting. The text: " + ($gcal_query | get title)
 
       let title = if $gemini {
-        google_ai $prompt -m gemini-2.5
+        google_ai $prompt -m gemini-2.0
       } else if $gpt4 {
          chat_gpt -m gpt-4
       } else if $ollama {

@@ -75,11 +75,11 @@ export def op [
   } else {
     match $extension {
       "md"|"Rmd" => {glow $file},
-      "nu" => {open --raw $file | nu-highlight | bat},
-      "R"|"c"|"m"|"py"|"sh" => {bat $file},
+      "nu" => {open --raw $file | nu-highlight | bat --paging auto},
+      "R"|"c"|"m"|"py"|"sh" => {bat --paging auto $file},
       "csv"|"json"|"sqlite"|"xls"|"xlsx"|"tsv" => {open $file},
       "doc"|"docx"|"pdf"|"png"|"jpg" => {openf $file},
-      _ => {bat $file}
+      _ => {bat --paging auto $file}
     }
   }
 }
@@ -291,20 +291,20 @@ export def lg [
     true => {
       match $reverse {
         true => {
-          ls | sort-by -r modified | grid -c
+          ls | sort-by -r modified | grid -ci
         },
         false => {
-          ls | sort-by modified | grid -c
+          ls | sort-by modified | grid -ci
         }
       }
     },
     false => {
       match $reverse {
         true => {
-          ls | sort-by -i -r type name | grid -c
+          ls | sort-by -i -r type name | grid -ci
         },
         false => {
-          ls | sort-by -i type name | grid -c
+          ls | sort-by -i type name | grid -ci
         }
       }
     }
