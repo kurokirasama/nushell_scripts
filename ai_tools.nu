@@ -2403,7 +2403,7 @@ export def "ai analyze_paper" [
   print (echo-g $"starting analysis of ($file)...")
 
   if $exte == "pdf" {
-    print (echo-g "converting pdf to text...")
+    print (echo-c "converting pdf to text..." "green")
     pdftotext $file 
   } else {
     mv -f $file ($name + ".txt")
@@ -2455,6 +2455,58 @@ export def "ai analyze_paper" [
   print (echo-g $"analysis saved in: ($output)")
 }
 
+#analyze and summarize paper using ai
+export def "ai analyze_ai_generated_text" [
+  text?        #input text
+  --gpt4(-g)   #use gpt-4o instead of gemini
+  --ollama(-o) #use ollama instead of gemini
+  --ollama_model(-m):string #ollama model to use
+  --correct-text(-c)  #fix the input text 
+  --fast(-f)    #use prompt file and save response to answer file
+  --notify(-n)  #send notification when finished
+] {
+  let text = get-input $in $text
+  let text = if $fast {open ($env.MY_ENV_VARS.chatgpt | path join prompt.md)} else {$text}
+
+  print (echo-g $"starting analysis of the input text...")
+
+  let analysis = if $gpt4 {
+      chat_gpt $text --select_system ai_generated_text_detector --select_preprompt analize_ai_generated_text -d -m gpt-4 -t 0.1
+    } else if $ollama {
+      o_llama $text --select_system ai_generated_text_detector --select_preprompt analize_ai_generated_text -d true -m $ollama_model -t 0.1
+    } else {
+      google_ai $text --select_system ai_generated_text_detector --select_preprompt analize_ai_generated_text -d true -m gemini-2.5 -t 0.1
+    }
+
+  if not $correct_text {
+    if $fast {
+      $analysis | save -f ($env.MY_ENV_VARS.chatgpt | path join answer.md)
+      return
+    }
+    return $analysis
+  }
+
+  print (echo-g $"starting correction of the analyzed input text...")
+  let prompt = "# REPORT\n\n" + $analysis + "\n\n# INPUT \n\n"
+
+  let fixed = if $gpt4 {
+      chat_gpt $prompt --select_system ai_generated_text_corrector --select_preprompt correct_ai_generated_text -m gpt-4 -t 0.9
+    } else if $ollama {
+      o_llama $prompt --select_system ai_generated_text_corrector --select_preprompt correct_ai_generated_text -d false -m $ollama_model -t 0.9
+    } else {
+      google_ai $prompt --select_system ai_generated_text_corrector --select_preprompt correct_ai_generated_text -d false -m gemini-2.5 -t 0.9
+    }
+
+  let response = "# REPORT\n\n" + $analysis + "\n\n# CORRECTED TEXT \n\n" + $fixed
+
+  if $fast {
+    $response | save -f ($env.MY_ENV_VARS.chatgpt | path join answer.md)
+    return
+  }
+
+  $response
+}
+
 #clean text using ai
 export def "ai clean-text" [
   text?                #raw text to clean
@@ -2464,15 +2516,13 @@ export def "ai clean-text" [
 ] {
   let raw_data = get-input $in $text
 
-  let data = if $gpt4 {
+  if $gpt4 {
     chat_gpt $raw_data --select_system text_cleaner --select_preprompt clean_text -d -m gpt-4
   } else if $ollama {
     o_llama $raw_data --select_system text_cleaner --select_preprompt clean_text -d true -m $ollama_model
   } else {
     google_ai $raw_data --select_system text_cleaner --select_preprompt clean_text -d true -m gemini-2.5
   }
-
-  return $data
 }
 
 # analyze religious text using ai
@@ -2599,6 +2649,7 @@ export def "ai fix-json" [
   if $copy {$response | to json | xsel --input --clipboard}
   return $response
 }
+
 
 #single call to anthropic claude ai LLM api wrapper
 #
@@ -3773,3 +3824,4 @@ export def "private_gpt ingest" [
     _ => {return-error $"($file | typeof) type not allowed!"}
   }
 }
+
