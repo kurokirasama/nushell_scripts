@@ -518,11 +518,7 @@ export def mk-anime [--wzf] {
       return-error "no files found"
     }
     | get name 
-    | each {|file| 
-        $file 
-        | parse "[{fansub}]{name}_Capitulo{rest}"
-      } 
-    | flatten 
+    | parse "[{fansub}]{name}_Capitulo{rest}"
     | get name 
     | uniq 
     | each {|dir| 
@@ -545,11 +541,7 @@ export def mk-anime [--wzf] {
     return-error "no files found"
   }
   | get name 
-  | each {|file| 
-      $file 
-      | parse "{fansub} {name} - {chapter}"
-    } 
-  | flatten 
+  | parse "{fansub} {name} - {chapter}"
   | get name 
   | uniq 
   | each {|dir| 
@@ -562,6 +554,34 @@ export def mk-anime [--wzf] {
       | mv-pipe $dir
       | ignore
     }
+}
+
+#create manga dirs according to files
+export def mk-manga [] {
+  try {
+    get-files
+  } catch {
+    return-error "no files found"
+  }
+  | get name 
+  | path parse
+  | get stem
+  | parse --regex '(?P<chars>.*) (?P<num>\d+)$' 
+  | get chars 
+  | uniq 
+  | parse --regex '^(?P<chars>.*?)(?: (?P<num>\d+))?$' 
+  | get chars 
+  | uniq
+  | each {|dir|
+      if not ($dir | path expand | path exists) {
+        mkdir $dir
+      }
+
+      get-files 
+      | find -i $dir 
+      | mv-pipe $dir
+      | ignore
+  }
 }
 
 #open google analytics csv file
