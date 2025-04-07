@@ -566,7 +566,7 @@ export def mk-manga [] {
   | get name 
   | path parse
   | get stem
-  | parse --regex '(?P<chars>.*) (?P<num>\d+)$' 
+  | parse --regex '(?P<chars>.*) (?P<num>\d+)(?P<suffix>.*)$'
   | get chars 
   | uniq 
   | parse --regex '^(?P<chars>.*?)(?: (?P<num>\d+))?$' 
@@ -710,4 +710,93 @@ export def rename-file [
 
       progress_bar ($file.index + 1) $total
   }
+}
+
+# Renames subtitles files according to tv shows names found in a directory
+# Accepted syntaxes for season/episode are: 304, s3e04, s03e04, 3x04 (case insensitive)
+export def subtitle-renamer [] {
+    # Get all subtitle files in current directory
+    let subtitle_files = [
+        (glob *.srt)
+        (glob *.ssa)
+        (glob *.sub)
+    ] | flatten | where { |f| $f | path exists }
+
+    # Get all movie files in current directory
+    let movie_files = [
+        (glob *.avi)
+        (glob *.mp4)
+        (glob *.mkv)
+    ] | flatten | where { |f| $f | path exists }
+
+    # Process each subtitle file
+    for subtitle in $subtitle_files {
+        let subtitle_name = $subtitle | path basename
+        
+        # Try to match season and episode patterns (case insensitive)
+        let season_episode = match $subtitle_name {
+            # s01e02 pattern
+            $s if ($s | str downcase | find -r "s([0-9]+)e([0-9]+)" | is-not-empty) => {
+                $subtitle_name 
+                | str downcase 
+                | parse --regex '^(?P<title>.+?)\s+s(?P<season>[0-9]+)e(?P<episode>[0-9]+)\.\w+$'
+                | update season { into int } 
+                | get 0 
+                | reject title
+            },
+            # 1x02 pattern
+            $s if ($s | str downcase | find -r "([0-9]+)x([0-9]+)" | is-not-empty) => {
+                $subtitle_name 
+                | str downcase 
+                | parse --regex '^(?P<title>.*?) (?P<season>\d+)x(?P<episode>\d+)\.\w+$' 
+                | update season { into int } 
+                | get 0 
+                | reject title
+            },
+            # 102 pattern (1=season, 02=episode)
+            $s if ($s | str downcase | find -r "([0-9]+)([0-9][0-9])" | is-not-empty) => {
+                $subtitle_name 
+                | str downcase 
+                | parse --regex '^(?P<title>.+?)\s+(?P<season>\d+)(?P<episode>\d{2})\.\w+$'
+                | update season { into int } 
+                | get 0 
+                | reject title
+            },
+            _ => null
+        }
+        
+        if $season_episode != null {
+            print (echo-g $"Found '($subtitle_name)'")
+            let season = $season_episode.season
+            let episode = $season_episode.episode
+            
+            # Look for matching movie file
+            for movie in $movie_files {
+                let movie_name = $movie | path basename
+                let movie_base = $movie | path basename | path parse | get stem
+                let subtitle_ext = $subtitle | path parse | get extension
+                
+                # Check if movie name contains the season/episode pattern (case insensitive)
+                let is_match = (
+                    ($movie_name | str downcase | find -r $"($season)($episode)" | is-not-empty ) or
+                    ($movie_name | str downcase | find -r $"s0?($season)e($episode)" | is-not-empty ) or
+                    ($movie_name | str downcase | find -r $"($season)x($episode)" | is-not-empty )
+                )
+                
+                if $is_match {
+                    let new_name = $"($movie_base).($subtitle_ext)"
+                    
+                    if $subtitle_name == $new_name {
+                        print (echo-c "Already ok" "green")
+                    } else if ($new_name | path exists) {
+                        print (echo-c $"A file named '($new_name)' already exists, skipping" "green")
+                    } else {
+                        mv $subtitle $new_name
+                        print (echo-c $"Renamed '($subtitle_name)' to '($new_name)'" "green")
+                    }
+                    break
+                }
+            }
+        }
+    }
 }
