@@ -438,6 +438,8 @@ export def askai [
   --fix_bug(-F)    # use programmer s.m. with temp 0.75 and fix_code_bug preprompt
   --summarizer(-S) #use simple summarizer s.m with temp 0.70 and its preprompt
   --linux_expert(-L) #use linux expert s.m with temp temp 0.85
+  --document(-d):string   # answer question from provided document
+  --auxiliary-data(-a):string # include context file in the prompt
   --list_system(-l)       # select s.m from list (takes precedence over flags)
   --list_preprompt(-p)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
   --delimit_with_quotes(-q) = true #add '''  before and after prompt
@@ -453,17 +455,26 @@ export def askai [
   --web_search(-w) #include web search results into the prompt
   --web_results(-W):int = 5 #how many web results to include
   --web_model:string = "gemini" #model to summarize web results
-  --document(-d):string  # answer question from provided document
   --claude(-C)  #use anthropic claude 3.5
   --ollama(-o)  #use ollama models
   --ollama_model(-m):string #select ollama model to use
   --embed(-e) #make embedding instead of generate or chat
 ] {
   let prompt = if $fast {
-    open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
-  } else {
-    get-input $in $prompt
+      open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
+    } else {
+      get-input $in $prompt
+    }
+
+  if ($auxiliary_data | is-not-empty ) and not ($auxiliary_data | path expand | path exists) {
+    return-error "auxiliary data doesn't exists"
   }
+  
+  let prompt = if ($auxiliary_data | is-not-empty) {
+      $prompt + "\n\n" + ($auxiliary_data | path expand | open)
+    } else {
+      $prompt
+    } 
 
   if ($prompt | is-empty) and not $chat {
     return-error "no prompt provided!"

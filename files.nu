@@ -698,6 +698,7 @@ export def rename-file [
   old_pattern:string #pattern to replace 
   new_pattern:string #new pattern
   files_pattern:string #pattern for listing target files or dirs
+  --regex(-r) #use regular expression for patter substitution
 ] {
   let files = ls ($files_pattern | into glob)
   let total = $files | length
@@ -706,7 +707,13 @@ export def rename-file [
   | get name
   | enumerate 
   | each {|file|      
-      mv $file.item ($file.item | str replace $old_pattern $new_pattern)
+      let new_name = if $regex {
+          $file.item | str replace -r $old_pattern $new_pattern
+        } else {
+          $file.item | str replace $old_pattern $new_pattern
+        }
+        
+      mv $file.item $new_name
 
       progress_bar ($file.index + 1) $total
   }
