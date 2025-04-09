@@ -1568,6 +1568,8 @@ export def google_ai [
   let for_bison_beta = if ($model like "bison") {"3"} else {""}
   let for_bison_gen = if ($model like "bison") {":generateText"} else {":generateContent"}
 
+  let max_output_tokens = if $model == "gemini2.5" {65536} else {8192}
+
   let input_model = $model
   let model = if $model == "gemini-pro-vision" {"gemini-2.0-flash"} else {$model}
   let model = if $model == "gemini-2.0" {"gemini-2.0-pro-exp"} else {$model}
@@ -1870,7 +1872,7 @@ export def google_ai [
         ],
         generationConfig: {
             temperature: $temp,
-            maxOutputTokens: 8192
+            maxOutputTokens: $max_output_tokens
         },
         safetySettings: $safetySettings
       }
@@ -1926,7 +1928,7 @@ export def google_ai [
       return $answer.candidates.content.parts.0.text.0
     } catch {|e|
       $answer | to json | save -f gemini_error.json
-      return-error "something went wrong with the api! error saved in gemini_error.json\n($e.msg)"
+      return-error $"something went wrong with the api! error saved in gemini_error.json\n($e.msg)"
     }
   } else if ($model like "bison") {
     return $answer.candidates.output.0
