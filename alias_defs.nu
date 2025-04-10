@@ -89,3 +89,12 @@ export def timg [file?] {
   let file = if ($file | is-empty) {$in | get name} else {$file}
   ^timg $file 
 }
+
+#download subtitles via subliminal
+export def --wrapped subtitle-downloader [
+  file_pattern:glob
+  ...rest
+  --language(-l):string = "es"
+] {
+  subliminal download -l $language -s $file_pattern ...$rest
+}
