@@ -151,3 +151,8 @@ export def "guake backup" [] {
 export def "guake restore" [] {
   guake --restore-preferences ($env.MY_ENV_VARS.linux_backup | path join guakesettings.txt)
 }
+
+#export zoxide database
+export def "zoxide backup" [] {
+  cp ~/.local/share/zoxide/db.zo $env.MY_ENV_VARS.linux_backup
+}

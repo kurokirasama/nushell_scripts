@@ -973,7 +973,7 @@ export def "apps-update atuin" [] {
   curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
 }
 
-#update ghostty
+#update ghostty built from source
 export def "apps-update ghostty" [] {
   cd ~/software/ghostty/
   git pull
