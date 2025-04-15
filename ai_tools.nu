@@ -47,7 +47,7 @@ export def "ai help" [] {
     { name: "private_gpt list", description: "List documents ingested by a private-gpt instance" },
     { name: "private_gpt delete", description: "Delete documents ingested by a private-gpt instance" },
     { name: "private_gpt ingest", description: "Ingest files into a private-gpt instance" },
-  ] | sort-by name # Sort alphabetically for easier reading
+  ] | sort-by name
 
   # Calculate the maximum length of the command names for padding
   let max_name_length = ($commands_description | get name | str length | math max)
@@ -1697,7 +1697,8 @@ export def google_ai [
 
     mut answer = http post -t application/json $url_request $chat_request | get candidates.content.parts.0.text.0 
 
-    print (echo-c ("\n" + $answer + "\n") $answer_color -b)
+    # print (echo-c ("\n" + $answer + "\n") $answer_color -b)
+    $answer | glow
 
     #update request
     $contents = update_gemini_content $contents $answer "model"
@@ -1730,7 +1731,8 @@ export def google_ai [
 
       $answer = http post -t application/json $url_request $chat_request | get candidates.content.parts.0.text.0
 
-      print (echo-c ("\n" + $answer + "\n") $answer_color -b)
+      # print (echo-c ("\n" + $answer + "\n") $answer_color -b)
+      $answer | glow
 
       $contents = update_gemini_content $contents $answer "model"
 
