@@ -72,7 +72,7 @@ export def "math isprime" [n: int] {
 }
 
 #Prime list <= n
-export def "math primelist" [n: int] {
+export def "math prime-list" [n: int] {
 	let primes = [2 3]
 
 	let primes2 = (seq 5 2 $n 
@@ -560,4 +560,60 @@ export def "math cumsum" [numbers?: list<number>] {
     }
 
     return $acc
+}
+
+# Calculates the prime factors of a positive integer greater than 1.
+# Returns a list of prime factors.
+#
+# Usage:
+# > prime-factors 12
+# [2 2 3]
+# > prime-factors 30
+# [2 3 5]
+# > prime-factors 17
+# [17]
+# > prime-factors 1
+# []
+export def "math prime-factors" [
+    number: int # The integer to factorize (must be > 1)
+] {
+    if $number <= 1 {
+        # Prime factorization is typically defined for integers > 1.
+        # Return an empty list for invalid input or edge cases like 1.
+        return []
+    }
+
+    mut factors = []          # Initialize an empty mutable list to store factors
+    mut current_number = $number # Create a mutable copy to modify
+
+    # --- Step 1: Handle factor 2 ---
+    # Divide by 2 as many times as possible
+    while ($current_number mod 2 == 0) {
+        $factors = ($factors | append 2) # Add 2 to the list of factors
+        $current_number /= 2             # Update the number by integer division
+    }
+
+    # --- Step 2: Handle odd factors ---
+    # Start checking odd factors from 3
+    mut factor = 3
+    # We only need to check factors up to the square root of the current number
+    while ($factor * $factor <= $current_number) {
+        # Divide by the current odd factor as many times as possible
+        while ($current_number mod $factor == 0) {
+            $factors = ($factors | append $factor) # Add the factor to the list
+            $current_number /= $factor             # Update the number
+        }
+        # Move to the next odd number (no need to check even numbers after handling 2)
+        $factor += 2
+    }
+
+    # --- Step 3: Handle the remaining number ---
+    # If the remaining number is greater than 1 after the loop,
+    # it must be a prime factor itself (larger than its square root).
+    if $current_number > 1 {
+        $factors = ($factors | append $current_number)
+    }
+
+    # Return the final list of prime factors
+    return ($factors | into int)
 }
