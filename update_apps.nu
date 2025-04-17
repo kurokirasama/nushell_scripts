@@ -911,14 +911,48 @@ export def "apps-update tiv" [] {
   make; sudo make install
 }
 
+#update claude cli
+export def "apps-update claude" [] {
+  if (sys host | get os_version) == 20.04 {
+    sudo npm update -g @anthropic-ai/claude-code
+  } else {
+    npm update -g @anthropic-ai/claude-code
+  }
+}
 #update mermaid filter
 export def "apps-update mermaid-filter" [] {
-  sudo npm update --global mermaid-filter
+  if (sys host | get os_version) == 20.04 {
+    sudo npm install --global mermaid-filter
+  } else {
+    npm install --global mermaid-filter
+  }
 }
 
 #update mermaid-cli
 export def "apps-update mermaid-cli" [] {
-  sudo npm update -g @mermaid-js/mermaid-cli
+  if (sys host | get os_version) == 20.04 {
+    sudo npm update -g @mermaid-js/mermaid-cli
+  } else {
+    npm update -g @mermaid-js/mermaid-cli
+  }
+}
+
+#update fast-cli
+export def "apps-update fast-cli" [] {
+  if (sys host | get os_version) == 20.04 {
+    sudo npm update -g fast-cli
+  } else {
+    npm update -g fast-cli
+  }
+}
+
+#update tldr
+export def "apps-update tldr" [] {
+  if (sys host | get os_version) == 20.04 {
+    sudo npm update -g tldr
+  } else {
+    npm update -g tldr
+  }
 }
 
 #update ddgr (gg)
