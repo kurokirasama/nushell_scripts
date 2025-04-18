@@ -450,7 +450,8 @@ export def askai [
   --vision(-v)            # use gpt-4-vision/gemini-pro-vision
   --image(-i):string      # filepath of the image to prompt to vision models
   --fast(-f)   #get prompt from prompt.md file and save response to answer.md
-  --gemini(-G) #use google gemini instead of chatgpt. gemini-1.5-flash for chat, gemini-2.5-free otherwise
+  --gemini(-G) #use google gemini instead of chatgpt. gemini-2.5 for chat, gemini-2.0 otherwise
+  --pro        #use gemini-2.5-free
   --paid # use google gemini-2.5-pro-preview-03-25 (paid version) (needs --gemini)
   --bison(-b)  #use google bison instead of chatgpt (needs --gemini)
   --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt4
@@ -585,8 +586,8 @@ export def askai [
   # question mode
   #use google
   if $gemini {
-    let gemini_model = if $paid {"gemini-2.5-pro-preview-03-25"} else {"gemini-2.5"}
-
+    let gemini_model = if $paid {"gemini-2.5-pro-preview-03-25"} else if $pro {"gemini-2.5"} else {"gemini-2.0"}
+    
     let answer = (
       if $vision {
         google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -p $list_preprompt -d true -i $image --select_preprompt $pre_prompt --select_system $system 
