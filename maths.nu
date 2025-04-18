@@ -211,11 +211,7 @@ export def scale-minmax-table [a, b,input?] {
 
 #exp function
 export def "math exp" [ ] {
-    each {|x| 
-    	"e(" + $"($x)" + ")\n" 
-    	| bc -l 
-    	| into float
-    }
+    each {|x| $E ** $x}
 }
 
 #random int
