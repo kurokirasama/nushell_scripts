@@ -630,12 +630,12 @@ export def "math prime-factors" [
 #   let A = [[1 2] [2 1]]
 #   let b = [1 2]
 #   solve-linear-system $A $b
-#   # Expected output: [1.0 0.0] (Note: Example output corrected from original comment)
+#   # Expected output: [1.0 0.0]
 export def "math solve-linear-system" [
     A: list<list<number>>, # Coefficient matrix A
     b: list<number>        # Right-hand side vector b
 ] {
-    let n = ($A | length) # Number of equations/variables
+    let n = $A | length # Number of equations/variables
 
     # --- Input Validation ---
     if $n == 0 {
@@ -656,23 +656,21 @@ export def "math solve-linear-system" [
         $A | enumerate | each {|it|
             let row_idx = $it.index
             let row_a = $it.item
-            let val_b = ($b | get $row_idx)
-            ($row_a | append $val_b | each {|val| $val | into float})
+            let val_b = $b | get $row_idx
+            $row_a | append $val_b | each {|val| $val | into float}
         }
     )
     let num_cols = $n + 1
     let epsilon = 1e-16 # Small number for float comparison
 
     # --- Forward Elimination with Partial Pivoting ---
-    # Use ..<$n for iterating 0 to n-1
     for k in 0..<$n { # Iterate through pivot columns
-        # Find pivot row (row with max absolute value in column k, at or below row k)
+        # Find pivot row
         mut max_row_index = $k
-        mut max_val = ($aug | get $k | get $k | math abs)
-        # Use ..<$n for iterating k+1 to n-1
+        mut max_val = $aug | get $k | get $k | math abs
+
         for i in ($k + 1)..<$n {
-            # This was the line causing the error in the original code
-            let current_val = ($aug | get $i | get $k | math abs)
+            let current_val = $aug | get $i | get $k | math abs
             if $current_val > $max_val {
                 $max_val = $current_val
                 $max_row_index = $i
@@ -681,56 +679,55 @@ export def "math solve-linear-system" [
 
         # Swap rows k and max_row_index if necessary
         if $max_row_index != $k {
-            let temp_row = ($aug | get $k)
-            $aug = ($aug | update $k ($aug | get $max_row_index))
-            $aug = ($aug | update $max_row_index $temp_row)
+            let temp_row = $aug | get $k
+            $aug = $aug | update $k ($aug | get $max_row_index)
+            $aug = $aug | update $max_row_index $temp_row
         }
 
         # Check for singularity (or near singularity)
-        let pivot_val = ($aug | get $k | get $k)
+        let pivot_val = $aug | get $k | get $k
         if ($pivot_val | math abs) < $epsilon {
             return-error $"Matrix is singular or nearly singular at column ($k). Cannot solve uniquely."
         }
 
         # Elimination: Make elements below the pivot zero
-        # Use ..<$n for iterating k+1 to n-1
         for i in ($k + 1)..<$n {
             let factor = ($aug | get $i | get $k) / $pivot_val
             # Update row i: row_i = row_i - factor * row_k
-            mut updated_row_i = ($aug | get $i)
-            # Use ..<$num_cols for iterating k to n
-            for j in $k..<$num_cols { # Only need to update from column k onwards
-                let val_k = ($aug | get $k | get $j)
-                let val_i = ($aug | get $i | get $j)
+            mut updated_row_i = $aug | get $i
+
+            for j in $k..<$num_cols {
+                let val_k = $aug | get $k | get $j
+                let val_i = $aug | get $i | get $j
                 let new_val = $val_i - $factor * $val_k
-                $updated_row_i = ($updated_row_i | update $j $new_val)
+                $updated_row_i = $updated_row_i | update $j $new_val
             }
-             # Set element below pivot explicitly to 0.0 to avoid potential float inaccuracies
-            $updated_row_i = ($updated_row_i | update $k 0.0)
-            $aug = ($aug | update $i $updated_row_i) # Update the matrix with the modified row
+            # Set element below pivot explicitly to 0.0 to avoid potential float inaccuracies
+            $updated_row_i = $updated_row_i | update $k 0.0
+            $aug = $aug | update $i $updated_row_i # Update the matrix with the modified row
         }
     }
 
     # --- Back Substitution ---
-    mut x = (0..<$n | each { 0.0 }) # Initialize solution vector with floats
+    mut x = 0..<$n | each { 0.0 }
 
-    # Use ($n - 1)..0 for iterating n-1 down to 0 (inclusive range needed here)
-    for i in ($n - 1)..0 { # Iterate backwards from last row to first row
-        let pivot_val = ($aug | get $i | get $i)
+    # Iterate backwards from last row to first row
+    for i in ($n - 1)..0 { 
+        let pivot_val = $aug | get $i | get $i
          # Check for singularity during back-substitution
         if ($pivot_val | math abs) < $epsilon {
             # Use return-error for consistency
             return-error $"Zero pivot encountered during back-substitution at row ($i). Matrix is singular."
         }
 
-        mut sum = ($aug | get $i | get $n) # Start with the b value of this row
+        mut sum = $aug | get $i | get $n # Start with the b value of this row
 
         # Use ..<$n for iterating i+1 to n-1
         for j in ($i + 1)..<$n { # Subtract known x values multiplied by coefficients
             $sum = $sum - ($aug | get $i | get $j) * ($x | get $j)
         }
 
-        $x = ($x | update $i ($sum / $pivot_val)) # Calculate and store x[i]
+        $x = $x | update $i ($sum / $pivot_val) # Calculate and store x[i]
     }
 
     return $x
