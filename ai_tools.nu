@@ -431,6 +431,7 @@ export def askai [
   --nushell_programmer(-N) # use bash-nushell programmer s.m with temp 0.75, else use assistant with temp 0.9
   --teacher(-T)    # use school teacher s.m with temp 0.95, else use assistant with temp 0.9
   --rubb(-R)       # use rubb s.m. with temperature 0.65, else use assistant with temp 0.9
+  --create-school-eval(-s) #use school teacer s.m with temp 0.95 and school evaluation preprompt
   --biblical(-B)   # use biblical assistant s.m with temp 0.78
   --math_teacher(-M) # use undergraduate and postgraduate math teacher s.m. with temp 0.95
   --google_assistant(-O) # use gOogle assistant (with web search) s.m with temp 0.7
@@ -526,7 +527,7 @@ export def askai [
         "programmer"
       } else if $nushell_programmer {
         "bash_nushell_programmer_with_nushell_docs"
-      } else if $teacher {
+      } else if $teacher or $create_school_eval {
         "school_teacher"
       } else if $engineer {
         "prompt_engineer"
@@ -565,6 +566,8 @@ export def askai [
       "meta_prompt"
     } else if $fix_bug {
       "fix_code_bug"
+    } else if $create_school_eval {
+      "create_school_evaluation"
     } else {
       "empty"
     }
@@ -1482,6 +1485,7 @@ export def tts [
 #single call to google ai LLM api wrapper and chat mode
 #
 #Available models at https://ai.google.dev/models:
+# - gemini-2.5-pro-preview-03-25 (paid version)
 # - gemini-2.5-pro-exp-03-25: Audio, images, video, and text -> text, 1048576 (tokens)
 # - gemini-2.0-flash-exp-image-generation: images and text -> image and text
 # - gemini-2.0-flash: Audio, images, video, and text -> Audio, images, and text, 1048576 (tokens), 10 RPM
