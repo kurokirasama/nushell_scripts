@@ -661,7 +661,7 @@ export def "math solve-linear-system" [
         }
     )
     let num_cols = $n + 1
-    let epsilon = 1e-16 # Small number for float comparison
+    let epsilon = 1e-15 # Small number for float comparison
 
     # --- Forward Elimination with Partial Pivoting ---
     for k in 0..<$n { # Iterate through pivot columns
