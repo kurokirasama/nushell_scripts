@@ -851,6 +851,7 @@ export def "ai media-summary" [
   --notify(-n)           # notify to android via join/tasker
   --upload(-u)           # upload extracted audio to gdrive
   --type(-t): string = "meeting" # meeting, youtube, class or instructions
+  --complete(-c):string  #use complete preprompt with input file as the incomplete summary
   --filter_noise(-f)     # filter audio noise
 ] {
   let file = get-input $in $file -n
@@ -912,7 +913,7 @@ export def "ai media-summary" [
   let output = $"($title)_summary.md"
 
   # dealing with the case when the transcription files has too many words for chatgpt
-  let max_words = if $gemini {700000} else if $claude {150000} else {100000}
+  let max_words = if $gemini {800000} else if $claude {150000} else {100000}
   let n_words = wc -w $the_subtitle | awk '{print $1}' | into int
 
   if $n_words > $max_words {
@@ -969,7 +970,7 @@ export def "ai media-summary" [
     return
   }
   
-  ai transcription-summary (open $the_subtitle) $output -g $gpt4 -t $type -G $gemini -C $claude -o $ollama -m $ollama_model
+  ai transcription-summary (open $the_subtitle) $output -g $gpt4 -t $type -G $gemini -C $claude -o $ollama -m $ollama_model -c $complete
 
   if $upload {cp $output $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory}
   if $notify {"summary finished!" | tasker send-notification}
@@ -979,6 +980,7 @@ export def "ai media-summary" [
 export def "ai transcription-summary" [
   prompt                #transcription text
   output                #output name without extension
+  --complete(-c):string #use complete preprompt with input file as the incomplete summary
   --gpt4(-g) = false    #whether to use gpt-4.1
   --gemini(-G) = false  #use google gemini-2.0
   --paid(-p) = false    #use gemini-2.5-pro-preview-03-25 (paid)
@@ -992,6 +994,10 @@ export def "ai transcription-summary" [
   let model = if $gemini {"gemini"} else if $claude {"claude"} else {"chatgpt"}
   let gemini_model = if $paid {"gemini-2.5-pro-preview-03-25"} else {"gemini-2.0"}
 
+  if ($complete | is-not-empty) and not ($complete | path expand | path exists) {
+    return-error $"($complete) doesn't exists!"
+  }
+
   let system_prompt = match $type {
     "meeting" => {"meeting_summarizer"},
     "youtube" => {"ytvideo_summarizer"},
@@ -1000,11 +1006,26 @@ export def "ai transcription-summary" [
     _ => {return-error "not a valid type!"}
   }
 
-  let pre_prompt = match $type {
-    "meeting" => {"summarize_transcription"},
-    "youtube" => {"summarize_ytvideo"},
-    "class" => {"process_class"},
-    "instructions" => {"extract_instructions"}
+  let pre_prompt = if ($complete | is-empty) {
+    match $type {
+      "meeting" => {"summarize_transcription"},
+      "youtube" => {"summarize_ytvideo"},
+      "class" => {"process_class"},
+      "instructions" => {"extract_instructions"}
+    }
+  } else {
+    match $type {
+      "meeting" => {"complete_transcription"},
+      "youtube" => {"complete_ytvideo"},
+      "class" => {"complete_class"},
+      "instructions" => {"extract_instructions"}
+    }
+  }
+
+  let prompt = if ($complete | is-empty) {
+    $prompt
+  } else {
+    (open ($complete | path expand)) + "\n\n# INPUT TRANSCRIPTIONn\n" + $prompt
   }
 
   print (echo-g $"asking ($model) for a summary of the file transcription...")
@@ -2264,7 +2285,7 @@ export def "ai google_search-summary" [
   --model(-M):string = "gemini" #select model: gpt4, gemini, qwq/llama3.2 in ollama
 ] {
   let web_content = if ($web_content | is-empty) {$in} else {$web_content}
-  let max_words = if $model == "gemini" {700000} else {100000}
+  let max_words = if $model == "gemini" {800000} else {100000}
   let n_webs = $web_content | length
 
   let prompt = (
