@@ -993,8 +993,9 @@ export def "ai transcription-summary" [
   let output_file = $"($output | path parse | get stem).md"
   let model = if $gemini {"gemini"} else if $claude {"claude"} else {"chatgpt"}
   let gemini_model = if $paid {"gemini-2.5-pro-preview-03-25"} else {"gemini-2.0"}
+  let complete_flag = $complete | is-not-empty
 
-  if ($complete | is-not-empty) and not ($complete | path expand | path exists) {
+  if $complete_flag and not ($complete | path expand | path exists) {
     return-error $"($complete) doesn't exists!"
   }
 
@@ -1006,7 +1007,7 @@ export def "ai transcription-summary" [
     _ => {return-error "not a valid type!"}
   }
 
-  let pre_prompt = if ($complete | is-empty) {
+  let pre_prompt = if not $complete_flag {
     match $type {
       "meeting" => {"summarize_transcription"},
       "youtube" => {"summarize_ytvideo"},
@@ -1022,7 +1023,7 @@ export def "ai transcription-summary" [
     }
   }
 
-  let prompt = if ($complete | is-empty) {
+  let prompt = if not $complete_flag {
     $prompt
   } else {
     (open ($complete | path expand)) + "\n\n# INPUT TRANSCRIPTIONn\n" + $prompt
@@ -1040,7 +1041,7 @@ export def "ai transcription-summary" [
   } else {
     chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d
   }
-  | save -f $output_file
+  | if $complete_flag {save -a $output_file} else {save -f $output_file}
 
   if $notify {"summary finished!" | tasker send-notification}
 }
