@@ -844,6 +844,7 @@ export def "ai media-summary" [
   --lang(-l):string = "Spanish" # language of the summary
   --gpt4(-g)             # to use gpt-4.1 instead of gpt-4.1-mini
   --gemini(-G)           # use google gemini-2.0 instead of gpt
+  --gemini-2-5(-X)       # use gemini-2.5 free version
   --paid(-p)             # use gemini-2.5 paid version
   --claude(-C)           # use anthropic claude
   --ollama(-o)           # use ollama
@@ -947,7 +948,7 @@ export def "ai media-summary" [
 
     let prompt = (open $temp_output)
     let model = if $gemini {"gemini"} else if $claude {"claude"} else if $ollama {"ollama"} else {"chatgpt"}
-    let gemini_model = if $paid {"gemini-2.5-pro-preview-03-25"} else {"gemini-2.0"}
+    let gemini_model = if $paid {"gemini-2.5-pro-preview-03-25"} else if $gemini_2_5 {"gemini-2.5-pro-exp-03-25"} else {"gemini-2.0"}
 
     print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
 
@@ -970,7 +971,7 @@ export def "ai media-summary" [
     return
   }
   
-  ai transcription-summary (open $the_subtitle) $output -g $gpt4 -t $type -G $gemini -C $claude -o $ollama -m $ollama_model -c $complete
+  ai transcription-summary (open $the_subtitle) $output -g $gpt4 -t $type -G $gemini -C $claude -o $ollama -m $ollama_model -c $complete -p $paid -X $gemini_2_5
 
   if $upload {cp $output $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory}
   if $notify {"summary finished!" | tasker send-notification}
@@ -983,6 +984,7 @@ export def "ai transcription-summary" [
   --complete(-c):string #use complete preprompt with input file as the incomplete summary
   --gpt4(-g) = false    #whether to use gpt-4.1
   --gemini(-G) = false  #use google gemini-2.0
+  --gemini-2-5(-X) = false # gemini-2.5-pro-exp-03-25
   --paid(-p) = false    #use gemini-2.5-pro-preview-03-25 (paid)
   --claude(-C) = false  #use anthropic claide
   --ollama(-o) = false  #use ollama
@@ -992,7 +994,7 @@ export def "ai transcription-summary" [
 ] {
   let output_file = $"($output | path parse | get stem).md"
   let model = if $gemini {"gemini"} else if $claude {"claude"} else {"chatgpt"}
-  let gemini_model = if $paid {"gemini-2.5-pro-preview-03-25"} else {"gemini-2.0"}
+  let gemini_model = if $paid {"gemini-2.5-pro-preview-03-25"} else if $gemini_2_5 {"gemini-2.5-pro-exp-03-25"} else {"gemini-2.0"}
   let complete_flag = $complete | is-not-empty
 
   if $complete_flag and not ($complete | path expand | path exists) {
