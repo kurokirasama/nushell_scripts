@@ -681,7 +681,7 @@ export def askai [
 }
 
 #alias for bard
-export alias bard = askai -cGW 2
+export alias bard = askai -cG -n 2
 
 #generate a git commit message via chatgpt and push the changes
 #
