@@ -576,10 +576,12 @@ export def askai [
     }
   )
 
+  let gemini_model = if $paid {"gemini-2.5-pro-preview-03-25"} else if $gemini_2_5 {"gemini-2.5"} else {"gemini-2.0"}
+  
   #chat mode
   if $chat {
     if $gemini {
-      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -n $web_results --select_preprompt $pre_prompt --document $document --web_model $web_model -m gemini-2.5
+      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -n $web_results --select_preprompt $pre_prompt --document $document --web_model $web_model -m $gemini_model
     } else if $ollama {
       o_llama $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -n $web_results --select_preprompt $pre_prompt --document $document --web_model $web_model -m $ollama_model
     } else {
@@ -591,9 +593,7 @@ export def askai [
 
   # question mode
   #use google
-  if $gemini {
-    let gemini_model = if $paid {"gemini-2.5-pro-preview-03-25"} else if $gemini_2_5 {"gemini-2.5"} else {"gemini-2.0"}
-    
+  if $gemini {    
     let answer = (
       if $vision {
         google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -p $list_preprompt -d true -i $image --select_preprompt $pre_prompt --select_system $system 
@@ -1613,7 +1613,7 @@ export def google_ai [
 
   let input_model = $model
   let model = if $model == "gemini-pro-vision" {"gemini-2.0-flash"} else {$model}
-  let model = if $model == "gemini-2.0" {"gemini-2.0-pro-exp"} else {$model}
+  let model = if $model == "gemini-2.0" {"gemini-2.0-flash"} else {$model}
   let model = if $model == "gemini-2.5" {"gemini-2.5-pro-exp-03-25"} else {$model}
 
   let url_request = {
