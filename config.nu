@@ -259,6 +259,7 @@ let new_keybinds_names = ["alias_menu"
     "select_file_fzf"
     "delete_one_word_backward"
     "insert_view_code"
+    "insert_let"
 ]
 
 let new_keybinds = [
@@ -407,7 +408,20 @@ let new_keybinds = [
                 }
                 { edit: MoveToEnd }
                ]
-    }
+    },
+    {
+        name: insert_let
+        modifier: alt
+        keycode: char_l
+        mode: [emacs, vi_insert, vi_normal]
+        event: [
+                { edit: MoveToStart }
+                { edit: InsertString,
+                  value: "let "
+                }
+                { edit: MoveToEnd }
+               ]
+    },
 ]
 
 $env.config.keybindings = $env.config.keybindings | where name not-in $new_keybinds | append $new_keybinds
