@@ -41,6 +41,7 @@ $env.config.float_precision = 4;
 $env.config.filesize.unit = "metric"
 $env.config.cursor_shape.emacs = "blink_line"
 $env.config.highlight_resolved_externals = true
+$env.config.table.missing_value_symbol = (char -u e374)
 
 #hooks
 let hooks = {

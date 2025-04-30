@@ -60,16 +60,19 @@ export def "apps-update nushell-plugins" [--force(-f)] {
 #update nushell 3rd party plugins
 #
 #nu_plugin_port_extension nu_plugin_plot
-export def "apps-update nushell-plugins-external" [] {
-  cargo install --git https://github.com/kurokirasama/nu_plugin_plot.git
-  cargo install --git https://github.com/FMotalleb/nu_plugin_port_extension.git
-  cargo install --git https://github.com/fennewald/nu_plugin_net.git
+export def "apps-update nushell-plugins-external" [--force(-f)] {
+  if $force {
+    cargo install --git https://github.com/kurokirasama/nu_plugin_plot.git --force
+    cargo install --git https://github.com/FMotalleb/nu_plugin_port_extension.git --force
+  } else {
+    cargo install --git https://github.com/kurokirasama/nu_plugin_plot.git
+    cargo install --git https://github.com/FMotalleb/nu_plugin_port_extension.git
+  }
 
   print (echo-g "now run:")
   print ([
     "plugin add ~/.cargo/bin/nu_plugin_port_extension"
     "plugin add ~/.cargo/bin/nu_plugin_plot"
-    "plugin add ~/.cargo/bin/nu_plugin_net"
   ] | str join "\n")
 
   print (echo-g "then run:")

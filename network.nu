@@ -170,18 +170,7 @@ export def get-ips [
 export def get-devices [] {
   let device = ip -json route get 1.1.1.1  | from json | get dev.0
 
-  let ipinfo = try {
-      net 
-      | where name == $device 
-      | get ips.0
-      | where type == v4 
-      | reject type 
-      | get 0 
-      | transpose 
-      | get column1 
-      | str join / | str replace -r '(?P<nums>\d+/)' '0/'
-    } catch {
-      ip -json add 
+  let ipinfo = ip -json add 
       | from json 
       | where ifname like $"($device)" 
       | select addr_info 
@@ -192,7 +181,6 @@ export def get-devices [] {
       | flatten 
       | str join '/' 
       | str replace -r '(?P<nums>\d+/)' '0/'
-  }
 
   let nmap_output = sudo nmap -oX nmap.xml -sn $ipinfo --max-parallelism 10
 
