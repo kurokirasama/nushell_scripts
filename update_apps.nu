@@ -834,7 +834,7 @@ export def "apps-update guake" [] {
 
 #update whisper
 export def "apps-update whisper" [] {
-  if (sys host | get os_version) == 20.04 {
+  if (sys host | get os_version) == "20.04" {
     pip install --upgrade --no-deps --force-reinstall git+https://github.com/openai/whisper.git
   } else {
     pipx install git+https://github.com/openai/whisper.git --force
@@ -916,15 +916,25 @@ export def "apps-update tiv" [] {
 
 #update claude cli
 export def "apps-update claude" [] {
-  if (sys host | get os_version) == 20.04 {
+  if (sys host | get os_version) == "20.04" {
     sudo npm update -g @anthropic-ai/claude-code
   } else {
     npm update -g @anthropic-ai/claude-code
   }
 }
+
+#update open-codex
+export def "apps-update open-codex" [] {
+  if (sys host | get os_version) == "20.04" {
+    sudo npm update -g open-codex 
+  } else {
+    npm update -g open-codex 
+  }
+}
+
 #update mermaid filter
 export def "apps-update mermaid-filter" [] {
-  if (sys host | get os_version) == 20.04 {
+  if (sys host | get os_version) == "20.04" {
     sudo npm install --global mermaid-filter
   } else {
     npm install --global mermaid-filter
@@ -933,7 +943,7 @@ export def "apps-update mermaid-filter" [] {
 
 #update mermaid-cli
 export def "apps-update mermaid-cli" [] {
-  if (sys host | get os_version) == 20.04 {
+  if (sys host | get os_version) == "20.04" {
     sudo npm update -g @mermaid-js/mermaid-cli
   } else {
     npm update -g @mermaid-js/mermaid-cli
@@ -942,7 +952,7 @@ export def "apps-update mermaid-cli" [] {
 
 #update fast-cli
 export def "apps-update fast-cli" [] {
-  if (sys host | get os_version) == 20.04 {
+  if (sys host | get os_version) == "20.04" {
     sudo npm update -g fast-cli
   } else {
     npm update -g fast-cli
@@ -951,7 +961,7 @@ export def "apps-update fast-cli" [] {
 
 #update tldr
 export def "apps-update tldr" [] {
-  if (sys host | get os_version) == 20.04 {
+  if (sys host | get os_version) == "20.04" {
     sudo npm update -g tldr
   } else {
     npm update -g tldr
