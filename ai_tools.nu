@@ -3175,7 +3175,7 @@ export def o_llama [
 }
 
 #alias for ollama chat
-export alias ochat = askai -coW 2
+export alias ochat = askai -con 2
 
 #update ollama contents with new content
 def update_ollama_content [
