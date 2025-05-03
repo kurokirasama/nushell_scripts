@@ -451,7 +451,7 @@ export def autolister [user?] {
     | each { |drive|
         print (echo-g $"listing ($drive)...")
         cd $drive
-        lister ($drive | path parse | get stem | split row " " | get 0)
+        lister ($drive | path parse | get stem | split row " " | str join _)
       }
   }
 }
