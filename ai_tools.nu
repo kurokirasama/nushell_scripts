@@ -67,7 +67,11 @@ export def "ai help" [] {
 }
 
 #calculate aprox words per tokens
+#
 #100 tokens about 60-80 words
+@category ai
+@search-terms token word
+@example "Convert tokens to words" {token2word 1048000} --result [628800.0000 838400.0000]
 export def token2word [
   tokens:int
   --min(-m):int = 60
@@ -79,6 +83,8 @@ export def token2word [
 }
 
 #upload a file to chatpdf server
+@category ai
+@search-terms chatpdf 
 export def "chatpdf add" [
   file:string   #filename with extension
   label?:string #label for the pdf (default is downcase filename with underscores as spaces)
@@ -127,6 +133,9 @@ export def "chatpdf add" [
 }
 
 #delete a file from chatpdf server
+@category ai
+@search-terms chatpdf
+@example "Convert tokens to words" {token2word 1048000} --result [628800.0000 838400.0000]
 export def "chatpdf del" [
 ] {
   let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
@@ -145,6 +154,8 @@ export def "chatpdf del" [
 }
 
 #chat with a pdf via chatpdf
+@category ai
+@search-terms chatpdf
 export def "chatpdf ask" [
   prompt?:string            #question to the pdf
   --select_pdf(-s):string   #specify which book to ask via filename (without extension)
@@ -192,6 +203,8 @@ export def "chatpdf ask" [
 }
 
 #fast call to chatpdf ask
+@category ai
+@search-terms chatpdf
 export def askpdf [
   prompt?     #question to ask to the pdf
   --rubb(-r)  #use rubb file, otherwhise select from list
@@ -221,6 +234,8 @@ export def askpdf [
 }
 
 #list uploaded documents
+@category ai
+@search-terms chatpdf
 export def "chatpdf list" [] {
   open ($env.MY_ENV_VARS.chatgpt_config | path join chatpdf_ids.json) | columns
 }
@@ -249,6 +264,8 @@ export def "chatpdf list" [] {
 #Note that:
 # - --select_system > --list_system > --system
 # - --select_preprompt > --pre_prompt
+@category ai
+@search-terms chatgpt
 export def chat_gpt [
     query?: string                     # the query to Chat GPT
     --model(-m):string = "gpt-4.1-mini" # the model gpt-4o-mini, gpt-4o = gpt-4, etc
@@ -423,7 +440,9 @@ export def chat_gpt [
 #
 #if --force and --chat are used together, first prompt is taken from file
 #
-#For more personalization use `chat_gpt` or `gemini`
+#For more personalization use `chat_gpt` or `google_ai`
+@category ai
+@search-terms chatgpt gemini claude ollama ask
 export def askai [
   prompt?:string   # string with the prompt, can be piped
   system?:string   # string with the system message. It has precedence over the s.m. flags
@@ -686,6 +705,8 @@ export alias bard = askai -cG -n 2
 #generate a git commit message via chatgpt and push the changes
 #
 #Inspired by https://github.com/zurawiki/gptcommit
+@category ai
+@search-terms git chatgpt gemini claude
 export def "ai git-push" [
   --gpt4(-g)   #use gpt-4.1 instead of gpt-4.1-mini
   --gemini(-G) #use google gemini-2.5 model
@@ -782,6 +803,8 @@ export def "ai git-push" [
 }
 
 #audio to text transcription via whisper
+@category ai
+@search-terms audio text transcription whisper
 export def "ai audio2text" [
   filename                    #audio file input
   --language(-l) = "Spanish"  #language of audio file
@@ -822,6 +845,8 @@ export def "ai audio2text" [
 }
 
 #video to text transcription 
+@category ai
+@search-terms video text transcription whisper
 export def "ai video2text" [
   file?:string                #video file name with extension
   --language(-l):string = "Spanish"  #language of audio file
@@ -838,7 +863,8 @@ export def "ai video2text" [
 }
 
 #get a summary of a video, audio, subtitle file or youtube video url via ai
-#
+@category ai
+@search-terms media summary chatgpt gemini claude ollama
 export def "ai media-summary" [
   file:string            # video, audio or subtitle file (vtt, srt, txt, url) file name with extension
   --lang(-l):string = "Spanish" # language of the summary
@@ -978,6 +1004,8 @@ export def "ai media-summary" [
 }
 
 #resume video transcription text via gpt
+@category ai
+@search-terms transcription summary chagpt gemini claude ollama
 export def "ai transcription-summary" [
   prompt                #transcription text
   output                #output name without extension
@@ -1055,6 +1083,8 @@ export def "ai transcription-summary" [
 #Two characters words for languages
 #es: spanish
 #fr: french
+@category ai
+@search-terms youtube transcription 
 export def "ai yt-get-transcription" [
   url?:string   #video url
   --lang = "en" #language of the summary (default english)
@@ -1107,6 +1137,8 @@ export def "ai yt-get-transcription" [
 #generate subtitles of video file via whisper and mymemmory/openai api
 #
 #`? trans` and `whisper --help` for more info on languages
+@category ai
+@search-terms subtitles whisper
 export def "ai generate-subtitles" [
   file                             #input video file
   --language(-l) = "en-US/English" #language of input video file, mymmemory/whisper
@@ -1129,6 +1161,8 @@ export def "ai generate-subtitles" [
 #generate subtitles of video file via whisper and mymemmory api for piping
 #
 #`? trans` and `whisper --help` for more info on languages
+@category ai
+@search-terms subtitles whisper
 export def "ai generate-subtitles-pipe" [
   --language(-l) = "en-US/English"   #language of input video file, mymmemory/whisper
   --translate(-t)                    #to translate to spanish
@@ -1150,6 +1184,8 @@ export def "ai generate-subtitles-pipe" [
 #
 #For generation, available sizes are; 1024x1024, 1024x1792, 1792x1024 (default).
 #For editing/variation, available sizes are: 256x256, 512x512, 1024x1024 (default).
+@category ai
+@search-terms imagen dalle dall-e
 export def dall_e [
     prompt?: string                     # the query to dall-e
     --output(-o):string                 # png output image file name
@@ -1307,6 +1343,8 @@ export def dall_e [
 #fast call to the dall-e and stable diffusion wrapper
 #
 #For more personalization and help check `? dall_e` or `? stable_diffusion`
+@category ai
+@search-terms imagen dalle dall-e stable-diffusion
 export def askaimage [
   prompt?:string  #string with the prompt, can be piped
   --dalle3(-d)    #use dall-e-3 instead of dall-e-2 (default)
@@ -1377,6 +1415,8 @@ export def askaimage [
 #Available voices are: alloy, echo, fable, onyx, nova, and shimmer
 #
 #Available formats are: mp3, opus, aac and flac
+@category ai
+@search-terms openai tts
 export def "ai openai-tts" [
   prompt?:string                  #text to convert to speech
   --model(-m):string = "tts-1"    #model of the output
@@ -1409,6 +1449,8 @@ export def "ai openai-tts" [
 #Available voices are: alloy, echo, fable, onyx, nova, and shimmer
 #
 #Available formats are: mp3, opus, aac and flac
+@category ai
+@search-terms elevenlabs tts
 export def "ai elevenlabs-tts" [
   prompt?:string                    #text to convert to speech
   --model(-m):string = "Eleven English v1" #model of the output
@@ -1496,6 +1538,8 @@ export def "ai elevenlabs-tts" [
 }
 
 #fast call to `ai tts`'s with most parameters as default
+@category ai
+@search-terms tts openai elevenlabs
 export def tts [
   prompt?:string #text to convert to speech
   --hd(-h)       #use hd model (in openai api)
@@ -1553,6 +1597,8 @@ export def tts [
 #Note that:
 # - --select_system > --list_system > --system
 # - --select_preprompt > --pre_prompt
+@category ai
+@search-terms gemini
 export def google_ai [
     query?: string                          # the query to Gemini
     --model(-m):string = "gemini-1.5-flash" # the model gemini-1.5-flash, gemini-pro-vision, gemini-2.0, etc
@@ -2045,6 +2091,8 @@ def save_gemini_chat [
 #- tell me my work events next week
 #- tell me my medical appointmenst in january 2024
 #- tell me my available times for a meeting next week
+@category ai
+@search-terms google-calendar gcal chatgpt gemini ollama
 export def "ai gcal" [
   ...request:string #query to gcal
   --gpt4(-g)        #uses gpt-4.1
@@ -2131,6 +2179,8 @@ export def "ai gcal" [
 export alias g = ai gcal -G
 
 #ai translation via gpt or gemini apis
+@category ai
+@search-terms translation chatgpt gemini ollama
 export def "ai trans" [
   ...prompt
   --destination(-d):string = "Spanish"
@@ -2177,6 +2227,8 @@ export def "ai trans" [
 #translate subtitle to Spanish via mymemmory, openai or gemini apis
 #
 #`? trans` for more info on languages (only if not using ai)
+@category ai
+@search-terms tranlation subtitles chatgpt gemini ollama MyMemory
 export def "ai trans-sub" [
   file?
   --from:string = "en-US" #from which language you are translating
@@ -2281,11 +2333,13 @@ export def "ai trans-sub" [
 }
 
 #summarize the output of google_search via ai
+@category ai
+@search-terms google-search summary gemini chatgpt ollama
 export def "ai google_search-summary" [
   question:string     #the question made to google
   web_content?: table #table output of google_search
   --md(-m)            #return concatenated md instead of table
-  --model(-M):string = "gemini" #select model: gpt4, gemini, qwq/llama3.2 in ollama
+  --model(-M):string = "gemini" #select model: gpt4, gemini, ollama
 ] {
   let web_content = if ($web_content | is-empty) {$in} else {$web_content}
   let max_words = if $model == "gemini" {800000} else {100000}
@@ -2343,6 +2397,8 @@ export def "ai google_search-summary" [
 } 
 
 # debunk input using ai
+@category ai
+@search-terms ai-tool debunk gemini ollama
 export def "ai debunk" [
   data?        #file record with name field or plain text
   --ollama(-o) #use ollama model instead of gemini
@@ -2430,6 +2486,8 @@ export def debunk-table [
 }
 
 #analyze and summarize paper using ai
+@category ai
+@search-terms ai-tool paper analyze chatgpt gemini ollama
 export def "ai analyze_paper" [
   paper?       #filename of the input paper
   --gpt4(-g)   #use gpt-4.1 instead of gemini
@@ -2512,6 +2570,8 @@ export def "ai analyze_paper" [
 }
 
 #analyze and summarize paper using ai
+@category ai
+@search-terms ai-tool chatgpt gemono ollama analyze summarize
 export def "ai analyze_ai_generated_text" [
   text?        #input text
   --gpt4(-g)   #use gpt-4.1 instead of gemini
@@ -2564,6 +2624,8 @@ export def "ai analyze_ai_generated_text" [
 }
 
 #clean text using ai
+@category ai
+@search-terms chathpt gemini ollama
 export def "ai clean-text" [
   text?                #raw text to clean
   --gpt4(-g) = false   #use gpt4 instead of gemini
@@ -2582,6 +2644,8 @@ export def "ai clean-text" [
 }
 
 # analyze religious text using ai
+@category ai
+@search-terms chatgpt gemini ollama
 export def "ai analyze_religious_text" [
   data?        #file record with name field or plain text
   --gpt4(-g)   #use gpt-4.1 to consolidate the debunk instead of gemini-2.5
@@ -2686,6 +2750,8 @@ export def "ai analyze_religious_text" [
 }
 
 #fix json input
+@category ai
+@search-terms gemini ollama
 export def "ai fix-json" [
   json?:string
   --ollama(-o) #use ollama model instead of gemini
@@ -2727,6 +2793,8 @@ export def "ai fix-json" [
 #Note that:
 # - --select_system > --list_system > --system
 # - --select_preprompt > --pre_prompt
+@category ai
+@search-terms claude
 export def claude_ai [
     query?: string                                 # the query to Chat GPT
     --model(-m):string = "claude-3-5-haiku-latest" # the model claude-3-opus-latest, claude-3-5-sonnet-latest, etc
@@ -2897,6 +2965,8 @@ export def claude_ai [
 }
 
 #single call ollama wrapper
+@category ai
+@search-terms ollama
 export def o_llama [
   query?: string
   --model(-m):string
@@ -3247,6 +3317,8 @@ def save_ollama_chat [
 #   - conservative (just up-scaling): 25 credits, 64x64 to 1MP input, up to 4k 5MP output (default)
 #   - creative (upscale and re-imagining): 25 credits, 64x64 to 1MP input, up to 4k 5MP output
 #   - fast (just up-scaling): 1 credit, up to 4x but max 16 MP output, suitable for enhancing the quality of compressed images
+@category ai
+@search-terms stable-diffusion
 export def stable_diffusion [
     prompt?: string                     #the query to the models
     --model(-m):string                  #the model to use, depending on the task
@@ -3428,6 +3500,8 @@ export def stable_diffusion [
 #
 #You must use the flag --safety_settings and provide a table with two columns:
 # - category and threshold
+@category ai
+@search-terms google gemini imagen
 export def google_aimage [
     query?: string                     # the query to Gemini
     --model(-m):string = "gemini"      #the model: gemini or imagen
@@ -3593,6 +3667,8 @@ export def google_aimage [
 #https://github.com/zylon-ai/private-gpt
 #
 #If using non modified version of private-gpt, the default url is http://0.0.0.0:8001
+@category ai
+@search-terms private-gpt
 export def run-private-gpt [
   profile:string = "ollama"
   --server-url(-u):string = "127.0.0.1"
@@ -3612,6 +3688,8 @@ export def run-private-gpt [
 #single call private-gpt wrapper
 #
 #https://github.com/zylon-ai/private-gpt
+@category ai
+@search-terms private-gpt
 export def private_gpt [
   prompt?: string
   --base-url(-u): string = "http://127.0.0.1:8001" #url of the private gpt service
@@ -3835,6 +3913,8 @@ export def private_gpt [
 export alias pchat = private_gpt -c
 
 #get list of document of a private-gpt instance
+@category ai
+@search-terms private-gpt
 export def "private_gpt list" [
   base_url: string = "http://127.0.0.1:8001" #url of the private gpt service
 ] {
@@ -3842,6 +3922,8 @@ export def "private_gpt list" [
 }
 
 #delete ingested documents of a private-gpt instance
+@category ai
+@search-terms private-gpt
 export def "private_gpt delete" [
   base_url: string = "http://127.0.0.1:8001" #url of the private gpt service
 ] {
@@ -3861,6 +3943,8 @@ export def "private_gpt delete" [
 }
 
 #ingest files in a private-gpt instance
+@category ai
+@search-terms private-gpt
 export def "private_gpt ingest" [
   file? #file path to ingest or list of file paths
   base_url: string = "http://127.0.0.1:8001" #url of the private gpt service
