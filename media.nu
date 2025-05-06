@@ -821,7 +821,8 @@ export def "media delete-mps" [] {
 #mpv
 export def mpv [
   video?, 
-  --ontop(-o)
+  --on-top(-o)
+  --in-terminal(-i)
 ] {
   let video = get-input $in $video
   let type = $video | typeof
@@ -838,8 +839,10 @@ export def mpv [
         }
       )
 
-      if $ontop {
+      if $on_top {
         ^mpv --save-position-on-quit --no-border --ontop $file
+      } else if $in_terminal {
+        ^mpv --save-position-on-quit --vo=kitty --really-quiet $file
       } else {
         ^mpv --save-position-on-quit --no-border $file
       } 
