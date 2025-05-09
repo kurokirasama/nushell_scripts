@@ -595,7 +595,7 @@ export def askai [
     }
   )
 
-  let gemini_model = if $paid {"gemini-2.5-pro-preview-03-25"} else if $gemini_2_5 {"gemini-2.5"} else {"gemini-2.0"}
+  let gemini_model = if $paid {"gemini-2.5-pro-preview-05-06"} else if $gemini_2_5 {"gemini-2.5"} else {"gemini-2.0"}
   
   #chat mode
   if $chat {
@@ -974,7 +974,7 @@ export def "ai media-summary" [
 
     let prompt = (open $temp_output)
     let model = if $gemini {"gemini"} else if $claude {"claude"} else if $ollama {"ollama"} else {"chatgpt"}
-    let gemini_model = if $paid {"gemini-2.5-pro-preview-03-25"} else if $gemini_2_5 {"gemini-2.5-pro-exp-03-25"} else {"gemini-2.0"}
+    let gemini_model = if $paid {"gemini-2.5-pro-preview-05-06"} else if $gemini_2_5 {"gemini-2.5-pro-exp-03-25"} else {"gemini-2.0"}
 
     print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
 
@@ -1022,7 +1022,7 @@ export def "ai transcription-summary" [
 ] {
   let output_file = $"($output | path parse | get stem).md"
   let model = if $gemini {"gemini"} else if $claude {"claude"} else {"chatgpt"}
-  let gemini_model = if $paid {"gemini-2.5-pro-preview-03-25"} else if $gemini_2_5 {"gemini-2.5-pro-exp-03-25"} else {"gemini-2.0"}
+  let gemini_model = if $paid {"gemini-2.5-pro-preview-05-06"} else if $gemini_2_5 {"gemini-2.5-pro-exp-03-25"} else {"gemini-2.0"}
   let complete_flag = $complete | is-not-empty
 
   if $complete_flag and not ($complete | path expand | path exists) {
