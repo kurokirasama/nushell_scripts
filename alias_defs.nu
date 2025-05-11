@@ -85,9 +85,27 @@ export def --wrapped m [
 }
 
 #wrapper for timg
-export def timg [file?] {
-  let file = if ($file | is-empty) {$in | get name} else {$file}
-  ^timg $file 
+export def timg [
+  file?
+] {
+  let file = get-input $in $file
+  let type = $file | typeof
+
+  match $type {
+    "table" | "list" => {
+      $file | each {|f| $f | timg}
+    },
+    _ => {
+      let file = (
+        match $type {
+          "record" => {$file | get name | ansi strip},
+          "string" => {$file | ansi strip}
+        }
+      )
+
+      ^timg $file
+    }
+  }
 }
 
 #download subtitles via subliminal

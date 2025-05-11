@@ -1047,3 +1047,14 @@ export def "apps-update mega-get" [] {
   sudo apt install ("megacmd-xUbuntu_24.04_amd64.deb" | path expand)
   mv -u megacmd-xUbuntu_24.04_amd64.deb $env.MY_ENV_VARS.debs
 }
+
+#update timg
+export def "apps-update timg" [] {
+  cd ~/software/timg
+  git pull
+  ^mkdir -p build
+  cd build 
+  cmake ../ -DWITH_OPENSLIDE_SUPPORT=On
+  make
+  sudo make install
+}
