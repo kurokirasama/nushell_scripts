@@ -255,13 +255,12 @@ let new_keybinds_names = ["alias_menu"
     "completion_menu" 
     "ide_completion_menu" 
     "copy_command"
-    "my_history_menu"
     "change_dir_with_fzf"
     "select_file_fzf"
     "delete_one_word_backward"
     "insert_view_code"
     "insert_let"
-]
+] #"my_history_menu"
 
 let new_keybinds = [
     {
@@ -322,13 +321,13 @@ let new_keybinds = [
                 { edit: InsertString,
                   value: "sudo "
                 }
-                { edit: MoveToEnd }
+                { send: Enter }
                ]
     },
     {
         name: completion_menu
-        modifier: control
-        keycode: char_i
+        modifier: none
+        keycode: tab
         mode: [emacs vi_normal vi_insert]
         event: {
             until: [
@@ -340,8 +339,8 @@ let new_keybinds = [
     },
     {
         name: ide_completion_menu
-        modifier: none
-        keycode: tab
+        modifier: control
+        keycode: char_i
         mode: [emacs vi_normal vi_insert]
         event: {
             until: [
@@ -360,13 +359,6 @@ let new_keybinds = [
             send: executehostcommand
             cmd: "commandline | xsel --input --clipboard; commandline edit --append ' # copied'"
         }
-    },
-    {
-        name: my_history_menu
-        modifier: alt
-        keycode: char_r
-        mode: [emacs, vi_insert, vi_normal]
-        event: { send: menu name: my_history_menu }
     },
     {
         name: change_dir_with_fzf
@@ -407,7 +399,7 @@ let new_keybinds = [
                 { edit: InsertString,
                   value: "view-code "
                 }
-                { edit: MoveToEnd }
+                { send: Enter }
                ]
     },
     {
@@ -424,6 +416,14 @@ let new_keybinds = [
                ]
     },
 ]
+
+    # {
+    #     name: my_history_menu
+    #     modifier: alt
+    #     keycode: char_r
+    #     mode: [emacs, vi_insert, vi_normal]
+    #     event: { send: menu name: my_history_menu }
+    # },
 
 $env.config.keybindings = $env.config.keybindings | where name not-in $new_keybinds | append $new_keybinds
 
