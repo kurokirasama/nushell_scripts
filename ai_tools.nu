@@ -473,7 +473,7 @@ export def askai [
   --fast(-f)   #get prompt from prompt.md file and save response to answer.md
   --gemini(-G) #use google gemini instead of chatgpt. gemini-2.5 for chat, gemini-2.0 otherwise
   --gemini-2-5(-X)        #use gemini-2.5-free
-  --paid        # use google gemini-2.5-pro-preview-03-25 (paid version) (needs --gemini)
+  --paid        # use google gemini-2.5-pro-preview-05-06 (paid version) (needs --gemini)
   --bison(-b)  #use google bison instead of chatgpt (needs --gemini)
   --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt4
   --database(-D)   #load chat conversation from database
@@ -974,7 +974,7 @@ export def "ai media-summary" [
 
     let prompt = (open $temp_output)
     let model = if $gemini {"gemini"} else if $claude {"claude"} else if $ollama {"ollama"} else {"chatgpt"}
-    let gemini_model = if $paid {"gemini-2.5-pro-preview-05-06"} else if $gemini_2_5 {"gemini-2.5-pro-exp-03-25"} else {"gemini-2.0"}
+    let gemini_model = if $paid {"gemini-2.5-pro-preview-05-06"} else if $gemini_2_5 {"gemini-2.5-flash-preview-04-17"} else {"gemini-2.0"}
 
     print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
 
@@ -1012,8 +1012,8 @@ export def "ai transcription-summary" [
   --complete(-c):string #use complete preprompt with input file as the incomplete summary
   --gpt4(-g) = false    #whether to use gpt-4.1
   --gemini(-G) = false  #use google gemini-2.0
-  --gemini-2-5(-X) = false # gemini-2.5-pro-exp-03-25
-  --paid(-p) = false    #use gemini-2.5-pro-preview-03-25 (paid)
+  --gemini-2-5(-X) = false # gemini-2.5-flash-preview-04-17
+  --paid(-p) = false    #use gemini-2.5-pro-preview-05-06 (paid)
   --claude(-C) = false  #use anthropic claide
   --ollama(-o) = false  #use ollama
   --ollama_model(-m):string #ollama model to use
@@ -1022,7 +1022,7 @@ export def "ai transcription-summary" [
 ] {
   let output_file = $"($output | path parse | get stem).md"
   let model = if $gemini {"gemini"} else if $claude {"claude"} else {"chatgpt"}
-  let gemini_model = if $paid {"gemini-2.5-pro-preview-05-06"} else if $gemini_2_5 {"gemini-2.5-pro-exp-03-25"} else {"gemini-2.0"}
+  let gemini_model = if $paid {"gemini-2.5-pro-preview-05-06"} else if $gemini_2_5 {"gemini-2.5-flash-preview-04-17"} else {"gemini-2.0"}
   let complete_flag = $complete | is-not-empty
 
   if $complete_flag and not ($complete | path expand | path exists) {
@@ -1560,8 +1560,8 @@ export def tts [
 #single call to google ai LLM api wrapper and chat mode
 #
 #Available models at https://ai.google.dev/models:
-# - gemini-2.5-pro-preview-03-25 (paid version)
-# - gemini-2.5-pro-exp-03-25: Audio, images, video, and text -> text, 1048576 (tokens)
+# - gemini-2.5-pro-preview-05-06 (paid version)
+# - gemini-2.5-flash-preview-04-17: Audio, images, video, and text -> text, 1048576 (tokens)
 # - gemini-2.0-flash-exp-image-generation: images and text -> image and text
 # - gemini-2.0-flash: Audio, images, video, and text -> Audio, images, and text, 1048576 (tokens), 10 RPM
 # - gemini-2.0-flash-lite Audio, images, video, and text -> Audio, images, and text, 1048576 (tokens), 10 RPM
@@ -1660,7 +1660,7 @@ export def google_ai [
   let input_model = $model
   let model = if $model == "gemini-pro-vision" {"gemini-2.0-flash"} else {$model}
   let model = if $model == "gemini-2.0" {"gemini-2.0-flash"} else {$model}
-  let model = if $model == "gemini-2.5" {"gemini-2.5-pro-exp-03-25"} else {$model}
+  let model = if $model == "gemini-2.5" {"gemini-2.5-flash-preview-04-17"} else {$model}
 
   let url_request = {
       scheme: "https",
@@ -1979,7 +1979,7 @@ export def google_ai [
   #trying different models in case of error
   mut answer = []
   mut index_model = 0
-  let models = ["gemini-2.5-pro-exp-03-25" "gemini-2.0-pro-exp" "gemini-1.5-pro" "gemini-2.0-flash" "gemini-2.0-flash-lite" "gemini-1.5-flash"]
+  let models = ["gemini-2.5-flash-preview-04-17" "gemini-1.5-pro" "gemini-2.0-flash" "gemini-2.0-flash-lite" "gemini-1.5-pro" "gemini-1.5-flash"]
   let n_models = $models | length 
   
   if $verbose {print ("retrieving from gemini models...")}
