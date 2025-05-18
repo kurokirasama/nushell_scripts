@@ -1,4 +1,6 @@
 #get bitly short link
+@category apis
+@search-terms bitly shortlink
 export def bitly [longurl] {
   if ($longurl | is-empty) {
     return-error "no url provided!"
@@ -31,6 +33,8 @@ export def bitly [longurl] {
 #swedish: sv-SV
 #
 #More in: https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes
+@category apis
+@search-terms mymemmory translate
 export def trans [
   ...text:string    #search query
   --from:string     #from which language you are translating (default english)
@@ -81,6 +85,8 @@ export def trans [
 }
 
 #get rebrandly short link
+@category apis
+@search-terms rebrandly shortlink
 export def "rebrandly get" [longurl] {
   if ($longurl | is-empty) {
     return-error "no url provided"
@@ -100,6 +106,8 @@ export def "rebrandly get" [longurl] {
 } 
 
 #list rebrandly last 25 short links
+@category apis
+@search-terms rebrandly shortlink
 export def "rebrandly list" [longurl="www.google.com"] {
   if ($longurl | is-empty) {
     return-error "no url provided"
@@ -124,6 +132,8 @@ export def "rebrandly list" [longurl="www.google.com"] {
 }
 
 #get eta via maps api
+@category apis
+@search-terms google maps
 export def "maps eta" [
   origin:string       #origin gps coordinates or address
   destination:string  #destination gps coordinates or address
@@ -222,6 +232,8 @@ export def "maps eta" [
 }
 
 #get geo-coordinates from address
+@category apis
+@search-terms google coordinates
 export def "maps loc-from-address" [address:string] {
   let mapsAPIkey = $env.MY_ENV_VARS.api_keys.google.general
   
@@ -239,6 +251,8 @@ export def "maps loc-from-address" [address:string] {
 }
 
 #get address from geo-coordinates
+@category apis
+@search-terms google coordinates
 export def "maps address-from-loc" [latitude:number,longitude:number] {
   let mapsAPIkey = $env.MY_ENV_VARS.api_keys.google.general
 
@@ -264,6 +278,8 @@ export def "maps address-from-loc" [latitude:number,longitude:number] {
 #clp exchange rates via fixer.io API
 #
 #Show CLP/CLF,USD,BTC,new_currency exchange
+@category apis
+@search-terms fixer.io exchange currency
 export def exchange_rates [
   new_currency?:string  #include unique new currency
   --symbols(-s)         #only show available symbols
@@ -329,6 +345,8 @@ export def exchange_rates [
 }
 
 # Translate text using Google Translate
+@category apis
+@search-terms google translate 
 export def gg-trans [
   text?: string # The text to translate
   --source(-s): string = "auto", # The source language
@@ -370,6 +388,8 @@ export def gg-trans [
 }
 
 #google search
+@category apis
+@search-terms google search
 export def google_search [
   ...query:string
   --number_of_results(-n):int = 5 #number of results to use
@@ -456,6 +476,8 @@ export def google_search [
 }
 
 #check obsidian server
+@category apis
+@search-terms obsidian
 export def "obs check" [] {
   let apikey = $env.MY_ENV_VARS.api_keys.obsidian.local_rest_apikey
   let host = $env.MY_ENV_VARS.api_keys.obsidian.host
@@ -474,6 +496,8 @@ export def "obs check" [] {
 }
 
 #check obsidian path
+@category apis
+@search-terms obsidian
 export def "obs check-path" [
   v_path:string # path in vault
 ] {
@@ -504,6 +528,8 @@ export def "obs check-path" [
 #
 # mv to http get/post when ready
 # let response = https post $url {} --content-type "application/json" -H ["Authorization:", $"Bearer ($apikey)"] --certificate
+@category apis
+@search-terms obsidiam
 export def "obs search" [
   ...query    #search query (in title and body)
   --tag(-t):string   #search in tag (use search, in progress)
@@ -564,6 +590,8 @@ export def "obs search" [
 }
 
 #obsidian create new note
+@category apis
+@search-terms obsidian
 export def "obs create" [
   name:string   # name of the note
   content?:string # content of the note
@@ -739,6 +767,8 @@ def lazypy [voice service text] {
 }
 
 # gets JSON list of TTS voices
+@category apis
+@search-terms tts
 export def "nutts list" [] {
   let list = try {
     http get "https://raw.githubusercontent.com/simoniz0r/nuTTS/main/tts_list.json"
@@ -751,6 +781,8 @@ export def "nutts list" [] {
 # gets TTS audio for given service, returns base64 encoded audio
 #
 # results are output in JSON format
+@category apis
+@search-terms tts
 export def nutts [
     text?:string # text to speek
     service?:string # service voice is from
@@ -797,6 +829,8 @@ export def nutts [
 # Usage example:
 # search-contacts "John" --count 5
 # search-contacts "example.com" --fields "names,emailAddresses"
+@category apis
+@search-terms google contacts
 export def gg-contacts [
     search_term: string   # The term to search for in contacts
     --count(-c): int = 10 # Number of results to return (default 10)
