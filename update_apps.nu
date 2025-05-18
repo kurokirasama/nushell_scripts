@@ -853,7 +853,7 @@ export def "apps-update yt-dlp" [] {
 
 #update nchat (wsp)
 export def "apps-update nchat" [] {
-  sudo rm (which nchat | get path | get 0)
+  try {sudo rm (which nchat | get path | get 0)}
   cd ~/software/nchat
   git pull
   
