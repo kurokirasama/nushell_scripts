@@ -1058,3 +1058,8 @@ export def "apps-update timg" [] {
   make
   sudo make install
 }
+
+#update subliminal
+export def "apps-update subliminal" [] {
+  pipx upgrade maestral
+}
