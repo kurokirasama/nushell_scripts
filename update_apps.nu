@@ -1061,5 +1061,5 @@ export def "apps-update timg" [] {
 
 #update subliminal
 export def "apps-update subliminal" [] {
-  pipx upgrade maestral
+  pipx upgrade subliminal
 }
