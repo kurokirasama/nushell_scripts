@@ -638,7 +638,7 @@ export def askai [
       if $vision {
         claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-vision -d true -i $image --select_preprompt $pre_prompt --select_system $system -w $web_search -n $web_results --web_model $web_model
       } else {
-        claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-3.7 -d true  --select_preprompt $pre_prompt --select_system $system --document $document -w $web_search -n $web_results --web_model $web_model
+        claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-4 -d true  --select_preprompt $pre_prompt --select_system $system --document $document -w $web_search -n $web_results --web_model $web_model
       }
     )
 
@@ -983,7 +983,7 @@ export def "ai media-summary" [
     } else if $gemini {
       google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $gemini_model
     } else if $claude {
-      claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-3.7
+      claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-4
     } else if $ollama {
       o_llama $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $ollama_model
     } else {
@@ -1065,7 +1065,7 @@ export def "ai transcription-summary" [
   } else if $gemini {
     google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $gemini_model
   } else if $claude {
-    claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-3.7
+    claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-4
   } else if $ollama {
     o_llama $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $ollama_model
   } else {
@@ -2776,6 +2776,8 @@ export def "ai fix-json" [
 #single call to anthropic claude ai LLM api wrapper
 #
 #Available models at https://docs.anthropic.com/en/docs/about-claude/models
+# - claude-opus-4-20250514
+# - claude-sonnet-4-20250514
 # - claude-3-7-sonnet-latest: text & images & audio -> text, 200000 tokens input, 8192 tokens output
 # - claude-3-5-sonnet-latest: text & images & audio -> text, 200000 tokens input, 8192 tokens output
 # - claude-3-5-haiku-20241022: text -> text, 200000 tokens input, 8192 tokens output
@@ -2903,11 +2905,12 @@ export def claude_ai [
 
   # default models
   let input_model = $model
+  let model = if $model == "claude-4" {"claude-opus-4-20250514"} else {$model}
   let model = if $model == "claude-3.7" {"claude-3-7-sonnet-latest"} else {$model}
   let model = if $model == "claude-3.5" {"claude-3-5-sonnet-latest"} else {$model}
   let model = if $model == "claude-vision" {"claude-3-5-sonnet-latest"} else {$model}
 
-  let max_tokens = if $model like "claude-3-" {8192} else {4096}
+  let max_tokens = if $model like "claude-4-" {32000} else if $model like "claude-3-7" {64000} else if $model like "claude-3-5" {8192} else {4096}
 
   # call to api
   let header = {x-api-key: $env.MY_ENV_VARS.api_keys.anthropic.api_key, anthropic-version: $anthropic_version}
