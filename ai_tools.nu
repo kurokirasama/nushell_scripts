@@ -1655,12 +1655,12 @@ export def google_ai [
   let for_bison_beta = if ($model like "bison") {"3"} else {""}
   let for_bison_gen = if ($model like "bison") {":generateText"} else {":generateContent"}
 
-  let max_output_tokens = if $model =~ "gemini2.5" {65536} else {8192}
+  let max_output_tokens = if $model =~ "gemini-2.5" {65536} else {8192}
 
   let input_model = $model
   let model = if $model == "gemini-pro-vision" {"gemini-2.0-flash"} else {$model}
   let model = if $model == "gemini-2.0" {"gemini-2.0-flash"} else {$model}
-  let model = if $model == "gemini-2.5" {"gemini-2.5-flash-preview-04-17"} else {$model}
+  let model = if $model == "gemini-2.5" {"gemini-2.5-flash-preview-05-20"} else {$model}
 
   let url_request = {
       scheme: "https",
@@ -1979,7 +1979,7 @@ export def google_ai [
   #trying different models in case of error
   mut answer = []
   mut index_model = 0
-  let models = ["gemini-2.5-flash-preview-04-17" "gemini-1.5-pro" "gemini-2.0-flash" "gemini-2.0-flash-lite" "gemini-1.5-pro" "gemini-1.5-flash"]
+  let models = ["gemini-2.5-flash-preview-05-20" "gemini-1.5-pro" "gemini-2.0-flash" "gemini-2.0-flash-lite" "gemini-1.5-pro" "gemini-1.5-flash"]
   let n_models = $models | length 
   
   if $verbose {print ("retrieving from gemini models...")}
