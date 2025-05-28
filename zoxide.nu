@@ -1,9 +1,9 @@
 # Jump to a directory using only keywords.
-export def --env z [...rest:string@"__z_complete"] {
+export def --env --wrapped z [...rest:string@"__z_complete"] {
   let path = match $rest {
     [] => {'~'},
     [ '-' ] => {'-'},
-    [ $arg ] if ($arg | path type) == 'dir' => {$arg}
+    [ $arg ] if ($arg | path expand | path type) == 'dir' => {$arg}
     _ => {
       zoxide query --exclude $env.PWD -- ...$rest | str trim -r -c "\n"
     }
@@ -12,7 +12,7 @@ export def --env z [...rest:string@"__z_complete"] {
 }
 
 # Jump to a directory using interactive search.
-export def --env zi [...rest:string@"__z_complete"] {
+export def --env --wrapped zi [...rest:string@"__z_complete"] {
   cd $'(zoxide query --interactive -- ...$rest | str trim -r -c "\n")'
 }
 

@@ -2905,7 +2905,7 @@ export def claude_ai [
 
   # default models
   let input_model = $model
-  let model = if $model == "claude-4" {"claude-opus-4-20250514"} else {$model}
+  let model = if $model == "claude-4" {"claude-sonnet-4-20250514"} else {$model}
   let model = if $model == "claude-3.7" {"claude-3-7-sonnet-latest"} else {$model}
   let model = if $model == "claude-3.5" {"claude-3-5-sonnet-latest"} else {$model}
   let model = if $model == "claude-vision" {"claude-3-5-sonnet-latest"} else {$model}

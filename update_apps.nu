@@ -1063,3 +1063,8 @@ export def "apps-update timg" [] {
 export def "apps-update subliminal" [] {
   pipx upgrade subliminal
 }
+
+#update nvitop
+export def "apps-update nvitop" [] {
+  pipx install "git+https://github.com/XuehaiPan/nvitop.git#egg=nvitop" --force
+}
