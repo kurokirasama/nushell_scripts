@@ -1,4 +1,6 @@
 #backup sublime settings
+@category backup
+@search-terms sublime
 export def "subl backup" [] {
   cd $env.MY_ENV_VARS.linux_backup
 
@@ -9,6 +11,8 @@ export def "subl backup" [] {
 }
 
 #restore sublime settings
+@category backup
+@search-terms sublime
 export def "subl restore" [] {
   cd $env.MY_ENV_VARS.linux_backup
 
@@ -17,6 +21,8 @@ export def "subl restore" [] {
 }
 
 #backup nchat settings
+@category backup
+@search-terms nchat
 export def "nchat backup" [] {
   cd $env.MY_ENV_VARS.linux_backup
 
@@ -26,6 +32,8 @@ export def "nchat backup" [] {
 }
 
 #restore nchat settings
+@category backup
+@search-terms nchat
 export def "nchat restore" [] {
   cd $env.MY_ENV_VARS.linux_backup
 
@@ -33,28 +41,38 @@ export def "nchat restore" [] {
 }
 
 #backup gnome extensions settings
+@category backup
+@search-terms gnome
 export def "gnome-extensions backup" [output_file:string = "gnome_shell_extensions_backup_24.04.txt"] {
   let file = $env.MY_ENV_VARS.linux_backup | path join extensions | path join 24.04 | path join $output_file
   dconf dump /org/gnome/shell/extensions/ | save -f $file
 }
 
 #restore gnome extensions settings
+@category backup
+@search-terms gnome
 export def "gnome-extensions restore" [output_file:string = "gnome_shell_extensions_backup_24.04.txt"] {
   let file = $env.MY_ENV_VARS.linux_backup | path join extensions | path join 24.04 | path join $output_file
   bash -c $"dconf load /org/gnome/shell/extensions/ < ($file)"
 }
 
 #backup libre office settings
+@category backup
+@search-terms libreoffice
 export def "libreoff backup" [] {
   cp -r ~/.config/libreoffice/* ([$env.MY_ENV_VARS.linux_backup libreoffice] | path join)
 }
 
 #restore libre office settings
+@category backup
+@search-terms libreoffice
 export def "libreoff restore" [] {
   cp -r ($env.MY_ENV_VARS.linux_backup + "/libreoffice/*") ~/.config/libreoffice/
 }
 
 #filter commands for sublime syntax file
+@category utility
+@search-terms filter
 export def filter-command [type_of_command:string] {
   scope commands
   | where type == $type_of_command
@@ -67,6 +85,8 @@ export def filter-command [type_of_command:string] {
 }
 
 #update nushell sublime syntax
+@category utility
+@search-terms nushell sublime
 export def "nushell-syntax-2-sublime" [
  --push(-p) #push changes in submile syntax repo
 ] {
@@ -122,6 +142,8 @@ export def "nushell-syntax-2-sublime" [
 }
 
 #backup nushell history
+@category backup
+@search-terms history backup
 export def "history backup" [
   output?:string = "hist" #output filename
 ] {
@@ -129,6 +151,8 @@ export def "history backup" [
 }
 
 #export rclone config
+@category backup
+@search-terms rclone config export
 export def "rclone export" [] {
   cd ~/.config/rclone
   nu-crypt -e -n rclone.conf
@@ -136,6 +160,8 @@ export def "rclone export" [] {
 }
 
 #import rclone config
+@category backup
+@search-terms rclone config import
 export def "rclone import" [] {
   cd $env.MY_ENV_VARS.linux_backup
   nu-crypt -d -n rclone.conf.asc | save -f ~/.config/rclone/rclone.conf
@@ -143,21 +169,29 @@ export def "rclone import" [] {
 }
 
 #backup guake settings
+@category backup
+@search-terms guake backup
 export def "guake backup" [] {
   guake --save-preferences ($env.MY_ENV_VARS.linux_backup | path join guakesettings.txt)
 }
 
 #restore guake settings
+@category backup
+@search-terms guake restore
 export def "guake restore" [] {
   guake --restore-preferences ($env.MY_ENV_VARS.linux_backup | path join guakesettings.txt)
 }
 
 #export zoxide database
+@category backup
+@search-terms zoxide backup
 export def "zoxide backup" [] {
   cp ~/.local/share/zoxide/db.zo $env.MY_ENV_VARS.linux_backup
 }
 
 #backup sublime settings
+@category backup
+@search-terms zed backup
 export def "zed backup" [] {
   cd $env.MY_ENV_VARS.zed_backup
   7z max zed_config ("~/.config/zed" | path expand)
@@ -168,6 +202,8 @@ export def "zed backup" [] {
 }
 
 #restore sublime settings
+@category backup
+@search-terms zed restore
 export def "zed restore" [] {
   cd $env.MY_ENV_VARS.zed_backup
 
