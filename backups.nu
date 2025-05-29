@@ -3,7 +3,7 @@ export def "subl backup" [] {
   cd $env.MY_ENV_VARS.linux_backup
 
   let source_dir = "~/.config/sublime-text"
-  
+
   7z max sublime-Packages.7z ($source_dir | path join Packages | path expand)
   7z max sublime-installedPackages.7z ($source_dir | path join "Installed Packages" | path expand)
 }
@@ -11,7 +11,7 @@ export def "subl backup" [] {
 #restore sublime settings
 export def "subl restore" [] {
   cd $env.MY_ENV_VARS.linux_backup
-  
+
   7z x sublime-installedPackages.7z -o/home/kira/.config/sublime-text/
   7z x sublime-Packages.7z -o/home/kira/.config/sublime-text/
 }
@@ -21,7 +21,7 @@ export def "nchat backup" [] {
   cd $env.MY_ENV_VARS.linux_backup
 
   let source_dir = "~/.nchat" | path expand
-  
+
   7z max nchat_config.7z ($source_dir + "/*.conf")
 }
 
@@ -58,7 +58,7 @@ export def "libreoff restore" [] {
 export def filter-command [type_of_command:string] {
   scope commands
   | where type == $type_of_command
-  | get name 
+  | get name
   | each {|com|
       $com | split row " " | get 0
     }
@@ -75,19 +75,19 @@ export def "nushell-syntax-2-sublime" [
   let custom = filter-command custom
   let keywords = filter-command keyword
 
-  let aliases = scope aliases 
-      | get name 
+  let aliases = scope aliases
+      | get name
       | uniq
       | str join " | "
 
-  let personal_external = $env.PATH 
-    | find -n bash & nushell 
+  let personal_external = $env.PATH
+    | find -n bash & nushell
     | get 0
     | path expand
-    | ls $in 
-    | find -v Readme 
-    | get name 
-    | path parse 
+    | ls $in
+    | find -v Readme
+    | get name
+    | path parse
     | get stem
     | str join " | "
 
@@ -103,14 +103,14 @@ export def "nushell-syntax-2-sublime" [
   let operators = "    (?x: " + $operators + ")"
 
   let new_commands = [] ++ [$builtin] ++ [$custom] ++ [$plugins] ++ [$keywords] ++ [$aliases] ++ [$personal_external] ++ [$operators]
- 
+
   mut file = open ~/.config/sublime-text/Packages/User/nushell.sublime-syntax | lines
   let idx = $file | indexify | find '(?x:' | get index | drop | enumerate
 
   for i in $idx {
     $file = $file | upsert $i.item ($new_commands | get $i.index)
   }
-  
+
   $file | save -f ~/.config/sublime-text/Packages/User/nushell.sublime-syntax
 
   cp ~/.config/sublime-text/Packages/User/nushell.sublime-syntax $env.MY_ENV_VARS.nushell_syntax_public
@@ -125,12 +125,12 @@ export def "nushell-syntax-2-sublime" [
 export def "history backup" [
   output?:string = "hist" #output filename
 ] {
-  open $nu.history-path | query db $"vacuum main into '($output).db'" 
+  open $nu.history-path | query db $"vacuum main into '($output).db'"
 }
 
 #export rclone config
 export def "rclone export" [] {
-  cd ~/.config/rclone  
+  cd ~/.config/rclone
   nu-crypt -e -n rclone.conf
   mv rclone.conf.asc $env.MY_ENV_VARS.linux_backup
 }
@@ -138,7 +138,7 @@ export def "rclone export" [] {
 #import rclone config
 export def "rclone import" [] {
   cd $env.MY_ENV_VARS.linux_backup
-  nu-crypt -d -n rclone.conf.asc | save -f ~/.config/rclone/rclone.conf  
+  nu-crypt -d -n rclone.conf.asc | save -f ~/.config/rclone/rclone.conf
   rclone listremotes
 }
 
@@ -155,4 +155,22 @@ export def "guake restore" [] {
 #export zoxide database
 export def "zoxide backup" [] {
   cp ~/.local/share/zoxide/db.zo $env.MY_ENV_VARS.linux_backup
+}
+
+#backup sublime settings
+export def "zed backup" [] {
+  cd $env.MY_ENV_VARS.zed_backup
+  7z max zed_config ("~/.config/zed" | path expand)
+
+  cd ~/.local/share/zed
+  7z max zed_extensions * -xr!languages
+  mv -f zed_extensions.7z $env.MY_ENV_VARS.zed_backup
+}
+
+#restore sublime settings
+export def "zed restore" [] {
+  cd $env.MY_ENV_VARS.zed_backup
+
+  7z x zed_config.7z -o/home/kira/.config/
+  7z x zed_extensions.7z -o/home/kira/.local/share/zed/
 }

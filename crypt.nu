@@ -1,8 +1,8 @@
 #crypt
 export def nu-crypt [
 	file?
-	--encrypt(-e)			 #is has precedence over decrypt
-	--decrypt(-d)	
+	--encrypt(-e)
+	--decrypt(-d)
 	--output_file(-o):string #only for -d option
 	--no_ui(-n)				 #to ask for password in cli
 ] {
@@ -25,7 +25,7 @@ export def nu-crypt [
 				}
 			}
 		},
-		_ => {return-error "flag combination not allowed!!"} 	
+		_ => {return-error "flag combination not allowed!!"}
 	}
 }
 

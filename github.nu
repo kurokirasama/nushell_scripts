@@ -2,7 +2,7 @@
 export def copy-scripts-and-commit [--gemini(-G) = false] {
   print (echo-g "updating public repository...")
   let files = (
-    ls $env.MY_ENV_VARS.nu_scripts 
+    ls $env.MY_ENV_VARS.nu_scripts
     | find -v private & signature & env_vars & aliases & before & send_not & deprecated & Gemini
     | append (ls $env.MY_ENV_VARS.linux_backup | find -n append)
     | append (ls $env.MY_ENV_VARS.credentials | find -v .asc | find -v credential)
@@ -12,7 +12,7 @@ export def copy-scripts-and-commit [--gemini(-G) = false] {
 
   cd $env.MY_ENV_VARS.nu_scripts_public
   sed -i 's/\/home\/kira\/Yandex.Disk\/Backups\/linux\/my_scripts\/nushell/\/path\/to\/nushell_scripts/g' append_to_config.nu
-  
+
   if $gemini {
     ai git-push -G
   } else {
@@ -26,10 +26,17 @@ export def clone-ubuntu-install [] {
   git clone $env.MY_ENV_VARS.private_linux_backup_repo
 }
 
+#clone yandex.disk repo as main local repo
+export def clone-yandex-disk [] {
+  cd ~/software
+  git clone $env.MY_ENV_VARS.yandex_disk_repo Yandex.Disk
+}
+
 #copy private linux backup dir to private repo and commit (alias quantum)
 export def quick-ubuntu-and-tools-update-module [
-  --update_scripts(-s)  #also update nushell scripts public repo
-  --upload_debs(-d)     #also upload debs files to gdrive
+  --update-scripts(-s)  #also update nushell scripts public repo
+  --upload-debs(-d)     #also upload debs files to gdrive
+  --upload-zed(-z)      #also upload zed files to mega
   --force(-f)           #force the copy
   --gemini(-G)          #use google gemini-1.5-pro-latest instead of gpt-4o
 ] {
@@ -37,16 +44,16 @@ export def quick-ubuntu-and-tools-update-module [
   if not ($destination | path exists) {
     return-error "destination path doesn't exists!!"
   }
-  
+
   copy-yandex-and-commit -G $gemini
-  
+
   print (echo-g "updating private repository...")
   if $force {
     cp -rfp ($env.MY_ENV_VARS.linux_backup + "/*" | into glob) $destination
   } else {
     cp -rup ($env.MY_ENV_VARS.linux_backup + "/*" | into glob) $destination
   }
-  
+
   cd $destination
   if $gemini {
     ai git-push -G
@@ -56,6 +63,7 @@ export def quick-ubuntu-and-tools-update-module [
 
   if $update_scripts {copy-scripts-and-commit -G $gemini}
   if $upload_debs {upload-debs-to-mega}
+  if $upload_zed {upload-zed-backup-to-mega}
 }
 
 #alias for short call
@@ -72,10 +80,10 @@ export def upload-debs-to-gdrive [] {
 
   let old_deb_date = ls ([$env.MY_ENV_VARS.gdrive_debs debs.7z] | path join) | get modified | get 0
 
-  let last_deb_date = ls $env.MY_ENV_VARS.debs | sort-by modified | last | get modified 
+  let last_deb_date = ls $env.MY_ENV_VARS.debs | sort-by modified | last | get modified
 
-  if $last_deb_date > $old_deb_date {   
-    print (echo-g "updating deb files to gdrive...") 
+  if $last_deb_date > $old_deb_date {
+    print (echo-g "updating deb files to gdrive...")
     cd $env.MY_ENV_VARS.debs; cd ..
     7z max debs debs/
     mv -f debs.7z $env.MY_ENV_VARS.gdrive_debs
@@ -93,10 +101,10 @@ export def upload-debs-to-mega [] {
 
   let old_deb_date = ls ([$env.MY_ENV_VARS.mega_debs debs.7z] | path join) | get modified | get 0
 
-  let last_deb_date = ls $env.MY_ENV_VARS.debs | sort-by modified | last | get modified 
+  let last_deb_date = ls $env.MY_ENV_VARS.debs | sort-by modified | last | get modified
 
-  if $last_deb_date > $old_deb_date {   
-    print (echo-g "updating deb files to mega...") 
+  if $last_deb_date > $old_deb_date {
+    print (echo-g "uploading deb files to mega...")
     cd $env.MY_ENV_VARS.debs; cd ..
     7z max debs debs/
     mv -fp debs.7z $env.MY_ENV_VARS.mega_debs
@@ -118,5 +126,25 @@ export def copy-yandex-and-commit [--gemini(-G) = false] {
     ai git-push -G
   } else {
     ai git-push -g
+  }
+}
+
+#upload zed backup to mega
+export def upload-zed-backup-to-mega [] {
+  let mounted = $env.MY_ENV_VARS.mega_debs | path join debs.7z | path expand | path exists
+  if not $mounted {
+    print (echo-g "mounting mega...")
+    rmount $env.MY_ENV_VARS.mega_mount_point
+    sleep 4sec
+  }
+
+  let old_zed_date = ls ([$env.MY_ENV_VARS.mega_debs zed.7z] | path join) | get modified | get 0
+
+  let last_zed_date = ls $env.MY_ENV_VARS.zed_backup | sort-by modified | last | get modified
+
+  if $last_zed_date > $old_zed_date {
+    cd $env.MY_ENV_VARS.zed_backup; cd ..
+    7z max zed zed/
+    mv -fp zed.7z $env.MY_ENV_VARS.mega_debs
   }
 }
