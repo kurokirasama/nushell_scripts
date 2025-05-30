@@ -2,7 +2,7 @@
 #
 #Examples;
 #grep-nu search file.txt
-#ls **/* | some_filter | grep-nu search 
+#ls **/* | some_filter | grep-nu search
 #open file.txt | grep-nu search
 export def grep-nu [
   search:string   #search term
@@ -24,13 +24,13 @@ export def grep-nu [
   } else {
       grep -ihHn $search $entrada
   }
-  | lines 
+  | lines
   | parse "{file}:{line}:{match}"
   | str trim
-  | update match {|f| 
+  | update match {|f|
       $f.match | nu-highlight
     }
-  | update file {|f| 
+  | update file {|f|
       let info = $f.file | path parse
       $info.stem + "." + $info.extension
     }
@@ -66,11 +66,11 @@ export def is-mounted [drive:string] {
 
 #get phone number from google contacts
 export def get-phone-number [search:string] {
-  goobook dquery $search 
-  | from ssv 
-  | rename results 
+  goobook dquery $search
+  | from ssv
+  | rename results
   | where results like '(?P<plus>\+)(?P<nums>\d+)'
-  
+
 }
 
 #open mcomix
@@ -99,19 +99,19 @@ export def nu-sloc [] {
   let stats = (
     ls **/*.nu
     | select name
-    | insert lines { |it| 
-        open $it.name 
-        | size 
-        | get lines 
+    | insert lines { |it|
+        open $it.name
+        | size
+        | get lines
       }
-    | insert blank {|s| 
-        $s.lines - (open $s.name | lines | find --regex '\S' | length) 
+    | insert blank {|s|
+        $s.lines - (open $s.name | lines | find --regex '\S' | length)
       }
-    | insert comments {|s| 
-        open $s.name 
-        | lines 
-        | find --regex '^\s*#' 
-        | length 
+    | insert comments {|s|
+        open $s.name
+        | lines
+        | find --regex '^\s*#'
+        | length
       }
     | sort-by lines -r
   )
@@ -133,22 +133,22 @@ export def --wrapped gg [...search: string] {
   ddgr -n 5 ...$search
 }
 
-#countdown alarm 
+#countdown alarm
 export def countdown [
   n: int #time in seconds
 ] {
   let BEEP = ([$env.MY_ENV_VARS.linux_backup "alarm-clock-elapsed.oga"] | path join)
-  let muted = (pacmd list-sinks 
-    | lines 
-    | find muted 
-    | parse "{state}: {value}" 
-    | get value 
+  let muted = (pacmd list-sinks
+    | lines
+    | find muted
+    | parse "{state}: {value}"
+    | get value
     | get 0
   )
 
   if $muted == 'no' {
     termdown $n
-    ^mpv --no-terminal $BEEP  
+    ^mpv --no-terminal $BEEP
     return
   }
 
@@ -170,7 +170,7 @@ export def check-link [link?,timeout?:duration] {
     }
     return $response
   }
-  
+
   try {
     http get $link -m $timeout | ignore;true
   } catch {
@@ -194,36 +194,36 @@ export def matlab-cli [
   --kill(-k)          #kill current matlab processes
 ] {
   if $kill {
-    ps -l 
-    | find -i matlab 
-    | find local & MATLAB 
+    ps -l
+    | find -i matlab
+    | find local & MATLAB
     | find -v 'MATLAB-language-server' & 'bin/nu'  & 'yandex-disk'
     | each {|row|
         kill -f $row.pid
       }
-    
+
     return
   }
 
   if not $background {
     matlab -nosplash -nodesktop -softwareopengl -sd ($env.PWD) -logfile ("~/Dropbox/matlab" | path join $"($log_file).txt" | path expand) -r "setenv('SHELL', '/bin/bash');"
     return
-  } 
+  }
 
   let log = (date now | format date "%Y.%m.%d_%H.%M.%S") + "_log.txt"
 
   let input = (
     if ($input | is-empty) {
-      ls *.m 
-      | get name 
-      | path parse 
-      | get stem 
+      ls *.m
+      | get name
+      | path parse
+      | get stem
       | input list -f (echo-g "m-file to run: ")
     } else {
       $input | path parse | get stem
     }
   )
-  
+
   let output = if ($output | is-empty) {$log} else {$output + ".txt"}
 
   job spawn {matlab -batch ("setenv('SHELL', '/bin/bash'); " + $input) | save -f $output} | ignore
@@ -255,7 +255,7 @@ export def my-pandoc [
   let file_name = get-input $in $file -n
   let file_base_name = $file_name | path parse | get stem
 
-  pandoc --quiet $file_name -o $"($file_base_name).pdf" --pdf-engine=xelatex -F mermaid-filter -F pandoc-crossref --number-sections --highlight-style $env.MY_ENV_VARS.pandoc_theme
+  pandoc --quiet $file_name -o $"($file_base_name).pdf" --pdf-engine=/usr/bin/xelatex -F mermaid-filter -F pandoc-crossref --number-sections --highlight-style $env.MY_ENV_VARS.pandoc_theme
 
   openf $"($file_base_name).pdf"
 }
@@ -283,12 +283,12 @@ export def scompact [
         $out = ($out | upsert $column {|row| if ($row | get $column | is-empty) {null} else {$row | get $column}} | compact $column  )
       }
   }
-  return $out 
+  return $out
 }
 
 #local http server
 export def --wrapped "http server" [
-  root:string =".", 
+  root:string =".",
   ...rest
 ] {
   simple-http-server $root ...$rest
@@ -304,9 +304,9 @@ export def export-nushell-docs [] {
     cd ~/software
     git clone https://github.com/nushell/nushell.github.io.git
     cd nushell.github.io
-  }  
+  }
 
-  mkdir nushell 
+  mkdir nushell
   cd blog;join-text-files md blog;mv blog.md ../nushell;cd ..
   cd book;join-text-files md book;mv book.md ../nushell;cd ..
   cd commands/categories;join-text-files md categories;mv categories.md ..;cd ..
@@ -321,7 +321,7 @@ export def export-nushell-docs [] {
   cd ~/software/nushell
   cp README.md ([$env.MY_ENV_VARS.ai_database nushell] | path join)
   cd ([$env.MY_ENV_VARS.ai_database nushell] | path join)
-  
+
   join-text-files md all_nushell
   let system_message = (open ([$env.MY_ENV_VARS.chatgpt_config system bash_nushell_programmer.md] | path join)) ++ "\n\nPlease consider the following nushell documentation to elaborate your answer.\n\n"
 
@@ -330,8 +330,8 @@ export def export-nushell-docs [] {
 
 #enable ssh without password
 export def ssh-sin-pass [
-  user:string 
-  ip:string 
+  user:string
+  ip:string
   --port(-p):int = 22
 ] {
   if not ("~/.ssh/id_rsa.pub" | path expand | path exists) {
@@ -344,7 +344,7 @@ export def ssh-sin-pass [
 #clean nerd-fonts repo
 export def nerd-fonts-clean [] {
   cd ~/software/nerd-fonts/
-  rm -rf .git 
+  rm -rf .git
   rm -rf patched-fonts
 }
 
@@ -375,7 +375,7 @@ export def verify [
   let res = match [$and $or $xor] {
     [true false false] => { $inputs | all {|it| (do $op $it) == $test_value} }
     [false true false] => { $inputs | any {|it| (do $op $it) == $test_value} }
-    [false false true] => { 
+    [false false true] => {
       mut res = false
       mut first_true = false
       for $it in $inputs {
@@ -397,25 +397,25 @@ export def verify [
 #Example:
 # flatten-keys $env.config '$env.config'
 def flatten-keys [rec: record, root: string] {
-  $rec | columns | each {|key|    
+  $rec | columns | each {|key|
     let is_record = (
       $rec | get $key | describe --detailed | get type | $in == record
     )
- 
+
     # Recusively return each key plus its subkeys
     [$'($root).($key)'] ++  match $is_record {
       true  => (flatten-keys ($rec | get $key) $'($root).($key)')
       false => []
     }
    } | flatten
-} 
+}
 
 #generates nushell document for llm (gemini and claude)
 export def generate-nushell-doc [] {
   cd ~/software/nushell.github.io
   git pull
   cd book/
-  get-files | cp-pipe ~/temp 
+  get-files | cp-pipe ~/temp
 
   cd ~/temp
   ["3rdpartyprompts.md" "installation.md" "design_notes.md" "background_task.md"] | each {|f|
@@ -444,8 +444,8 @@ export def generate-md-from-dir [output_file = "output.md"] {
   # Initialize output file
   "" | save $output_file
 
-  ls **/* 
-  | where type == file 
+  ls **/*
+  | where type == file
   | where name not-like "png|jpg"
   | where name != $output_file
   | each { |it|
@@ -489,7 +489,7 @@ def "http download" [url:string] {
     } else {
       $attachmentName
     }
-  
+
   http get --raw $url | save $filename
 }
 
@@ -501,4 +501,3 @@ def "http download" [url:string] {
 export def balena [] {
   bash -c $"([$env.MY_ENV_VARS.backup appimages 'balenaEtcher.AppImage'] | path join) 2>/dev/null &"
 }
-
