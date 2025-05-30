@@ -192,13 +192,17 @@ export def "zoxide backup" [] {
 #backup sublime settings
 @category backup
 @search-terms zed backup
-export def "zed backup" [] {
+export def "zed backup" [
+ --extensions(-e) #include backup of extensions
+] {
   cd $env.MY_ENV_VARS.zed_backup
   7z max zed_config ("~/.config/zed" | path expand)
 
-  cd ~/.local/share/zed
-  7z max zed_extensions * -xr!languages
-  mv -f zed_extensions.7z $env.MY_ENV_VARS.zed_backup
+  if $extensions {
+    cd ~/.local/share/zed
+    7z max zed_extensions * -xr!languages
+    mv -f zed_extensions.7z $env.MY_ENV_VARS.zed_backup
+  }
 }
 
 #restore sublime settings
