@@ -195,7 +195,7 @@ export def "zoxide backup" [] {
 export def "zed backup" [
  --extensions(-e) #include backup of extensions
 ] {
-  cd $env.MY_ENV_VARS.zed_backup
+  cd $env.MY_ENV_VARS.linux_backup
   7z max zed_config ("~/.config/zed" | path expand)
 
   if $extensions {
@@ -208,9 +208,15 @@ export def "zed backup" [
 #restore sublime settings
 @category backup
 @search-terms zed restore
-export def "zed restore" [] {
-  cd $env.MY_ENV_VARS.zed_backup
+export def "zed restore" [
+ --extensions(-e) #include backup of extensions
+] {
+  cd $env.MY_ENV_VARS.linux_backup
 
   7z x zed_config.7z -o/home/kira/.config/
-  7z x zed_extensions.7z -o/home/kira/.local/share/zed/
+  
+  if $extensions {
+    cd $env.MY_ENV_VARS.zed_backup
+    7z x zed_extensions.7z -o/home/kira/.local/share/zed/
+  }
 }

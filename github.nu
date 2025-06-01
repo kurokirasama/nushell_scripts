@@ -138,13 +138,12 @@ export def upload-zed-backup-to-mega [] {
     sleep 4sec
   }
 
-  let old_zed_date = ls ([$env.MY_ENV_VARS.mega_debs zed.7z] | path join) | get modified | get 0
+  let old_zed_date = ls ([$env.MY_ENV_VARS.mega_debs zed_extensions.7z] | path join) | get modified | get 0
 
-  let last_zed_date = ls $env.MY_ENV_VARS.zed_backup | sort-by modified | last | get modified
+  let last_zed_date = ls ([$env.MY_ENV_VARS.zed_backup zed_extensions.7z] | path join) | get modified | get 0
 
   if $last_zed_date > $old_zed_date {
-    cd $env.MY_ENV_VARS.zed_backup; cd ..
-    7z max zed zed/
-    mv -fp zed.7z $env.MY_ENV_VARS.mega_debs
+    cd $env.MY_ENV_VARS.zed_backup; 
+    mv -fp zed_extensions.7z $env.MY_ENV_VARS.mega_debs
   }
 }
