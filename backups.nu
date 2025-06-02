@@ -195,7 +195,6 @@ export def "zoxide backup" [] {
 export def "zed backup" [] {
   cd $env.MY_ENV_VARS.linux_backup
   7z max zed_config ("~/.config/zed" | path expand)
-  cp -f ("~/.local/share/zed/extensions/index.json" | path expand) ($env.MY_ENV_VARS.linux_backup | path join zed_extensions.json)
 }
 
 #restore sublime settings
@@ -203,16 +202,5 @@ export def "zed backup" [] {
 @search-terms zed restore
 export def "zed restore" [] {
   cd $env.MY_ENV_VARS.linux_backup
-
   7z x zed_config.7z -o/home/kira/.config/
-  
-  print ("install these manualy from the extensions tab:")
-  print (open zed_extensions.json
-    | get extensions
-    | columns 
-  )
-  print (open zed_extensions.json
-    | get languages
-    | columns 
-  )
 }
