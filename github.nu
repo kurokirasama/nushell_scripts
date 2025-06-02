@@ -63,7 +63,7 @@ export def quick-ubuntu-and-tools-update-module [
 
   if $update_scripts {copy-scripts-and-commit -G $gemini}
   if $upload_debs {upload-debs-to-mega}
-  if $upload_zed {upload-zed-backup-to-mega}
+  # if $upload_zed {upload-zed-backup-to-mega}
 }
 
 #alias for short call
