@@ -8,7 +8,11 @@ use /path/to/nushell_scripts/table_manipulation.nu *
 use /path/to/nushell_scripts/files.nu *
 use /path/to/nushell_scripts/tasker.nu *
 use /path/to/nushell_scripts/crypt.nu *
-use /path/to/nushell_scripts/defs.nu *
+use /path/to/nushell_scripts/def_data.nu *
+use /path/to/nushell_scripts/def_system.nu *
+use /path/to/nushell_scripts/def_app.nu *
+use /path/to/nushell_scripts/def_file_compilers.nu *
+use /path/to/nushell_scripts/def_dev.nu *
 use /path/to/nushell_scripts/maths.nu *
 use /path/to/nushell_scripts/system.nu *
 use /path/to/nushell_scripts/gcal.nu *

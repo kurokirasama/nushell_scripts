@@ -249,3 +249,67 @@ export def wifi-pass [] {
 export def show-ips [] {
   open $env.MY_ENV_VARS.ips | table -e
 }
+
+#web search in terminal
+export def --wrapped gg [...search: string] {
+  ddgr -n 5 ...$search
+}
+
+#check validity of a link
+export def check-link [link?,timeout?:duration] {
+  let link = get-input $in $link
+
+  if ($timeout | is-empty) {
+    let response = try {
+      http get $link | ignore;true
+    } catch {
+      false
+    }
+    return $response
+  }
+
+  try {
+    http get $link -m $timeout | ignore;true
+  } catch {
+    false
+  }
+}
+
+#get files all at once from webpage using wget
+export def wget-all [
+  webpage: string    #url to scrap
+  ...extensions      #list of extensions separated by space
+] {
+  wget -A ($extensions | str join ",") -m -p -E -k -K -np --restrict-file-names=windows $webpage
+}
+
+#qr code generator
+export def qrenc [url] {
+  curl $"https://qrenco.de/($url)"
+}
+
+#local http server
+export def --wrapped "http server" [
+  root:string =".",
+  ...rest
+] {
+  simple-http-server $root ...$rest
+}
+
+#download file with filename
+def "http download" [url:string] {
+  let attachmentName  = http head $url
+    | transpose -dr
+    | get -i content-disposition
+    | parse "attachment; filename={filename}"
+    | get filename?.0?
+
+  let filename = if ($attachmentName | is-empty) {
+      # use the end of the URL path
+      ($url | url parse | get path | path parse | do {$"($in.stem).($in.extension)"})
+    } else {
+      $attachmentName
+    }
+
+  http get --raw $url | save $filename
+}
