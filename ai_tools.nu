@@ -595,8 +595,8 @@ export def askai [
     }
   )
 
-  let gemini_model = if $paid {"gemini-2.5-pro-preview-05-06"} else if $gemini_2_5 {"gemini-2.5"} else {"gemini-2.0"}
-  
+  let gemini_model = if $paid {"gemini-2.5-pro-preview-06-05"} else if $gemini_2_5 {"gemini-2.5"} else {"gemini-2.0"}
+
   #chat mode
   if $chat {
     if $gemini {
@@ -974,7 +974,7 @@ export def "ai media-summary" [
 
     let prompt = (open $temp_output)
     let model = if $gemini {"gemini"} else if $claude {"claude"} else if $ollama {"ollama"} else {"chatgpt"}
-    let gemini_model = if $paid {"gemini-2.5-pro-preview-05-06"} else if $gemini_2_5 {"gemini-2.5-flash-preview-04-17"} else {"gemini-2.0"}
+    let gemini_model = if $paid {"gemini-2.5-pro-preview-06-05"} else if $gemini_2_5 {"gemini-2.5-flash-preview-04-17"} else {"gemini-2.0"}
 
     print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
 
@@ -3969,4 +3969,3 @@ export def "private_gpt ingest" [
     _ => {return-error $"($file | typeof) type not allowed!"}
   }
 }
-

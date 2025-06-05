@@ -16,8 +16,6 @@ use /path/to/nushell_scripts/media.nu *
 use /path/to/nushell_scripts/apis.nu *
 use /path/to/nushell_scripts/habitica.nu *
 use /path/to/nushell_scripts/network.nu *
-use /path/to/nushell_scripts/ai_tools.nu *
-use /path/to/nushell_scripts/github.nu *
 use /path/to/nushell_scripts/backups.nu *
 use /path/to/nushell_scripts/update_apps.nu *
 use /path/to/nushell_scripts/transmission.nu *
@@ -28,6 +26,16 @@ use /path/to/nushell_scripts/defs_private.nu *
 use /path/to/nushell_scripts/zoxide.nu *
 use /path/to/nushell_scripts/weather_tomorrow.nu [weather,get_weather_by_interval]
 use /path/to/nushell_scripts/alias_defs.nu *
+use /path/to/nushell_scripts/ai_google.nu *
+use /path/to/nushell_scripts/ai_chatpdf.nu *
+use /path/to/nushell_scripts/ai_claude.nu *
+use /path/to/nushell_scripts/ai_elevenlabs.nu *
+use /path/to/nushell_scripts/ai_ollama.nu *
+use /path/to/nushell_scripts/ai_openai.nu *
+use /path/to/nushell_scripts/ai_stablediffusion.nu *
+use /path/to/nushell_scripts/ai_tools.nu *
+use /path/to/nushell_scripts/ai_privategpt.nu *
+use /path/to/nushell_scripts/github.nu *
 # use /path/to/nushell_scripts/polars_aliases.nu *
 source-env /path/to/nushell_scripts/env_vars.nu
 # source ~/.local/share/atuin/init.nu
