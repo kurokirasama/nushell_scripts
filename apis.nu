@@ -485,7 +485,7 @@ export def "obs check" [] {
   let certificate = $env.MY_ENV_VARS.api_keys.obsidian.certificate
 
   let url = {
-              "scheme": "https",
+              "scheme": "http",
               "host": $host,
               "port": $port
             } | url join
@@ -514,7 +514,7 @@ export def "obs check-path" [
   let auth_header = $'Authorization: Bearer ($apikey)'
 
   let url = {
-              "scheme": "https",
+              "scheme": "http",
               "host": $host,
               "port": $port ,
               "path": (["vault" $v_path] | path join)
@@ -559,7 +559,7 @@ export def "obs search" [
     return-error "work in progress!"
   } else {
     let url = {
-                "scheme": "https",
+                "scheme": "http",
                 "host": $host,
                 "port": $port ,
                 "path": "search/simple",
@@ -574,7 +574,7 @@ export def "obs search" [
   if not $edit {
     # show
     let note_url = {
-                "scheme": "https",
+                "scheme": "http",
                 "host": $host,
                 "port": $port ,
                 "path": ("vault/" + ($note | url encode)),
@@ -646,7 +646,7 @@ export def "obs create" [
   let auth_header = $'Authorization: Bearer ($apikey)'
 
   let url = {
-              "scheme": "https",
+              "scheme": "http",
               "host": $host,
               "port": $port ,
               "path": (["vault" $v_path $"($name | url encode).md"] | path join)
