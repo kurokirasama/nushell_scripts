@@ -77,7 +77,7 @@ export def op [
       "md"|"Rmd" => {glow $file},
       "nu" => {open --raw $file | nu-highlight | bat --paging auto},
       "R"|"c"|"m"|"py"|"sh" => {bat --paging auto $file},
-      "csv"|"json"|"sqlite"|"xls"|"xlsx"|"tsv" => {open $file},
+      "csv"|"json"|"sqlite"|"xls"|"xlsx"|"tsv|toml" => {open $file},
       "doc"|"docx"|"pdf"|"png"|"jpg" => {openf $file},
       _ => {bat --paging auto $file}
     }

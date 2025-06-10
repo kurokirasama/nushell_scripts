@@ -79,7 +79,6 @@ export def "apps-update nushell-plugins-external" [--force(-f)] {
   print ([
     "plugin use ~/.cargo/bin/nu_plugin_port_extension"
     "plugin use ~/.cargo/bin/nu_plugin_plot"
-    "plugin use ~/.cargo/bin/nu_plugin_net"
   ] | str join "\n")
 }
 
@@ -984,7 +983,9 @@ export def "apps-update rclone" [] {
 export def "apps-update matlab-lsp" [] {
   cd ~/software/MATLAB-language-server
   git pull 
-  npm install; npm run compile; npm run package
+  npm install
+  npm run compile
+  npm run package
 }
 
 #update glow

@@ -1020,7 +1020,7 @@ export def "media auto-crop-banner" [
 ] {
     let crop_params = ffmpeg -hide_banner -i $input -t 1 -vf cropdetect -f null - o+e>|
       | lines
-      | filter {|line| 'crop=' in $line}
+      | where {|line| 'crop=' in $line}
       | first
       | split row " "
       | last
