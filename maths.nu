@@ -407,9 +407,9 @@ export def scale-minmax-table [a, b,input?] {
 }
 
 #exp function
-# export def "math exp" [ ] {
-#     each {|x| $E ** $x}
-# }
+export def "math exp" [ ] {
+    each {|x| $env.CONSTANTS.e ** $x}
+}
 
 #random int
 export def randi [
