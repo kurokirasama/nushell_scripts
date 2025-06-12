@@ -915,56 +915,32 @@ export def "apps-update tiv" [] {
 
 #update claude cli
 export def "apps-update claude" [] {
-  if (sys host | get os_version) == "20.04" {
-    sudo npm update -g @anthropic-ai/claude-code
-  } else {
-    npm update -g @anthropic-ai/claude-code
-  }
+  npm update -g @anthropic-ai/claude-code
 }
 
 #update open-codex
 export def "apps-update open-codex" [] {
-  if (sys host | get os_version) == "20.04" {
-    sudo npm update -g open-codex 
-  } else {
-    npm update -g open-codex 
-  }
+  npm update -g open-codex
 }
 
 #update mermaid filter
 export def "apps-update mermaid-filter" [] {
-  if (sys host | get os_version) == "20.04" {
-    sudo npm install --global mermaid-filter
-  } else {
-    npm install --global mermaid-filter
-  }
+  npm install --global mermaid-filter
 }
 
 #update mermaid-cli
 export def "apps-update mermaid-cli" [] {
-  if (sys host | get os_version) == "20.04" {
-    sudo npm update -g @mermaid-js/mermaid-cli
-  } else {
-    npm update -g @mermaid-js/mermaid-cli
-  }
+  npm update -g @mermaid-js/mermaid-cli
 }
 
 #update fast-cli
 export def "apps-update fast-cli" [] {
-  if (sys host | get os_version) == "20.04" {
-    sudo npm update -g fast-cli
-  } else {
-    npm update -g fast-cli
-  }
+  npm update -g fast-cli
 }
 
 #update tldr
 export def "apps-update tldr" [] {
-  if (sys host | get os_version) == "20.04" {
-    sudo npm update -g tldr
-  } else {
-    npm update -g tldr
-  }
+  npm update -g tldr
 }
 
 #update ddgr (gg)
@@ -1068,4 +1044,11 @@ export def "apps-update subliminal" [] {
 #update nvitop
 export def "apps-update nvitop" [] {
   pipx install "git+https://github.com/XuehaiPan/nvitop.git#egg=nvitop" --force
+}
+
+#update scrcpy
+export def "apps-update scrcpy" [] {
+  cd ~/software/scrcpy
+  git pull
+  ./install_release.sh
 }
