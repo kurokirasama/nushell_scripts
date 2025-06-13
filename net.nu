@@ -58,6 +58,10 @@ def extract-name [path] {
 		"ssh"
 	} else if $path like 'ssh' {
 		"nchat"
+	} else if $path like 'yandex' {
+		"yandex"
+	} else if $path like 'zed' {
+		"zed"
 	} else if $path like '^/usr/bin' {
 		$path | split row '/' | get 3
 	} else if $path not-like '^/' {
