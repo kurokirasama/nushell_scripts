@@ -62,6 +62,7 @@ export def op [
   --raw(-r)     # open in raw mode if using defaul open
   --open(-o)    # use default open
   --sublime(-s) # use sublime text
+  --zed(-z)     # use zed text editor
 ] {
   let file = get-input $in $file -n
   let extension = $file | path parse | get extension
@@ -72,6 +73,8 @@ export def op [
     open --raw $file
   } else if $sublime {
     subl $file
+  } else if $zed {
+    zed $file
   } else {
     match $extension {
       "md"|"Rmd" => {glow $file},
