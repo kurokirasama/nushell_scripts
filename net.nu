@@ -62,6 +62,8 @@ def extract-name [path] {
 		"yandex"
 	} else if $path like 'zed' {
 		"zed"
+	} else if $path like 'gnome-software' {
+		"gnome-software"
 	} else if $path like '^/usr/bin' {
 		$path | split row '/' | get 3
 	} else if $path not-like '^/' {
