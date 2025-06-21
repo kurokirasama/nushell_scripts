@@ -152,22 +152,24 @@ export def yt-api [
   --pid:string      #playlist/song id
   --ptoken:string   #prev/next page token
 ] {
-  # Automatically fetch a valid token
-  let token = (yt-get-access-token)
+  #verify and update token
+  yt-api verify-token
+
   let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
   let api_key = $youtube_credential | get api_key
+  let token = $youtube_credential | get token
 
   #playlist|playlist nextPage|songs|songs nextPage
   let url = (
     if ($pid | is-empty) and ($ptoken | is-empty) {
-      $"https://youtube.googleapis.com/youtube/v3/playlists?part=($type)&mine=true&maxResults=50"
+      $"https://youtube.googleapis.com/youtube/v3/playlists?part=($type)&mine=true&key=($api_key)&maxResults=50"
     } else if ($pid | is-empty) and (not ($ptoken | is-empty)) {
-      $"https://youtube.googleapis.com/youtube/v3/playlists?part=($type)&mine=true&maxResults=50&pageToken=($ptoken)"
+      $"https://youtube.googleapis.com/youtube/v3/playlists?part=($type)&mine=true&key=($api_key)&maxResults=50&pageToken=($ptoken)"
     } else if not ($pid | is-empty) {
       if ($ptoken | is-empty) {
-        $"https://youtube.googleapis.com/youtube/v3/playlistItems?part=($type)&maxResults=50&playlistId=($pid)"
+        $"https://youtube.googleapis.com/youtube/v3/playlistItems?part=($type)&maxResults=50&playlistId=($pid)&key=($api_key)&maxResults=50"
       } else {
-        $"https://youtube.googleapis.com/youtube/v3/playlistItems?part=($type)&maxResults=50&pageToken=($ptoken)&playlistId=($pid)"
+        $"https://youtube.googleapis.com/youtube/v3/playlistItems?part=($type)&maxResults=50&pageToken=($ptoken)&playlistId=($pid)&key=($api_key)"
       }
     }
   )
@@ -185,8 +187,8 @@ export def "yt-api get-songs" [
   pid:string      #playlist id
   --ptoken:string #nextpage token
 ] {
-  # Automatically fetch a valid token
-  let token = (yt-get-access-token)
+  #verify and update token
+  yt-api verify-token
 
   #songs|songs nextPage
   let response = if ($ptoken | is-empty) {
@@ -452,10 +454,116 @@ export def "yt-api remove-duplicated-songs" [
 
 #verify if youtube api token has expired
 export def "yt-api verify-token" [] {
-  # Automatically fetch a valid token (refreshes if expired)
-  let token = (yt-get-access-token)
-  # Update the env with the new token
-  $env.MY_ENV_VARS = ($env.MY_ENV_VARS | upsert api_keys.youtube.token $token)
+  let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
+  let api_key = $youtube_credential | get api_key
+  let token = $youtube_credential | get token
+
+  let response = (try {
+        http get $"https://youtube.googleapis.com/youtube/v3/playlists?part=snippet&mine=true&key=($api_key)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json'] 
+      } catch {
+        {error: {code: 401}}
+    })
+
+  if ($response | is-column error) and ($response | get error  | get code) != 403 {
+    yt-api get-token 
+    #yt-api refresh-token
+  } else if ($response | is-column error) and ($response | get error  | get code) == 403 {
+    return-error "youtube api quota excedeed!"
+  }
+}
+
+#update youtube api token
+export def --env "yt-api get-token" [] {
+  let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
+  let client = $youtube_credential | get client_id
+
+  let uri = (
+    $youtube_credential 
+    | get redirect_uris 
+    | get 0 
+    | str replace -a ":" "%3A" 
+    | str replace -a "/" "%2F"
+  )
+  
+  print (echo-g "click on this url:")
+  print ($"https://accounts.google.com/o/oauth2/auth?client_id=($client)&redirect_uri=($uri)&scope=https://www.googleapis.com/auth/youtube&response_type=token&approval_prompt=force")
+
+  let url = (input (echo-g "Copy response url here: "))
+
+  let token = (
+    $url 
+    | split row "#" 
+    | get 1 
+    | split row "=" 
+    | get 1 
+    | split row "&" 
+    | get 0
+ )
+
+  let content = $youtube_credential  | upsert token $token
+  
+  save-credential $content youtube  
+  
+  $env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert api_keys.youtube.token $token
+}
+
+##In progress
+
+#get youtube api refresh token
+export def --env "yt-api get-refresh-token" [] {
+  let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
+  let client = ($youtube_credential | get client_id)
+
+  let uri = (
+    $youtube_credential 
+    | get redirect_uris 
+    | get 0 
+    | str replace -a ":" "%3A" 
+    | str replace -a "/" "%2F"
+  )
+  
+  let url = $"https://accounts.google.com/o/oauth2/auth?client_id=($client)&redirect_uri=($uri)&scope=https://www.googleapis.com/auth/youtube&response_type=code&access_type=offline&prompt=consent"
+
+  $url | copy
+
+  print (echo $url)
+  print (echo-g "url copied to clipboard, now paste on browser")
+
+  let url = (input (echo-g "Copy response url here: "))
+
+  let refresh_token = (
+    $url 
+    | split row "=" 
+    | get 1 
+    | split row "&" 
+    | get 0
+ )
+
+  let content = ($youtube_credential | upsert refresh_token $refresh_token)
+
+  save-credential $content youtube 
+
+  $env.MY_ENV_VARS = (
+    $env.MY_ENV_VARS
+    | upsert api_keys.youtube.refresh_token $refresh_token
+  )
+}
+
+#refresh youtube api token via refresh token (in progress)
+export def "yt-api refresh-token" [] {
+  let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
+  let client_id = ($youtube_credential | get client_id)
+  let client_secret = ($youtube_credential | get client_secret)
+  let refresh_token = ($youtube_credential | get refresh_token)
+  let redirect_uri = (
+    $youtube_credential 
+    | get redirect_uris 
+    | get 0 
+    | str replace -a ":" "%3A" 
+    | str replace -a "/" "%2F"
+  )
+
+  http post "https://accounts.google.com/o/oauth2/token" $"client_id=($client_id)&client_secret=($client_secret)&refresh_token=($refresh_token)&grant_type=refresh_token" -t application/x-www-form-urlencoded
 }
 
 ## OAuth2 flow ##
@@ -469,7 +577,7 @@ def save-tokens [tokens: record] {
 # Function to load tokens from a file
 def load-tokens [] {
     if ($env.TOKEN_FILE | path exists) {
-        open $env.TOKEN_FILE
+        open $env.TOKEN_FILE | from json
     } else {
         # Return an empty record if file doesn't exist
         {}
@@ -599,14 +707,14 @@ export def yt-get-access-token [] {
         let new_tokens = (yt-oauth-exchange-code $auth_code)
         $new_tokens.access_token
     } else {
-        # print "Valid tokens found. Checking for refresh..."
+        print "Valid tokens found. Checking for refresh..."
         # Google access tokens typically last 1 hour, but refresh tokens can last indefinitely.
         # We check expiration on every call to be safe and refresh if needed.
         if ("refresh_token" in $tokens) and ($tokens | is-token-expired) {
             let refreshed_tokens = (yt-oauth-refresh-token $tokens.refresh_token)
             $refreshed_tokens.access_token
         } else if ("access_token" in $tokens) {
-            # print "Using existing valid access token."
+            print "Using existing valid access token."
             $tokens.access_token
         } else {
             return-error "Something went wrong with token management. Please re-authorize."
