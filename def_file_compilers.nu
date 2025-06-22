@@ -68,13 +68,16 @@ export def my-pdflatex [file?] {
 #pandoc md compiler
 export def my-pandoc [
   file?
+  --open(-o) #open file after compilation
 ] {
   let file_name = get-input $in $file -n
   let file_base_name = $file_name | path parse | get stem
 
   pandoc --quiet $file_name -o $"($file_base_name).pdf" --pdf-engine=/usr/bin/xelatex -F mermaid-filter -F pandoc-crossref --number-sections --highlight-style $env.MY_ENV_VARS.pandoc_theme
 
-  openf $"($file_base_name).pdf"
+  if $open {
+    openf $"($file_base_name).pdf"
+  }
 }
 
 #generate an unique md from all files in current directory recursively
