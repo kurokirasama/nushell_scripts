@@ -189,7 +189,7 @@ export def "zoxide backup" [] {
   cp ~/.local/share/zoxide/db.zo $env.MY_ENV_VARS.linux_backup
 }
 
-#backup sublime settings
+#backup zed settings
 @category backup
 @search-terms zed backup
 export def "zed backup" [] {
@@ -197,10 +197,26 @@ export def "zed backup" [] {
   7z max zed_config ("~/.config/zed" | path expand)
 }
 
-#restore sublime settings
+#restore zed settings
 @category backup
 @search-terms zed restore
 export def "zed restore" [] {
   cd $env.MY_ENV_VARS.linux_backup
   7z x zed_config.7z -o/home/kira/.config/
+}
+
+#backup ghostty settings
+@category backup
+@search-terms ghostty backup
+export def "ghostty backup" [] {
+  cd $env.MY_ENV_VARS.linux_backup
+  7z max ghostty_config ("~/.config/ghostty" | path expand)
+}
+
+#restore ghostty settings
+@category backup
+@search-terms ghostty restore
+export def "ghostty restore" [] {
+  cd $env.MY_ENV_VARS.linux_backup
+  7z x ghostty_config.7z -o/home/kira/.config/
 }
