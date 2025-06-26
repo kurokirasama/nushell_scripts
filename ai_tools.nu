@@ -36,7 +36,6 @@ export def "ai help" [] {
     { name: "ai analyze_paper", description: "Analyze and summarize a scientific paper using AI" },
     { name: "ai clean-text", description: "Clean and format raw text using AI" },
     { name: "ai analyze_religious_text", description: "Analyze religious text for claims, references, and message using AI" },
-    { name: "remove-code-blocks | from json", description: "Attempt to fix malformed JSON input using AI" },
     { name: "o_llama", description: "Single call wrapper for local Ollama models (generate, chat, embed)" },
     { name: "ochat", description: "Alias for 'askai -coW 2' (chat with Ollama)" },
     { name: "stable_diffusion", description: "Single call wrapper for Stability AI Stable Diffusion models" },
@@ -1685,27 +1684,4 @@ export def "ai analyze_religious_text" [
   } else {
     return $consolidation  
   } 
-}
-
-#fix json input
-@category ai
-@search-terms gemini ollama
-export def "remove-code-blocks | from json" [
-  json?:string
-  --ollama(-o) #use ollama model instead of gemini
-  --ollama_model(-m):string #ollama model to use
-  --copy(-c) #copy response to clipboeard
-] {
-  let json = get-input $in $json
-
-  if ($json | is-empty) {return $json}
-
-  let response = if $ollama {
-      o_llama $json -t 0.2 --select_system json_fixer --select_preprompt fix_json -d true -m $ollama_model
-    } else {
-      google_ai $json -t 0.2 --select_system json_fixer --select_preprompt fix_json -d true
-    } | from json
-
-  if $copy {$response | to json | xsel --input --clipboard}
-  return $response
 }
