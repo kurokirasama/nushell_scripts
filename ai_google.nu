@@ -524,10 +524,14 @@ def save_gemini_chat [
 #single call to google ai LLM image generations api wrapper
 #
 #Available models at https://ai.google.dev/models:
+# - imagen-4.0-generate-preview-06-06: text -> image
+# - imagen-4.0-ultra-generate-preview-06-06: text -> image
 # - gemini-2.0-flash-exp-image-generation: images and text -> image and text
-# - imagen-3.0-generate-002: images and text -> image and text (paid)
+# - imagen-3.0-generate-002: text -> image (paid)
 #
-#Gemini 2.0 excels in contextual image blending, while Imagen 3 prioritizes top-tier image quality and specialized editing capabilities
+#- Gemini 2.0 excels in contextual image blending.
+#- Imagen 3 prioritizes top-tier image quality and specialized editing capabilities. 
+#- Imagen 4 is capable of generating highly detailed images with rich lighting, significantly better text rendering, and higher resolution output than previous models.
 #
 #You can adjust the following safety settings categories:
 # - HARM_CATEGORY_HARASSMENT
@@ -595,7 +599,9 @@ export def google_aimage [
 
   let input_model = $model
   let model = if $model == "gemini" {"gemini-2.0-flash-exp-image-generation"} else {$model}
-  let model = if $model == "imagen" {"imagen-3.0-generate-002"} else {$model}
+  let model = if $model == "imagen3" {"imagen-3.0-generate-002"} else {$model}
+  let model = if $model == "imagen4" {"imagen-4.0-generate-preview-06-06"} else {$model}
+  let model = if $model == "imagen4ultra" {"imagen-4.0-ultra-generate-preview-06-06"} else {$model}
 
   let url_request = {
       scheme: "https",

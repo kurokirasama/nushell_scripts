@@ -835,7 +835,7 @@ export def askaimage [
   prompt?:string  #string with the prompt, can be piped
   --dalle3(-d)    #use dall-e-3 instead of dall-e-2 (default)
   --stable-diffusion(-s) #use stable diffusion models instead of openai's
-  --google-models(-g):string #use google image generation models: gemini (free) or imagen (paid)
+  --google-models(-g):string #use google image generation models: gemini (free), imagen3, imagen4 or imagen4ultra (paid)
   --edit(-e)      #use edition mode instead of generation
   --variation(-v) #use variation mode instead of generation (dalle only)
   --upscale(-u)   #use up scaling mode instead of generation (stable diffusion only)
@@ -1018,9 +1018,10 @@ export alias g = ai gcal -G
 @search-terms translation chatgpt gemini ollama
 export def "ai trans" [
   ...prompt
-  --destination(-d):string = "Spanish"
+  --destination(-t):string = "Spanish"
   --gpt4(-g)    #use gpt-4.1 instead of gpt-4.1-mini
   --gemini(-G)  #use gemini instead of gpt
+  --deepl(-d)   #use deepl for translation
   --ollama(-o)  #use ollama models
   --ollama_model(-m):string #ollama model to use
   --copy(-c)    #copy output to clipboard
@@ -1035,11 +1036,15 @@ export def "ai trans" [
     $prompt | str join " "
   }
 
-  let system_prompt = "You are a reliable and knowledgeable language assistant specialized in " + $destination + "translation. Your expertise and linguistic skills enable you to provide accurate and natural translations  to " + $destination + ". You strive to ensure clarity, coherence, and cultural sensitivity in your translations, delivering high-quality results. Your goal is to assist and facilitate effective communication between languages, making the translation process seamless and accessible for users. With your assistance, users can confidently rely on your expertise to convey their messages accurately in" + $destination + "."
-  let prompt = "Please translate the following text to " + $destination + ", and return only the translated text as the output, without any additional comments or formatting. Keep the same capitalization in every word the same as the original text and keep the same punctuation too. Do not add periods at the end of the sentence if they are not present in the original text. Keep any markdown formatting characters intact. The text to translate is:\n" + $prompt
-
   if not $not_verbose {print (echo-g $"translating to ($destination)...")}
-  let translated = (
+  
+  let translated = if $deepl {
+    let deepl_dest = get-deepl-lang-code ($destination | str title-case)
+    deep_l $prompt --target-lang $deepl_dest
+  } else {
+    let system_prompt = "You are a reliable and knowledgeable language assistant specialized in " + $destination + "translation. Your expertise and linguistic skills enable you to provide accurate and natural translations  to " + $destination + ". You strive to ensure clarity, coherence, and cultural sensitivity in your translations, delivering high-quality results. Your goal is to assist and facilitate effective communication between languages, making the translation process seamless and accessible for users. With your assistance, users can confidently rely on your expertise to convey their messages accurately in" + $destination + "."
+    let prompt = "Please translate the following text to " + $destination + ", and return only the translated text as the output, without any additional comments or formatting. Keep the same capitalization in every word the same as the original text and keep the same punctuation too. Do not add periods at the end of the sentence if they are not present in the original text. Keep any markdown formatting characters intact. The text to translate is:\n" + $prompt
+
     if $ollama {
       o_llama $prompt -t 0.5 -s $system_prompt -m $ollama_model
     } else if $gemini {
@@ -1047,16 +1052,67 @@ export def "ai trans" [
     } else if $gpt4 {
       chat_gpt $prompt -t 0.5 -s $system_prompt -m gpt-4.1
     } else {
-      chat_gpt $prompt -t 0.5 -s $system_prompt 
+      chat_gpt $prompt -t 0.5 -s $system_prompt
     }
-  )
+  }
 
   if $copy {$translated | xsel --input --clipboard}
   if $fast {
     $translated | save -f ($env.MY_ENV_VARS.chatgpt | path join answer.md)
-  } else {
-    return $translated
+    return
   }
+  return $translated
+}
+
+# Helper function to get DeepL language code from common language names
+export def "get-deepl-lang-code" [
+    lang_name: string # The human-readable language name (e.g., "Spanish", "English (American)")
+] {
+    match $lang_name {
+        "Arabic" => "AR",
+        "Bulgarian" => "BG",
+        "Czech" => "CS",
+        "Danish" => "DA",
+        "German" => "DE",
+        "Greek" => "EL",
+        "English" => "EN", # Generic English, though EN-GB/EN-US are preferred
+        "English (British)" => "EN-GB",
+        "English (American)" => "EN-US",
+        "Spanish" => "ES",
+        "Estonian" => "ET",
+        "Finnish" => "FI",
+        "French" => "FR",
+        "Hebrew" => "HE",
+        "Hungarian" => "HU",
+        "Indonesian" => "ID",
+        "Italian" => "IT",
+        "Japanese" => "JA",
+        "Korean" => "KO",
+        "Lithuanian" => "LT",
+        "Latvian" => "LV",
+        "Norwegian Bokmål" => "NB",
+        "Dutch" => "NL",
+        "Polish" => "PL",
+        "Portuguese" => "PT", # Generic Portuguese
+        "Portuguese (Brazilian)" => "PT-BR",
+        "Portuguese (Portugal)" => "PT-PT",
+        "Romanian" => "RO",
+        "Russian" => "RU",
+        "Slovak" => "SK",
+        "Slovenian" => "SL",
+        "Swedish" => "SV",
+        "Thai" => "TH",
+        "Turkish" => "TR",
+        "Ukrainian" => "UK",
+        "Vietnamese" => "VI",
+        "Chinese" => "ZH", # Generic Chinese
+        "Chinese (simplified)" => "ZH-HANS",
+        "Chinese (traditional)" => "ZH-HANT",
+        _ => {
+            # If no direct match, return the original string, assuming it might be a valid code already
+            $lang_name
+        }
+    }
 }
 
 #translate subtitle to Spanish via mymemmory, openai or gemini apis

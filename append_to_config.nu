@@ -37,6 +37,7 @@ use /path/to/nushell_scripts/ai_elevenlabs.nu *
 use /path/to/nushell_scripts/ai_ollama.nu *
 use /path/to/nushell_scripts/ai_openai.nu *
 use /path/to/nushell_scripts/ai_stablediffusion.nu *
+use /path/to/nushell_scripts/ai_deepl.nu *
 use /path/to/nushell_scripts/ai_tools.nu *
 use /path/to/nushell_scripts/ai_privategpt.nu *
 use /path/to/nushell_scripts/defs_private.nu *
