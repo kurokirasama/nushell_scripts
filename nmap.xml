@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE nmaprun>
-<?xml-stylesheet href="file:///usr/bin/../share/nmap/nmap.xsl" type="text/xsl"?>
-<!-- Nmap 7.80 scan initiated Wed Apr  2 23:43:24 2025 as: nmap -oX nmap.xml -sn -&#45;max-parallelism 10 192.168.4.0/22 -->
-<nmaprun scanner="nmap" args="nmap -oX nmap.xml -sn -&#45;max-parallelism 10 192.168.4.0/22" start="1743648204" startstr="Wed Apr  2 23:43:24 2025" version="7.80" xmloutputversion="1.04">
