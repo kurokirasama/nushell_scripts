@@ -1414,7 +1414,7 @@ export def "ai batch-paper-analyser" [
     --only-summaries(-o) #only generate summaries, skip full analysis
 ] {
   # 0.Get Main Topic
-  let main_topic = ls | where type == file | first | open | lines | find "Main Research Topic" | first | split row : | last
+  let main_topic = ls | where type == file | first | get name | open | lines | find "Main Research Topic" | first | split row : | last
 
   # 1. Iterate through files and analyze them
   if not $skip_summaries {
