@@ -1052,3 +1052,8 @@ export def "apps-update scrcpy" [] {
   git pull
   ./install_release.sh
 }
+
+#update gemini-cli filter
+export def "apps-update gemini-cli" [] {
+  npm install --global @google/gemini-cli
+}

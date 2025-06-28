@@ -1410,14 +1410,22 @@ export def remove-code-blocks []: [string -> string] {
 @category ai
 @search-terms ai-tool gemini analyze summarize
 export def "ai batch-paper-analyser" [
-    --skip-summary(-s) #skip summary generation if already exists
+    --skip-summaries(-s) #skip summary generation if already exists
+    --only-summaries(-o) #only generate summaries, skip full analysis
 ] {
+  # 0.Get Main Topic
+  let main_topic = ls | where type == file | first | open | lines | find "Main Research Topic" | first | split row : | last
+
   # 1. Iterate through files and analyze them
-  if not $skip_summary {
+  if not $skip_summaries {
     ls | where type == file | each { |file|
       ai analyze_paper $file.name
       sleep 1sec 
     }
+  }
+  
+  if $only_summaries {
+    return
   }
 
   # 2. Consolidate summaries and store full content
@@ -1442,7 +1450,7 @@ export def "ai batch-paper-analyser" [
   let summaries_json = $summaries_for_classification | to json
   
   let classification_system_prompt = "You are a meticulous research analyst specializing in thematic analysis and data categorization. Your primary skill is identifying underlying themes in complex information and organizing it logically."
-  let classification_user_prompt = $"Your task is to classify a list of research papers into a set of 1-5 relevant sub-topics. First, read all the summaries and full content to understand the full scope of the research. Then, for each paper, assign a topic. You will be given a JSON array of objects, where each object has an 'id', a 'summary', and 'full_content'. Your output must be a single, valid JSON array of objects, where each object contains only the original id in the key 'id' and the assigned topic in the key 'topic'. It's totally fine to return a single topic for all the papers. Do not add any commentary. The input JSON is:\n($summaries_json)"
+  let classification_user_prompt = $"Your task is to classify a list of research papers into a set of 1-5 relevant sub-topics, considering that the main topic is ($main_topic). First, read all the summaries and full content to understand the full scope of the research. Then, for each paper, assign a topic. You will be given a JSON array of objects, where each object has an 'id', a 'summary', and 'full_content'. Your output must be a single, valid JSON array of objects, where each object contains only the original id in the key 'id' and the assigned topic in the key 'topic'. It's totally fine to return a single topic for all the papers. Do not add any commentary. The input JSON is:\n($summaries_json)"
   
   let classified_topics = google_ai $classification_user_prompt --system $classification_system_prompt -m gemini-2.5 |  remove-code-blocks | from json
   
@@ -1468,7 +1476,7 @@ export def "ai batch-paper-analyser" [
   let all_full_content = $classified_summaries | get full_content | str join "\n\n---\n\n"
   
   let public_review_system_prompt = "You are a gifted science communicator and journalist, writing for a prestigious publication known for making complex topics accessible and engaging, like 'Quanta Magazine' or 'The Atlantic'. Your strength is weaving a compelling narrative from technical data."
-  let public_review_user_prompt = $"Your task is to synthesize the information from the following collection of research paper analyses into a single, engaging article for a non-expert audience. Your article should have a clear, cohesive, and coherent narrative. Identify the main, overarching topic and explain the key findings and their collective significance in an accessible way. Avoid jargon. Your output should be only the article text. The collected analyses are delimited by triple hyphens:\n\n---\n($all_full_content)\n---"
+  let public_review_user_prompt = $"Your task is to synthesize the information from the following collection of research paper analyses into a single, engaging article for a non-expert audience. Your article should have a clear, cohesive, and coherent narrative. Identify the main, overarching topic and explain the key findings and their collective significance in an accessible way. Avoid jargon. Keep in mind that the main topic of the research is ($main_topic). Your output should be only the article text. The collected analyses are delimited by triple hyphens:\n\n---\n($all_full_content)\n---"
   
   let public_review_body = google_ai $public_review_user_prompt --system $public_review_system_prompt -m gemini-2.5
   let public_review_with_title = "# A Narrative Synthesis\n\n" + $public_review_body
@@ -1476,7 +1484,7 @@ export def "ai batch-paper-analyser" [
   # 6. Generate the final conclusion in a variable
   print (echo-g "generating conclusion content...")
   let conclusion_system_prompt = "You are a senior research analyst and strategist. Your role is to distill complex information from multiple sources into a high-level, authoritative conclusion. You focus on the 'so what?' – the strategic implications and the definitive takeaway."
-  let conclusion_user_prompt = $"Your task is to write a final, conclusive summary based on the two provided documents delimited by XML tags. Synthesize the information from both to craft a robust conclusion. Your conclusion must: 1. Address the overall objective or research question that unifies the papers. 2. Extract and clearly explain the most critical insights and key findings. 3. Discuss the significance and potential implications of these findings. 4. Provide a final, authoritative statement that encapsulates the core takeaway from the entire body of research. Your output should be only the conclusion text.\n\n<expert_review>\n($expert_output)\n</expert_review>\n\n<public_review>\n($public_review_with_title)\n</public_review>"
+  let conclusion_user_prompt = $"Your task is to write a final, conclusive summary based on the two provided documents delimited by XML tags. Synthesize the information from both to craft a robust conclusion, considering that the main topic of the research is ($main_topic). Your conclusion must: 1. Address the overall objective or research question that unifies the papers. 2. Extract and clearly explain the most critical insights and key findings. 3. Discuss the significance and potential implications of these findings. 4. Provide a final, authoritative statement that encapsulates the core takeaway from the entire body of research. Your output should be only the conclusion text.\n\n<expert_review>\n($expert_output)\n</expert_review>\n\n<public_review>\n($public_review_with_title)\n</public_review>"
   
   let conclusion_body = google_ai $conclusion_user_prompt --system $conclusion_system_prompt -m gemini-2.5
   let conclusion_with_title = "# Conclusion\n\n" + $conclusion_body
@@ -1484,7 +1492,7 @@ export def "ai batch-paper-analyser" [
   # 7. Generate the introduction in a variable
   print (echo-g "generating introduction content...")
   let introduction_system_prompt = "You are the lead author of a multi-faceted research document. Your role is to provide a clear and compelling introduction that frames the entire work for the reader. You must set the stage, explain the document's structure, and present the core thesis with clarity and authority."
-  let introduction_user_prompt = $"Based on the three provided documents delimited by XML tags, write a compelling introduction. Your introduction should: 1. Start with a strong hook to grab the reader's attention. 2. Clearly state the central topic and why it is important. 3. Briefly describe the scope of the research covered. 4. Outline the structure of the document you are introducing, mentioning the different sections like the technical review, the narrative synthesis, and the conclusion. 5. End with a clear thesis statement that presents the main argument or takeaway of the entire review. Your output should be only the introduction text.\n\n<public_review>\n($public_review_with_title)\n</public_review>\n\n<expert_review>\n($expert_output)\n</expert_review>\n\n<conclusion>\n($conclusion_with_title)\n</conclusion>"
+  let introduction_user_prompt = $"Based on the three provided documents delimited by XML tags, write a compelling introduction, considering that the main topic of the research is ($main_topic) Your introduction should: 1. Start with a strong hook to grab the reader's attention. 2. Clearly state the central topic and why it is important. 3. Briefly describe the scope of the research covered. 4. Outline the structure of the document you are introducing, mentioning the different sections like the technical review, the narrative synthesis, and the conclusion. 5. End with a clear thesis statement that presents the main argument or takeaway of the entire review. Your output should be only the introduction text.\n\n<public_review>\n($public_review_with_title)\n</public_review>\n\n<expert_review>\n($expert_output)\n</expert_review>\n\n<conclusion>\n($conclusion_with_title)\n</conclusion>"
   
   let introduction_body = google_ai $introduction_user_prompt --system $introduction_system_prompt -m gemini-2.5
   let introduction_with_title = "# Introduction\n\n" + $introduction_body
@@ -1492,7 +1500,7 @@ export def "ai batch-paper-analyser" [
   # 8. Generate the final title in a variable
   print (echo-g "generating the final title...")
   let title_system_prompt = "You are an expert academic editor specializing in creating concise and impactful titles."
-  let title_user_prompt = $"Based on the following four documents, generate a single, descriptive title for the entire collection. The title must be no more than 5 words. Return only the title and nothing else.\n\n<introduction>\n($introduction_with_title)\n</introduction>\n\n<public_review>\n($public_review_with_title)\n</public_review>\n\n<expert_review>\n($expert_output)\n</expert_review>\n\n<conclusion>\n($conclusion_with_title)\n</conclusion>"
+  let title_user_prompt = $"Based on the following four documents, generate a single, descriptive title for the entire collection, considering that the main topic of the research is ($main_topic). The title must be no more than 5 words. Return only the title and nothing else.\n\n<introduction>\n($introduction_with_title)\n</introduction>\n\n<public_review>\n($public_review_with_title)\n</public_review>\n\n<expert_review>\n($expert_output)\n</expert_review>\n\n<conclusion>\n($conclusion_with_title)\n</conclusion>"
   
   let title = google_ai $title_user_prompt --system $title_system_prompt -m gemini-2.5
 
