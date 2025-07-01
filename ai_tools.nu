@@ -1289,13 +1289,17 @@ export def debunk-table [
   --ollama_model(-m):string #ollama model to use
 ] {
   let data = (
-    if ($data | typeof) == table {
+    if ($data | describe | split row '<' | get 0) == table {
       $data
     } else {
       $data | transpose | transpose -r
     }
   )
-
+  
+  if ($data | is-empty) {
+    return []
+  }
+  
   let n_data = ($data | length) - 1
   mut data_refutal = []
 
@@ -1305,7 +1309,7 @@ export def debunk-table [
     } else {
       google_ai ($data | get $i | to json) --select_system $system_message --select_preprompt debunk_argument -d true -w $web_results -m gemini-2.5
     }
-    $data_refutal = $data_refutal ++ $refutal
+    $data_refutal = $data_refutal ++ [$refutal]
   }
 
   return ($data | append-table ($data_refutal | wrap refutation))

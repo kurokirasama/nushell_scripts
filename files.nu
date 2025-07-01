@@ -39,7 +39,10 @@ export def is-column [name] {
 ######################################################
 
 #wrapper for describe
-export def typeof [--full(-f)] {
+export def typeof [
+    --full(-f)
+    --list-of-tables(-l) #for list of records that should have been a table
+] {
   let inp = $in
   mut type = $inp | describe
 
@@ -47,12 +50,15 @@ export def typeof [--full(-f)] {
     $type = $inp | describe | split row '<' | get 0
   }
 
-  if $type == "list" {
-    # Check if the list has column names, indicating it's effectively a table
-    if ($inp | first | typeof) == "record" {
-      return "table"
+  if $list_of_tables {
+    if $type == "list" {
+        # Check if the list has column names, indicating it's effectively a table
+        if ($inp | first | typeof) == "record" {
+        return "table"
+        }
     }
   }
+  
   return $type
 }
 
