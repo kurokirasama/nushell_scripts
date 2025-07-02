@@ -816,3 +816,31 @@ export def subtitle-renamer [] {
         }
     }
 }
+
+# Download file with nu
+export def nuwget [
+    url: string
+    --directory (-d): path # Base dir
+    --output (-o): path    # File name
+    --force (-f)           # Overwrite file
+    --silent (-s)          # Don't print anything
+] {
+    if ($directory | is-not-empty) { cd $directory }
+    let $file_name = $output | default { $url | url parse | get path | split row '/' | url decode | last }
+
+    if not $force and ($file_name | path exists) { error make -u {msg: "File already exists"} }
+
+    let $time = timeit { http get $url | save --progress --force=$force $file_name }
+
+    if not $silent {
+        print "Download results:"
+        {
+            url: $url
+            file: ($file_name | path basename)
+            cwd: ($file_name | path expand | path dirname)
+            time: $time
+            speed: $"((ls $file_name | get 0.size) / ($time | into int | $in / 10 ** 9))/s"
+        }
+        | print
+    }
+}
