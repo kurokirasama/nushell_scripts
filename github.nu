@@ -114,8 +114,6 @@ export def upload-debs-to-mega [] {
 #update yandex.disk repository
 export def copy-yandex-and-commit [--gemini(-G) = false] {
   print (echo-g "updating Yandex.Disk repository...")
-  cp -pu $env.MY_ENV_VARS.ips ~/software/Yandex.Disk/Android_Devices/Apps/Termux/
-  cp -pu ($env.MY_ENV_VARS.tasker_server.devices.main.file | path parse | get parent | path join "*.json" | into glob) ~/software/Yandex.Disk/Android_Devices/Common/Download/
   cp -rpu $env.MY_ENV_VARS.ai_database ~/software/Yandex.Disk/
   cp -rpu $env.MY_ENV_VARS.chatgpt ~/software/Yandex.Disk/
   cp -rpu $env.MY_ENV_VARS.linux_backup ~/software/Yandex.Disk/Backups
