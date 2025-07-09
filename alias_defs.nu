@@ -124,3 +124,8 @@ export def termshot [
 ] {
     termframe -o $"($output_file).svg" --theme dark-pastel --width (term size).columns --height (term size).rows --font-family "Monocraft Nerd Font" --bold-is-bright true --window-style compact
 }
+
+#kill mcp node servers running
+export def killnode [] {
+    psn node | find mcp & exte | killn
+}
