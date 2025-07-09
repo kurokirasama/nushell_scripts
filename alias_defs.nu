@@ -116,3 +116,11 @@ export def --wrapped subtitle-downloader [
 ] {
   subliminal download -l $language -s $file_pattern ...$rest
 }
+
+#terminal command screenshot
+@example "saves the output of ls into output.svg" { ls | termshot }
+export def termshot [
+    output_file:string = "output"
+] {
+    termframe -o $"($output_file).svg" --theme dark-pastel --width (term size).columns --height (term size).rows --font-family "Monocraft Nerd Font" --bold-is-bright true --window-style compact
+}
