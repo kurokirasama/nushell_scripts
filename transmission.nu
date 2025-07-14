@@ -58,7 +58,7 @@ export def "t full-stats" [] {
 
 #open transmission tui
 export def "t ui" [] {
-  let ip = (get-ips | get internal)
+  let ip = get-ips | get internal
   tremc -c $"transmission:transmission@($ip):9091"
 }
 
