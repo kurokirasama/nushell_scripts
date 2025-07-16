@@ -220,3 +220,23 @@ export def "ghostty restore" [] {
   cd $env.MY_ENV_VARS.linux_backup
   7z x ghostty_config.7z -o/home/kira/.config/
 }
+
+#backup hyprland configs
+@category backup
+@search-terms hyprland backup
+export def "hyprlnd backup" [] {
+    cd ~/.config/
+    7z max waybar waybar/
+    7z max hypr hypr/
+    
+    mv *.7z $env.MY_ENV_VARS.linux_backup
+}
+
+#restore hyprland configs
+@category backup
+@search-terms hyprland restore
+export def "hyprlnd restore" [] {
+    cd $env.MY_ENV_VARS.linux_backup
+    7z x waybar.7z -o/home/kira/.config/
+    7z x hypr.7z -o/home/kira/.config/
+}

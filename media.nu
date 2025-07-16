@@ -186,55 +186,70 @@ export def "media screen-record" [
   --audio = true  #whether to record with audio or not
 ] {
   let os_version = sys host | get os_version
-  let resolution = xrandr | grep '*' | awk '{print $1}' | lines | first
 
-  if $audio {
-    print (echo-g "recording screen with audio...")
-    let devices = (
-      if $os_version == "24.04" {
-        pw-dump 
-        | lines 
-        | find -n '"node.name"' 
-        | str trim 
-        | parse "\"{name}\": \"{device}\"," 
-      } else {
-        pacmd list-sources 
-        | lines 
-        | find -n "name:"
-        | str trim
-        | parse "{name}: <{device}>"
-      }
-      | where device like "alsa_input|bluez_" 
-      | get device
-    )
-
-    let bluetooth_not_connected = $devices | find blue | is-empty
-
-    if $bluetooth_not_connected {
-      let device = $devices | find -n alsa_input | get 0
-    
-      try {
-        print (echo-g "trying myffmpeg...")
-        my-ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -acodec aac -strict experimental $"($file).mp4"
-      } catch {
-        print (echo-r "myffmpeg failed...")
-        ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -acodec aac -strict experimental $"($file).mp4"
-      }
+  if ($env.XDG_CURRENT_DESKTOP == "Hyprland") {
+    if $audio {
+      print (echo-g "recording screen with audio for Hyprland...")
+      # You can adjust --audio-codec, --audio-codec-param, and --sample-rate for better quality.
+      # To find your audio device, run: pactl list sources | grep Name
+      # If audio is saturated, check your system's audio input levels (e.g., in pavucontrol).
+      let default_audio_source = (pactl info | grep 'Default Source:' | awk '{print $3}')
+      wf-recorder --audio --audio-codec aac --sample-rate 48000 --audio-codec-param "b=192k" --file=$"($file).mp4"
     } else {
-      let alsa = $devices | find -n alsa_input | get 0
-      let blue = $devices | find -n blue | get 0
-
-      try {
-        print (echo-g "trying myffmpeg...")
-        my-ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $blue -f pulse -ac 2 -i $alsa -filter_complex amerge=inputs=2 -acodec aac -strict experimental $"($file).mp4"
-      } catch {
-        print (echo-r "myffmpeg failed...")
-        ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $blue -f pulse -ac 2 -i $alsa -filter_complex amerge=inputs=2 -acodec aac -strict experimental $"($file).mp4"
-      }
+      print (echo-g "recording screen without audio for Hyprland...")
+      wf-recorder --file=$"($file).mp4"
     }
   } else {
-    print (echo-g "recording screen without audio...")
-    ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" $"($file).mp4"
+    let resolution = xrandr | grep '*' | awk '{print $1}' | lines | first
+
+    if $audio {
+      print (echo-g "recording screen with audio for Gnome...")
+      let devices = (
+        if $os_version == "24.04" {
+          pw-dump 
+          | lines 
+          | find -n '"node.name"' 
+          | str trim 
+          | parse "\"{name}\": \"{device}\"," 
+        } else {
+          pacmd list-sources 
+          | lines 
+          | find -n "name:"
+          | str trim
+          | parse "{name}: <{device}>"
+        }
+        | where device like "alsa_input|bluez_" 
+        | get device
+      )
+
+      let bluetooth_not_connected = $devices | find blue | is-empty
+
+      if $bluetooth_not_connected {
+        let device = $devices | find -n alsa_input | get 0
+      
+        try {
+          print (echo-g "trying myffmpeg...")
+          my-ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -acodec aac -strict experimental $"($file).mp4"
+        } catch {
+          print (echo-r "myffmpeg failed...")
+          ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -acodec aac -strict experimental $"($file).mp4"
+        }
+      } else {
+        let alsa = $devices | find -n alsa_input | get 0
+        let blue = $devices | find -n blue | get 0
+
+        try {
+          print (echo-g "trying myffmpeg...")
+          my-ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $blue -f pulse -ac 2 -i $alsa -filter_complex amerge=inputs=2 -acodec aac -strict experimental $"($file).mp4"
+        } catch {
+          print (echo-r "myffmpeg failed...")
+          ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $blue -f pulse -ac 2 -i $alsa -filter_complex amerge=inputs=2 -acodec aac -strict experimental $"($file).mp4"
+        }
+      }
+    } else {
+      print (echo-g "recording screen without audio for Gnome...")
+      ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" $"($file).mp4"
+    }
   }
   print (echo-g "recording finished...")
 }
