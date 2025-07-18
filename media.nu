@@ -853,7 +853,12 @@ export def mpv [
           "string" => {$video | ansi strip}
         }
       )
-
+      
+      if $env.XDG_CURRENT_DESKTOP == "Hyprland" {
+        ^hyprctl dispatch workspace 1
+        ^hyprctl dispatch togglespecialworkspace dropdown
+      }
+      
       if $on_top {
         ^mpv --save-position-on-quit --no-border --ontop $file
       } else if $in_terminal {

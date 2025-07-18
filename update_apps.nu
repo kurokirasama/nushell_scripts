@@ -198,11 +198,6 @@ export def apps-update [] {
     print (echo-r "Something went wrong with taskerpermissions instalation!")
   }
   try {
-    apps-update lutris #ignore if ppa works again
-  } catch {
-    print (echo-r "Something went wrong with lutris instalation!")
-  }
-  try {
     apps-update mpris
   } catch {
     print (echo-r "Something went wrong with mpris instalation!")

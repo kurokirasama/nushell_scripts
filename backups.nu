@@ -229,6 +229,7 @@ export def "hyprlnd backup" [] {
     7z max waybar waybar/
     7z max hypr hypr/
     7z max wlogout wlogout/
+    7z max swaync swaync/
     
     mv *.7z $env.MY_ENV_VARS.linux_backup
 }
@@ -241,4 +242,5 @@ export def "hyprlnd restore" [] {
     7z x waybar.7z -o/home/kira/.config/
     7z x hypr.7z -o/home/kira/.config/
     7z x wlogout.7z -o/home/kira/.config/
+    7z x swaync.7z -o/home/kira/.config/
 }
