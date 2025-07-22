@@ -1055,7 +1055,7 @@ export def "ai trans" [
     }
   }
 
-  if $copy {$translated | xsel --input --clipboard}
+  if $copy {$translated | copy}
   if $fast {
     $translated | save -f ($env.MY_ENV_VARS.chatgpt | path join answer.md)
     return
@@ -1690,7 +1690,7 @@ export def "ai analyze_religious_text" [
   }
 
   if $notify {"analysis finished!" | tasker send-notification}
-  if $copy {$consolidation | xsel --input --clipboard}
+  if $copy {$consolidation | copy}
   if $fast {
     $consolidation | save -f ($env.MY_ENV_VARS.chatgpt | path join answer.md)
   } else {

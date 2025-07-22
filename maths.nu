@@ -929,3 +929,18 @@ export def "math solve-linear-system" [
 
     return $x
 }
+
+#fraccion propia a numero mixto
+export def "math mix-fraction" [
+    numerator:int
+    denominator:int
+] {
+    let whole = ($numerator / $denominator) | math floor
+    let remainder = $numerator mod $denominator
+
+    if $remainder == 0 {
+        return $whole
+    }
+    
+    return [$whole, $remainder, $denominator]
+}

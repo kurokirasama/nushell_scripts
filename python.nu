@@ -5,7 +5,7 @@ export def create-virtualenv [dir_name:string = "venv"] {
 
 export def activate [] {
   print ("'overlay use venv/bin/activate.nu' copied to clipboard!")
-  "overlay use venv/bin/activate.nu" | xsel --input --clipboard
+  "overlay use venv/bin/activate.nu" | copy
 }
 
 #jdown.py wrapper

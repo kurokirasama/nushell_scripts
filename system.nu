@@ -648,3 +648,33 @@ export def get-used-keybindings [] {
 export def last-command [] {
   $env.last
 }
+
+#toggle hyprland wallpapers source
+@example "pixels to ssl" {hyprlnd replace-wallpaper-paths pixels ssl}
+@example "ssl to pixels" {hyprlnd replace-wallpaper-paths ssl pixels}
+export def "hyprlnd replace-wallpaper-paths" [from_type: string, to_type: string] {
+    let base_path = "/home/kira/Yandex.Disk/Wallpapers_"
+    let old_path = $base_path + $from_type
+    let new_path = $base_path + $to_type
+
+    let files = [
+        "/home/kira/.config/hypr/UserConfigs/UserKeybinds.conf",
+        "/home/kira/.config/hypr/UserConfigs/Startup_Apps.conf"
+    ]
+
+    print ($"Starting replacement process: Replacing `" + $old_path + "` with `" + $new_path + "`")
+
+    for $file in $files {
+        if ($file | path exists) {
+            print ($"Processing " + $file + "...")
+            let content = ($file | open --raw)
+            let updated_content = ($content | str replace $old_path $new_path)
+            $updated_content | save --raw -f $file
+            print ($"Replacement complete for " + $file + ".")
+        } else {
+            print ($"File not found: " + $file + ". Skipping.")
+        }
+    }
+
+    print "All specified files processed."
+}

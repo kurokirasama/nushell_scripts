@@ -357,7 +357,7 @@ let new_keybinds = [
         mode: [emacs, vi_normal, vi_insert]
         event: {
             send: executehostcommand
-            cmd: "commandline | xsel --input --clipboard; commandline edit --append ' # copied'"
+            cmd: "commandline | copy; commandline edit --append ' # copied'"
         }
     },
     {

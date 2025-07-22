@@ -74,9 +74,11 @@ export def ytm [
   | each {|song|
       http get $"($song.item.thumbnail)" | save -f /tmp/thumbnail.jpg
       convert -density 384 -scale 256 -background transparent /tmp/thumbnail.jpg /tmp/thumbnail.ico
-      notify-send $"($song.item.title)" $"($song.item.artist)" -t 5000 --icon=/tmp/thumbnail.ico 
-      timg /tmp/thumbnail.ico        
-      print (echo-g $"now playing ($song.item.title) by ($song.item.artist) [($song.index)/($len)]...")
+      sleep 0.1sec
+      notify-send $"($song.item.title)" $"($song.item.artist)" -t 5000 --icon=/tmp/thumbnail.ico | complete | ignore
+      timg /tmp/thumbnail.ico
+      # print (echo-g $"now playing ($song.item.title) by ($song.item.artist) [($song.index)/($len)]...")
+      
       try {
         ^mpv --msg-level=all=no --no-resume-playback --no-video --input-conf=($mpv_input) $song.item.url
         sleep 1ns
