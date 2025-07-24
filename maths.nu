@@ -783,7 +783,7 @@ export def "math prime-factors" [
     # Divide by 2 as many times as possible
     while ($current_number mod 2 == 0) {
         $factors = ($factors | append 2) # Add 2 to the list of factors
-        $current_number /= 2             # Update the number by integer division
+        $current_number = ($current_number / 2) | math floor  # Update the number by integer division
     }
 
     # --- Step 2: Handle odd factors ---
@@ -794,7 +794,7 @@ export def "math prime-factors" [
         # Divide by the current odd factor as many times as possible
         while ($current_number mod $factor == 0) {
             $factors = ($factors | append $factor) # Add the factor to the list
-            $current_number /= $factor             # Update the number
+            $current_number = ($current_number / $factor) | math floor # Update the number
         }
         # Move to the next odd number (no need to check even numbers after handling 2)
         $factor += 2

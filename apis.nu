@@ -667,7 +667,7 @@ export def gg-contacts [
 
     let response = http get $url -H [Authorization $"Bearer ($oauth_token)"] -H [Accept application/json] -e
     
-    if ($response | get -i results | is-empty) {
+    if ($response | get -o results | is-empty) {
       if ($response.error.status == "UNAUTHENTICATED") {
         print (echo-g "get Access token at https://bit.ly/3DMItbs and replace value in $env.MY_ENV_VARS.api_keys.google.contacts") 
       }

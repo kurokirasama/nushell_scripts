@@ -445,7 +445,7 @@ export def um [
 #- yandex
 #- mega
 export def rmount [drive?:string] {
-  let drive = (
+  let path = (
     if ($drive | is-empty) {
       rclone listremotes 
       | lines 
@@ -459,9 +459,16 @@ export def rmount [drive?:string] {
     | path expand
   )
 
-  let remote = $drive | path parse | get stem
+  let remote = $path | path parse | get stem
   let option = "--vfs-cache-mode full"
-  bash -c ('rclone mount ' + $remote + ': ' + $drive + ' ' +  $option + ' &')
+  bash -c ('rclone mount ' + $remote + ': ' + $path + ' ' +  $option + ' &')
+  
+  job spawn {
+    while (sys disks | get mount | find $drive | length) == 0 {
+      sleep 1sec
+    }
+    notify-send $"($drive) mounted" 
+  } | ignore
 }
 
 # Monitor the output of a command

@@ -300,7 +300,7 @@ export def --wrapped "http server" [
 def "http download" [url:string] {
   let attachmentName  = http head $url
     | transpose -dr
-    | get -i content-disposition
+    | get -o content-disposition
     | parse "attachment; filename={filename}"
     | get filename?.0?
 

@@ -6,7 +6,7 @@ export def main [] {
 		| lines 
 		| parse "{item}  {status}" 
 		| str trim 
-		| drop nth 0 
+		| skip
 		| get status 
 		| get 0 1
 	)

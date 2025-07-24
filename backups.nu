@@ -230,17 +230,16 @@ export def "hyprlnd backup" [] {
     7z max hypr hypr/
     7z max wlogout wlogout/
     7z max swaync swaync/
+    7z max rofi rofi/
     
-    mv *.7z $env.MY_ENV_VARS.linux_backup
+    mv *.7z ($env.MY_ENV_VARS.linux_backup | path join hyprland)
 }
 
 #restore hyprland configs
 @category backup
 @search-terms hyprland restore
 export def "hyprlnd restore" [] {
-    cd $env.MY_ENV_VARS.linux_backup
-    7z x waybar.7z -o/home/kira/.config/
-    7z x hypr.7z -o/home/kira/.config/
-    7z x wlogout.7z -o/home/kira/.config/
-    7z x swaync.7z -o/home/kira/.config/
+    cd ($env.MY_ENV_VARS.linux_backup | path join hyprland)
+    
+    ls *.7z | get name | each {|f| 7z x $f -o/home/kira/.config/ -y}
 }

@@ -48,7 +48,7 @@ def find-index [name: string,default? = -1] {
 def extract-name [path] {
 	if $path like '^[0-9]' {
 		"transmission"
-	}	else if $path like 'jd2' {
+	} else if $path like 'jd2' {
 		"jd"
 	} else if $path like 'maestral' {
 		"maestral"
@@ -64,6 +64,8 @@ def extract-name [path] {
 		"zed"
 	} else if $path like 'gnome-software' {
 		"gnome-software"
+	} else if $path like 'bin/nu' {
+		"nu"
 	} else if $path like '^/usr/bin' {
 		$path | split row '/' | get 3
 	} else if $path not-like '^/' {
