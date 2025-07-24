@@ -2,7 +2,7 @@
 
 export def main [] {
 	let ydx_info = (
-		yandex-disk status 
+		/usr/bin/yandex-disk status 
 		| grep -E "Sync|Total|Used|Trash" 
 		| lines 
 		| split column ':' 
