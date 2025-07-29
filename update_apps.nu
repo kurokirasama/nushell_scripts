@@ -118,17 +118,20 @@ export def patch-font [file? = "Monocraft.ttc"] {
   let font_folder = $env.MY_ENV_VARS.linux_backup
   
   cd $folder
-
+ 
   cp ($font_folder | path join "Monocraft.ttc" | path expand) .
-
+ 
   ./fontforge.AppImage -script ([$nerd_font font-patcher] | path join | path expand) ([$env.PWD $file] | path join) --complete --careful --output "Monocraft_updated.ttc" --outputdir $env.PWD
-
+ 
   mv -f (ls *.ttc | sort-by modified | last | get name) $"($file | path parse | get stem)-nerd-fonts-patched_by_me.ttc"
-    cp -f $"($file | path parse | get stem)-nerd-fonts-patched_by_me.ttc" ($font_folder | path expand)
-    mv -f $"($file | path parse | get stem)-nerd-fonts-patched_by_me.ttc" $file
-
+  cp -f $"($file | path parse | get stem)-nerd-fonts-patched_by_me.ttc" ($font_folder | path expand)
+  mv -f $"($file | path parse | get stem)-nerd-fonts-patched_by_me.ttc" $file
+ 
   sudo mv -f $file /usr/local/share/fonts
   fc-cache -fv;sudo fc-cache -fv
+  
+  print (echo-g "Now run patch-font in other machines or run!")
+  print (echo-g "cp Monocraft-nerd-fonts-patched_by_me.ttc ~/Downloads/Monocraft.ttc;cd ~/Downloads;install-font Monocraft.ttc")
 }
 
 #update-upgrade system
@@ -261,15 +264,17 @@ export def get-github-latest [
     | http get $in -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
     | select assets_url tag_name
 
-  let info = (
-    http get $assets_url.assets_url -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
+  let info = http get $assets_url.assets_url -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
     | select name browser_download_url
     | upsert version $assets_url.tag_name
     | find -n $file_type 
-  )
 
   if ($info | length) > 0 {
-    $info | get 0
+    $info | if ($repo =~ "Monocraft") {
+        where name == ($repo + ".ttc") | get 0
+    } else {
+        get 0
+    }
   } else {
     []
   }
@@ -293,33 +298,22 @@ export def github-app-update [
 
   let url = $info | get browser_download_url | ansi strip
 
-  let app = (
-    if ($alternative_name | is-empty) {
+  let app = if ($alternative_name | is-empty) {
       $repo
     } else {
       $alternative_name
     }
-  ) 
 
-  let app_file = (
-    if $version_from_json {
+  let app_file = if $version_from_json {
      [$down_dir $"($app).json"] | path join
     } else {
       ""
     }
-  )
 
-  let find_ = (
-    $info 
-    | get name 
-    | find _ 
-    | is-empty
-  )
+  let find_ = $info | get name | find _ | is-empty
 
-  let new_version = (
-    if $version_from_json {
-      $info 
-    | get version
+  let new_version = if $version_from_json {
+      $info | get version
     } else {
       $info 
       | get name
@@ -328,7 +322,6 @@ export def github-app-update [
       | split row (if not $find_ {"_"} else {"-"}) 
       | get 1
     }
-  )
   
   let exists = (ls | find $app | find $file_type | length) > 0
 
@@ -436,7 +429,7 @@ export def "apps-update mpris" [] {
   
 #update monocraft font
 export def "apps-update monocraft" [
-  --to_patch(-p) = true     #to patch Monocraft.otf, else to use patched ttf
+  --to-patch(-p) = true     #to patch Monocraft.otf, else to use patched ttf
   --type(-t):string = "ttc"  #"otf" if -p, else "ttf"
 ] {
   let current_version = (
@@ -447,13 +440,9 @@ export def "apps-update monocraft" [
   
   github-app-update IdreesInc Monocraft -f $type -d $env.MY_ENV_VARS.linux_backup -j
   
-  let new_version = (
-    open ([$env.MY_ENV_VARS.linux_backup Monocraft.json] | path join) 
-    | get version
-  )
+  let new_version = open ([$env.MY_ENV_VARS.linux_backup Monocraft.json] | path join) | get version
 
   if $current_version == $new_version {
-    print (echo-g "Monocraft is already in its latest version...")
     return
   }
 
