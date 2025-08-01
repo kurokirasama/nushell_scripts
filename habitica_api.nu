@@ -19,7 +19,7 @@ export def "habitica stats" [] {
     } | url join
 
     let response = http get $url -H $headers | get data
-    
+
     return {
         name: $response.profile.name,
         level: $response.stats.lvl,
@@ -29,7 +29,9 @@ export def "habitica stats" [] {
         mana: $"($response.stats.mp | math round | into string)/($response.stats.maxMP | math round | into string)",
         logged_in_today: (not $response.needsCron),
         dailys_to_complete: (habitica ls dailys | where completed == false and isDue == true | length),
-        todos_to_complete: (habitica ls todos | where completed == false | length)
+        todos_to_complete: (habitica ls todos | where completed == false | length),
+        in_quest: ($response.party.quest.progress | is-not-empty),
+        pending_quest: ($response.invitations.party | is-not-empty)
     }
 }
 
