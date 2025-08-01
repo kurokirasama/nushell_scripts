@@ -1,7 +1,43 @@
+# Get credentials
+export def "habitica credentials" [] {
+    {
+        x-client : ($env.MY_ENV_VARS.api_keys.habitica.id + ' - nushell habitica api wrapper'),
+        x-api-user: $env.MY_ENV_VARS.api_keys.habitica.id,
+        x-api-key: $env.MY_ENV_VARS.api_keys.habitica.token
+    }
+}
+
+# Gets user stats
+export def "habitica stats" [] {
+    let headers = habitica credentials 
+    let base_url = "https://habitica.com"
+
+    let url = {
+        scheme: ( $base_url | split row "://" | get 0 ),
+        host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
+        path: "/api/v3/user"
+    } | url join
+
+    let response = http get $url -H $headers | get data
+    
+    return {
+        name: $response.profile.name,
+        level: $response.stats.lvl,
+        class: $response.stats.class,
+        hp: $"($response.stats.hp | math round | into string)/($response.stats.maxHealth | math round | into string)",
+        experience: $"($response.stats.exp | math round | into string)/($response.stats.toNextLevel | math round | into string)",
+        mana: $"($response.stats.mp | math round | into string)/($response.stats.maxMP | math round | into string)",
+        logged_in_today: (not $response.needsCron),
+        dailys_to_complete: (habitica ls dailys | where completed == false and isDue == true | length),
+        todos_to_complete: (habitica ls todos | where completed == false | length)
+    }
+}
+
 # Lists user tasks
 export def "habitica ls" [
   task_type?: string # Type of task to list (dailys, todos, habits, rewards, completedTodos)
 ] {
+  let headers = habitica credentials
   let types = ["dailys", "todos", "habits", "rewards", "completedTodos"]
   
   let task_type = if ($task_type | is-empty) {
@@ -14,10 +50,7 @@ export def "habitica ls" [
   if ($task_type not-in $types) {
     return-error "Invalid task type"
   }
-
-  let api_user = $env.MY_ENV_VARS.api_keys.habitica.id
-  let api_key = $env.MY_ENV_VARS.api_keys.habitica.token
-
+  
   let base_url = "https://habitica.com"
 
   let url = {
@@ -28,12 +61,6 @@ export def "habitica ls" [
       type: $task_type
     }
   } | url join
-  
-  let headers = {
-    x-client : ($api_user + ' - nushell habitica api wrapper'),
-    x-api-user: $api_user,
-    x-api-key: $api_key
-  }
 
   let response = http get $url -H $headers | get data
   
@@ -68,8 +95,7 @@ export def "habitica ls" [
 export def "habitica complete-daily" [
   task_id: string # The ID of the daily task to complete
 ] {
-  let api_user = $env.MY_ENV_VARS.api_keys.habitica.id
-  let api_key = $env.MY_ENV_VARS.api_keys.habitica.token
+  let headers = habitica credentials
 
   let base_url = "https://habitica.com"
 
@@ -78,12 +104,6 @@ export def "habitica complete-daily" [
     host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
     path: $"/api/v3/tasks/($task_id)/score/up"
   } | url join
-  
-  let headers = {
-    x-client : ($api_user + ' - nushell habitica api wrapper'),
-    x-api-user: $api_user,
-    x-api-key: $api_key
-  }
 
   http post --content-type application/json $url -H $headers {}
 }
@@ -110,6 +130,7 @@ export def "habitica mark-dailys-done" [] {
 export def "habitica add" [
   task_type?: string # Type of task to add (daily, todo, habit)
 ] {
+  let headers = habitica credentials
   let types = ["daily", "todo", "habit"]
   
   let task_type = if ($task_type | is-empty) {
@@ -123,9 +144,6 @@ export def "habitica add" [
     return-error "Invalid task type. Must be 'daily', 'todo', or 'habit'."
   }
 
-  let api_user = $env.MY_ENV_VARS.api_keys.habitica.id
-  let api_key = $env.MY_ENV_VARS.api_keys.habitica.token
-
   let base_url = "https://habitica.com"
 
   let url = {
@@ -133,12 +151,6 @@ export def "habitica add" [
     host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
     path: "/api/v3/tasks/user"
   } | url join
-  
-  let headers = {
-    x-client : ($api_user + ' - nushell habitica api wrapper'),
-    x-api-user: $api_user,
-    x-api-key: $api_key
-  }
 
   let task_text = (input "Enter task text (required): ")
   if ($task_text | is-empty) {
@@ -241,6 +253,7 @@ export def "habitica add" [
 export def "habitica del" [
   task_type?: string # Type of task to delete (dailys, todos, habits)
 ] {
+  let headers = habitica credentials
   let types = ["dailys", "todos", "habits"]
   
   let task_type = if ($task_type | is-empty) {
@@ -264,9 +277,6 @@ export def "habitica del" [
   let idx_task_to_delete = $tasks | input list -fid text (echo-g "Select task to delete: ")
   let task_to_delete = $tasks | get $idx_task_to_delete
   
-  let api_user = $env.MY_ENV_VARS.api_keys.habitica.id
-  let api_key = $env.MY_ENV_VARS.api_keys.habitica.token
-
   let base_url = "https://habitica.com"
 
   let url = {
@@ -275,12 +285,6 @@ export def "habitica del" [
     path: $"/api/v3/tasks/($task_to_delete._id)"
   } | url join
   
-  let headers = {
-    x-client : ($api_user + ' - nushell habitica api wrapper'),
-    x-api-user: $api_user,
-    x-api-key: $api_key
-  }
-
   let response = http delete $url -H $headers
 
   if ($response.success == true) {
@@ -292,6 +296,8 @@ export def "habitica del" [
 
 # Marks selected todo tasks as completed
 export def "habitica complete-todos" [] {
+    let headers = habitica credentials
+
     let todos = habitica ls todos | where completed == false | reverse
 
     if ($todos | is-empty) {
@@ -301,15 +307,7 @@ export def "habitica complete-todos" [] {
 
     let selected_indices = $todos | input list -imd text (echo-g "Select todos to complete (use space to multi-select): ")
     
-    let api_user = $env.MY_ENV_VARS.api_keys.habitica.id
-    let api_key = $env.MY_ENV_VARS.api_keys.habitica.token
     let base_url = "https://habitica.com"
-    
-    let headers = {
-        x-client : ($api_user + ' - nushell habitica api wrapper'),
-        x-api-user: $api_user,
-        x-api-key: $api_key
-    }
 
     for $index in $selected_indices {
         let todo = $todos | get $index
@@ -335,6 +333,8 @@ export def "habitica complete-todos" [] {
 
 # Define the function to score habits
 export def "habitica score-habits" [] {
+    let headers = habitica credentials
+
     # Fetch the list of habits
     let habits = habitica ls habits | reverse
 
@@ -347,15 +347,7 @@ export def "habitica score-habits" [] {
     # Prompt the user to select habits to score
     let selected_indices = $habits | input list -imd text (echo-g "Select habits to score: ")
     
-    let api_user = $env.MY_ENV_VARS.api_keys.habitica.id
-    let api_key = $env.MY_ENV_VARS.api_keys.habitica.token
     let base_url = "https://habitica.com"
-    
-    let headers = {
-        x-client : ($api_user + ' - nushell habitica api wrapper'),
-        x-api-user: $api_user,
-        x-api-key: $api_key
-    }
     
     # Loop over the selected habits
     for index in $selected_indices {
