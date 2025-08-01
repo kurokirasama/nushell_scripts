@@ -1,7 +1,3 @@
-# i've been using the habitica api to create a few nushell functions in [@habitica_api.nu](@file:nushell/habitica_api.nu)
-
-# Check into the habitica api documentation in how to mark a todo task as completed. Then create a function called `habitica complete-todos` to implement the that funcionality in the following way:
-
 # Lists user tasks
 export def "habitica ls" [
   task_type?: string # Type of task to list (dailys, todos, habits, rewards, completedTodos)
