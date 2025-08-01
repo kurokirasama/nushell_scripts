@@ -1,6 +1,16 @@
+#copy text to clipboard
+export def copy [
+] {
+    if $env.XDG_CURRENT_DESKTOP == "gnome" {
+        xsel --input --clipboard
+    } else if $env.XDG_CURRENT_DESKTOP == "Hyprland" {
+        wl-copy
+    }
+}
+
 #copy pwd
 export def cpwd [] {
-  $env.PWD | xclip -sel clip
+  $env.PWD | copy
 }
 
 #check if drive is mounted

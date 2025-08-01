@@ -654,6 +654,9 @@ export def "ai media-summary" [
   if $notify {"summary finished!" | tasker send-notification}
 }
 
+export alias aimsy = ai media-summary -GXt youtube
+export alias aimsc = ai media-summary -GXt class
+
 #resume video transcription text via gpt
 @category ai
 @search-terms transcription summary chagpt gemini claude ollama

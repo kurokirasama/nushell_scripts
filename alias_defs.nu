@@ -130,16 +130,6 @@ export def killnode [] {
     psn node | find mcp & exte | killn
 }
 
-#copy text to clipboard
-export def copy [
-] {
-    if $env.XDG_CURRENT_DESKTOP == "gnome" {
-        xsel --input --clipboard
-    } else if $env.XDG_CURRENT_DESKTOP == "Hyprland" {
-        wl-copy
-    }
-}
-
 #paste text from clipboard
 export def paste [] {
     if $env.XDG_CURRENT_DESKTOP == "gnome" {
