@@ -393,3 +393,131 @@ export def "habitica score-habits" [] {
         sleep 1sec
     }
 }
+
+#skills data
+export def "habitica skills" [] {
+    [
+        {class: "warrior", name: "Brutal Smash", spellId: "smash", cost: 10, target: "task", level: 11, effect: "+50% damage to a task"},
+        {class: "warrior", name: "Defensive Stance", spellId: "defensiveStance", cost: 25, target: "player", level: 12, effect: "-50% damage from Dailies"},
+        {class: "warrior", name: "Valorous Presence", spellId: "valorousPresence", cost: 20, target: "player", level: 13, effect: "+100% damage to Boss"},
+        {class: "warrior", name: "Intimidating Gaze", spellId: "intimidate", cost: 15, target: "party", level: 14, effect: "+20% damage to Boss for party"},
+
+        {class: "wizard", name: "Burst of Flames", spellId: "fireball", cost: 10, target: "task", level: 11, effect: "+50% experience from a task"},
+        {class: "wizard", name: "Ethereal Surge", spellId: "mpheal", cost: 30, target: "player", level: 12, effect: "+50% mana"},
+        {class: "wizard", name: "Earthquake", spellId: "earth", cost: 35, target: "task", level: 13, effect: "+100% damage to a task"},
+        {class: "wizard", name: "Chilling Frost", spellId: "frost", cost: 40, target: "party", level: 14, effect: "+20% damage to Boss for party"},
+
+        {class: "rogue", name: "Pickpocket", spellId: "pickPocket", cost: 10, target: "task", level: 11, effect: "+50% gold from a task"},
+        {class: "rogue", name: "Backstab", spellId: "backStab", cost: 15, target: "task", level: 12, effect: "+100% experience from a task"},
+        {class: "rogue", name: "Tools of the Trade", spellId: "toolsOfTrade", cost: 25, target: "party", level: 13, effect: "+20% gold from tasks for party"},
+        {class: "rogue", name: "Stealth", spellId: "stealth", cost: 45, target: "player", level: 14, effect: "-50% health from unticked Dailies"},
+
+        {class: "healer", name: "Healing Light", spellId: "heal", cost: 15, target: "player", level: 11, effect: "+50% health"},
+        {class: "healer", name: "Searing Brightness", spellId: "brightness", cost: 15, target: "task", level: 12, effect: "+100% experience from a task"},
+        {class: "healer", name: "Protective Aura", spellId: "protectAura", cost: 30, target: "party", level: 13, effect: "-50% damage from Boss for party"},
+        {class: "healer", name: "Blessing", spellId: "healAll", cost: 25, target: "party", level: 14, effect: "+20% experience from tasks for party"}
+    ]
+}
+
+# Casts a skill
+export def "habitica skill" [
+    skill_name?: string # The name of the skill to cast
+] {
+    let headers = habitica credentials
+    let base_url = "https://habitica.com"
+    let user_stats = habitica stats
+    let user_class = $user_stats.class
+
+    let skills_data = habitica skills
+
+    let available_skills = $skills_data | where class == $user_class
+
+    let selected_skill = if ($skill_name | is-empty) {
+        if ($available_skills | is-empty) {
+            print (echo-r $"No skills available for your class: ($user_class).")
+            return
+        }
+        $available_skills | input list -fd name (echo-g "Select a skill to cast: ")
+    } else {
+        let skill_found = $available_skills | where name == $skill_name
+        if ($skill_found | is-empty) {
+            print (echo-r $"Skill '($skill_name)' not found for your class: ($user_class).")
+            return
+        }
+        $skill_found | get 0
+    }
+
+    let spell_id = $selected_skill.spellId
+
+    let url = {
+        scheme: ( $base_url | split row "://" | get 0 ),
+        host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
+        path: $"/api/v3/user/class/cast/($spell_id)"
+    } | url join
+
+    print (echo-g $"Casting skill: ($selected_skill.name) Cost: ($selected_skill.cost) MP")
+    let response = http post --content-type application/json $url -H $headers {}
+
+    if ($response.success == true) {
+        print (echo-g $"Successfully cast skill: ($selected_skill.name).")
+    } else {
+        print (echo-r $"Failed to cast skill: ($selected_skill.name). Message: ($response.message)")
+    }
+}
+
+# Casts a skill multiple times based on available mana
+export def "habitica skill-max" [
+    skill_name?: string # The name of the skill to cast multiple times
+] {
+    let headers = habitica credentials
+    let base_url = "https://habitica.com"
+    let user_stats = habitica stats
+    let user_class = $user_stats.class
+    let current_mana_str = $user_stats.mana
+
+    # Extract current mana value (e.g., "50/100" -> 50)
+    let current_mana = $current_mana_str | split row "/" | get 0 | into int
+
+    let skills_data = habitica skills
+
+    let available_skills = $skills_data | where class == $user_class
+
+    let selected_skill = if ($skill_name | is-empty) {
+        if ($available_skills | is-empty) {
+            print (echo-r $"No skills available for your class: ($user_class).")
+            return
+        }
+        $available_skills | input list -fd name (echo-g "Select a skill to cast multiple times: ")
+    } else {
+        let skill_found = $available_skills | where name == $skill_name
+        if ($skill_found | is-empty) {
+            print (echo-r $"Skill '($skill_name)' not found for your class: ($user_class).")
+            return
+        }
+        $skill_found | get 0
+    }
+
+    let skill_cost = $selected_skill.cost
+
+    if ($skill_cost == 0) {
+        print (echo-r $"Skill '($selected_skill.name)' has no mana cost. Cannot use skill-max.")
+        return
+    }
+
+    let times_to_cast = ($current_mana / $skill_cost) | math floor | into int
+
+    if ($times_to_cast == 0) {
+        print (echo-r $"Not enough mana to cast '($selected_skill.name)'. Current Mana: ($current_mana) MP, Skill Cost: ($skill_cost) MP.")
+        return
+    }
+
+    print (echo-g $"Attempting to cast '($selected_skill.name)' ($times_to_cast) times. Total Mana Cost: ($times_to_cast * $skill_cost) MP.")
+
+    for i in (seq 1 $times_to_cast) {
+        print (echo-c $"Casting '($selected_skill.name)' iteration ($i)/($times_to_cast)" "yellow")
+        habitica skill $selected_skill.name
+        sleep 1sec
+    }
+
+    print (echo-g $"Finished casting '($selected_skill.name)' ($times_to_cast) times.")
+}
