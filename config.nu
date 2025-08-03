@@ -120,8 +120,12 @@ let hooks = {
                 }
                 
                 if $hstats.pending_quest {
-                    print (echo $"(ansi -e { fg: '#ff0000' attr: b })You have a pending quest invitation, accepting it now...(ansi reset)")
+                    print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have a pending quest invitation, accepting it now...(ansi reset)")
                     habitica auto-quest 
+                }
+                
+                if (habitica ls dailys -p | where text =~ supgrade | length) > 0 {
+                    print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have to upgrade your system today!(ansi reset)")
                 }
             }
         }
