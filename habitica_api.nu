@@ -65,21 +65,21 @@ export def "habitica ls" [
   } | url join
 
   let response = http get $url -H $headers | get data
-  
+
   match $task_type {
     "dailys" => {
       $response
-      | select _id frequency text completed isDue 
+      | select _id frequency text checklist completed isDue 
       | sort-by frequency
     }
     "todos" => {
       $response
-      | select _id text completed createdAt
+      | select _id text checklist completed createdAt
       | sort-by createdAt
     }
     "habits" => {
       $response
-      | select _id frequency text up down createdAt
+      | select _id frequency text checklist up down createdAt
       | sort-by createdAt
     }
     "rewards" => {
@@ -87,7 +87,7 @@ export def "habitica ls" [
     }
     "completedTodos" => {
       $response
-      | select _id text createdAt dateCompleted
+      | select _id text checklist createdAt dateCompleted
       | sort-by createdAt
     }
   }
@@ -520,4 +520,191 @@ export def "habitica skill-max" [
     }
 
     print (echo-g $"Finished casting '($selected_skill.name)' ($times_to_cast) times.")
+}
+
+# Logs in to Habitica and runs cron
+export def "habitica login" [] {
+    let stats = habitica stats
+    if $stats.logged_in_today {
+        print (echo-g "Already logged in today.")
+        return
+    }
+
+    if ($stats.dailys_to_complete > 0) {
+        print "Completing pending daily tasks..."
+        habitica mark-dailys-done
+    }
+
+    let headers = habitica credentials
+    let base_url = "https://habitica.com"
+
+    let url = {
+        scheme: ( $base_url | split row "://" | get 0 ),
+        host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
+        path: "/api/v3/cron"
+    } | url join
+
+    let response = http post --content-type application/json $url -H $headers {}
+
+    if ($response.success == true) {
+        print (echo-g "Successfully logged in to Habitica.")
+        return
+    } 
+    print (echo-r $"Failed to log in to Habitica: ($response.message)")
+}
+
+# Buys a health potion
+export def "habitica buy-potion" [] {
+    let headers = habitica credentials
+    let base_url = "https://habitica.com"
+
+    let url = {
+        scheme: ( $base_url | split row "://" | get 0 ),
+        host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
+        path: "/api/v3/user/buy-health-potion"
+    } | url join
+
+    let response = http post --content-type application/json $url -H $headers {}
+
+    if ($response.success == true) {
+        print (echo-g "Successfully bought a health potion.")
+    } else {
+        print (echo-r $"Failed to buy a health potion: ($response.message)")
+    }
+}
+
+# Buys an item from the armoire
+export def "habitica buy-armoir" [] {
+    let headers = habitica credentials
+    let base_url = "https://habitica.com"
+
+    let url = {
+        scheme: ( $base_url | split row "://" | get 0 ),
+        host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
+        path: "/api/v3/user/buy-armoire"
+    } | url join
+
+    let response = http post --content-type application/json $url -H $headers {}
+
+    if ($response.success == true) {
+        print (echo-g "Successfully bought an item from the armoire.")
+        return $response.data.armoire
+    } else {
+        print (echo-r $"Failed to buy an item from the armoire: ($response.message)")
+    }
+}
+
+# Completes a checklist item for a task
+export def "habitica complete-checklist" [
+  task_type?: string # Type of task to complete checklist for (dailys, todos, habits)
+] {
+  let headers = habitica credentials
+  let types = ["dailys", "todos", "habits"]
+  
+  let task_type = if ($task_type | is-empty) {
+    $types
+    | input list -f (echo-g "Select task type: ")
+  } else {
+    $task_type
+  }
+
+  if ($task_type not-in $types) {
+    return-error "Invalid task type. Must be 'dailys', 'todos', or 'habits'."
+  }
+
+  let tasks_with_checklist = habitica ls $task_type | where ($it.checklist | is-not-empty) | reverse
+
+  if ($tasks_with_checklist | is-empty) {
+    print (echo-r $"No tasks with checklists found for type '($task_type)'.")
+    return
+  }
+
+  let selected_task_index = $tasks_with_checklist | input list -fid text (echo-g "Select a task to complete checklist items for: ")
+  let selected_task = $tasks_with_checklist | get $selected_task_index
+
+  let checklist_items = $selected_task.checklist | where completed == false
+
+  if ($checklist_items | is-empty) {
+    print (echo-r "No incomplete checklist items found for this task.")
+    return
+  }
+
+  let selected_checklist_indices = $checklist_items | input list -imd text (echo-g "Select checklist items to complete: ")
+
+  let base_url = "https://habitica.com"
+
+  for $index in $selected_checklist_indices {
+    let item = $checklist_items | get $index
+    let task_id = $selected_task._id
+    let item_id = $item.id
+
+    let url = {
+        scheme: ( $base_url | split row "://" | get 0 ),
+        host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
+        path: $"/api/v3/tasks/($task_id)/checklist/($item_id)/score"
+    } | url join
+
+    let response = http post --content-type application/json $url -H $headers {}
+
+    if ($response.success == true) {
+        print ((echo-g $"Successfully completed checklist item: ") + ($item.text))
+    } else {
+        print ((echo-r $"Failed to complete checklist item: ") + ($item.text) + (echo-r $". Message: ($response.message)"))
+    }
+    sleep 1sec
+  }
+}
+
+# Adds a checklist item to a task
+export def "habitica add-checklist" [
+  task_type?: string # Type of task to add checklist item to (dailys, todos, habits)
+] {
+  let headers = habitica credentials
+  let types = ["dailys", "todos", "habits"]
+  
+  let task_type = if ($task_type | is-empty) {
+    $types
+    | input list -f (echo-g "Select task type: ")
+  } else {
+    $task_type
+  }
+
+  if ($task_type not-in $types) {
+    return-error "Invalid task type. Must be 'dailys', 'todos', or 'habits'."
+  }
+
+  let tasks = habitica ls $task_type | reverse
+
+  if ($tasks | is-empty) {
+    print (echo-r $"No tasks found for type '($task_type)'.")
+    return
+  }
+
+  let selected_task_index = $tasks | input list -fid text (echo-g "Select a task to add a checklist item to: ")
+  let selected_task = $tasks | get $selected_task_index
+
+  let checklist_item_text = (input "Enter the text for the new checklist item: ")
+
+  if ($checklist_item_text | is-empty) {
+    return-error "Checklist item text cannot be empty."
+  }
+
+  let base_url = "https://habitica.com"
+  let task_id = $selected_task._id
+
+  let url = {
+      scheme: ( $base_url | split row "://" | get 0 ),
+      host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
+      path: $"/api/v3/tasks/($task_id)/checklist"
+  } | url join
+
+  let payload = { text: $checklist_item_text }
+
+  let response = http post --content-type application/json $url -H $headers ($payload | to json)
+
+  if ($response.success == true) {
+      print ((echo-g $"Successfully added checklist item to task: ") + ($selected_task.text))
+  } else {
+      print ((echo-r $"Failed to add checklist item. Message: ") + ($response.message))
+  }
 }
