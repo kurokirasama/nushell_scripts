@@ -19,7 +19,7 @@ use /path/to/nushell_scripts/gcal.nu *
 use /path/to/nushell_scripts/media.nu *
 use /path/to/nushell_scripts/apis.nu *
 use /path/to/nushell_scripts/obsidian.nu *
-use /path/to/nushell_scripts/habitica_api.nu *
+use /path/to/nushell_scripts/habitica.nu *
 use /path/to/nushell_scripts/network.nu *
 use /path/to/nushell_scripts/backups.nu *
 use /path/to/nushell_scripts/update_apps.nu *
