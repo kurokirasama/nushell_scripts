@@ -236,7 +236,7 @@ export def google_ai [
     if not ($prompt | is-empty) {
       print (echo-c ($chat_char + $prompt + "\n") "white")
     }
-    mut chat_prompt = if ($prompt | is-empty) {input $chat_char} else {$prompt}
+    mut chat_prompt = if ($prompt | is-empty) {input --reedline $chat_char} else {$prompt}
 
     mut count = ($contents | length) - 1
     while not ($chat_prompt | is-empty) {
@@ -267,7 +267,7 @@ export def google_ai [
 
       $count = $count + 1
 
-      $chat_prompt = (input $chat_char)
+      $chat_prompt = (input --reedline $chat_char)
     }
 
     print (echo-c "chat with gemini ended..." "green" -b)
