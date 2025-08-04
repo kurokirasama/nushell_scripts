@@ -124,7 +124,7 @@ let hooks = {
                     habitica auto-quest 
                 }
                 
-                if (habitica ls dailys -p | where text =~ supgrade | length) > 0 {
+                if (habitica ls dailys -ti | where text =~ supgrade | length) > 0 {
                     print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have to upgrade your system today!(ansi reset)")
                 }
             }
