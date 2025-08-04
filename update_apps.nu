@@ -694,17 +694,14 @@ export def "apps-update nmap" [] {
 export def "apps-update ttyplot" [] {
   cd $env.MY_ENV_VARS.debs
 
-  let current_version = (
-    ls 
+  let current_version = ls 
     | find -n tty 
     | get name 
     | get 0
     | split row _ 
     | get 1
-  )
   
-  let url = (
-    http get https://packages.debian.org/sid/amd64/ttyplot/download
+  let url = http get https://packages.debian.org/sid/amd64/ttyplot/download
     | lines 
     | find .deb 
     | find http 
@@ -713,8 +710,9 @@ export def "apps-update ttyplot" [] {
     | split row "href=\""
     | last 
     | split row "\">"
+    | find ttyplot
     | first
-  )
+    | ansi strip
 
   let filename = $url | split row / | last
 

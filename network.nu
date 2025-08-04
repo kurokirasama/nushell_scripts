@@ -138,9 +138,9 @@ export def get-ips [
   let device = (
     if ($device | is-empty) {
       if $host like $env.MY_ENV_VARS.hosts.2 {
-        "eno1"
+        sys net | where name =~ '^en' | get name.0
       } else {
-        "wlo1"
+        sys net | where name =~ '^wl' | get name.0
       }
     } else {
       $device

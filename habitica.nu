@@ -42,6 +42,8 @@ export def "habitica stats" [] {
 export def "habitica ls" [
   task_type?: string # Type of task to list (dailys, todos, habits, rewards, completedTodos)
   --pending(-p) #show pending dailys only
+  --todays(-t)  #show todays dailys only
+  --no-id(-i)   #hide task ids
 ] {
   let headers = habitica credentials
   let types = ["dailys", "todos", "habits", "rewards", "completedTodos"]
@@ -69,26 +71,29 @@ export def "habitica ls" [
   } | url join
 
   let response = http get $url -H $headers | get data
+  $response | save a.json -f
 
   match $task_type {
     "dailys" => {
       $response
-      | select _id frequency text checklist completed isDue 
+      | select _id frequency text notes checklist tags completed isDue 
       | sort-by frequency
       | if $pending {
             where completed == false and isDue == true 
+      } else if $todays {
+            where isDue == true
       } else {
             $in
       }
     }
     "todos" => {
       $response
-      | select _id text checklist completed createdAt
+      | select _id text notes checklist tags completed createdAt
       | sort-by createdAt
     }
     "habits" => {
       $response
-      | select _id frequency text checklist up down createdAt
+      | select _id frequency text notes checklist tags up down createdAt
       | sort-by createdAt
     }
     "rewards" => {
@@ -96,10 +101,15 @@ export def "habitica ls" [
     }
     "completedTodos" => {
       $response
-      | select _id text checklist createdAt dateCompleted
+      | select _id text notes checklist tags createdAt dateCompleted
       | sort-by createdAt
     }
   }
+  | if $no_id {
+      reject _id    
+    } else {
+      $in
+    }
 }
 
 # Completes a daily task
@@ -525,7 +535,7 @@ export def "habitica skill-max" [
     for i in (seq 1 $times_to_cast) {
         print (echo-c $"Casting '($selected_skill.name)' iteration ($i)/($times_to_cast)" "yellow")
         habitica skill $selected_skill.name
-        sleep 1sec
+        sleep 5sec
     }
 
     print (echo-g $"Finished casting '($selected_skill.name)' ($times_to_cast) times.")
