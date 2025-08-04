@@ -10,6 +10,7 @@ export def "habitica credentials" [] {
 # Gets user stats
 export def "habitica stats" [] {
     let headers = habitica credentials 
+    let hab_id = $env.MY_ENV_VARS.api_keys.habitica.id
     let base_url = "https://habitica.com"
 
     let url = {
@@ -19,7 +20,9 @@ export def "habitica stats" [] {
     } | url join
 
     let response = http get $url -H $headers | get data
-
+    let party = habitica party
+    let pending_quest = ($party.quest.key | is-not-empty) and ($party.quest.active == false) and ($party.quest.members | get $hab_id | is-empty)
+    
     return {
         name: $response.profile.name,
         level: $response.stats.lvl,
@@ -30,8 +33,8 @@ export def "habitica stats" [] {
         logged_in_today: (not $response.needsCron),
         dailys_to_complete: (habitica ls dailys | where completed == false and isDue == true | length),
         todos_to_complete: (habitica ls todos | where completed == false | length),
-        in_quest: ($response.party.quest.progress | is-not-empty),
-        pending_quest: ($response.invitations.party | is-not-empty)
+        in_quest: $party.quest.active,
+        pending_quest: $pending_quest
     }
 }
 
@@ -715,29 +718,35 @@ export def "habitica add-checklist" [
   }
 }
 
-
-# Accepts a pending quest
-export def "habitica auto-quest" [] {
+# Party info
+export def "habitica party" [] {
     let headers = habitica credentials
     let base_url = "https://habitica.com"
-    let hab_id = $env.MY_ENV_VARS.api_keys.habitica.id
-
+    
     let url = {
         scheme: ( $base_url | split row "://" | get 0 ),
         host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
         path: "/api/v3/groups/party"
     } | url join
-
-    let response = http get $url -H $headers 
+    
+    let response = http get $url -H $headers
     
     if not ($response.success == true) {
-        print (echo-r $"Failed to get party data: ($response.message)")
-        return
+        return-error (echo-r $"Failed to get party data: ($response.message)")
     }
+    
+    return ($response | get data)
+}
 
-    let party = $response.data
+# Accepts a pending quest
+export def "habitica auto-quest" [] {
+    let headers = habitica credentials
+    let hab_id = $env.MY_ENV_VARS.api_keys.habitica.id
+    let base_url = "https://habitica.com"
 
-    if (($party.quest.active == false) and ($party.invitations.quest != null)) {
+    let party = habitica party
+
+    if (($party.quest.key | is-not-empty) and ($party.quest.active == false) and ($party.quest.members | get $hab_id | is-empty)) {
         print (echo-g "Pending quest found. Accepting...")
 
         let accept_url = {
