@@ -42,8 +42,9 @@ export def "habitica stats" [] {
 export def "habitica ls" [
   task_type?: string # Type of task to list (dailys, todos, habits, rewards, completedTodos)
   --pending(-p) #show pending dailys only
-  --todays(-t)  #show todays dailys only
-  --no-id(-i)   #hide task ids
+  --now(-n)   #show todays dailys only
+  --no-id(-i) #hide task ids
+  --tags(-t)  #show only tasks with tags
 ] {
   let headers = habitica credentials
   let types = ["dailys", "todos", "habits", "rewards", "completedTodos"]
@@ -80,7 +81,7 @@ export def "habitica ls" [
       | sort-by frequency
       | if $pending {
             where completed == false and isDue == true 
-      } else if $todays {
+      } else if $now {
             where isDue == true
       } else {
             $in
@@ -110,6 +111,11 @@ export def "habitica ls" [
     } else {
       $in
     }
+  | if $tags {
+    where {|t| $t.tags | is-not-empty}
+  } else {
+    $in
+  }
 }
 
 # Completes a daily task
