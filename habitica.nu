@@ -72,7 +72,6 @@ export def "habitica ls" [
   } | url join
 
   let response = http get $url -H $headers | get data
-  $response | save a.json -f
 
   match $task_type {
     "dailys" => {
