@@ -116,16 +116,17 @@ let hooks = {
                     print (echo $"(ansi -e { fg: '#ff0000' attr: b })Not logged in to habitica yet, logging in now...(ansi reset)")
                     habitica login
                     print (echo $"(ansi -e { fg: '#00ff00' attr: b })These are today's dailys:(ansi reset)")
-                    habitica ls dailys -pi
+                    print (habitica ls dailys -pi)
                 }
                 
+                let hstats = habitica stats
                 if $hstats.pending_quest {
                     print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have a pending quest invitation, accepting it now...(ansi reset)")
                     habitica auto-quest 
                 }
                 
                 if ($hstats.dailys_to_complete > 0) {
-                    print (echo $"(ansi -e { fg: '#ff0000' attr: b })You have ($hstats.dailys_to_complete) dailys to complete today, completing them now...(ansi reset)")
+                    print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have ($hstats.dailys_to_complete) dailys to complete today, completing them now...(ansi reset)")
                     habitica mark-dailys-done 
                 }
                 

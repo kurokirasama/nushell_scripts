@@ -37,7 +37,7 @@ export def "ai help" [] {
     { name: "ai clean-text", description: "Clean and format raw text using AI" },
     { name: "ai analyze_religious_text", description: "Analyze religious text for claims, references, and message using AI" },
     { name: "o_llama", description: "Single call wrapper for local Ollama models (generate, chat, embed)" },
-    { name: "ochat", description: "Alias for 'askai -coW 2' (chat with Ollama)" },
+    { name: "ochat", description: "Alias for 'askai -con 2' (chat with Ollama)" },
     { name: "stable_diffusion", description: "Single call wrapper for Stability AI Stable Diffusion models" },
     { name: "google_aimage", description: "Single call wrapper for Google AI image generation models (Gemini/Imagen)" },
     { name: "run-private-gpt", description: "Run a local private-gpt instance" },
@@ -351,7 +351,10 @@ export def askai [
 }
 
 #alias for bard
-export alias bard = askai -cG -n 2
+export alias bard = askai -cGn 2
+
+#alias for ollama chat
+export alias ochat = askai -con 2
 
 #generate a git commit message via chatgpt and push the changes
 #

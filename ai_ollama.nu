@@ -278,9 +278,6 @@ export def o_llama [
   return $response.response
 }
 
-#alias for ollama chat
-export alias ochat = askai -con 2
-
 #update ollama contents with new content
 def update_ollama_content [
   contents:list #contents to update
