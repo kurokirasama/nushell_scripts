@@ -186,7 +186,7 @@ export def left_prompt [] {
 }
 
 #last 100 elements in history with highlight
-export def h [howmany = 100] {
+export def his [howmany = 100] {
   history
   | last $howmany
   | update command {|f|

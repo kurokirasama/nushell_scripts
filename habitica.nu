@@ -1,5 +1,5 @@
 # Get credentials
-export def "habitica credentials" [] {
+export def "h credentials" [] {
     {
         x-client : ($env.MY_ENV_VARS.api_keys.habitica.id + ' - nushell habitica api wrapper'),
         x-api-user: $env.MY_ENV_VARS.api_keys.habitica.id,
@@ -8,8 +8,8 @@ export def "habitica credentials" [] {
 }
 
 # Gets user stats
-export def "habitica stats" [] {
-    let headers = habitica credentials 
+export def "h stats" [] {
+    let headers = h credentials 
     let hab_id = $env.MY_ENV_VARS.api_keys.habitica.id
     let base_url = "https://habitica.com"
 
@@ -20,7 +20,7 @@ export def "habitica stats" [] {
     } | url join
 
     let response = http get $url -H $headers | get data
-    let party = habitica party
+    let party = h party
     let pending_quest = ($party.quest.key | is-not-empty) and ($party.quest.active == false) and ($party.quest.members | get $hab_id | is-empty)
     
     return {
@@ -31,22 +31,22 @@ export def "habitica stats" [] {
         experience: $"($response.stats.exp | math round | into string)/($response.stats.toNextLevel | math round | into string)",
         mana: $"($response.stats.mp | math round | into string)/($response.stats.maxMP | math round | into string)",
         logged_in_today: (not $response.needsCron),
-        dailys_to_complete: (habitica ls dailys | where completed == false and isDue == true | length),
-        todos_to_complete: (habitica ls todos | where completed == false | length),
+        dailys_to_complete: (h ls dailys | where completed == false and isDue == true | length),
+        todos_to_complete: (h ls todos | where completed == false | length),
         in_quest: $party.quest.active,
         pending_quest: $pending_quest
     }
 }
 
 # Lists user tasks
-export def "habitica ls" [
+export def "h ls" [
   task_type?: string # Type of task to list (dailys, todos, habits, rewards, completedTodos)
   --pending(-p) #show pending dailys only
   --now(-n)   #show todays dailys only
   --no-id(-i) #hide task ids
   --tags(-t)  #show only tasks with tags
 ] {
-  let headers = habitica credentials
+  let headers = h credentials    
   let types = ["dailys", "todos", "habits", "rewards", "completedTodos"]
   
   let task_type = if ($task_type | is-empty) {
@@ -118,10 +118,10 @@ export def "habitica ls" [
 }
 
 # Completes a daily task
-export def "habitica complete-daily" [
+export def "h complete-daily" [
   task_id: string # The ID of the daily task to complete
 ] {
-  let headers = habitica credentials
+  let headers = h credentials
 
   let base_url = "https://habitica.com"
 
@@ -135,8 +135,8 @@ export def "habitica complete-daily" [
 }
 
 # Marks all due and incomplete daily tasks as complete
-export def "habitica mark-dailys-done" [] {
-  let dailys_to_complete = habitica ls dailys | where completed == false and isDue == true
+export def "h mark-dailys-done" [] {
+  let dailys_to_complete = h ls dailys | where completed == false and isDue == true
 
   if ($dailys_to_complete | is-empty) {
     print (echo-r "No due and incomplete daily tasks found to mark as done.")
@@ -145,7 +145,7 @@ export def "habitica mark-dailys-done" [] {
 
   for $daily in $dailys_to_complete {
     print $"Completing daily: ($daily.text)"
-    habitica complete-daily $daily._id
+    h complete-daily $daily._id
     sleep 1sec
   }
   
@@ -153,10 +153,10 @@ export def "habitica mark-dailys-done" [] {
 }
 
 # Adds a new task (daily or todo)
-export def "habitica add" [
+export def "h add" [
   task_type?: string # Type of task to add (daily, todo, habit)
 ] {
-  let headers = habitica credentials
+  let headers = h credentials
   let types = ["daily", "todo", "habit"]
   
   let task_type = if ($task_type | is-empty) {
@@ -276,10 +276,10 @@ export def "habitica add" [
 }
 
 # Deletes a task (daily, todo, habit)
-export def "habitica del" [
+export def "h del" [
   task_type?: string # Type of task to delete (dailys, todos, habits)
 ] {
-  let headers = habitica credentials
+  let headers = h credentials
   let types = ["dailys", "todos", "habits"]
   
   let task_type = if ($task_type | is-empty) {
@@ -293,7 +293,7 @@ export def "habitica del" [
     return-error "Invalid task type for deletion. Must be 'dailys', 'todos', or 'habits'."
   }
 
-  let tasks = habitica ls $task_type | reverse
+  let tasks = h ls $task_type | reverse
 
   if ($tasks | is-empty) {
     print (echo-r $"No ($task_type) tasks found to delete.")
@@ -321,10 +321,10 @@ export def "habitica del" [
 }
 
 # Marks selected todo tasks as completed
-export def "habitica complete-todos" [] {
-    let headers = habitica credentials
+export def "h complete-todos" [] {
+    let headers = h credentials
 
-    let todos = habitica ls todos | where completed == false | reverse
+    let todos = h ls todos | where completed == false | reverse
 
     if ($todos | is-empty) {
         print (echo-r "No incomplete todo tasks found to complete.")
@@ -358,11 +358,11 @@ export def "habitica complete-todos" [] {
 }
 
 # Define the function to score habits
-export def "habitica score-habits" [] {
-    let headers = habitica credentials
+export def "h score-habits" [] {
+    let headers = h credentials
 
     # Fetch the list of habits
-    let habits = habitica ls habits | reverse
+    let habits = h ls habits | reverse
 
     # Check if the list is empty
     if ($habits | is-empty) {
@@ -419,7 +419,7 @@ export def "habitica score-habits" [] {
 }
 
 #skills data
-export def "habitica skills" [] {
+export def "h skills" [] {
     [
         {class: "warrior", name: "Brutal Smash", spellId: "smash", cost: 10, target: "task", level: 11, effect: "+50% damage to a task"},
         {class: "warrior", name: "Defensive Stance", spellId: "defensiveStance", cost: 25, target: "player", level: 12, effect: "-50% damage from Dailies"},
@@ -444,15 +444,15 @@ export def "habitica skills" [] {
 }
 
 # Casts a skill
-export def "habitica skill" [
+export def "h skill" [
     skill_name?: string # The name of the skill to cast
 ] {
-    let headers = habitica credentials
+    let headers = h credentials
     let base_url = "https://habitica.com"
-    let user_stats = habitica stats
+    let user_stats = h stats
     let user_class = $user_stats.class
 
-    let skills_data = habitica skills
+    let skills_data = h skills
 
     let available_skills = $skills_data | where class == $user_class
 
@@ -490,19 +490,19 @@ export def "habitica skill" [
 }
 
 # Casts a skill multiple times based on available mana
-export def "habitica skill-max" [
+export def "h skill-max" [
     skill_name?: string # The name of the skill to cast multiple times
 ] {
-    let headers = habitica credentials
+    let headers = h credentials
     let base_url = "https://habitica.com"
-    let user_stats = habitica stats
+    let user_stats = h stats
     let user_class = $user_stats.class
     let current_mana_str = $user_stats.mana
 
     # Extract current mana value (e.g., "50/100" -> 50)
     let current_mana = $current_mana_str | split row "/" | get 0 | into int
 
-    let skills_data = habitica skills
+    let skills_data = h skills
 
     let available_skills = $skills_data | where class == $user_class
 
@@ -539,7 +539,7 @@ export def "habitica skill-max" [
 
     for i in (seq 1 $times_to_cast) {
         print (echo-c $"Casting '($selected_skill.name)' iteration ($i)/($times_to_cast)" "yellow")
-        habitica skill $selected_skill.name
+        h skill $selected_skill.name
         sleep 5sec
     }
 
@@ -547,8 +547,8 @@ export def "habitica skill-max" [
 }
 
 # Logs in to Habitica and runs cron
-export def "habitica login" [] {
-    let stats = habitica stats
+export def "h login" [] {
+    let stats = h stats
     if $stats.logged_in_today {
         print (echo-g "Already logged in today.")
         return
@@ -556,10 +556,10 @@ export def "habitica login" [] {
 
     if ($stats.dailys_to_complete > 0) {
         print "Completing pending daily tasks..."
-        habitica mark-dailys-done
+        h mark-dailys-done
     }
 
-    let headers = habitica credentials
+    let headers = h credentials
     let base_url = "https://habitica.com"
 
     let url = {
@@ -578,8 +578,8 @@ export def "habitica login" [] {
 }
 
 # Buys a health potion
-export def "habitica buy-potion" [] {
-    let headers = habitica credentials
+export def "h buy-potion" [] {
+    let headers = h credentials
     let base_url = "https://habitica.com"
 
     let url = {
@@ -598,8 +598,8 @@ export def "habitica buy-potion" [] {
 }
 
 # Buys an item from the armoire
-export def "habitica buy-armoir" [] {
-    let headers = habitica credentials
+export def "h buy-armoir" [] {
+    let headers = h credentials
     let base_url = "https://habitica.com"
 
     let url = {
@@ -619,10 +619,10 @@ export def "habitica buy-armoir" [] {
 }
 
 # Completes a checklist item for a task
-export def "habitica complete-checklist" [
+export def "h complete-checklist" [
   task_type?: string # Type of task to complete checklist for (dailys, todos, habits)
 ] {
-  let headers = habitica credentials
+  let headers = h credentials
   let types = ["dailys", "todos", "habits"]
   
   let task_type = if ($task_type | is-empty) {
@@ -636,7 +636,7 @@ export def "habitica complete-checklist" [
     return-error "Invalid task type. Must be 'dailys', 'todos', or 'habits'."
   }
 
-  let tasks_with_checklist = habitica ls $task_type | where ($it.checklist | is-not-empty) | reverse
+  let tasks_with_checklist = h ls $task_type | where ($it.checklist | is-not-empty) | reverse
 
   if ($tasks_with_checklist | is-empty) {
     print (echo-r $"No tasks with checklists found for type '($task_type)'.")
@@ -680,10 +680,10 @@ export def "habitica complete-checklist" [
 }
 
 # Adds a checklist item to a task
-export def "habitica add-checklist" [
+export def "h add-checklist" [
   task_type?: string # Type of task to add checklist item to (dailys, todos, habits)
 ] {
-  let headers = habitica credentials
+  let headers = h credentials
   let types = ["dailys", "todos", "habits"]
   
   let task_type = if ($task_type | is-empty) {
@@ -697,7 +697,7 @@ export def "habitica add-checklist" [
     return-error "Invalid task type. Must be 'dailys', 'todos', or 'habits'."
   }
 
-  let tasks = habitica ls $task_type | reverse
+  let tasks = h ls $task_type | reverse
 
   if ($tasks | is-empty) {
     print (echo-r $"No tasks found for type '($task_type)'.")
@@ -734,8 +734,8 @@ export def "habitica add-checklist" [
 }
 
 # Party info
-export def "habitica party" [] {
-    let headers = habitica credentials
+export def "h party" [] {
+    let headers = h credentials
     let base_url = "https://habitica.com"
     
     let url = {
@@ -754,12 +754,12 @@ export def "habitica party" [] {
 }
 
 # Accepts a pending quest
-export def "habitica auto-quest" [] {
-    let headers = habitica credentials
+export def "h auto-quest" [] {
+    let headers = h credentials
     let hab_id = $env.MY_ENV_VARS.api_keys.habitica.id
     let base_url = "https://habitica.com"
 
-    let party = habitica party
+    let party = h party
 
     if (($party.quest.key | is-not-empty) and ($party.quest.active == false) and ($party.quest.members | get $hab_id | is-empty)) {
         print (echo-g "Pending quest found. Accepting...")

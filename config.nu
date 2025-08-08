@@ -111,26 +111,26 @@ let hooks = {
                 | save -f $ips_file
                 
                 ## verify habitica
-                let hstats = habitica stats
+                let hstats = h stats
                 if not $hstats.logged_in_today {
                     print (echo $"(ansi -e { fg: '#ff0000' attr: b })Not logged in to habitica yet, logging in now...(ansi reset)")
-                    habitica login
+                    h login
                     print (echo $"(ansi -e { fg: '#00ff00' attr: b })These are today's dailys:(ansi reset)")
-                    print (habitica ls dailys -pi)
+                    print (h ls dailys -pi)
                 }
                 
-                let hstats = habitica stats
+                let hstats = h stats
                 if $hstats.pending_quest {
                     print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have a pending quest invitation, accepting it now...(ansi reset)")
-                    habitica auto-quest 
+                    h auto-quest 
                 }
                 
                 if ($hstats.dailys_to_complete > 0) {
                     print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have ($hstats.dailys_to_complete) dailys to complete today, completing them now...(ansi reset)")
-                    habitica mark-dailys-done 
+                    h mark-dailys-done 
                 }
                 
-                if (habitica ls dailys -ni | where text =~ supgrade | length) > 0 {
+                if (h ls dailys -ni | where text =~ supgrade | length) > 0 {
                     print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have to upgrade your system today!(ansi reset)")
                 }
             }
@@ -284,6 +284,7 @@ let new_keybinds_names = ["alias_menu"
     "delete_one_word_backward"
     "insert_view_code"
     "insert_let"
+    "help"
 ] #"my_history_menu"
 
 let new_keybinds = [
@@ -437,6 +438,19 @@ let new_keybinds = [
                   value: "let "
                 }
                 { edit: MoveToEnd }
+               ]
+    },
+    {
+        name: help
+        modifier: alt
+        keycode: char_q
+        mode: [emacs, vi_insert, vi_normal]
+        event: [
+                { edit: MoveToStart }
+                { edit: InsertString,
+                  value: "? "
+                }
+                { send: Enter }
                ]
     },
 ]
