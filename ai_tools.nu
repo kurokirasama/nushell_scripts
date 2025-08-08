@@ -85,7 +85,7 @@ export def token2word [
 #
 #Only one system message flag allowed.
 #
-#--gpt4 and --gemini are mutually exclusive flags.
+#--gpt and --gemini are mutually exclusive flags.
 #
 #Uses chatgpt by default
 #
@@ -118,7 +118,7 @@ export def askai [
   --list_preprompt(-p)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
   --delimit_with_quotes(-q) = true #add '''  before and after prompt
   --temperature(-t):float # takes precedence over the 0.7 and 0.9
-  --gpt4(-g)              # use gpt-4.1 instead of gpt-4.1-mini (default)
+  --gpt(-g)              # use gpt-5 instead of gpt-5-mini (default)
   --vision(-v)            # use gpt-4-vision/gemini-pro-vision
   --image(-i):string      # filepath of the image to prompt to vision models
   --fast(-f)   #get prompt from prompt.md file and save response to answer.md
@@ -126,7 +126,7 @@ export def askai [
   --gemini-2-5(-X)        #use gemini-2.5-flash (free)
   --paid        # use google gemini-2.5-pro (paid version) (needs --gemini)
   --bison(-b)  #use google bison instead of chatgpt (needs --gemini)
-  --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt4
+  --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt
   --database(-D)   #load chat conversation from database
   --web_search(-w) #include web search results into the prompt
   --web_results(-n):int = 5 #how many web results to include
@@ -156,7 +156,7 @@ export def askai [
     return-error "no prompt provided!"
   }
   
-  if $gpt4 and $gemini {
+  if $gpt and $gemini {
     return-error "Please select only one ai system!"
   }
 
@@ -183,6 +183,8 @@ export def askai [
       0.85
     } else if $summarizer or $google_assistant {
       0.7
+    } else if $gpt {
+      1
     } else {
       0.9
     }
@@ -329,13 +331,13 @@ export def askai [
         [false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4-vision -i $image},
       }
     } else {
-      match [$gpt4,$list_system,$list_preprompt] {
-        [true,true,false] => {chat_gpt $prompt -t $temp -l -m gpt-4.1 --select_preprompt $pre_prompt -w $web_search -n $web_results --web_model $web_model},
-        [true,false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4.1 --select_preprompt $pre_prompt -w $web_search -n $web_results --web_model $web_model},
+      match [$gpt,$list_system,$list_preprompt] {
+        [true,true,false] => {chat_gpt $prompt -t $temp -l -m gpt-5 --select_preprompt $pre_prompt -w $web_search -n $web_results --web_model $web_model},
+        [true,false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-5 --select_preprompt $pre_prompt -w $web_search -n $web_results --web_model $web_model},
         [false,true,false] => {chat_gpt $prompt -t $temp -l --select_preprompt $pre_prompt -w $web_search -n $web_results --web_model $web_model},
         [false,false,false] => {chat_gpt $prompt -t $temp --select_system $system --select_preprompt $pre_prompt -w $web_search -n $web_results --web_model $web_model},
-        [true,true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4.1 -p -d -w $web_search -n $web_results},
-        [true,false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-4.1 -p -d -w $web_search -n $web_results --web_model $web_model},
+        [true,true,true] => {chat_gpt $prompt -t $temp -l -m gpt-5 -p -d -w $web_search -n $web_results},
+        [true,false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-5 -p -d -w $web_search -n $web_results --web_model $web_model},
         [false,true,true] => {chat_gpt $prompt -t $temp -l -p -d -w $web_search -n $web_results --web_model $web_model},
         [false,false,true] => {chat_gpt $prompt -t $temp --select_system $system -p -d -w $web_search -n $web_results --web_model $web_model}
       }
@@ -362,16 +364,16 @@ export alias ochat = askai -con 2
 @category ai
 @search-terms git chatgpt gemini claude
 export def "ai git-push" [
-  --gpt4(-g)   #use gpt-4.1 instead of gpt-4.1-mini
+  --gpt(-g)   #use gpt-5 instead of gpt-5-mini
   --gemini(-G) #use google gemini-2.5 model
   --claude(-C) #use antropic claude-3-5-sonnet-latest
 ] {
-  if $gpt4 and $gemini {
+  if $gpt and $gemini {
     return-error "select only one model!"
   }
 
-  let max_words = if $gemini {800000} else if $claude {150000} else {100000}
-  let max_words_short = if $gemini {800000} else if $claude {150000} else {100000}
+  let max_words = if $gemini {800000} else if $claude {150000} else {300000}
+  let max_words_short = if $gemini {800000} else if $claude {150000} else {300000}
 
   let model = if $gemini {"gemini"} else if $claude {"claude"} else {"chatgpt"}
 
@@ -382,15 +384,15 @@ export def "ai git-push" [
 
   let commit = (
     try {
-      match [$gpt4,$gemini] {
+      match [$gpt,$gemini] {
         [true,false] => {
           try {
-            chat_gpt $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m gpt-4.1
+            chat_gpt $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m gpt-5
           } catch {
             try {
-              chat_gpt $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m gpt-4.1
+              chat_gpt $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d -m gpt-5
             } catch {
-              chat_gpt $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d -m gpt-4.1
+              chat_gpt $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d -m gpt-5
             }
           }
         },
@@ -522,7 +524,7 @@ export def "ai video2text" [
 export def "ai media-summary" [
   file:string            # video, audio or subtitle file (vtt, srt, txt, url) file name with extension
   --lang(-l):string = "Spanish" # language of the summary
-  --gpt4(-g)             # to use gpt-4.1 instead of gpt-4.1-mini
+  --gpt(-g)             # to use gpt-5 instead of gpt-5-mini
   --gemini(-G)           # use google gemini-2.0 instead of gpt
   --gemini-2-5(-X)       # use gemini-2.5-flash (free version)
   --paid(-p)             # use gemini-2.5-pro (paid version)
@@ -611,7 +613,7 @@ export def "ai media-summary" [
     $files | each {|split_file|
       let t_input = open ($split_file | get name)
       let t_output = $split_file | get name | path parse | get stem
-      ai transcription-summary $t_input $t_output -g $gpt4 -t $type -G $gemini -C $claude -o $ollama -m $ollama_model -p $paid
+      ai transcription-summary $t_input $t_output -g $gpt -t $type -G $gemini -C $claude -o $ollama -m $ollama_model -p $paid
     }
 
     let temp_output = $"($title)_summaries.md"
@@ -632,8 +634,8 @@ export def "ai media-summary" [
 
     print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
 
-    if $gpt4 {
-      chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-4.1
+    if $gpt {
+      chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-5
     } else if $gemini {
       google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $gemini_model
     } else if $claude {
@@ -651,7 +653,7 @@ export def "ai media-summary" [
     return
   }
   
-  ai transcription-summary (open $the_subtitle) $output -g $gpt4 -t $type -G $gemini -C $claude -o $ollama -m $ollama_model -c $complete -p $paid -X $gemini_2_5
+  ai transcription-summary (open $the_subtitle) $output -g $gpt -t $type -G $gemini -C $claude -o $ollama -m $ollama_model -c $complete -p $paid -X $gemini_2_5
 
   if $upload {cp $output $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory}
   if $notify {"summary finished!" | tasker send-notification}
@@ -667,7 +669,7 @@ export def "ai transcription-summary" [
   prompt                #transcription text
   output                #output name without extension
   --complete(-c):string #use complete preprompt with input file as the incomplete summary
-  --gpt4(-g) = false    #whether to use gpt-4.1
+  --gpt(-g) = false     #whether to use gpt-5
   --gemini(-G) = false  #use google gemini-2.0
   --gemini-2-5(-X) = false # gemini-2.5-flash (free)
   --paid(-p) = false    #use gemini-2.5-pro (paid)
@@ -717,8 +719,8 @@ export def "ai transcription-summary" [
   }
 
   print (echo-g $"asking ($model) for a summary of the file transcription...")
-  if $gpt4 {
-    chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-4.1
+  if $gpt {
+    chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-5
   } else if $gemini {
     google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $gemini_model
   } else if $claude {
@@ -935,7 +937,7 @@ export def tts [
 @search-terms google-calendar gcal chatgpt gemini ollama
 export def "ai gcal" [
   ...request:string #query to gcal
-  --gpt4(-g)        #uses gpt-4.1
+  --gpt(-g)        #uses gpt-5
   --gemini(-G)      #uses gemini
   --ollama(-o)      #use ollama
   --ollama_model(-m):string #ollama model to use
@@ -948,8 +950,8 @@ export def "ai gcal" [
   let gcal_query = (
     if $ollama {
       o_llama $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d true -m $ollama_model
-    } else if $gpt4 {
-      chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d -m gpt-4.1
+    } else if $gpt {
+      chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d -m gpt-5
     } else if $gemini {
       google_ai $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d true -m gemini-2.0
     } else {
@@ -980,8 +982,8 @@ export def "ai gcal" [
       let gcal_response = (
         if $ollama {
           o_llama $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -d true -m $ollama_model
-        } else if $gpt4 {
-          chat_gpt $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -m gpt-4.1
+        } else if $gpt {
+          chat_gpt $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -m gpt-5
         } else if $gemini {
           google_ai $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -d false -m gemini-2.0
         } else {
@@ -1001,8 +1003,8 @@ export def "ai gcal" [
 
       let title = if $gemini {
         google_ai $prompt -m gemini-2.0
-      } else if $gpt4 {
-         chat_gpt -m gpt-4.1
+      } else if $gpt {
+         chat_gpt -m gpt-5
       } else if $ollama {
         o_llama $prompt -m $ollama_model
       } else {
@@ -1024,7 +1026,7 @@ export alias g = ai gcal -G
 export def "ai trans" [
   ...prompt
   --destination(-t):string = "Spanish"
-  --gpt4(-g)    #use gpt-4.1 instead of gpt-4.1-mini
+  --gpt(-g)    #use gpt-5 instead of gpt-5-mini
   --gemini(-G)  #use gemini instead of gpt
   --deepl(-d)   #use deepl for translation
   --ollama(-o)  #use ollama models
@@ -1054,8 +1056,8 @@ export def "ai trans" [
       o_llama $prompt -t 0.5 -s $system_prompt -m $ollama_model
     } else if $gemini {
       google_ai $prompt -t 0.5 -s $system_prompt -m gemini-2.5
-    } else if $gpt4 {
-      chat_gpt $prompt -t 0.5 -s $system_prompt -m gpt-4.1
+    } else if $gpt {
+      chat_gpt $prompt -t 0.5 -s $system_prompt -m gpt-5
     } else {
       chat_gpt $prompt -t 0.5 -s $system_prompt
     }
@@ -1129,7 +1131,7 @@ export def "ai trans-sub" [
   file?
   --from:string = "en-US" #from which language you are translating
   --ai(-a)        #use gpt to make the translations
-  --gpt4(-g)      #use gpt4
+  --gpt(-g)      #use gpt4
   --gemini(-G)    #use gemini
   --ollama(-o)    #use ollama
   --ollama_model(-m):string #ollama model to use
@@ -1160,7 +1162,7 @@ export def "ai trans-sub" [
               $fixed_line | ai trans -onm $ollama_model
             } else if $ai and $gemini {
               $fixed_line | ai trans -Gn
-            } else if $ai and $gpt4 {
+            } else if $ai and $gpt {
               $fixed_line | ai trans -gn
             } else if $ai {
               $fixed_line | ai trans -n
@@ -1187,7 +1189,7 @@ export def "ai trans-sub" [
     return 
   } 
 
-  let start = (cat $new_file | decode utf-8 | lines | length)
+  let start = cat $new_file | decode utf-8 | lines | length
 
   $file_content
   | last ($lines - $start)
@@ -1200,7 +1202,7 @@ export def "ai trans-sub" [
             $fixed_line | ai trans -onm $ollama_model
           } else if $ai and $gemini {
             $fixed_line | ai trans -Gn
-          } else if $ai and $gpt4 {
+          } else if $ai and $gpt {
             $fixed_line | ai trans -gn
           } else if $ai {
             $fixed_line | ai trans -n
@@ -1326,7 +1328,7 @@ export def debunk-table [
 @search-terms ai-tool paper analyze chatgpt gemini ollama
 export def "ai analyze_paper" [
   paper?       #filename of the input paper
-  --gpt4(-g)   #use gpt-4.1 instead of gemini
+  --gpt(-g)   #use gpt-5 instead of gemini
   --ollama(-o) #use ollama instead of gemini
   --ollama_model(-m):string #ollama model to use
   --output(-o):string       #output filename without extension
@@ -1364,13 +1366,13 @@ export def "ai analyze_paper" [
   let output = if ($output | is-empty) {$name + ".md"} else {$output + ".md"}
 
   print (echo-c "cleaning text..." "green")
-  let data = if not $clean {$raw_data} else {ai clean-text $raw_data -g $gpt4 -o $ollama -m $ollama_model}
+  let data = if not $clean {$raw_data} else {ai clean-text $raw_data -g $gpt -o $ollama -m $ollama_model}
   $data | save -f ($name + ".txt")
 
   print (echo-c "analyzing paper..." "green")
  
-  let analysis = if $gpt4 {
-      chat_gpt $data --select_system paper_analyzer --select_preprompt analyze_paper -d -m gpt-4.1
+  let analysis = if $gpt {
+      chat_gpt $data --select_system paper_analyzer --select_preprompt analyze_paper -d -m gpt-5
     } else if $ollama {
       o_llama $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -m $ollama_model -v $verbose
     } else {
@@ -1379,8 +1381,8 @@ export def "ai analyze_paper" [
 
   print (echo-c "summarizing paper..." "green")
 
-  let summary =  if $gpt4 {
-      chat_gpt $data --select_system paper_summarizer --select_preprompt summarize_paper -d -m gpt-4.1
+  let summary =  if $gpt {
+      chat_gpt $data --select_system paper_summarizer --select_preprompt summarize_paper -d -m gpt-5
     } else if $ollama {
       o_llama $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -m $ollama_model -v $verbose
     } else {
@@ -1391,8 +1393,8 @@ export def "ai analyze_paper" [
 
   print (echo-c "consolidating paper information..." "green")
   
-  let consolidated_summary = if $gpt4 {
-      chat_gpt $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d -m gpt-4.1
+  let consolidated_summary = if $gpt {
+      chat_gpt $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d -m gpt-5
   } else if $ollama {
     o_llama $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -m $ollama_model -v $verbose 
   } else {
@@ -1529,7 +1531,7 @@ export def "ai batch-paper-analyser" [
 @search-terms ai-tool chatgpt gemini ollama analyze summarize
 export def "ai analyze_ai_generated_text" [
   text?        #input text
-  --gpt4(-g)   #use gpt-4.1 instead of gemini
+  --gpt(-g)   #use gpt-5 instead of gemini
   --ollama(-o) #use ollama instead of gemini
   --ollama_model(-m):string #ollama model to use
   --correct-text(-c)  #fix the input text 
@@ -1541,8 +1543,8 @@ export def "ai analyze_ai_generated_text" [
 
   print (echo-g $"starting analysis of the input text...")
 
-  let analysis = if $gpt4 {
-      chat_gpt $text --select_system ai_generated_text_detector --select_preprompt analize_ai_generated_text -d -m gpt-4.1 -t 0.1
+  let analysis = if $gpt {
+      chat_gpt $text --select_system ai_generated_text_detector --select_preprompt analize_ai_generated_text -d -m gpt-5 -t 0.1
     } else if $ollama {
       o_llama $text --select_system ai_generated_text_detector --select_preprompt analize_ai_generated_text -d true -m $ollama_model -t 0.1
     } else {
@@ -1560,8 +1562,8 @@ export def "ai analyze_ai_generated_text" [
   print (echo-g $"starting correction of the analyzed input text...")
   let prompt = "# REPORT\n\n" + $analysis + "\n\n# INPUT \n\n"
 
-  let fixed = if $gpt4 {
-      chat_gpt $prompt --select_system ai_generated_text_corrector --select_preprompt correct_ai_generated_text -m gpt-4.1 -t 0.9
+  let fixed = if $gpt {
+      chat_gpt $prompt --select_system ai_generated_text_corrector --select_preprompt correct_ai_generated_text -m gpt-5 -t 0.9
     } else if $ollama {
       o_llama $prompt --select_system ai_generated_text_corrector --select_preprompt correct_ai_generated_text -d false -m $ollama_model -t 0.9
     } else {
@@ -1583,14 +1585,14 @@ export def "ai analyze_ai_generated_text" [
 @search-terms chathpt gemini ollama
 export def "ai clean-text" [
   text?                #raw text to clean
-  --gpt4(-g) = false   #use gpt4 instead of gemini
+  --gpt(-g) = false   #use gpt4 instead of gemini
   --ollama(-o) = false #use ollama instead of gemini
   --ollama_model(-m):string #ollama model to use
 ] {
   let raw_data = get-input $in $text
 
-  if $gpt4 {
-    chat_gpt $raw_data --select_system text_cleaner --select_preprompt clean_text -d -m gpt-4.1
+  if $gpt {
+    chat_gpt $raw_data --select_system text_cleaner --select_preprompt clean_text -d -m gpt-5
   } else if $ollama {
     o_llama $raw_data --select_system text_cleaner --select_preprompt clean_text -d true -m $ollama_model
   } else {
@@ -1603,7 +1605,7 @@ export def "ai clean-text" [
 @search-terms chatgpt gemini ollama
 export def "ai analyze_religious_text" [
   data?        #file record with name field or plain text
-  --gpt4(-g)   #use gpt-4.1 to consolidate the debunk instead of gemini-2.5
+  --gpt(-g)   #use gpt-5 to consolidate the debunk instead of gemini-2.5
   --ollama(-o) #usa ollama model
   --ollama_model(-m):string #ollama model to use
   --web_results(-w) #use web search results as input for the refutations
@@ -1632,12 +1634,12 @@ export def "ai analyze_religious_text" [
   )
 
   print (echo-g "cleaning text...")
-  let data = if $no_clean {$data} else {ai clean-text $data -g $gpt4 -o $ollama -m $ollama_model}
+  let data = if $no_clean {$data} else {ai clean-text $data -g $gpt -o $ollama -m $ollama_model}
 
   # false claims
   print (echo-g "finding false claims...")
-  let false_claims = if $gpt4 {
-    chat_gpt $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_false_bible_claims -d -m gpt-4.1
+  let false_claims = if $gpt {
+    chat_gpt $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_false_bible_claims -d -m gpt-5
   } else if $ollama {
     o_llama $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_false_bible_claims -d true -v $verbose -m $ollama_model
   } else {
@@ -1649,8 +1651,8 @@ export def "ai analyze_religious_text" [
 
   # extract biblical references
   print (echo-g "finding biblical references within the text...")
-  let biblical_references = if $gpt4 {
-    chat_gpt $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_biblical_references -d -m gpt-4.1
+  let biblical_references = if $gpt {
+    chat_gpt $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_biblical_references -d -m gpt-5
   } else if $ollama {
     o_llama $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_biblical_references -d true -v $verbose -m $ollama_model
   } else {
@@ -1659,8 +1661,8 @@ export def "ai analyze_religious_text" [
 
   # search for new biblical references
   print (echo-g "finding new biblical references...")
-  let new_biblical_references = if $gpt4 {
-    chat_gpt $data -t 0.2 --select_system biblical_assistant --select_preprompt find_biblical_references -d -m gpt-4.1
+  let new_biblical_references = if $gpt {
+    chat_gpt $data -t 0.2 --select_system biblical_assistant --select_preprompt find_biblical_references -d -m gpt-5
   } else if $ollama {
     o_llama $data -t 0.2 --select_system biblical_assistant --select_preprompt find_biblical_references -d true -v $verbose -m $ollama_model
   } else {
@@ -1669,8 +1671,8 @@ export def "ai analyze_religious_text" [
 
   # extract main message
   print (echo-g "finding main message...")
-  let main_message = if $gpt4 {
-    chat_gpt $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_main_idea -d -m gpt-4.1
+  let main_message = if $gpt {
+    chat_gpt $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_main_idea -d -m gpt-5
   } else if $ollama {
     o_llama $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_main_idea -d true -v $verbose -m $ollama_model
   } else {
@@ -1687,8 +1689,8 @@ export def "ai analyze_religious_text" [
     false_claims: $false_claims, 
     } | to json
 
-  let consolidation = if $gpt4 {
-    chat_gpt $data -t 0.2 --select_system biblical_assistant --select_preprompt consolidate_religious_text_analysus -d -m gpt-4.1
+  let consolidation = if $gpt {
+    chat_gpt $data -t 0.2 --select_system biblical_assistant --select_preprompt consolidate_religious_text_analysus -d -m gpt-5
   } else if $ollama {
     o_llama $all_info --select_system biblical_assistant --select_preprompt consolidate_religious_text_analysus -d true -m $ollama_model -v $verbose
   } else {

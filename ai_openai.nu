@@ -1,6 +1,8 @@
 #single call chatgpt wrapper
 #
 #Available models at https://platform.openai.com/docs/models, but some of them are:
+# - gpt-5 (400000 tokens)
+# - gpt-5-mini (400000 tokens)
 # - gpt-4.1 (1047576 tokens)
 # - gpt-4.1-mini (1047576 tokens)
 # - gpt-4o (128000 tokens)
@@ -26,7 +28,7 @@
 @search-terms chatgpt
 export def chat_gpt [
     query?: string                     # the query to Chat GPT
-    --model(-m):string = "gpt-4.1-mini" # the model gpt-4o-mini, gpt-4o = gpt-4, etc
+    --model(-m):string = "gpt-5-mini" # the model gpt-4o-mini, gpt-4o = gpt-4, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9       # the temperature of the model
     --image(-i):string            # filepath of image file for gpt-4-vision
@@ -129,8 +131,9 @@ export def chat_gpt [
   )
 
   # default models
-  let model = if $model == "gpt-4" {"gpt-4o"} else {$model}
+  let model = if $model == "gpt-4" {"gpt-4.1"} else {$model}
   let model = if $model == "gpt-4-vision" {"gpt-4-turbo"} else {$model}
+  let temp = if $model =~ "gpt-5" {1} else {$temp}
 
   # call to api
   let header = [Authorization $"Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"]
@@ -185,6 +188,7 @@ export def chat_gpt [
   )
 
   let answer = http post -t application/json -H $header $site $request -e
+  $answer | save -f a.json
   return $answer.choices.0.message.content
 }
 
