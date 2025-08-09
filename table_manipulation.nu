@@ -380,3 +380,75 @@ export def select-pattern [pattern:string] {
   $in | 
   select ...($in | columns | where $it like $pattern)
 }
+
+alias 'core-rename' = rename
+
+# Creates a new table with columns renamed.
+@example "Rename a column" {[[a b]; [1 2]] | rename my_column} --result [[my_column b]; [1 2]]
+@example "Rename many columns" {[[a b c]; [1 2 3]] | rename eggs ham bacon} --result [[eggs ham bacon]; [1 2 3]]
+@example "Rename a specific column" {[[a b c]; [1 2 3]] | rename --column {a: ham}} --result [[ham b c]; [1 2 3]]
+@example "Rename the fields of a record" {{a: 1 b: 2} | rename x y} --result {x: 1 y: 2}
+@example "Rename fields based on a given closure" {{abc: 1 bbc: 2} | rename --block { str replace --all 'b' 'z' }} --result {azc: 1 zzc: 2}
+@category filters
+export def rename [
+  --core                 # Use the core method, instead
+  --column (-c): record  # column name to be changed
+  --block (-b): closure  # A closure to apply changes on each column
+  --camel (-C)           # Convert specified columns (or all, if none provided) to `camelCase` format
+  --kebab (-k)           # Convert specified columns (or all, if none provided) to `kebab-case` format
+  --pascal (-p)          # Convert specified columns (or all, if none provided) to `PascalCase` format
+  --screaming-snake (-S) # Convert specified columns (or all, if none provided) to `SCREAMING_SNAKE_CASE` format
+  --snake (-s)           # Convert specified columns (or all, if none provided) to `snake_case` format
+  --title (-t)           # Convert specified columns (or all, if none provided) to `Title Case` format
+  ...argument: string    # The new names for the columns.
+]: [
+  record -> record,
+  table -> table
+] {
+  if $core or not ($camel or $kebab or $pascal or $screaming_snake or $snake or $title) {
+    $in
+    | match [($column | is-not-empty),($block | is-not-empty)] {
+        [true,true] => {core-rename --column=($column) --block=($block) ...$argument},
+        [true,false] => {core-rename --column=($column) ...$argument}
+        [false,true] => {core-rename --block=($block) ...$argument}
+        [false,false] => {core-rename ...$argument}
+    }
+  } else {
+    let input = $in
+    let columns = (
+      if ($column | is-not-empty) {
+        $column | columns
+      } else if ($argument | is-not-empty) {
+        $argument
+      } else {
+        $input | columns
+      }
+    )
+
+    let new_names = $columns
+    | if $camel {
+      str camel-case
+    } else if $kebab {
+      str kebab-case
+    } else if $pascal {
+      str pascal-case
+    } else if $screaming_snake {
+      str screaming-snake-case
+    } else if $snake {
+      str snake-case
+    } else if $title {
+      str title-case
+    } else {
+      $in
+    }
+
+    let column_record = $columns | zip $new_names | into record
+
+    $input
+    | if ($block | is-not-empty) {
+      core-rename --column=($column_record) --block=($block)
+    } else {
+      core-rename --column=($column_record)
+    }
+  }
+}

@@ -456,7 +456,7 @@ export def google_search [
   }
 
   let final_content = $content | wrap "content"
-  let results = $search_result | append-table $final_content
+  let results = $search_result | merge $final_content
 
   if $md {
       mut md_output = ""

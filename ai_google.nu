@@ -756,7 +756,7 @@ export def "ai google_search-summary" [
   }
 
   let content = $content | wrap content
-  let updated_content = $web_content | reject content | append-table $content
+  let updated_content = $web_content | reject content | merge $content
 
   if $md {
     mut md_output = ""

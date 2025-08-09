@@ -1320,7 +1320,7 @@ export def debunk-table [
     $data_refutal = $data_refutal ++ [$refutal]
   }
 
-  return ($data | append-table ($data_refutal | wrap refutation))
+  return ($data | merge ($data_refutal | wrap refutation))
 }
 
 #analyze and summarize paper using ai

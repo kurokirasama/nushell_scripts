@@ -21,7 +21,7 @@ export def "h stats" [] {
 
     let response = http get $url -H $headers | get data
     let party = h party
-    let pending_quest = ($party.quest.key | is-not-empty) and ($party.quest.active == false) and ($party.quest.members | get $hab_id | is-empty)
+    let pending_quest = ($party.quest.key? | is-not-empty) and ($party.quest.active == false) and ($party.quest.members | get $hab_id | is-empty)
     
     return {
         name: $response.profile.name,

@@ -114,9 +114,14 @@ let hooks = {
                 let hstats = h stats
                 if not $hstats.logged_in_today {
                     print (echo $"(ansi -e { fg: '#ff0000' attr: b })Not logged in to habitica yet, logging in now...(ansi reset)")
+                    if ($hstats.dailys_to_complete > 0) {
+                        print (echo $"(ansi -e { fg: '#FF0000' attr: b })You had ($hstats.dailys_to_complete) dailys to complete yesterday, completing them now...(ansi reset)")
+                    }
                     h login
                     print (echo $"(ansi -e { fg: '#00ff00' attr: b })These are today's dailys:(ansi reset)")
                     print (h ls dailys -pi)
+                    print (echo $"(ansi -e { fg: '#00ff00' attr: b })These are latest todos:(ansi reset)")
+                    print (h ls todos -i | last 15)
                 }
                 
                 let hstats = h stats
