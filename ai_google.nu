@@ -42,7 +42,7 @@
 @search-terms gemini
 export def google_ai [
     query?: string                          # the query to Gemini
-    --model(-m):string = "gemini-1.5-flash" # the model gemini-1.5-flash, gemini-pro-vision, gemini-2.0, etc
+    --model(-m):string = "gemini-2.5-flash" # the model gemini-1.5-flash, gemini-pro-vision, gemini-2.0, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9             # the temperature of the model
     --image(-i):string                  # filepath of image file for gemini-pro-vision

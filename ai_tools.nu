@@ -122,9 +122,8 @@ export def askai [
   --vision(-v)            # use gpt-4-vision/gemini-pro-vision
   --image(-i):string      # filepath of the image to prompt to vision models
   --fast(-f)   #get prompt from prompt.md file and save response to answer.md
-  --gemini(-G) #use google gemini instead of chatgpt. gemini-2.5 for chat, gemini-2.0 otherwise
-  --gemini-2-5(-X)        #use gemini-2.5-flash (free)
-  --paid        # use google gemini-2.5-pro (paid version) (needs --gemini)
+  --gemini(-G) #use google gemini-2.5-flash instead of chatgpt. 
+  --pro        # use google gemini-2.5-pro (paid version) (needs --gemini)
   --bison(-b)  #use google bison instead of chatgpt (needs --gemini)
   --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt
   --database(-D)   #load chat conversation from database
@@ -248,7 +247,7 @@ export def askai [
     }
   )
 
-  let gemini_model = if $paid {"gemini-2.5-pro"} else if $gemini_2_5 {"gemini-2.5"} else {"gemini-2.0"}
+  let gemini_model = if $pro {"gemini-2.5-pro"} else {"gemini-2.5-flash"} 
 
   #chat mode
   if $chat {
