@@ -860,9 +860,12 @@ export def mpv [
           ^hyprctl dispatch togglespecialworkspace dropdown
         }
         sleep 0.1sec
+        
         let active_window = ^hyprctl -j activewindow | from json | get workspace.name
-        if $active_window != "1" {
-            ^hyprctl dispatch workspace 1
+        let target_window = if (sys host | get hostname) == $env.MY_ENV_VARS.hosts.2 {2} else {1}
+        
+        if $active_window != ($target_window | into string) {
+            ^hyprctl dispatch workspace $target_window
         }
       }
       
