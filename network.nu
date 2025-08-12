@@ -313,3 +313,10 @@ def "http download" [url:string] {
 
   http get --raw $url | save $filename
 }
+
+#wrap cariddi output and output a table
+export def --wrapped cariddi [
+    ...args
+] {
+    ^cariddi -plain -json ...$args | lines | par-each -k {from json}
+}
