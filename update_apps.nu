@@ -1039,3 +1039,8 @@ export def "apps-update scrcpy" [] {
 export def "apps-update gemini-cli" [] {
   npm install --global @google/gemini-cli
 }
+
+#update mcp-server-nu
+export def "apps-update mcp-server-nu" [] {
+    cargo install mcp-server-nu --locked
+}

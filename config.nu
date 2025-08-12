@@ -86,7 +86,7 @@ let hooks = {
             }
             
             #checking conditions
-            let interval = 24hr 
+            let interval = 12hr 
             let now = date now
             let update = (open ~/.autolister.json | get updated | into datetime) + $interval < $now
             let autolister_file = open ~/.autolister.json

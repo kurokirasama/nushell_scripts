@@ -707,10 +707,18 @@ export def "h add-checklist" [
   let selected_task_index = $tasks | input list -fid text (echo-g "Select a task to add a checklist item to: ")
   let selected_task = $tasks | get $selected_task_index
 
-  let checklist_item_text = (input "Enter the text for the new checklist item: ")
+  mut checklist_items = []
+  loop {
+    let item_text = (input "Enter checklist item (leave empty to finish): ")
+    if ($item_text | is-empty) {
+      break
+    }
+    $checklist_items = ($checklist_items | append $item_text)
+  }
 
-  if ($checklist_item_text | is-empty) {
-    return-error "Checklist item text cannot be empty."
+  if ($checklist_items | is-empty) {
+    print (echo-r "No checklist items entered.")
+    return
   }
 
   let base_url = "https://habitica.com"
@@ -722,14 +730,16 @@ export def "h add-checklist" [
       path: $"/api/v3/tasks/($task_id)/checklist"
   } | url join
 
-  let payload = { text: $checklist_item_text }
+  for $item in $checklist_items {
+    let payload = { text: $item }
+    let response = http post --content-type application/json $url -H $headers ($payload | to json)
 
-  let response = http post --content-type application/json $url -H $headers ($payload | to json)
-
-  if ($response.success == true) {
-      print ((echo-g $"Successfully added checklist item to task: ") + ($selected_task.text))
-  } else {
-      print ((echo-r $"Failed to add checklist item. Message: ") + ($response.message))
+    if ($response.success == true) {
+        print ((echo-g $"Successfully added checklist item '($item)' to task: ") + ($selected_task.text))
+    } else {
+        print ((echo-r $"Failed to add checklist item '($item)'. Message: ") + ($response.message))
+    }
+    sleep 1sec
   }
 }
 

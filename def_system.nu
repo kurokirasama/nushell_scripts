@@ -22,14 +22,25 @@ export def is-mounted [drive:string] {
 export def countdown [
   n: int #time in seconds
 ] {
-  let BEEP = ([$env.MY_ENV_VARS.linux_backup "alarm-clock-elapsed.oga"] | path join)
-  let muted = (pacmd list-sinks
+  let BEEP = [$env.MY_ENV_VARS.linux_backup "alarm-clock-elapsed.oga"] | path join
+
+  let muted = if (which wpctl | is-not-empty) {
+    # PipeWire/WirePlumber method
+    let status = wpctl get-volume @DEFAULT_AUDIO_SINK@
+    if ($status | str contains "[MUTED]") {
+        "yes"
+    } else {
+        "no"
+    }
+  } else {
+    # PulseAudio method
+    pacmd list-sinks
     | lines
     | find muted
     | parse "{state}: {value}"
     | get value
     | get 0
-  )
+  }
 
   if $muted == 'no' {
     termdown $n
