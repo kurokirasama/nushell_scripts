@@ -487,7 +487,7 @@ def get_weather_icon [icon_description: string] {
         "sleet" => {(char -u e3ad)},
         "wind" => {(char -u fa9c)},
         "fog" => {(char -u e313)},
-        "light-fog" => {(char -u fa90)},
+        "light-fog" => {(char -u f0591)},
         "cloudy" => {(char -u e312)},
         "partly-cloudy-day" => {(char -u e21d)},
         "partly-cloudy-night" => {(char -u e226)},
