@@ -833,7 +833,7 @@ export def "media delete-mps" [] {
     }     
 }
 
-#mpv
+#mpv wrapper
 export def mpv [
   video?, 
   --on-top(-o)
@@ -855,8 +855,15 @@ export def mpv [
       )
       
       if $env.XDG_CURRENT_DESKTOP == "Hyprland" {
-        ^hyprctl dispatch workspace 1
-        ^hyprctl dispatch togglespecialworkspace dropdown
+        let active_window = ^hyprctl -j activewindow | from json | get workspace.name
+        if $active_window == "special:dropdown" {
+          ^hyprctl dispatch togglespecialworkspace dropdown
+        }
+        sleep 0.1sec
+        let active_window = ^hyprctl -j activewindow | from json | get workspace.name
+        if $active_window != "1" {
+            ^hyprctl dispatch workspace 1
+        }
       }
       
       if $on_top {
