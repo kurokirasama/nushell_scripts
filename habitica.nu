@@ -791,3 +791,7 @@ export def "h auto-quest" [] {
         print "No pending quests to accept."
     }
 }
+
+#aliases
+export alias todos = h ls todos -i 
+export alias dailys = h ls dailys -ni
