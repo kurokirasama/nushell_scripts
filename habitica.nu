@@ -146,7 +146,7 @@ export def "h mark-dailys-done" [] {
   for $daily in $dailys_to_complete {
     print $"Completing daily: ($daily.text)"
     h complete-daily $daily._id
-    sleep 1sec
+    sleep 5sec
   }
   
   print (echo-g "All due and incomplete daily tasks marked as done.")
