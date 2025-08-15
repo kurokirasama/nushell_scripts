@@ -118,6 +118,7 @@ export def copy-yandex-and-commit [--gemini(-G) = false] {
   cp -rpu $env.MY_ENV_VARS.chatgpt ~/software/Yandex.Disk/
   cp -rpu $env.MY_ENV_VARS.linux_backup ~/software/Yandex.Disk/Backups/
   cp -pu ($env.MY_ENV_VARS.appImages | path join "fontforge.AppImage") ~/software/Yandex.Disk/Backups/appimages/
+  cp -rpu ~/Yandex.Disk/fundamentos ~/software/Yandex.Disk/
 
   cd ~/software/Yandex.Disk/
   if $gemini {
