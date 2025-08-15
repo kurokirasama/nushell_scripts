@@ -318,5 +318,5 @@ def "http download" [url:string] {
 export def --wrapped cariddi [
     ...args
 ] {
-    ^cariddi -plain -json ...$args | lines | par-each -k {from json}
+    ^cariddi -plain -json ...$args | from json --objects 
 }
