@@ -138,6 +138,8 @@ let hooks = {
                 if (h ls dailys -ni | where text =~ supgrade | length) > 0 {
                     print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have to upgrade your system today!(ansi reset)")
                 }
+                
+                h stats
             }
         }
     ]
