@@ -132,7 +132,7 @@ let hooks = {
                 
                 if ($hstats.dailys_to_complete > 0) {
                     print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have ($hstats.dailys_to_complete) dailys to complete today, completing them now...(ansi reset)")
-                    h mark-dailys-done 
+                    try {h mark-dailys-done}
                 }
                 
                 if (h ls dailys -ni | where text =~ supgrade | length) > 0 {
