@@ -139,7 +139,7 @@ let hooks = {
                     print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have to upgrade your system today!(ansi reset)")
                 }
                 
-                h stats
+                print (h stats)
             }
         }
     ]

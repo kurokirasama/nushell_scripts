@@ -139,3 +139,18 @@ export def paste [] {
     }
     
 }
+
+#wrapper for gemini cli
+export def --wrapped gemini [
+  ...rest
+  --filter-mcp-servers(-f) #select servers to exclude
+] {
+  let mcp_servers = open ~/.gemini/settings.json | get mcpServers | columns | sort
+  let allowed = if $filter_mcp_servers {
+    $mcp_servers | set difference ($mcp_servers | input list -m (echo-g "Select servers to exclude:"))
+  } else {
+    $mcp_servers
+  }
+  
+  ^gemini --yolo --show-memory-usage --allowed-mcp-server-names ...$allowed ...$rest
+}

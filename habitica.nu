@@ -537,9 +537,18 @@ export def "h skill-max" [
 
     print (echo-g $"Attempting to cast '($selected_skill.name)' ($times_to_cast) times. Total Mana Cost: ($times_to_cast * $skill_cost) MP.")
 
+    let spell_id = $selected_skill.spellId
+    
+    let url = {
+        scheme: ( $base_url | split row "://" | get 0 ),
+        host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
+        path: $"/api/v3/user/class/cast/($spell_id)"
+    } | url join
+    
     for i in (seq 1 $times_to_cast) {
-        print (echo-c $"Casting '($selected_skill.name)' iteration ($i)/($times_to_cast)" "yellow")
-        h skill $selected_skill.name
+        progress_bar $i $times_to_cast
+
+        http post --content-type application/json $url -H $headers {} | ignore
         sleep 5sec
     }
 
