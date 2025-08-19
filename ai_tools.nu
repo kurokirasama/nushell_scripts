@@ -524,9 +524,8 @@ export def "ai media-summary" [
   file:string            # video, audio or subtitle file (vtt, srt, txt, url) file name with extension
   --lang(-l):string = "Spanish" # language of the summary
   --gpt(-g)             # to use gpt-5 instead of gpt-5-mini
-  --gemini(-G)           # use google gemini-2.0 instead of gpt
-  --gemini-2-5(-X)       # use gemini-2.5-flash (free version)
-  --paid(-p)             # use gemini-2.5-pro (paid version)
+  --gemini(-G)           # use google gemini-2.5 instead of gpt
+  --pro(-p)             # use gemini-2.5-pro (paid version)
   --claude(-C)           # use anthropic claude
   --ollama(-o)           # use ollama
   --ollama_model(-m):string #ollama model to use
@@ -612,7 +611,7 @@ export def "ai media-summary" [
     $files | each {|split_file|
       let t_input = open ($split_file | get name)
       let t_output = $split_file | get name | path parse | get stem
-      ai transcription-summary $t_input $t_output -g $gpt -t $type -G $gemini -C $claude -o $ollama -m $ollama_model -p $paid
+      ai transcription-summary $t_input $t_output -g $gpt -t $type -G $gemini -C $claude -o $ollama -m $ollama_model -p $pro
     }
 
     let temp_output = $"($title)_summaries.md"
@@ -629,7 +628,7 @@ export def "ai media-summary" [
 
     let prompt = (open $temp_output)
     let model = if $gemini {"gemini"} else if $claude {"claude"} else if $ollama {"ollama"} else {"chatgpt"}
-    let gemini_model = if $paid {"gemini-2.5-pro"} else if $gemini_2_5 {"gemini-2.5"} else {"gemini-2.0"}
+    let gemini_model = if $pro {"gemini-2.5-pro"} else {"gemini-2.5"}
 
     print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
 
@@ -652,14 +651,14 @@ export def "ai media-summary" [
     return
   }
   
-  ai transcription-summary (open $the_subtitle) $output -g $gpt -t $type -G $gemini -C $claude -o $ollama -m $ollama_model -c $complete -p $paid -X $gemini_2_5
+  ai transcription-summary (open $the_subtitle) $output -g $gpt -t $type -G $gemini -C $claude -o $ollama -m $ollama_model -c $complete -p $pro
 
   if $upload {cp $output $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory}
   if $notify {"summary finished!" | tasker send-notification}
 }
 
-export alias aimsy = ai media-summary -GXt youtube
-export alias aimsc = ai media-summary -GXt class
+export alias aimsy = ai media-summary -Gt youtube
+export alias aimsc = ai media-summary -Gt class
 
 #resume video transcription text via gpt
 @category ai
@@ -669,9 +668,8 @@ export def "ai transcription-summary" [
   output                #output name without extension
   --complete(-c):string #use complete preprompt with input file as the incomplete summary
   --gpt(-g) = false     #whether to use gpt-5
-  --gemini(-G) = false  #use google gemini-2.0
-  --gemini-2-5(-X) = false # gemini-2.5-flash (free)
-  --paid(-p) = false    #use gemini-2.5-pro (paid)
+  --gemini(-G) = false  #use google gemini-2.5
+  --pro(-p) = false    #use gemini-2.5-pro (paid)
   --claude(-C) = false  #use anthropic claide
   --ollama(-o) = false  #use ollama
   --ollama_model(-m):string #ollama model to use
@@ -680,7 +678,7 @@ export def "ai transcription-summary" [
 ] {
   let output_file = $"($output | path parse | get stem).md"
   let model = if $gemini {"gemini"} else if $claude {"claude"} else {"chatgpt"}
-  let gemini_model = if $paid {"gemini-2.5-pro"} else if $gemini_2_5 {"gemini-2.5-flash"} else {"gemini-2.0"}
+  let gemini_model = if $pro {"gemini-2.5-pro"} else {"gemini-2.5"}
   let complete_flag = $complete | is-not-empty
 
   if $complete_flag and not ($complete | path expand | path exists) {
@@ -937,7 +935,7 @@ export def tts [
 export def "ai gcal" [
   ...request:string #query to gcal
   --gpt(-g)        #uses gpt-5
-  --gemini(-G)      #uses gemini
+  --gemini(-G)      #uses gemini-2.5
   --ollama(-o)      #use ollama
   --ollama_model(-m):string #ollama model to use
 ] {
@@ -952,7 +950,7 @@ export def "ai gcal" [
     } else if $gpt {
       chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d -m gpt-5
     } else if $gemini {
-      google_ai $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d true -m gemini-2.0
+      google_ai $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d true -m gemini-2.5
     } else {
       chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d
     }
@@ -984,7 +982,7 @@ export def "ai gcal" [
         } else if $gpt {
           chat_gpt $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -m gpt-5
         } else if $gemini {
-          google_ai $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -d false -m gemini-2.0
+          google_ai $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -d false -m gemini-2.5
         } else {
           chat_gpt $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl
         }
@@ -1001,7 +999,7 @@ export def "ai gcal" [
       let prompt = "if the next text is using a naming convention, rewrite it in normal writing in the original language, i.e., separate words by a space. Only return your response without any commentary on your part, in plain text without any formatting. The text: " + ($gcal_query | get title)
 
       let title = if $gemini {
-        google_ai $prompt -m gemini-2.0
+        google_ai $prompt -m gemini-2.5
       } else if $gpt {
          chat_gpt -m gpt-5
       } else if $ollama {
@@ -1237,7 +1235,7 @@ export def "ai debunk" [
   --ollama(-o) #use ollama model instead of gemini
   --ollama_model(-m):string #ollama model to use
   --web_results(-w) #use web search results as input for the refutations
-  --no_clean(-n)    #do not clean text
+  --clean(-c)    #clean text
 ] {
   let data = get-input $in $data
   let data = (
@@ -1250,9 +1248,9 @@ export def "ai debunk" [
     }
   )
 
-  print (echo-g "cleaning text...")
-  let data = if $no_clean {$data} else {ai clean-text $data}
-
+  if $clean {print (echo-g "cleaning text...")}
+  let data = if $clean {ai clean-text $data} else {$data}
+  
   # logical fallacies
   print (echo-g "finding logical fallacies...")
   let log_fallacies = if $ollama {
@@ -1364,7 +1362,7 @@ export def "ai analyze_paper" [
 
   let output = if ($output | is-empty) {$name + ".md"} else {$output + ".md"}
 
-  print (echo-c "cleaning text..." "green")
+  if $clean {print (echo-c "cleaning text..." "green")}
   let data = if not $clean {$raw_data} else {ai clean-text $raw_data -g $gpt -o $ollama -m $ollama_model}
   $data | save -f ($name + ".txt")
 
@@ -1584,7 +1582,7 @@ export def "ai analyze_ai_generated_text" [
 @search-terms chathpt gemini ollama
 export def "ai clean-text" [
   text?                #raw text to clean
-  --gpt(-g) = false   #use gpt4 instead of gemini
+  --gpt(-g) = false   #use gpt5 instead of gemini
   --ollama(-o) = false #use ollama instead of gemini
   --ollama_model(-m):string #ollama model to use
 ] {
@@ -1608,7 +1606,7 @@ export def "ai analyze_religious_text" [
   --ollama(-o) #usa ollama model
   --ollama_model(-m):string #ollama model to use
   --web_results(-w) #use web search results as input for the refutations
-  --no_clean(-N)    #do not clean text
+  --clean(-C)    #do not clean text
   --copy(-c)        #copy response to clipboard
   --verbose(-v)     #show gemini attempts
   --fast(-f)
@@ -1632,8 +1630,8 @@ export def "ai analyze_religious_text" [
     }
   )
 
-  print (echo-g "cleaning text...")
-  let data = if $no_clean {$data} else {ai clean-text $data -g $gpt -o $ollama -m $ollama_model}
+  if $clean {print (echo-g "cleaning text...")}
+  let data = if not $clean {$data} else {ai clean-text $data -g $gpt -o $ollama -m $ollama_model}
 
   # false claims
   print (echo-g "finding false claims...")
