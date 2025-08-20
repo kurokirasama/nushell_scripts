@@ -23,11 +23,19 @@ export def "h stats" [] {
     let party = h party
     let pending_quest = ($party.quest.key? | is-not-empty) and ($party.quest.active == false) and ($party.quest.members | get $hab_id | is-empty)
     
+    let hp = $"($response.stats.hp | math round | into string)/($response.stats.maxHealth | math round | into string)"
+    
+    let hp = if $response.stats.hp < 30 { 
+        echo-r $hp
+    } else { 
+        $hp
+    }
+    
     return {
         name: $response.profile.name,
         level: $response.stats.lvl,
         class: $response.stats.class,
-        hp: $"($response.stats.hp | math round | into string)/($response.stats.maxHealth | math round | into string)",
+        hp: $hp,
         experience: $"($response.stats.exp | math round | into string)/($response.stats.toNextLevel | math round | into string)",
         mana: $"($response.stats.mp | math round | into string)/($response.stats.maxMP | math round | into string)",
         logged_in_today: (not $response.needsCron),
