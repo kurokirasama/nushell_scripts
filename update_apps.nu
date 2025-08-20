@@ -1044,3 +1044,10 @@ export def "apps-update gemini-cli" [] {
 export def "apps-update mcp-server-nu" [] {
     cargo install mcp-server-nu --locked
 }
+
+#update cariddi
+export def "apps-update cariddi" [] {
+    go install github.com/edoardottt/cariddi/cmd/cariddi@latest
+}
+
+#update
