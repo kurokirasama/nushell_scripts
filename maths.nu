@@ -594,6 +594,26 @@ export def "math prod-list" [
 	return $prod
 }
 
+#sum of two lists element wise
+export def "math sum-list" [
+	list1:list 
+	list2:list
+] {
+	let n1 = $list1 | length
+	let n2 = $list2 | length	
+
+	if ($n1 != $n2) {
+		return-error "lists doesn't have the same size!"
+	}
+
+	mut sum = []
+	for i in 0..($n1 - 1) {
+		$sum = $sum ++ [(($list1 | get $i) + ($list2 | get $i))]
+	}
+
+	return $sum
+}
+
 #weighted mean
 export def "math mean-w" [
 	numbers:list 
@@ -943,4 +963,9 @@ export def "math mix-fraction" [
     }
     
     return [$whole, $remainder, $denominator]
+}
+
+#scalar product of a list
+export def "math prod-scalar" [list: list, scalar: number] {
+    $list | each {|it| $it * $scalar }
 }
