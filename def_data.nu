@@ -31,3 +31,17 @@ def flatten-keys [rec: record, root: string] {
     }
    } | flatten
 }
+
+# Check if date is further in the past than specified duration
+export def older-than [
+  date: duration
+]: datetime -> bool {
+  $in < ((date now) - $date)
+}
+
+# Check if date is closer to the present than specified duration
+export def newer-than [
+  date: duration
+]: datetime -> bool {
+  $in > ((date now) - $date)
+}

@@ -202,7 +202,7 @@ export def "zed backup" [] {
 @search-terms zed restore
 export def "zed restore" [] {
   cd $env.MY_ENV_VARS.linux_backup
-  7z x zed_config.7z -o/home/kira/.config/
+  7z x zed_config.7z -o/home/kira/.config/ -y
 }
 
 #backup ghostty settings
@@ -218,7 +218,7 @@ export def "ghostty backup" [] {
 @search-terms ghostty restore
 export def "ghostty restore" [] {
   cd $env.MY_ENV_VARS.linux_backup
-  7z x ghostty_config.7z -o/home/kira/.config/
+  7z x ghostty_config.7z -o/home/kira/.config/ -y
 }
 
 #backup hyprland configs
