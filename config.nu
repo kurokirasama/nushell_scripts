@@ -93,8 +93,10 @@ let hooks = {
             
             if $update and ((sys host | get hostname) != "rayen") {
                 ## list mounted drives and download directory
-                nu ($env.MY_ENV_VARS.nu_scripts | path join autolister.nu)
-            
+                try {
+                    nu ($env.MY_ENV_VARS.nu_scripts | path join autolister.nu)
+                }
+                
                 $autolister_file
                 | upsert updated $now
                 | save -f ~/.autolister.json
