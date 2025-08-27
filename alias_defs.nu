@@ -141,7 +141,7 @@ export def paste [] {
 }
 
 #wrapper for gemini cli
-export def --wrapped gemini [
+export def --wrapped gmn [
   ...rest
   --filter-mcp-servers(-f) #select servers to exclude
 ] {

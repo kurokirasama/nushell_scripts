@@ -1037,7 +1037,7 @@ export def "apps-update scrcpy" [] {
 
 #update gemini-cli filter
 export def "apps-update gemini-cli" [] {
-  npm install --global @google/gemini-cli
+    npm install --engine-strict -g @google/gemini-cli@latest
 }
 
 #update mcp-server-nu
