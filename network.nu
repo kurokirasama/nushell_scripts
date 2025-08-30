@@ -135,9 +135,8 @@ export def get-ips [
 ] {
   let host = sys host | get hostname
   
-  let device = (
-    if ($device | is-empty) {
-      if $host like $env.MY_ENV_VARS.hosts.2 {
+  let device = if ($device | is-empty) {
+      if ($host like $env.MY_ENV_VARS.hosts.2) or ($host like $env.MY_ENV_VARS.hosts.8) {
         sys net | where name =~ '^en' | get name.0
       } else {
         sys net | where name =~ '^wl' | get name.0
@@ -145,7 +144,6 @@ export def get-ips [
     } else {
       $device
     }
-  )
 
   let internal = (ip -json add 
     | from json 
