@@ -1050,4 +1050,7 @@ export def "apps-update cariddi" [] {
     go install github.com/edoardottt/cariddi/cmd/cariddi@latest
 }
 
-#update
+#update termframe
+export def "apps-update termframe" [] {
+    cargo install --git https://github.com/pamburus/termframe.git --locked
+}
