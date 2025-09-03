@@ -519,7 +519,7 @@ def yt-oauth-authorize [] {
     let state_param = $query_params_record.state
 
     if ($state_param != $state) {
-        error "CSRF state mismatch. Potential security risk. Aborting."
+        return-error "CSRF state mismatch. Potential security risk. Aborting."
     }
 
     $auth_code
