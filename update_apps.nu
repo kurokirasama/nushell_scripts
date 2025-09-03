@@ -85,12 +85,10 @@ export def "apps-update nushell-plugins-external" [--force(-f)] {
 #update nu config (after nushell update)
 export def update-nu-config [] {
   #config
-  let default = (
-    ls ($env.MY_ENV_VARS.nushell_dir + "/**/*" | into glob) 
+  let default = ls ($env.MY_ENV_VARS.nushell_dir + "/**/*" | into glob) 
       | find -in default_config 
       | get name
       | get 0
-  )
   
   cp -f $default $nu.config-path
 
@@ -99,14 +97,12 @@ export def update-nu-config [] {
   | save --append $nu.config-path
 
   #env
-  let default = (
-    ls ($env.MY_ENV_VARS.nushell_dir + "/**/*" | into glob) 
+  let default = ls ($env.MY_ENV_VARS.nushell_dir + "/**/*" | into glob) 
       | find -in default_env 
       | get name
       | get 0
-  )
 
-  cp $default $nu.env-path
+  cp -f $default $nu.env-path
 
   nu -c $"source-env ($nu.config-path)"
 }
@@ -589,11 +585,13 @@ export def "apps-update sejda" [] {
   let new_file = (
     http get https://www.sejda.com/es/desktop 
     | lines 
-    | find linux 
-    | find deb 
+    | find -n linux 
+    | find -n deb 
+    | find -n sejda
     | str trim 
     | str replace -a "\'" "" 
     | split row ': ' 
+    | str replace "," ""
     | get 1
   )
 
@@ -606,7 +604,7 @@ export def "apps-update sejda" [] {
   if $sedja {
     let current_version = (
       ls *.deb 
-      | find "sejda" 
+      | find -i "sejda" 
       | get 0 
       | get name 
       | split row _ 
@@ -739,7 +737,7 @@ export def "apps-update vivaldi" [] {
     http get "https://vivaldi.com/download/"
     | query web -q .download-link -a href 
     | find -n deb 
-    | find amd64 
+    | find -n amd64 
     | get 0
   )
 
