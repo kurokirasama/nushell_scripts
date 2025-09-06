@@ -1528,6 +1528,7 @@ export def "ai batch-paper-analyser" [
 @search-terms ai-tool chatgpt gemini ollama analyze summarize
 export def "ai analyze_ai_generated_text" [
   text?        #input text
+  --style(-s):string #style of the text, like professional, casual, academic, etc.
   --gpt(-g)   #use gpt-5 instead of gemini
   --ollama(-o) #use ollama instead of gemini
   --ollama_model(-m):string #ollama model to use
@@ -1557,7 +1558,11 @@ export def "ai analyze_ai_generated_text" [
   }
 
   print (echo-g $"starting correction of the analyzed input text...")
-  let prompt = "# REPORT\n\n" + $analysis + "\n\n# INPUT \n\n"
+  let prompt = if ($style | is-not-empty) {
+    "# REPORT\n\n" + $analysis + "\n\n# INPUT \n\n" + $text + "\n\n# STYLE \n\nUse the following style: " + $style + "\n\n# CORRECTED TEXT \n\n"
+  } else {
+    "# REPORT\n\n" + $analysis + "\n\n# INPUT \n\n" + $text + "\n\n# CORRECTED TEXT \n\n"
+  }
 
   let fixed = if $gpt {
       chat_gpt $prompt --select_system ai_generated_text_corrector --select_preprompt correct_ai_generated_text -m gpt-5 -t 0.9

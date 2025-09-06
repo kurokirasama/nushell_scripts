@@ -29,23 +29,30 @@ export def "apps-update nushell" [
 }
 
 #update nushell default plugins
-export def "apps-update nushell-plugins" [--force(-f)] {
+export def "apps-update nushell-plugins" [
+    --force(-f) #force the install
+    --server(-s) #ignore polars in oracle server
+] {
   if $force {
     cargo install nu_plugin_inc nu_plugin_gstat nu_plugin_query nu_plugin_formats
-    cargo install nu_plugin_polars --locked
+    if not $server {
+      cargo install nu_plugin_polars --locked
+    }
   } else {
     cargo install-update nu_plugin_inc nu_plugin_gstat nu_plugin_query nu_plugin_formats 
-    cargo install-update nu_plugin_polars --locked
+    if not $server {
+      cargo install-update nu_plugin_polars --locked
+    }
   }
 
   print (echo-g "now run:")
-  print ([
+  prin
     "plugin add ~/.cargo/bin/nu_plugin_inc"
     "plugin add ~/.cargo/bin/nu_plugin_gstat"
     "plugin add ~/.cargo/bin/nu_plugin_query"
     "plugin add ~/.cargo/bin/nu_plugin_formats"
     "plugin add ~/.cargo/bin/nu_plugin_polars"
-  ] | str join "\n")
+  ] | str join "\n"
 
   print (echo-g "then run:")
   print ([
