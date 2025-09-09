@@ -106,7 +106,8 @@ let hooks = {
                 let host = (sys host | get hostname)
                 let ips_file = $env.MY_ENV_VARS.ips
                 let ips_content = open $ips_file
-                let ips = nu ($env.MY_ENV_VARS.nu_scripts | path join get-ips.nu)
+                let ips = nu ($env.MY_ENV_VARS.nu_scripts | path join get-ips.nu) ...$env.MY_ENV_VARS.hosts
+
             
                 $ips_content
                 | upsert $host ($ips | from json)
