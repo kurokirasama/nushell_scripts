@@ -22,5 +22,5 @@ export def main [
 
     let external = dig +short myip.opendns.com @resolver1.opendns.com
     
-    return {internal: $internal, external: $external}
+    return ({internal: $internal, external: $external} | to json)
 }
