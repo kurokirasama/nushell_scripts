@@ -98,8 +98,7 @@ export def "ytm online" [
   let mpv_input = [$env.MY_ENV_VARS.linux_backup "scripts/mpv_input.conf"] | path join
   let response = yt-api
 
-  let playlists = (
-    $response 
+  let playlists = $response 
     | get items 
     | select id snippet 
     | upsert snippet {|sn| 
@@ -107,7 +106,6 @@ export def "ytm online" [
       }
     | rename -c {snippet: title}
     | append {"id": "LM", "title": "all_likes"}
-  )
 
   #--list|
   if not $list {
@@ -118,15 +116,13 @@ export def "ytm online" [
     if ($to_play | length) > 0 {
       let songs = yt-api get-songs $to_play
 
-      let songs = (
-        if not ($artist | is-empty) {
+      let songs = if not ($artist | is-empty) {
           $songs 
           | str downcase "artist"
           | where "artist" like ($artist | str downcase)
         } else {
           $songs
         }
-      )
 
       let len = $songs | length
 
@@ -156,13 +152,12 @@ export def yt-api [
   --ptoken:string   #prev/next page token
 ] {
   # Automatically fetch a valid token
-  let token = (yt-get-access-token)
+  let token = yt-get-access-token
   let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
   let api_key = $youtube_credential | get api_key
 
   #playlist|playlist nextPage|songs|songs nextPage
-  let url = (
-    if ($pid | is-empty) and ($ptoken | is-empty) {
+  let url = if ($pid | is-empty) and ($ptoken | is-empty) {
       $"https://youtube.googleapis.com/youtube/v3/playlists?part=($type)&mine=true&maxResults=50"
     } else if ($pid | is-empty) and (not ($ptoken | is-empty)) {
       $"https://youtube.googleapis.com/youtube/v3/playlists?part=($type)&mine=true&maxResults=50&pageToken=($ptoken)"
@@ -173,9 +168,8 @@ export def yt-api [
         $"https://youtube.googleapis.com/youtube/v3/playlistItems?part=($type)&maxResults=50&pageToken=($ptoken)&playlistId=($pid)"
       }
     }
-  )
 
-  let response = http get $"($url)" -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json']
+  let response = http get $url -H ["Authorization", $"Bearer ($token)"] -H ['Accept', 'application/json']
  
   return $response
 }
@@ -189,7 +183,7 @@ export def "yt-api get-songs" [
   --ptoken:string #nextpage token
 ] {
   # Automatically fetch a valid token
-  let token = (yt-get-access-token)
+  let token = yt-get-access-token
 
   #songs|songs nextPage
   let response = if ($ptoken | is-empty) {
@@ -198,17 +192,14 @@ export def "yt-api get-songs" [
       yt-api --pid $pid --ptoken $ptoken
     }
 
-  let nextpageToken = (
-    if ($response | is-column nextPageToken) {
+  let nextpageToken = if ($response | is-column nextPageToken) {
         $response | get nextPageToken
     } else {
         false
     }
-  )
   
   #first page
-  let songs = (
-    $response
+  let songs = $response
     | get items 
     | select id snippet 
     | rename -c {id: inPlaylistID}
@@ -230,7 +221,6 @@ export def "yt-api get-songs" [
         $item.snippet.resourceId.videoId | str prepend "https://www.youtube.com/watch?v="
       }
     | reject snippet
-  )
 
   #next pages via recursion
   let songs = if ($nextpageToken | typeof) == string {
@@ -250,8 +240,7 @@ export def "yt-api download-music-playlists" [
   let downloadDir = get-input $env.MY_ENV_VARS.youtube_database $downloadDir
   let response = yt-api
 
-  let playlists = (
-    $response 
+  let playlists = $response 
     | get items 
     | select id snippet 
     | upsert snippet {|sn| 
@@ -260,7 +249,6 @@ export def "yt-api download-music-playlists" [
     | rename -c {snippet: title}
     | find -n music
     | append {"id": "LM", "title": "all_likes"}
-  )
 
   $playlists
   | each {|playlist|
@@ -285,15 +273,13 @@ export def "yt-api update-all" [
   let token = $youtube_credential | get token
   let response = yt-api
 
-  let playlists = (
-    $response 
+  let playlists = $response 
     | get items 
     | select id snippet 
     | upsert snippet {|sn| 
         $sn.snippet.title
       }
     | rename -c {snippet: title}
-  )
 
   let from = $playlists | find $playlist2 | get id | get 0
   let to = $playlists | find $playlist1 | get id | get 0
@@ -303,8 +289,7 @@ export def "yt-api update-all" [
   print (echo-g $"copying playlist items from ($playlist2) to ($playlist1)...")
   $to_add 
   | each {|song|
-      let body = (
-        {  "snippet": {
+      let body = {  "snippet": {
               "playlistId": $"($to)",
               "resourceId": {
                 "kind": "youtube#video",
@@ -312,7 +297,6 @@ export def "yt-api update-all" [
               }
             }
         }
-      )
 
       http post "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&key=($api_key)" -t 'application/json' -H ["Authorization", $"Bearer ($token)"] $body | ignore
       sleep 10ms
@@ -343,26 +327,22 @@ export def "yt-api empty-playlist" [playlist?:string] {
   let api_key = $youtube_credential | get api_key
   let token = $youtube_credential | get token
 
-  let playlists = (
-    $response 
+  let playlists = $response 
     | get items 
     | select id snippet 
     | upsert snippet {|sn| 
         $sn.snippet.title
       }
     | rename -c {snippet: title}
-  )
 
   print (echo-g "selecting playlist to process...")
-  let the_playlist = (
-    if ($playlist | is-empty) {
+  let the_playlist = if ($playlist | is-empty) {
       $playlists
-      let index = (input (echo-g "from which playlist you want to delete songs (index)?: ") | into int)
+      let index = input (echo-g "from which playlist you want to delete songs (index)?: ") | into int
       $playlists | get $index
     } else {
       $playlists | find -i $playlist
     }
-  )
 
   print (echo-g "geting songs...")
   let songs = yt-api get-songs $the_playlist.id
@@ -393,29 +373,25 @@ export def "yt-api remove-duplicated-songs" [
   let api_key = $youtube_credential | get api_key
   let token = $youtube_credential | get token
 
-  let playlists = (
-    $response 
+  let playlists = $response 
     | get items 
     | select id snippet 
     | upsert snippet {|sn| 
         $sn.snippet.title
       }
     | rename -c {snippet: title}
-  )
 
   print (echo-g "selecting playlist to process...")
-  let the_playlist = (
-    if ($playlist | is-empty) {
+  let the_playlist = if ($playlist | is-empty) {
       $playlists
-      let index = (input (echo-g "from which playlist you want to remove duplicates (index)?: ") | into int)
+      let index = input (echo-g "from which playlist you want to remove duplicates (index)?: ") | into int
       $playlists | get $index
     } else {
       $playlists | find -i $playlist
     }
-  )
 
   print (echo-g "geting songs and droping duplicates...")
-  let songs = (yt-api get-songs $the_playlist.id)
+  let songs = yt-api get-songs $the_playlist.id
 
   let unique_songs = $songs
 
@@ -434,8 +410,7 @@ export def "yt-api remove-duplicated-songs" [
   print (echo-g $"adding non duplicated songs to ($the_playlist.title)...")
   $unique_songs 
   | each {|song|
-      let body = (
-        {  "snippet": {
+      let body = {  "snippet": {
               "playlistId": $"($the_playlist)",
               "resourceId": {
                 "kind": "youtube#video",
@@ -443,7 +418,6 @@ export def "yt-api remove-duplicated-songs" [
               }
             }
         }
-      )
 
       http post "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&key=($api_key)" -t 'application/json' -H ["Authorization", $"Bearer ($token)"] $body | ignore
       sleep 10ms
@@ -456,9 +430,9 @@ export def "yt-api remove-duplicated-songs" [
 #verify if youtube api token has expired
 export def "yt-api verify-token" [] {
   # Automatically fetch a valid token (refreshes if expired)
-  let token = (yt-get-access-token)
+  let token = yt-get-access-token
   # Update the env with the new token
-  $env.MY_ENV_VARS = ($env.MY_ENV_VARS | upsert api_keys.youtube.token $token)
+  $env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert api_keys.youtube.token $token
 }
 
 ## OAuth2 flow ##
@@ -483,8 +457,8 @@ def load-tokens [] {
 def is-token-expired [token_data?: record] {
     let token_data = if ($token_data | is-empty) {$in} else {$token_data}
     if ("expires_at" in $token_data) {
-        let current_time = (date now | format date "%s")
-        let expires_at = $token_data.expires_at
+        let current_time = date now
+        let expires_at = $token_data.expires_at | into datetime
         $current_time >= $expires_at
     } else {
         # If expires_at is not recorded, assume it's expired or needs refresh
@@ -500,7 +474,7 @@ def yt-oauth-authorize [] {
     let redirect_uri = $env.MY_ENV_VARS.api_keys.google.zed_mcp_server.redirect_uris.0
     let GOOGLE_AUTH_URL = $env.MY_ENV_VARS.api_keys.google.zed_mcp_server.auth_uri
     let scope = "https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/userinfo.profile" # Adjust scopes as needed
-    let state = (random uuid) 
+    let state = random uuid
 
     let auth_url = $"($GOOGLE_AUTH_URL)?client_id=($client_id)&redirect_uri=($redirect_uri)&response_type=code&scope=($scope | url encode)&access_type=offline&prompt=consent&state=($state)"
 
@@ -510,11 +484,11 @@ def yt-oauth-authorize [] {
     print "After authorizing, you will be redirected to a URL like 'http://localhost:8080/?code=YOUR_CODE&state=YOUR_STATE'."
     print (echo-g "Copy the entire URL from your browser's address bar and paste it here:")
 
-    let redirect_response = (input "Paste the redirect URL:")
+    let redirect_response = input "Paste the redirect URL:"
 
     # Extract authorization code and state more robustly
-    let parsed_url_components = ($redirect_response | url parse)
-    let query_params_record = ($parsed_url_components.query | from url)
+    let parsed_url_components = $redirect_response | url parse
+    let query_params_record = $parsed_url_components.query | from url
 
     let auth_code = $query_params_record.code
     let state_param = $query_params_record.state
@@ -542,11 +516,11 @@ let GOOGLE_TOKEN_URL = $env.MY_ENV_VARS.api_keys.google.zed_mcp_server.token_uri
     }
 
     print "Exchanging authorization code for tokens..."
-    let response = (http post $GOOGLE_TOKEN_URL --headers { Content-Type: "application/json" } ($body | to json))
+    let response = http post $GOOGLE_TOKEN_URL --headers { Content-Type: "application/json" } ($body | to json)
     
     let tokens = $response
     # Calculate expiration time
-    let expires_at = ((date now) + ($tokens.expires_in * 1sec)) 
+    let expires_at = (date now) + ($tokens.expires_in * 1sec)
     let full_tokens = $tokens | merge { expires_at: $expires_at }
     save-tokens $full_tokens
     print "Successfully obtained and saved new tokens."
@@ -567,12 +541,12 @@ def yt-oauth-refresh-token [refresh_token: string] {
     }
 
     print "Refreshing access token..."
-    let response = (http post $GOOGLE_TOKEN_URL --headers { Content-Type: "application/json" } ($body | to json))
+    let response = http post $GOOGLE_TOKEN_URL --headers { Content-Type: "application/json" } ($body | to json)
 
     if ($response.status_code == 200) {
-        let new_tokens = ($response.body | from json)
+        let new_tokens = $response.body | from json
         # Load existing tokens to preserve refresh_token if not returned in refresh response
-        let existing_tokens = (load-tokens)
+        let existing_tokens = load-tokens
         let refresh_token_to_keep = if ("refresh_token" in $new_tokens) { $new_tokens.refresh_token } else { $existing_tokens.refresh_token }
 
         # Calculate expiration time for new access token
@@ -594,19 +568,19 @@ def yt-oauth-refresh-token [refresh_token: string] {
 
 # Main function to get a valid access token, handling refresh automatically
 export def yt-get-access-token [] {
-    let tokens = (load-tokens)
+    let tokens = load-tokens
 
     if ($tokens | is-empty) or ($tokens | is-token-expired) {
         print "No valid tokens found or token expired. Initiating authorization flow."
-        let auth_code = (yt-oauth-authorize)
-        let new_tokens = (yt-oauth-exchange-code $auth_code)
+        let auth_code = yt-oauth-authorize
+        let new_tokens = yt-oauth-exchange-code $auth_code
         $new_tokens.access_token
     } else {
         # print "Valid tokens found. Checking for refresh..."
         # Google access tokens typically last 1 hour, but refresh tokens can last indefinitely.
         # We check expiration on every call to be safe and refresh if needed.
         if ("refresh_token" in $tokens) and ($tokens | is-token-expired) {
-            let refreshed_tokens = (yt-oauth-refresh-token $tokens.refresh_token)
+            let refreshed_tokens = yt-oauth-refresh-token $tokens.refresh_token
             $refreshed_tokens.access_token
         } else if ("access_token" in $tokens) {
             # print "Using existing valid access token."

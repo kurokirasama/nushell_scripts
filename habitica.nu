@@ -152,8 +152,9 @@ export def "h mark-dailys-done" [] {
   }
 
   for $daily in $dailys_to_complete {
-    print $"Completing daily: ($daily.text)"
+    print -n $"Completing daily: ($daily.text) "
     h complete-daily $daily._id
+    print (echo-g (char -u ebb1))
     sleep 5sec
   }
   
@@ -345,7 +346,7 @@ export def "h complete-todos" [] {
 
     for $index in $selected_indices {
         let todo = $todos | get $index
-        print $"Completing todo: ($todo.text)"
+        print -n $"Completing todo: ($todo.text) "
       
         let url = {
             scheme: ( $base_url | split row "://" | get 0 ),
@@ -356,9 +357,9 @@ export def "h complete-todos" [] {
         let response = http post --content-type application/json $url -H $headers {}
 
         if ($response.success == true) {
-            print (echo-g $"Successfully completed todo: ($todo.text)")
+            print (echo-g (char -u ebb1))
         } else {
-            print (echo-r $"Failed to complete todo: ($todo.text)")
+            print (echo-r (char -u f467))
         }
 
         sleep 1sec

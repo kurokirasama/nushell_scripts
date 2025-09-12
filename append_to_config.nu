@@ -43,7 +43,7 @@ use /path/to/nushell_scripts/ai_privategpt.nu *
 use /path/to/nushell_scripts/defs_private.nu *
 use /path/to/nushell_scripts/github.nu *
 # use /path/to/nushell_scripts/polars_aliases.nu *
-source-env /path/to/nushell_scripts/env_vars.nu
 # source ~/.local/share/atuin/init.nu
 source ~/.cache/carapace/init.nu
+source-env /path/to/nushell_scripts/env_vars.nu
 source-env /path/to/nushell_scripts/config.nu
