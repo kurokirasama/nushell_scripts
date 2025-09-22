@@ -567,16 +567,16 @@ export def "h skill-max" [
 # Logs in to Habitica and runs cron
 export def "h login" [] {
     let stats = h stats
-    if $stats.logged_in_today {
-        print (echo-g "Already logged in today.")
-        return
-    }
-
     if ($stats.dailys_to_complete > 0) {
         print "Completing pending daily tasks..."
         h mark-dailys-done
     }
-
+        
+    if $stats.logged_in_today {
+        print (echo-g "Already logged in today.")
+        return
+    }
+    
     let headers = h credentials
     let base_url = "https://habitica.com"
 

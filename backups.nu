@@ -231,6 +231,7 @@ export def "hyprlnd backup" [] {
     7z max wlogout wlogout/
     7z max swaync swaync/
     7z max rofi rofi/
+    7z max wallust wallust/
     
     mv *.7z ($env.MY_ENV_VARS.linux_backup | path join hyprland)
 }

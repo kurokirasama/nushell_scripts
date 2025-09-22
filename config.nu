@@ -122,9 +122,9 @@ let hooks = {
                     }
                     h login
                     print (echo $"(ansi -e { fg: '#00ff00' attr: b })These are today's dailys:(ansi reset)")
-                    print (h ls dailys -pi)
+                    print (h ls dailys -pi | get text)
                     print (echo $"(ansi -e { fg: '#00ff00' attr: b })These are latest todos:(ansi reset)")
-                    print (h ls todos -i | last 15)
+                    print (h ls todos -i | last 15 | get text)
                 }
                 
                 let hstats = h stats
