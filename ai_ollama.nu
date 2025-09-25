@@ -23,8 +23,10 @@ export def o_llama [
 ] {
   let model = if ($model | is-empty) {
       ollama list | detect columns  | get NAME | input list -f (echo-g "Select model:")
-    } else {
+    } else if ($model not-like "cloud") {
       ollama list | detect columns | where NAME like $model | get NAME.0
+    } else {
+        $model
     }
 
   let embed = if ($model like "embed") {true} else {$embed}
@@ -330,4 +332,21 @@ def save_ollama_chat [
   $plain_text | save -f ([$env.MY_ENV_VARS.download_dir $"($filename).txt"] | path join)
   
   mv -f ([$env.MY_ENV_VARS.download_dir $"($filename).txt"] | path join) ([$env.MY_ENV_VARS.download_dir $"($filename).md"] | path join)
+}
+
+#ollama web search
+export def ollama_web_search [
+  query:string
+  --max-results(-m) = 10
+] {
+  let url = "https://ollama.com/api/web_search"
+  let data = {query: $query, max_results: $max_results} | to json
+
+  let response = http post $url -H { Authorization: $"Bearer ($env.MY_ENV_VARS.api_keys.ollama)" } $data -e
+    
+  if ($response | get error? | is-not-empty) {
+    return-error $"Error: ($response.error)"
+  } 
+
+  return $response.results
 }

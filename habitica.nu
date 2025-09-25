@@ -813,3 +813,8 @@ export def "h auto-quest" [] {
 #aliases
 export alias todos = h ls todos -i 
 export alias dailys = h ls dailys -ni
+
+#budget
+export def budget [] {
+    h ls dailys | find budget | get checklist.0
+}
