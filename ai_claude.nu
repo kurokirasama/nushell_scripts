@@ -1,6 +1,7 @@
 #single call to anthropic claude ai LLM api wrapper
 #
 #Available models at https://docs.anthropic.com/en/docs/about-claude/models
+# - claude-sonnet-4-5
 # - claude-opus-4-20250514
 # - claude-sonnet-4-20250514
 # - claude-3-7-sonnet-latest: text & images & audio -> text, 200000 tokens input, 8192 tokens output

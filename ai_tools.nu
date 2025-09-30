@@ -130,7 +130,7 @@ export def askai [
   --web_search(-w) #include web search results into the prompt
   --web_results(-n):int = 5 #how many web results to include
   --web_model:string = "gemini" #model to summarize web results
-  --claude(-C)  #use anthropic claude 3.5
+  --claude(-C)  #use anthropic claude sonnet-4-5
   --ollama(-o)  #use ollama models
   --ollama_model(-m):string #select ollama model to use
   --embed(-e) #make embedding instead of generate or chat
@@ -290,7 +290,7 @@ export def askai [
       if $vision {
         claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-vision -d true -i $image --select_preprompt $pre_prompt --select_system $system -w $web_search -n $web_results --web_model $web_model
       } else {
-        claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-4 -d true  --select_preprompt $pre_prompt --select_system $system --document $document -w $web_search -n $web_results --web_model $web_model
+        claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-sonnet-4-5 -d true  --select_preprompt $pre_prompt --select_system $system --document $document -w $web_search -n $web_results --web_model $web_model
       }
     )
 
@@ -365,7 +365,7 @@ export alias ochat = askai -con 2
 export def "ai git-push" [
   --gpt(-g)   #use gpt-5 instead of gpt-5-mini
   --gemini(-G) #use google gemini-2.5 model
-  --claude(-C) #use antropic claude-3-5-sonnet-latest
+  --claude(-C) #use antropic claude-sonnet-4-5
 ] {
   if $gpt and $gemini {
     return-error "select only one model!"
@@ -637,7 +637,7 @@ export def "ai media-summary" [
     } else if $gemini {
       google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $gemini_model
     } else if $claude {
-      claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-4
+      claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-sonnet-4-5
     } else if $ollama {
       o_llama $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $ollama_model
     } else {
@@ -721,7 +721,7 @@ export def "ai transcription-summary" [
   } else if $gemini {
     google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $gemini_model
   } else if $claude {
-    claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-4
+    claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-sonnet-4-5
   } else if $ollama {
     o_llama $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $ollama_model
   } else {
