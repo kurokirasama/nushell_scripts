@@ -544,7 +544,6 @@ export def "ai media-summary" [
 
   let prompt = $"does the extension file format ($file) correspond to and audio, video or subtitle file; or an url?. IMPORTANT: include as subtitle type files with txt extension. Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle, url or none. In plain text without any markdown formatting, ie, without ```"
   let media_type = google_ai $prompt | remove-code-blocks | from json | get answer
-
   match $media_type {
     "video" => {ai video2text $file -l $lang -f $filter_noise},
     "audio" => {ai audio2text $file -l $lang -f $filter_noise},
@@ -557,8 +556,8 @@ export def "ai media-summary" [
       }
     },
     "url" =>  {
-                let subtitle_file = ai yt-get-transcription $file
-                $title = ($subtitle_file | path parse | get stem)
+                let subtitle_file = ai yt-get-transcription $file --language $lang --force-mp3
+                $title = $subtitle_file | path parse | get stem
                 mv -f $subtitle_file $"($title)-clean.txt"
               }
     _ => {return-error $"wrong media type: ($file)"}
@@ -743,8 +742,28 @@ export def "ai transcription-summary" [
 @search-terms youtube transcription 
 export def "ai yt-get-transcription" [
   url?:string   #video url
-  --lang = "en" #language of the summary (default english)
+  --language = "English" #language of the summary (default english)
+  --force-mp3
 ] {
+  let lang = match $language {
+    "English" => {"en"},
+    "Spanish" => {"es"},
+    "French" => {"fr"},
+    _ => {return-error "Unsupported language"}
+  }
+  
+  if $force_mp3 {
+      let filename = yt-dlp --print filename $url | path parse | get stem | str append ".mp3"
+      
+      print (echo-g "downloading audio...")
+      yt-dlp -t mp3 $url -o $filename
+      
+      print (echo-g "transcribing audio...")
+      whisper $filename --language $language --output_format "txt" --verbose False --fp16 False
+      
+      return ($filename | str replace ".mp3" ".txt")
+  }
+  
   #deleting previous temp file
   if ((ls | find yt_temp | length) > 0) {rm yt_temp* | ignore}
   
@@ -766,11 +785,11 @@ export def "ai yt-get-transcription" [
       ffmpeg -i (ls yt_temp*.vtt | get 0 | get name) -f srt $the_subtitle
     } else {
       print (echo-g "downloading audio...")
-      yt-dlp --extract-audio --audio-format mp3 --audio-quality 0 $url -o $"($title).mp3"
+      yt-dlp -t mp3 $url -o $"($title).mp3"
 
       print (echo-g "transcribing audio...")
       whisper $"($title).mp3" --output_format srt --verbose False --fp16 False
-      mv -f $"($title).mp3" $the_subtitle
+      mv -f $"($title).srt" $the_subtitle
     }
   } else {
     let sub_url = (
