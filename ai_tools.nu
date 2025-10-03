@@ -756,7 +756,7 @@ export def "ai yt-get-transcription" [
       let filename = yt-dlp --print filename $url | path parse | get stem | str append ".mp3"
       
       print (echo-g "downloading audio...")
-      yt-dlp -t mp3 $url -o $filename
+      yt-dlp --no-warnings -t mp3 $url -o $filename
       
       print (echo-g "transcribing audio...")
       whisper $filename --language $language --output_format "txt" --verbose False --fp16 False
@@ -1438,12 +1438,10 @@ export def remove-code-blocks []: [string -> string] {
 @category ai
 @search-terms ai-tool gemini analyze summarize
 export def "ai batch-paper-analyser" [
+    main_topic:string    #Main topic of the research review
     --skip-summaries(-s) #skip summary generation if already exists
     --only-summaries(-o) #only generate summaries, skip full analysis
 ] {
-  # 0.Get Main Topic
-  let main_topic = ls | where type == file | first | get name | open | lines | find "Main Research Topic" | first | split row : | last
-
   # 1. Iterate through files and analyze them
   if not $skip_summaries {
     ls | where type == file | each { |file|
