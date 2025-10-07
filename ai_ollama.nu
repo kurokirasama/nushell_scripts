@@ -159,8 +159,18 @@ export def o_llama [
       let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriate for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $chat_prompt + "\n'''"
 
       let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
-      let web_content = if $web_search {google_search $search -n $web_results -v} else {""}
-      let web_content = if $web_search {ai google_search-summary $chat_prompt $web_content -m -M $web_model} else {""}
+      
+      let web_content = if $web_search {
+          if $web_model == "ollama" {
+              ollama_search $search -n $web_results -mv
+          } else {
+              google_search $search -n $web_results -v
+          }
+      } else {""}
+            
+      let web_content = if $web_search and $web_model == "gemini" {
+          ai google_search-summary $chat_prompt $web_content -m -M $web_model
+      } else {$web_content}
 
       $chat_prompt = (
         if $web_search {
@@ -235,8 +245,18 @@ export def o_llama [
   let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
   
   let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
-  let web_content = if $web_search {google_search $search -n $web_results -v} else {""}
-  let web_content = if $web_search {ai google_search-summary $prompt $web_content -m -M $web_model} else {""}
+  
+  let web_content = if $web_search {
+      if $web_model == "ollama" {
+          ollama_search $search -n $web_results -mv
+      } else {
+          google_search $search -n $web_results -v
+      }
+  } else {""}
+              
+  let web_content = if $web_search and $web_model == "gemini" {
+      ai google_search-summary $prompt $web_content -m -M $web_model
+  } else {$web_content}
   
   let prompt = (
     if $web_search {
@@ -332,21 +352,4 @@ def save_ollama_chat [
   $plain_text | save -f ([$env.MY_ENV_VARS.download_dir $"($filename).txt"] | path join)
   
   mv -f ([$env.MY_ENV_VARS.download_dir $"($filename).txt"] | path join) ([$env.MY_ENV_VARS.download_dir $"($filename).md"] | path join)
-}
-
-#ollama web search
-export def ollama_web_search [
-  query:string
-  --max-results(-m) = 10
-] {
-  let url = "https://ollama.com/api/web_search"
-  let data = {query: $query, max_results: $max_results} | to json
-
-  let response = http post $url -H { Authorization: $"Bearer ($env.MY_ENV_VARS.api_keys.ollama)" } $data -e
-    
-  if ($response | get error? | is-not-empty) {
-    return-error $"Error: ($response.error)"
-  } 
-
-  return $response.results
 }

@@ -56,7 +56,7 @@ export def google_ai [
     --database(-D) = false   #continue a chat mode conversation from database
     --web_search(-w) = false #include $web_results web search results in the prompt
     --web_results(-n):int = 5     #number of web results to include
-    --web_model:string = "gemini" #model to summarize web results
+    --web_model:string = "gemini" #how to get web results: gemini (+ google search) or ollama (web search)
     --max_retries(-r):int = 5 #max number of retries in case of server-side errors 
     --verbose(-v) = false     #show the attempts to call the gemini api
     --document:string         #uses provided document to retrieve the answer
@@ -243,8 +243,18 @@ export def google_ai [
       let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriate for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $chat_prompt + "\n'''"
 
       let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
-      let web_content = if $web_search {google_search $search -n $web_results -v} else {""}
-      let web_content = if $web_search {ai google_search-summary $chat_prompt $web_content -m -M $web_model} else {""}
+      
+      let web_content = if $web_search {
+          if $web_model == "ollama" {
+              ollama_search $search -n $web_results -mv
+          } else {
+              google_search $search -n $web_results -v
+          }
+      } else {""}
+      
+      let web_content = if $web_search and $web_model == "gemini" {
+          ai google_search-summary $chat_prompt $web_content -m -M $web_model
+      } else {$web_content}
 
       $chat_prompt = (
         if $web_search {
@@ -343,8 +353,18 @@ export def google_ai [
   let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
   
   let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
-  let web_content = if $web_search {google_search $search -n $web_results -v} else {""}
-  let web_content = if $web_search {ai google_search-summary $prompt $web_content -m -M $web_model} else {""}
+  
+  let web_content = if $web_search {
+      if $web_model == "ollama" {
+          ollama_search $search -n $web_results -mv
+      } else {
+          google_search $search -n $web_results -v
+      }
+  } else {""}
+  
+  let web_content = if $web_search and $web_model == "gemini" {
+      ai google_search-summary $prompt $web_content -m -M $web_model
+  } else {$web_content}
   
   let prompt = (
     if $web_search {

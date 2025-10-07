@@ -683,3 +683,38 @@ export def gg-contacts [
         }
       }
 }
+
+#ollama web search
+export def ollama_search [
+  query:string
+  --max-results(-n):int = 10
+  --md(-m) #output md instead of table
+  --verbose(-v)
+] {
+  let url = "https://ollama.com/api/web_search"
+  let data = {query: $query, max_results: $max_results} | to json
+
+  if $verbose {print (echo-g $"searching the web: ($query)")}
+
+  let response = http post $url -H { Authorization: $"Bearer ($env.MY_ENV_VARS.api_keys.ollama)" } $data -e
+    
+  if ($response | get error? | is-not-empty) {
+    return-error $"Error: ($response.error)"
+  } 
+  
+  if $md {
+    mut md_output = ""
+  
+    for i in 0..(($response.results | length) - 1) {
+      let web = $response.results | get $i
+          
+      $md_output = $md_output + "# " + $web.title + "\n"
+      $md_output = $md_output + "link: " + $web.url + "\n\n"
+      $md_output = $md_output + $web.content + "\n\n"
+    }
+  
+    return $md_output
+} 
+
+  return $response.results
+}

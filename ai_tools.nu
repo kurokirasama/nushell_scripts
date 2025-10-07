@@ -98,25 +98,25 @@ export def askai [
   prompt?:string   # string with the prompt, can be piped
   system?:string   # string with the system message. It has precedence over the s.m. flags
   --programmer(-P) # use programmer s.m with temp 0.75, else use assistant with temp 0.9
-  --nushell_programmer(-N) # use bash-nushell programmer s.m with temp 0.75, else use assistant with temp 0.9
+  --nushell-programmer(-N) # use bash-nushell programmer s.m with temp 0.75, else use assistant with temp 0.9
   --teacher(-T)    # use school teacher s.m with temp 0.95, else use assistant with temp 0.9
   --rubb(-R)       # use rubb s.m. with temperature 0.65, else use assistant with temp 0.9
   --create-school-eval(-s) #use school teacer s.m with temp 0.95 and school evaluation preprompt
   --biblical(-B)   # use biblical assistant s.m with temp 0.78
-  --math_teacher(-M) # use undergraduate and postgraduate math teacher s.m. with temp 0.95
-  --google_assistant(-O) # use gOogle assistant (with web search) s.m with temp 0.7
+  --math-teacher(-M) # use undergraduate and postgraduate math teacher s.m. with temp 0.95
+  --google-assistant(-O) # use gOogle assistant (with web search) s.m with temp 0.7
   --engineer(-E)   # use prompt_engineer s.m. with temp 0.8 and its preprompt
   --writer(-W)       # use writing_expert s.m with temp 0.95
   --academic(-A)   # use academic writer improver s.m with temp 0.78, and its preprompt
-  --fix_bug(-F)    # use programmer s.m. with temp 0.75 and fix_code_bug preprompt
+  --fix-bug(-F)    # use programmer s.m. with temp 0.75 and fix_code_bug preprompt
   --summarizer(-S) #use simple summarizer s.m with temp 0.70 and its preprompt
-  --linux_expert(-L) #use linux expert s.m with temp temp 0.85
+  --linux-expert(-L) #use linux expert s.m with temp temp 0.85
   --curricular-designer(-U) #use curricular designer s.m. with temp 0.8
   --document(-d):string   # answer question from provided document
   --auxiliary-data(-a):string # include context file in the prompt
-  --list_system(-l)       # select s.m from list (takes precedence over flags)
-  --list_preprompt(-p)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
-  --delimit_with_quotes(-q) = true #add '''  before and after prompt
+  --list-system(-l)       # select s.m from list (takes precedence over flags)
+  --list-preprompt(-p)    # select pre-prompt from list (pre-prompt + ''' + prompt + ''')
+  --delimit-with-quotes(-q) = true #add '''  before and after prompt
   --temperature(-t):float # takes precedence over the 0.7 and 0.9
   --gpt(-g)              # use gpt-5 instead of gpt-5-mini (default)
   --vision(-v)            # use gpt-4-vision/gemini-pro-vision
@@ -127,12 +127,12 @@ export def askai [
   --bison(-b)  #use google bison instead of chatgpt (needs --gemini)
   --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt
   --database(-D)   #load chat conversation from database
-  --web_search(-w) #include web search results into the prompt
-  --web_results(-n):int = 5 #how many web results to include
-  --web_model:string = "gemini" #model to summarize web results
+  --web-search(-w) #include web search results into the prompt
+  --web-results(-n):int = 5 #how many web results to include
+  --web-model:string = "ollama" #how to get web results: gemini (+ google search) or ollama (web search)
   --claude(-C)  #use anthropic claude sonnet-4-5
   --ollama(-o)  #use ollama models
-  --ollama_model(-m):string #select ollama model to use
+  --ollama-model(-m):string #select ollama model to use
   --embed(-e) #make embedding instead of generate or chat
 ] {
   let prompt = if $fast {

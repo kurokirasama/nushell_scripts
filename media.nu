@@ -1,4 +1,4 @@
-#tools to deal with media files
+
 export def "media help" [] {
   print ([
     "media manipulation and visualization tools: ffmpeg, sox, subsync and mpv required."

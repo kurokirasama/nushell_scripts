@@ -118,8 +118,18 @@ export def claude_ai [
   let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
   
   let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
-  let web_content = if $web_search {google_search $search -n $web_results -v} else {""}
-  let web_content = if $web_search {ai google_search-summary $prompt $web_content -m -M $web_model} else {""}
+  
+  let web_content = if $web_search {
+      if $web_model == "ollama" {
+          ollama_search $search -n $web_results -mv
+      } else {
+          google_search $search -n $web_results -v
+      }
+  } else {""}
+              
+  let web_content = if $web_search and $web_model == "gemini" {
+      ai google_search-summary $prompt $web_content -m -M $web_model
+  } else {$web_content}
   
   let prompt = (
     if $web_search {
