@@ -129,7 +129,7 @@ export def askai [
   --database(-D)   #load chat conversation from database
   --web-search(-w) #include web search results into the prompt
   --web-results(-n):int = 5 #how many web results to include
-  --web-model:string = "ollama" #how to get web results: gemini (+ google search) or ollama (web search)
+  --web-engine:string = "ollama" #how to get web results: 'google' search (+gemini for summary) or ollama (web search)
   --claude(-C)  #use anthropic claude sonnet-4-5
   --ollama(-o)  #use ollama models
   --ollama-model(-m):string #select ollama model to use
@@ -252,9 +252,9 @@ export def askai [
   #chat mode
   if $chat {
     if $gemini {
-      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -n $web_results --select_preprompt $pre_prompt --document $document --web_model $web_model -m $gemini_model
+      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -n $web_results --select_preprompt $pre_prompt --document $document --web_engine $web_engine -m $web_engine
     } else if $ollama {
-      o_llama $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -n $web_results --select_preprompt $pre_prompt --document $document --web_model $web_model -m $ollama_model
+      o_llama $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -n $web_results --select_preprompt $pre_prompt --document $document --web_engine $web_engine -m $web_engine
     } else {
       # chat_gpt $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d $delimit_with_quotes
       print (echo-g "in progress for chatgpt and claude")
@@ -270,8 +270,8 @@ export def askai [
         google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -p $list_preprompt -d true -i $image --select_preprompt $pre_prompt --select_system $system 
       } else {
           match $bison {
-          true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d true -w $web_search -n $web_results --select_preprompt $pre_prompt --select_system $system --document $document --web_model $web_model},
-          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m $gemini_model -d true -w $web_search -n $web_results --select_preprompt $pre_prompt --select_system $system --document $document --web_model $web_model},
+          true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d true -w $web_search -n $web_results --select_preprompt $pre_prompt --select_system $system --document $document --web_engine $web_engine},
+          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m $gemini_model -d true -w $web_search -n $web_results --select_preprompt $pre_prompt --select_system $system --document $document --web_engine $web_engine},
         }
       }
     )
@@ -288,9 +288,9 @@ export def askai [
   if $claude {
     let answer = (
       if $vision {
-        claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-vision -d true -i $image --select_preprompt $pre_prompt --select_system $system -w $web_search -n $web_results --web_model $web_model
+        claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-vision -d true -i $image --select_preprompt $pre_prompt --select_system $system -w $web_search -n $web_results --web_engine $web_engine
       } else {
-        claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-sonnet-4-5 -d true  --select_preprompt $pre_prompt --select_system $system --document $document -w $web_search -n $web_results --web_model $web_model
+        claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-sonnet-4-5 -d true  --select_preprompt $pre_prompt --select_system $system --document $document -w $web_search -n $web_results --web_engine $web_engine
       }
     )
 
@@ -306,9 +306,9 @@ export def askai [
   if $ollama {
     let answer = (
       if $vision {
-        o_llama $prompt -t $temp -l $list_system -p $list_preprompt -m $ollama_model -d true -i $image --select_preprompt $pre_prompt --select_system $system -w $web_search -n $web_results --web_model $web_model -e $embed
+        o_llama $prompt -t $temp -l $list_system -p $list_preprompt -m $ollama_model -d true -i $image --select_preprompt $pre_prompt --select_system $system -w $web_search -n $web_results --web_engine $web_engine -e $embed
       } else {
-        o_llama $prompt -t $temp -l $list_system -p $list_preprompt -m $ollama_model -d true  --select_preprompt $pre_prompt --select_system $system --document $document -w $web_search -n $web_results --web_model $web_model -e $embed
+        o_llama $prompt -t $temp -l $list_system -p $list_preprompt -m $ollama_model -d true  --select_preprompt $pre_prompt --select_system $system --document $document -w $web_search -n $web_results --web_engine $web_engine -e $embed
       }
     )
 
@@ -331,14 +331,14 @@ export def askai [
       }
     } else {
       match [$gpt,$list_system,$list_preprompt] {
-        [true,true,false] => {chat_gpt $prompt -t $temp -l -m gpt-5 --select_preprompt $pre_prompt -w $web_search -n $web_results --web_model $web_model},
-        [true,false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-5 --select_preprompt $pre_prompt -w $web_search -n $web_results --web_model $web_model},
-        [false,true,false] => {chat_gpt $prompt -t $temp -l --select_preprompt $pre_prompt -w $web_search -n $web_results --web_model $web_model},
-        [false,false,false] => {chat_gpt $prompt -t $temp --select_system $system --select_preprompt $pre_prompt -w $web_search -n $web_results --web_model $web_model},
+        [true,true,false] => {chat_gpt $prompt -t $temp -l -m gpt-5 --select_preprompt $pre_prompt -w $web_search -n $web_results --web_engine $web_engine},
+        [true,false,false] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-5 --select_preprompt $pre_prompt -w $web_search -n $web_results --web_engine $web_engine},
+        [false,true,false] => {chat_gpt $prompt -t $temp -l --select_preprompt $pre_prompt -w $web_search -n $web_results --web_engine $web_engine},
+        [false,false,false] => {chat_gpt $prompt -t $temp --select_system $system --select_preprompt $pre_prompt -w $web_search -n $web_results --web_engine $web_engine},
         [true,true,true] => {chat_gpt $prompt -t $temp -l -m gpt-5 -p -d -w $web_search -n $web_results},
-        [true,false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-5 -p -d -w $web_search -n $web_results --web_model $web_model},
-        [false,true,true] => {chat_gpt $prompt -t $temp -l -p -d -w $web_search -n $web_results --web_model $web_model},
-        [false,false,true] => {chat_gpt $prompt -t $temp --select_system $system -p -d -w $web_search -n $web_results --web_model $web_model}
+        [true,false,true] => {chat_gpt $prompt -t $temp --select_system $system -m gpt-5 -p -d -w $web_search -n $web_results --web_engine $web_engine},
+        [false,true,true] => {chat_gpt $prompt -t $temp -l -p -d -w $web_search -n $web_results --web_engine $web_engine},
+        [false,false,true] => {chat_gpt $prompt -t $temp --select_system $system -p -d -w $web_search -n $web_results --web_engine $web_engine}
       }
     }
   )

@@ -56,7 +56,7 @@ export def google_ai [
     --database(-D) = false   #continue a chat mode conversation from database
     --web_search(-w) = false #include $web_results web search results in the prompt
     --web_results(-n):int = 5     #number of web results to include
-    --web_model:string = "gemini" #how to get web results: gemini (+ google search) or ollama (web search)
+    --web_engine:string = "google" #how to get web results: 'google' search (+gemini for summary) or ollama (web search)
     --max_retries(-r):int = 5 #max number of retries in case of server-side errors 
     --verbose(-v) = false     #show the attempts to call the gemini api
     --document:string         #uses provided document to retrieve the answer
@@ -245,15 +245,11 @@ export def google_ai [
       let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
       
       let web_content = if $web_search {
-          if $web_model == "ollama" {
-              ollama_search $search -n $web_results -mv
-          } else {
-              google_search $search -n $web_results -v
-          }
+          web_search $search -n $web_results -m -v -e $web_engine
       } else {""}
       
-      let web_content = if $web_search and $web_model == "gemini" {
-          ai google_search-summary $chat_prompt $web_content -m -M $web_model
+      let web_content = if $web_search and $web_engine == "google" {
+          ai google_search-summary $chat_prompt $web_content -m -M "gemini"
       } else {$web_content}
 
       $chat_prompt = (
@@ -355,15 +351,11 @@ export def google_ai [
   let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
   
   let web_content = if $web_search {
-      if $web_model == "ollama" {
-          ollama_search $search -n $web_results -mv
-      } else {
-          google_search $search -n $web_results -v
-      }
+      web_search $search -n $web_results -mv -e $web_engine
   } else {""}
   
-  let web_content = if $web_search and $web_model == "gemini" {
-      ai google_search-summary $prompt $web_content -m -M $web_model
+  let web_content = if $web_search and $web_engine == "google" {
+      ai google_search-summary $prompt $web_content -m -M "gemini"
   } else {$web_content}
   
   let prompt = (
@@ -736,13 +728,17 @@ export def google_aimage [
 @search-terms google-search summary gemini chatgpt ollama
 export def "ai google_search-summary" [
   question:string     #the question made to google
-  web_content?: table #table output of google_search
+  web_content?        #output of google_search, md or table
   --md(-m)            #return concatenated md instead of table
   --model(-M):string = "gemini" #select model: gpt4, gemini, ollama
 ] {
   let web_content = if ($web_content | is-empty) {$in} else {$web_content}
   let max_words = if $model == "gemini" {800000} else {100000}
-  let n_webs = $web_content | length
+  let n_webs = if ($web_content | typeof) like "table" {
+      $web_content | length
+  } else {
+      0
+  }
 
   let prompt = (
     open ([$env.MY_ENV_VARS.chatgpt_config prompt summarize_html2text.md] | path join) 
@@ -750,6 +746,28 @@ export def "ai google_search-summary" [
   )
 
   print (echo-g $"asking ($model) to summarize the web results...")
+
+  if ($n_webs == 0) {
+    print (echo-c $"summarizing md web results..." "green")
+    
+    let truncated_content = $web_content # | str truncate -m $max_words
+    let complete_prompt = $prompt + "\n'''\n" + $truncated_content + "\n'''"
+      
+    let summarized_content = match $model {
+      $s if ($s | str starts-with "llama") or ($s | str starts-with "qwq") => {
+        o_llama $complete_prompt --select_system html2text_summarizer -m $model
+      },
+      $s if ($s | str starts-with "gpt") => {
+        chat_gpt $complete_prompt --select_system html2text_summarizer -m gpt-4.1
+      },
+      "gemini" => {
+        google_ai $complete_prompt --select_system html2text_summarizer -m gemini-2.5-flash
+      }
+    }
+    
+    return $summarized_content
+  }
+
   mut content = []
   for i in 0..($n_webs - 1) {
     let web = $web_content | get $i
@@ -768,7 +786,7 @@ export def "ai google_search-summary" [
         chat_gpt $complete_prompt --select_system html2text_summarizer -m gpt-4.1
       },
       "gemini" => {
-        google_ai $complete_prompt --select_system html2text_summarizer -m gemini-2.0
+        google_ai $complete_prompt --select_system html2text_summarizer -m gemini-2.5-flash
       }
     }
 

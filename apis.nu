@@ -392,9 +392,9 @@ export def gg-trans [
 @search-terms google search
 export def google_search [
   ...query:string
-  --number_of_results(-n):int = 5 #number of results to use
-  --verbose(-v) #show some debug messages
-  --md(-m) #md output instead of table
+  --max-results(-n):int = 5 #number of results to use
+  --verbose(-v) = false #show some debug messages
+  --md(-m) = false #md output instead of table
 ] {
   let query = get-input $in $query | str join " "
 
@@ -426,7 +426,7 @@ export def google_search [
     let search_result = (
       $response
       | get items 
-      | first $number_of_results 
+      | first $max_results
       | select title link displayLink
     )
 
@@ -688,8 +688,8 @@ export def gg-contacts [
 export def ollama_search [
   query:string
   --max-results(-n):int = 10
-  --md(-m) #output md instead of table
-  --verbose(-v)
+  --md(-m) = false #output md instead of table
+  --verbose(-v) = false
 ] {
   let url = "https://ollama.com/api/web_search"
   let data = {query: $query, max_results: $max_results} | to json
@@ -717,4 +717,29 @@ export def ollama_search [
 } 
 
   return $response.results
+}
+
+#wrapper for web search
+export def web_search [
+  query:string
+  --engine(-e):string = "ollama" #'ollama' web search or 'google' search
+  --max-results(-n):int = 10
+  --md(-m) #output md instead of table
+  --verbose(-v)
+] {
+    if $engine not-in ["ollama", "google"] {
+        return-error $"Invalid engine: ($engine)"
+    }
+    
+    if $engine == "google" {
+        return (google_search $query --max-results $max_results --md $md --verbose $verbose)
+        
+    }
+    
+    try {
+        ollama_search $query --max-results $max_results --md $md --verbose $verbose
+    } catch {|e|
+        print (echo-c $"ollama web search failed: ($e.msg)" "orange")
+        google_search $query --max-results $max_results --md $md --verbose $verbose
+    }
 }

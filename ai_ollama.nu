@@ -16,7 +16,7 @@ export def o_llama [
   --database(-D) = false #continue a chat mode conversation from database
   --web_search(-w) = false  #include $web_results web search results in the prompt
   --web_results(-n):int = 5 #number of web results to include
-  --web_model:string = "gemini" #model to summarize web results
+  --web_engine:string = "google" #how to get web results: 'google' search (+gemini for summary) or ollama (web search)
   --verbose(-v) = false #show the attempts to call the gemini api
   --document:string     #uses provided document to retrieve the answer
   --embed(-e) = false   #make embedding instead of generate or chat
@@ -161,15 +161,11 @@ export def o_llama [
       let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
       
       let web_content = if $web_search {
-          if $web_model == "ollama" {
-              ollama_search $search -n $web_results -mv
-          } else {
-              google_search $search -n $web_results -v
-          }
+          web_search $search -n $web_results -m -v -e $web_engine
       } else {""}
-            
-      let web_content = if $web_search and $web_model == "gemini" {
-          ai google_search-summary $chat_prompt $web_content -m -M $web_model
+      
+      let web_content = if $web_search and $web_engine == "google" {
+          ai google_search-summary $chat_prompt $web_content -m -M "gemini"
       } else {$web_content}
 
       $chat_prompt = (
@@ -247,15 +243,11 @@ export def o_llama [
   let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
   
   let web_content = if $web_search {
-      if $web_model == "ollama" {
-          ollama_search $search -n $web_results -mv
-      } else {
-          google_search $search -n $web_results -v
-      }
+      web_search $search -n $web_results -mv -e $web_engine
   } else {""}
-              
-  let web_content = if $web_search and $web_model == "gemini" {
-      ai google_search-summary $prompt $web_content -m -M $web_model
+  
+  let web_content = if $web_search and $web_engine == "google" {
+      ai google_search-summary $prompt $web_content -m -M "gemini"
   } else {$web_content}
   
   let prompt = (
