@@ -288,10 +288,18 @@ export def "media cut-video" [
 
   try {
     echo-g "trying myffmpeg..."
-    my-ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
+    try {
+      my-ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
+    } catch {
+      my-ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -c:v copy $ofile  
+    }
   } catch {
     echo-r "trying ffmpeg..."
-    ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
+    try {
+      ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
+    } catch {
+      ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -c:v copy $ofile  
+    }
   }
   if $notify {"summary finished!" | tasker send-notification}
 }

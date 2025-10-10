@@ -728,13 +728,15 @@ export def google_aimage [
 @search-terms google-search summary gemini chatgpt ollama
 export def "ai google_search-summary" [
   question:string     #the question made to google
-  web_content?        #output of google_search, md or table
+  web_content = ""       #output of google_search, md or table
   --md(-m)            #return concatenated md instead of table
   --model(-M):string = "gemini" #select model: gpt4, gemini, ollama
 ] {
   let web_content = if ($web_content | is-empty) {$in} else {$web_content}
   let max_words = if $model == "gemini" {800000} else {100000}
-  let n_webs = if ($web_content | typeof) like "table" {
+  let n_webs = if ($web_content | is-empty) {
+      0
+  } else if ($web_content | describe | split row '<' | get 0) like "table" {
       $web_content | length
   } else {
       0
