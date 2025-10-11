@@ -89,6 +89,22 @@ export def "apps-update nushell-plugins-external" [--force(-f)] {
   ] | str join "\n")
 }
 
+#update polars aliases
+export def "apps-update nushell-polars" [] {
+    rm -f ($env.MY_ENV_VARS.nu_scripts | path join "polars_aliases.nu")
+    touch ($env.MY_ENV_VARS.nu_scripts | path join "polars_aliases.nu")
+    
+    scope commands 
+    | where name like "polars" 
+    | where type == "plugin"
+    | get name 
+    | skip
+    | each {|p| 
+        $"export alias \"($p | str replace 'polars' 'pl')\" = ($p)\n" 
+        | save -a ($env.MY_ENV_VARS.nu_scripts | path join "polars_aliases.nu")
+    }
+}
+
 #update nu config (after nushell update)
 export def update-nu-config [] {
   #config

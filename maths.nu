@@ -969,3 +969,55 @@ export def "math mix-fraction" [
 export def "math prod-scalar" [list: list, scalar: number] {
     $list | each {|it| $it * $scalar }
 }
+
+# Custom command to convert a decimal string to a fraction string
+export def "math to-fraction" [
+    decimal_str?
+] {
+    let decimal_str = get-input $decimal_str $in | into string
+    let parts = $decimal_str | split row "." | into string
+    
+    if ($parts | length) == 1 {
+        return $decimal_str
+    }
+
+    let integer_part = $parts | get 0
+    let fractional_part = $parts | get 1
+    let num_decimal_places = $fractional_part | str length
+    
+    let denominator = 10 ** $num_decimal_places
+    let numerator = $fractional_part | into int
+
+    let common_divisor = math gcd $numerator $denominator
+
+    let simplified_numerator = $numerator / $common_divisor | into int
+    let simplified_denominator = $denominator / $common_divisor | into int
+    
+    let integer_val = $integer_part | into int
+
+    if $integer_val == 0 {
+        return $"($simplified_numerator)/($simplified_denominator)"
+    } else {
+        let total_numerator = $integer_val * $simplified_denominator + $simplified_numerator
+        return $"($total_numerator)/($simplified_denominator)"
+    }
+}
+
+#string fraction to decimal
+export def "math to-decimal" [
+    fraction_str?:string
+] {
+    let fraction_str = get-input $fraction_str $in
+    let parts = $fraction_str | split row "/"
+    
+    if ($parts | length) == 1 {
+        return $fraction_str
+    }
+
+    let numerator = $parts | get 0 | into int
+    let denominator = $parts | get 1 | into int
+
+    let decimal = $numerator / $denominator
+
+    return $decimal
+}
