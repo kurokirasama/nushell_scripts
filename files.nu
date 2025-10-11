@@ -53,7 +53,7 @@ export def typeof [
   if $list_of_tables {
     if $type == "list" {
         # Check if the list has column names, indicating it's effectively a table
-        if ($inp | first | typeof) == "record" {
+        if ($inp | first | describe) starts-with "record" {
         return "table"
         }
     }
