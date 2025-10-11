@@ -31,6 +31,7 @@ export def "h stats" [] {
         $hp
     }
     
+    timg $env.MY_ENV_VARS.habitica_avatar
     return {
         name: $response.profile.name,
         level: $response.stats.lvl,

@@ -453,7 +453,6 @@ export def rename [
   }
 }
 
-
 #save as excel/ods format
 export def "to ods" [filename]: [table -> binary] {
     let tmp_csvfile = mktemp --suffix .csv --tmpdir
@@ -462,4 +461,90 @@ export def "to ods" [filename]: [table -> binary] {
     $in | to csv | save -f $tmp_csvfile 
     mv $tmp_csvfile $csvfile  -f
     libreoffice --headless --convert-to ods $csvfile
+}
+
+# Convert simple markdown table to nushell table.
+@example "md table to table" {ls | to md | from mdtable}
+export def "from mdtable" []: string -> table {
+  let lines = $in | lines
+  let format = $lines | get 0 | split row '|' | skip 1 | drop 1 | str trim | str join '}|{'
+  $lines | skip 2 | parse $"|{($format)}|"
+}
+
+# Custom command to perform label encoding on a specified column of a table, it returns a polar dataframe
+@example "Simple example" {
+let my_data = [
+   {id: 1, category: "Apple"},
+   {id: 2, category: "Banana"},
+   {id: 3, category: "Apple"},
+   {id: 4, category: "Orange"},
+   {id: 5, category: "Banana"}
+ ]
+ 
+ $my_data | label-encode category
+} --result [
+   {id: 1, category: "Apple", encoded_category: 0},
+   {id: 2, category: "Banana", encoded_category: 1},
+   {id: 3, category: "Apple", encoded_category: 0},
+   {id: 4, category: "Orange", encoded_category: 2},
+   {id: 5, category: "Banana", encoded_category: 1}
+ ]
+export def label-encode [
+  column_name: string # The name of the column to encode
+] {
+  # Ensure the input is a table
+  let input_table = $in
+  let input_table = if ($input_table | describe) like "NuDataFrame" { 
+      $input_table 
+    } else { 
+        $input_table | polars into-df
+    }
+
+  # Get unique values from the specified column using native Nushell
+  let unique_values = $input_table 
+    | polars get $column_name 
+    | polars unique 
+    | polars into-nu 
+    | get $column_name 
+    | sort
+
+  # Create a mapping from unique value to an integer index
+  let mapping = $unique_values | enumerate | rename $"encoded_($column_name)" $column_name | polars into-df 
+  
+  # Join the mapping with the original table on the specified column
+  return ($input_table | polars join $mapping $column_name $column_name)
+}
+
+# Custom command to perform one-hot encoding on a specified column of a table, it returns a polar dataframe
+@example "Simple example" {
+let my_data = [
+   {id: 1, category: "Apple"},
+   {id: 2, category: "Banana"},
+   {id: 3, category: "Apple"},
+   {id: 4, category: "Orange"},
+   {id: 5, category: "Banana"}
+ ]
+ 
+ $my_data | one-hot-encode category
+} --result [
+   {id: 1, category: "Apple",  is_Apple: 1, is_Banana: 0, is_Orange: 0},
+   {id: 2, category: "Banana", is_Apple: 0, is_Banana: 1, is_Orange: 0},
+   {id: 3, category: "Apple",  is_Apple: 1, is_Banana: 0, is_Orange: 0},
+   {id: 4, category: "Orange", is_Apple: 0, is_Banana: 0, is_Orange: 1},
+   {id: 5, category: "Banana", is_Apple: 0, is_Banana: 1, is_Orange: 0}
+ ]
+export def one-hot-encode [
+  column_name: string # The name of the column to encode
+] {
+  let input_table = $in
+
+  # Ensure the input is a Polars DataFrame for efficiency
+  let input_table = if ($input_table | describe) like "NuDataFrame" {
+      $input_table
+    } else {
+        $input_table | polars into-df
+    }
+
+  # Get unique values from the specified column
+  $input_table | polars append ($input_table | polars select $column_name | polars dummies)
 }
