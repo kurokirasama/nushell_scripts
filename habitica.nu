@@ -8,7 +8,7 @@ export def "h credentials" [] {
 }
 
 # Gets user stats
-export def "h stats" [] {
+export def "h stats" [--show-avatar(-s)] {
     let headers = h credentials 
     let hab_id = $env.MY_ENV_VARS.api_keys.habitica.id
     let base_url = "https://habitica.com"
@@ -31,7 +31,10 @@ export def "h stats" [] {
         $hp
     }
     
-    timg $env.MY_ENV_VARS.habitica_avatar
+    if $show_avatar {
+        timg $env.MY_ENV_VARS.habitica_avatar
+    }
+    
     return {
         name: $response.profile.name,
         level: $response.stats.lvl,
@@ -812,6 +815,7 @@ export def "h auto-quest" [] {
 }
 
 #aliases
+export alias hs = h stats -s
 export alias todos = h ls todos -i 
 export alias dailys = h ls dailys -ni
 
