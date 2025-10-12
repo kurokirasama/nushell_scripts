@@ -921,6 +921,11 @@ export def "apps-update claude" [] {
   npm update -g @anthropic-ai/claude-code
 }
 
+#update claude cli
+export def "apps-update mermaid-ascii" [] {
+  npm update -g @mermaid-js/mermaid-cli
+}
+
 #update open-codex
 export def "apps-update open-codex" [] {
   npm update -g open-codex
@@ -1074,4 +1079,9 @@ export def "apps-update cariddi" [] {
 #update termframe
 export def "apps-update termframe" [] {
     cargo install --git https://github.com/pamburus/termframe.git --locked
+}
+
+#update gowall
+export def "apps-update gowall" [] {
+    go install github.com/Achno/gowall@latest
 }
