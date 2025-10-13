@@ -94,9 +94,9 @@ export def op [
 }
 
 #open file 
-export def openf [file?] {
+export def --env openf [file?] {
   let file = get-input $in $file
-
+  
   let file = (
     match ($file | typeof) {
       "record" => {
@@ -113,7 +113,8 @@ export def openf [file?] {
       _ => {$file}
     }
   )
-   
+  
+  hide-env GDK_PIXBUF_MODULE_FILE 
   job spawn {xdg-open $file} | ignore
 }
 

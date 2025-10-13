@@ -280,6 +280,7 @@ export def "media cut-video" [
   --output_file(-o):string #output file
   --append(-a):string = "cutted"  #append to file name
   --notify(-n)             #notify to android via join/tasker
+  --reencode(-r)           #reencode video
 ] {
   let ext = $file | path parse | get extension
   let name = $file | path parse | get stem
@@ -288,17 +289,33 @@ export def "media cut-video" [
 
   try {
     echo-g "trying myffmpeg..."
-    try {
-      my-ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
-    } catch {
-      my-ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -c:v copy $ofile  
+    if $reencode {
+        try {
+          my-ffmpeg -i $file -ss $SEGSTART -to $SEGEND -map 0:0 -map 0:1 $ofile
+        } catch {
+          my-ffmpeg -i $file -ss $SEGSTART -to $SEGEND -map 0:0 $ofile
+        }
+    } else {
+        try {
+          my-ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
+        } catch {
+          my-ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -c:v copy $ofile  
+        }
     }
   } catch {
     echo-r "trying ffmpeg..."
-    try {
-      ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
-    } catch {
-      ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -c:v copy $ofile  
+    if $reencode {
+        try {
+          ffmpeg -i $file -ss $SEGSTART -to $SEGEND -map 0:0 -map 0:1 $ofile
+        } catch {
+          ffmpeg -i $file -ss $SEGSTART -to $SEGEND -map 0:0 $ofile
+        }
+    } else {
+        try {
+          ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
+        } catch {
+          ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -c:v copy $ofile  
+        }        
     }
   }
   if $notify {"summary finished!" | tasker send-notification}
@@ -1016,15 +1033,15 @@ export def "media crop-video" [
 
 #get first frame of video
 export def "media get-frame" [
+  time:string = "00:00:00" #time of the frame to extract format hh:mm:ss
   file? #file or list of files
 ] {
-
   let files = get-input $in $file
 
   $files 
   | get name 
   | par-each -t ([(sys cpu  | length) / 2 ($files | length)] | math min) {|f| 
-      ffmpeg -ss 00:00:00 -i ($f) -vframes 1 $"($f | path parse | get stem).jpg"
+      ffmpeg -ss $time -i ($f) -vframes 1 $"($f | path parse | get stem).png"
     }
 }
 
@@ -1064,4 +1081,71 @@ export def "media auto-crop-banner" [
       | last
 
     ffmpeg -hide_banner -i $input -vf $crop_params $output
+}
+
+#remove logo from video
+# Use `media get-frame` to extract the frame that contains the logo you want to remove
+# Use gimp to obtain coordinates
+export def "media remove-logo" [
+    file: string,                   # The input video file
+    --top-left(-l): string,         # Top-left coordinates, e.g., "540,96"
+    --top-right(-r): string,        # Top-right coordinates, e.g., "726,96"
+    --bottom-left(-b): string,      # Bottom-left coordinates, e.g., "540,120"
+    --start-time(-s): string,       # Start time for removal, e.g., "00:00:00"
+    --end-time(-e): string,         # End time for removal, e.g., "00:07:01" or "end"
+    --output-file(-o): string,      # Optional output file name
+    --append(-a): string = "delogo" # String to append to the output file name
+] {
+    # --- Calculate delogo parameters ---
+    let tl = $top_left | split row "," | into int
+    if ($tl | length) != 2 {return-error "Top-left coordinates must be in x,y format"}
+
+    let tr = $top_right | split row "," | into int
+    if ($tr | length) != 2 {return-error "Top-right coordinates must be in x,y format"}
+
+    let bl = $bottom_left | split row "," | into int
+    if ($bl | length) != 2 {return-error "Bottom-left coordinates must be in x,y format"}
+
+    let x = $tl.0
+    let y = $tl.1
+    let w = $tr.0 - $tl.0
+    let h = $bl.1 - $tl.1
+
+    if $w <= 0 {return-error "Invalid width calculated. Top-right x must be greater than top-left x." }
+    if $h <= 0 {return-error "Invalid height calculated. Bottom-left y must be greater than top-left y." }
+
+    # --- Calculate time in seconds ---
+    let start_parts = $start_time | split row ":" | into int
+    if ($start_parts | length) != 3 {return-error "Start time must be in hh:mm:ss format"}
+    let start_s = ($start_parts.0 * 3600) + ($start_parts.1 * 60) + $start_parts.2
+
+    let end_s = if $end_time == "end" {
+        # Get video duration if end time is "end"
+        ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $file | into float | math round
+    } else {
+        let end_parts = $end_time | split row ":" | into int
+        if ($end_parts | length) != 3 {return-error "End time must be in hh:mm:ss format or 'end'"}
+        ($end_parts.0 * 3600) + ($end_parts.1 * 60) + $end_parts.2
+    }
+
+    # --- Construct ffmpeg filter ---
+    let filter = $"delogo=x=($x):y=($y):w=($w):h=($h):enable='between\(t,($start_s),($end_s)\)'"
+
+    # --- Determine output file name ---
+    let ext = $file | path parse | get extension
+    let name = $file | path parse | get stem
+    let ofile = if not ($output_file | is-empty) {
+        $output_file
+    } else {
+        $"($name)_($append).($ext)"
+    }
+
+    # --- Run ffmpeg with fallback ---
+    try {
+        print (echo-g "Trying with my-ffmpeg (CUDA accelerated decode/encode)...")
+        my-ffmpeg -i $file -vf $filter $ofile
+    } catch {
+        print (echo-r "my-ffmpeg with CUDA failed, falling back to standard ffmpeg (CPU)...")
+        ffmpeg -i $file -vf $filter $ofile
+    }
 }
