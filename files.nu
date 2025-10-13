@@ -114,7 +114,9 @@ export def --env openf [file?] {
     }
   )
   
-  hide-env GDK_PIXBUF_MODULE_FILE 
+  if "GDK_PIXBUF_MODULE_FILE" in $env {
+      hide-env GDK_PIXBUF_MODULE_FILE 
+  }
   job spawn {xdg-open $file} | ignore
 }
 
