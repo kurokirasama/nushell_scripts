@@ -163,8 +163,8 @@ export def default-table [value: any = null] {
 
 # table diff
 export def table-diff [
-  $left: list<any>,
-  $right: list<any>,
+  left: list<any>,
+  right: list<any>,
   --keys (-k): list<string> = [],
 ] {
   let left = if ($left | describe) not-like '^table' { $left | wrap value } else { $left }

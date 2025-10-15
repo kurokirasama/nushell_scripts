@@ -78,6 +78,7 @@ export def "media sub-sync" [
   rm output.srt | ignore
 }
 
+const formats = ["mp3", "wav"]
 #remove audio noise 
 export def "media remove-noise" [
   file                 #audio file name with extension
@@ -86,7 +87,7 @@ export def "media remove-noise" [
   noiseLevel           #level reduction adjustment (0.2-0.3)
   output?              #output file name without extension, wav or mp3 produced
   --delete(-d) = true  #whether to delete existing tmp files or not
-  --outExt(-E):string = "wav" #output format, mp3 or wav
+  --outExt(-E):string@$formats = "wav" #output format, mp3 or wav
   --notify(-n)         #notify to android via join/tasker
 ] {
   if $delete {
@@ -368,6 +369,7 @@ export def "media split-video" [
 #
 #Examples (make sure there are only compatible files in all subdirectories)
 #media-to mp4 (avi/mkv to mp4)
+#media-to mp4 -v libx265 (avi/mkv to mp4)
 #media-to mp4 -c (avi to mp4)
 #media-to aac (audio files to aac)
 #media-to mp3 (audio files to mp3)
@@ -590,6 +592,7 @@ export def "media merge-videos-auto" [
   if $notify {"video merge finished!" | tasker send-notification}
 }
 
+const vcodecs = ["libx264", "libx265"]
 #reduce size of video files recursively, to mp4 x265
 #
 #Considers only mp4 and webm files
@@ -609,7 +612,7 @@ export def "media compress-video" [
   --file(-f):string         #single file
   --level(-l):int           #level of recursion (-maxdepth in ^find, minimun = 1).
   --crf(-c):int = 18        #compression rate, range 0-51, sane range 18-28.
-  --vcodec(-v):string = "libx265"  #video codec: libx264 | libx265.
+  --vcodec(-v):string@$vcodecs = "libx265"  #video codec: libx264 | libx265.
   --append(-a):string = "com" # what to append to compressed file names
   --jobs(-j):int = 2        #number of jobs to run in parallel
   --mkv(-m)                 #include mkv files
@@ -908,7 +911,7 @@ export def mpv [
 #extract audio from video file
 export def "media extract-audio" [
   filename
-  --audio_format(-a):string = "mp3" #audio output format, wav or mp3
+  --audio_format(-a):string@$formats = "mp3" #audio output format, wav or mp3
   --notify(-n)               #notify to android via mpv
 ] {
   let file = $filename | path parse | get stem

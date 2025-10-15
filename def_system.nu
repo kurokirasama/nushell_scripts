@@ -124,8 +124,3 @@ export def verify [
 
   $not xor $res
 }
-
-#Calculates a past datetime by subtracting a duration from the current time.
-export def ago []: [ duration -> datetime ] {
-  (date now) - $in
-}

@@ -278,11 +278,12 @@ export def --env mkcd [name: path] {
   cd $name
 }
 
+const direction = ["right", "left"]
 #second screen positioning
 export def set-screen [
-  side: string = "right"  #which side, left or right (default)
+  side: string@$direction = "right"  #which side, left or right (default)
   --home                  #for home pc
-  --hdmi = "right"        #for home pc, which hdmi port: left or right (default)
+  --hdmi:string@$direction = "right"        #for home pc, which hdmi port: left or right (default)
 ] {
   if not $home {
     match $side {
@@ -656,10 +657,14 @@ export def last-command [] {
   $env.last
 }
 
+const types = ["pixels", "ssl"]
 #toggle hyprland wallpapers source
 @example "pixels to ssl" {hyprlnd replace-wallpaper-paths pixels ssl}
 @example "ssl to pixels" {hyprlnd replace-wallpaper-paths ssl pixels}
-export def "hyprlnd replace-wallpaper-paths" [from_type: string, to_type: string] {
+export def "hyprlnd replace-wallpaper-paths" [
+    from_type: string@$types
+    to_type: string@$types
+] {
     let base_path = "/home/kira/Yandex.Disk/Wallpapers_"
     let old_path = $base_path + $from_type
     let new_path = $base_path + $to_type

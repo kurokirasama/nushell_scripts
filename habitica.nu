@@ -50,16 +50,16 @@ export def "h stats" [--show-avatar(-s)] {
     }
 }
 
+const types = ["dailys", "todos", "habits", "rewards", "completedTodos"]
 # Lists user tasks
 export def "h ls" [
-  task_type?: string # Type of task to list (dailys, todos, habits, rewards, completedTodos)
+  task_type?: string@$types # Type of task to list (dailys, todos, habits, rewards, completedTodos)
   --pending(-p) #show pending dailys only
   --now(-n)   #show todays dailys only
   --no-id(-i) #hide task ids
   --tags(-t)  #show only tasks with tags
 ] {
   let headers = h credentials    
-  let types = ["dailys", "todos", "habits", "rewards", "completedTodos"]
   
   let task_type = if ($task_type | is-empty) {
     $types
@@ -165,21 +165,21 @@ export def "h mark-dailys-done" [] {
   print (echo-g "All due and incomplete daily tasks marked as done.")
 }
 
+const add_types = ["daily", "todo", "habit"]
 # Adds a new task (daily or todo)
 export def "h add" [
-  task_type?: string # Type of task to add (daily, todo, habit)
+  task_type?: string@$add_types # Type of task to add (daily, todo, habit)
 ] {
   let headers = h credentials
-  let types = ["daily", "todo", "habit"]
   
   let task_type = if ($task_type | is-empty) {
-    $types
+    $add_types
     | input list -f (echo-g "Select task type: ")
   } else {
     $task_type
   }
 
-  if ($task_type not-in $types) {
+  if ($task_type not-in $add_types) {
     return-error "Invalid task type. Must be 'daily', 'todo', or 'habit'."
   }
 
@@ -290,19 +290,18 @@ export def "h add" [
 
 # Deletes a task (daily, todo, habit)
 export def "h del" [
-  task_type?: string # Type of task to delete (dailys, todos, habits)
+  task_type?: string@$add_types # Type of task to delete (dailys, todos, habits)
 ] {
   let headers = h credentials
-  let types = ["dailys", "todos", "habits"]
   
   let task_type = if ($task_type | is-empty) {
-    $types
+    $add_types
     | input list -f (echo-g "Select task type to delete: ")
   } else {
     $task_type
   }
 
-  if ($task_type not-in $types) {
+  if ($task_type not-in $add_types) {
     return-error "Invalid task type for deletion. Must be 'dailys', 'todos', or 'habits'."
   }
 
@@ -642,19 +641,18 @@ export def "h buy-armoir" [] {
 
 # Completes a checklist item for a task
 export def "h complete-checklist" [
-  task_type?: string # Type of task to complete checklist for (dailys, todos, habits)
+  task_type?: string@$add_types # Type of task to complete checklist for (dailys, todos, habits)
 ] {
   let headers = h credentials
-  let types = ["dailys", "todos", "habits"]
   
   let task_type = if ($task_type | is-empty) {
-    $types
+    $add_types
     | input list -f (echo-g "Select task type: ")
   } else {
     $task_type
   }
 
-  if ($task_type not-in $types) {
+  if ($task_type not-in $add_types) {
     return-error "Invalid task type. Must be 'dailys', 'todos', or 'habits'."
   }
 
@@ -703,19 +701,18 @@ export def "h complete-checklist" [
 
 # Adds a checklist item to a task
 export def "h add-checklist" [
-  task_type?: string # Type of task to add checklist item to (dailys, todos, habits)
+  task_type?: string@$add_types # Type of task to add checklist item to (dailys, todos, habits)
 ] {
   let headers = h credentials
-  let types = ["dailys", "todos", "habits"]
   
   let task_type = if ($task_type | is-empty) {
-    $types
+    $add_types
     | input list -f (echo-g "Select task type: ")
   } else {
     $task_type
   }
 
-  if ($task_type not-in $types) {
+  if ($task_type not-in $add_types) {
     return-error "Invalid task type. Must be 'dailys', 'todos', or 'habits'."
   }
 

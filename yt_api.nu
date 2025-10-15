@@ -145,9 +145,10 @@ export def "ytm online" [
   }
 }
 
+const types = ["snippet", "status", "id"]
 #youtube api implementation to get playlists and songs info
 export def yt-api [
-  type? = "snippet" #type of query: id, status, snippet (export default)
+  type?:string@$types = "snippet" #type of query: id, status, snippet (export default)
   --pid:string      #playlist/song id
   --ptoken:string   #prev/next page token
 ] {
