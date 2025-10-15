@@ -81,6 +81,7 @@ export def token2word [
   math prod-list [$token_units $token_units] [$min $max]
 }
 
+const web_engines = ["google" "ollama"]
 #fast call to the chat_gpt and gemini wrappers
 #
 #Only one system message flag allowed.
@@ -129,7 +130,7 @@ export def askai [
   --database(-D)   #load chat conversation from database
   --web-search(-w) #include web search results into the prompt
   --web-results(-n):int = 5 #how many web results to include
-  --web-engine:string = "ollama" #how to get web results: 'google' search (+gemini for summary) or ollama (web search)
+  --web-engine:string@$web_engines = "ollama" #how to get web results: 'google' search (+gemini for summary) or ollama (web search)
   --claude(-C)  #use anthropic claude sonnet-4-5
   --ollama(-o)  #use ollama models
   --ollama-model(-m):string #select ollama model to use
@@ -457,13 +458,14 @@ export def "ai git-push" [
   }
 }
 
+const output_formats = ["txt", "vtt", "srt", "tsv", "json", "all"]
 #audio to text transcription via whisper
 @category ai
 @search-terms audio text transcription whisper
 export def "ai audio2text" [
   filename                    #audio file input
   --language(-l) = "Spanish"  #language of audio file
-  --output_format(-o) = "txt" #output format: txt, vtt, srt, tsv, json, all
+  --output_format(-o):string@$output_formats = "txt" #output format: txt, vtt, srt, tsv, json, all
   --translate(-t)             #translate audio to english
   --filter_noise(-f) = false  #filter noise
   --notify(-n)                #notify to android via join/tasker
@@ -517,6 +519,7 @@ export def "ai video2text" [
   if $notify {"audio extracted!" | tasker send-notification}
 }
 
+const types = ["meeting", "youtube", "class", "instructions"]
 #get a summary of a video, audio, subtitle file or youtube video url via ai
 @category ai
 @search-terms media summary chatgpt gemini claude ollama
@@ -531,7 +534,7 @@ export def "ai media-summary" [
   --ollama_model(-m):string #ollama model to use
   --notify(-n)           # notify to android via join/tasker
   --upload(-u)           # upload extracted audio to gdrive
-  --type(-t): string = "meeting" # meeting, youtube, class or instructions
+  --type(-t): string@$types = "meeting" # meeting, youtube, class or instructions
   --complete(-c):string  #use complete preprompt with input file as the incomplete summary
   --filter_noise(-f)     # filter audio noise
 ] {
@@ -849,6 +852,7 @@ export def "ai generate-subtitles-pipe" [
     }
 }
 
+const qualities = ["standard" "hd"]
 #fast call to the dall-e and stable diffusion wrapper
 #
 #For more personalization and help check `? dall_e` or `? stable_diffusion`
@@ -868,7 +872,7 @@ export def askaimage [
   --output(-o):string #filename for output images, default used if not present
   --number(-n):int = 1 #number of images to generate (dalle only)
   --size(-S):string = "1792x1024"   #size of the output image (dalle only)
-  --quality(-q):string = "standard" #quality of the output image: standard or hd (dalle only)
+  --quality(-q):string@$qualities = "standard" #quality of the output image: standard or hd (dalle only)
 ] {
   let prompt = if $fast {
     open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 

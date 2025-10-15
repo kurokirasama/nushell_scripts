@@ -131,13 +131,14 @@ export def "rebrandly list" [longurl="www.google.com"] {
   http get $url -H ["apikey", $apikey] -H ["accept", "application/json"]
 }
 
+const modes = ["driving", "transit", "walking"]
 #get eta via maps api
 @category apis
 @search-terms google maps
 export def "maps eta" [
   origin:string       #origin gps coordinates or address
   destination:string  #destination gps coordinates or address
-  --mode = "driving"  #driving mode (driving, transit, walking)
+  --mode:string@$modes = "driving"  #driving mode (driving, transit, walking)
   --avoid             #whether to avoid highways (default:false)
 ] {
   let apikey = $env.MY_ENV_VARS.api_keys.google.general
@@ -719,10 +720,11 @@ export def ollama_search [
   return $response.results
 }
 
+const engines = ["ollama", "google"]
 #wrapper for web search
 export def web_search [
   query:string
-  --engine(-e):string = "ollama" #'ollama' web search or 'google' search
+  --engine(-e):string@$engines = "ollama" #'ollama' web search or 'google' search
   --max-results(-n):int = 10
   --md(-m) #output md instead of table
   --verbose(-v)
