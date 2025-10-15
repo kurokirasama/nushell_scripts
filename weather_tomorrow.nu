@@ -136,16 +136,12 @@ def fetch_api [loc] {
       }
     } | url join
     
-    let forecast = (
-        try {
-            http get $url_request | upsert mystatus true
-        } catch {
-            {"mystatus": false}
-        }
-    )
-
-    if not $forecast.mystatus {
-        return {"mystatus": false}
+    let forecast = http get $url_request -fe
+    let mystatus = if $forecast.status == 200 { true } else { false }
+    let forecast = $forecast | upsert mystatus $mystatus
+    
+    if not $mystatus {
+        return $forecast
     }
 
     let url_request = {
@@ -159,20 +155,16 @@ def fetch_api [loc] {
       }
     } | url join
 
-    let realtime = (
-        try {
-            http get $url_request | upsert mystatus true
-        } catch {
-            {"mystatus": false}
-        }
-    )
-
-    if not $realtime.mystatus {
-        return {"mystatus": false}
+    let realtime = http get $url_request -fe
+    let mystatus = if $realtime.status == 200 { true } else { false }
+    let realtime = $realtime | upsert mystatus $mystatus
+        
+    if not $mystatus {
+        return $realtime
     }
 
-    $response.forecast = ($forecast | reject mystatus)
-    $response.realtime = ($realtime | reject mystatus)
+    $response.forecast = $forecast | get body
+    $response.realtime = $realtime | get body
     $response.mystatus = true
 
     return $response
@@ -271,7 +263,7 @@ def get_weather [loc, --plot = true] {
     let response = fetch_api $loc
 
     if not $response.mystatus {
-        return-error "something went wrong with the call to the weather api"
+        return-error $"something went wrong with the call to the weather api.\n($response.body.type)\n($response.body.message)"
     }
 
     let address = get_address $loc

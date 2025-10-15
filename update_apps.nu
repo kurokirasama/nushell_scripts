@@ -14,7 +14,7 @@ export def "apps-update nushell" [
     bash scripts/install-all.sh
   } else {
     if $force {
-      cargo install nu
+      cargo install nu --locked --features=mcp,plugin,trash-support,sqlite,network,rustls-tls,system-clipboard
     } else {
       cargo install-update nu 
     }
@@ -46,13 +46,13 @@ export def "apps-update nushell-plugins" [
   }
 
   print (echo-g "now run:")
-  prin
+  print ([
     "plugin add ~/.cargo/bin/nu_plugin_inc"
     "plugin add ~/.cargo/bin/nu_plugin_gstat"
     "plugin add ~/.cargo/bin/nu_plugin_query"
     "plugin add ~/.cargo/bin/nu_plugin_formats"
     "plugin add ~/.cargo/bin/nu_plugin_polars"
-  ] | str join "\n"
+  ] | str join "\n")
 
   print (echo-g "then run:")
   print ([
