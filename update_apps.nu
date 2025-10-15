@@ -1085,3 +1085,18 @@ export def "apps-update termframe" [] {
 export def "apps-update gowall" [] {
     go install github.com/Achno/gowall@latest
 }
+
+#update windows zed
+export def "apps-update zed-windows" [] {
+    let path = "~/rclone" | path join $env.MY_ENV_VARS.gdrive_mount_point | path join "Public/Software" | path expand
+    let mounted = $path | path exists
+    if not $mounted {
+      print (echo-g "mounting gdrive...")
+      rmount $env.MY_ENV_VARS.gdrive_mount_point
+    }
+    
+    cd ~/Downloads/
+    aria2c https://zed.dev/api/releases/stable/latest/Zed-x86_64.exe
+    cp -pf Zed-x86_64.exe $path
+    rm Zed-x86_64.exe
+}
