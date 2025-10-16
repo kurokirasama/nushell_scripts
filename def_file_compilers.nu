@@ -69,11 +69,16 @@ export def my-pdflatex [file?] {
 export def my-pandoc [
   file?
   --open(-o) #open file after compilation
+  --pandoc-cross-ref #use pandoc-cross-ref filter
 ] {
   let file_name = get-input $in $file -n
   let file_base_name = $file_name | path parse | get stem
 
-  pandoc --quiet $file_name -o $"($file_base_name).pdf" --pdf-engine=/usr/bin/xelatex -F mermaid-filter -F pandoc-crossref --number-sections --syntax-highlighting $env.MY_ENV_VARS.pandoc_theme
+  if $pandoc_cross_ref {
+      pandoc --quiet $file_name -o $"($file_base_name).pdf" --pdf-engine=/usr/bin/xelatex -F mermaid-filter -F pandoc-crossref --number-sections --syntax-highlighting $env.MY_ENV_VARS.pandoc_theme
+  } else {
+      pandoc --quiet $file_name -o $"($file_base_name).pdf" --pdf-engine=/usr/bin/xelatex -F mermaid-filter --number-sections --syntax-highlighting $env.MY_ENV_VARS.pandoc_theme
+  }
 
   if $open {
     openf $"($file_base_name).pdf"

@@ -127,7 +127,7 @@ export def termshot [
 
 #kill mcp node servers running
 export def killnode [] {
-    psn node | find mcp & exte | killn
+    psn node | find mcp & exte & gemini & skip | find -v vivaldi | killn
 }
 
 #paste text from clipboard
