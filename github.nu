@@ -34,18 +34,20 @@ export def clone-yandex-disk [] {
 
 #copy private linux backup dir to private repo and commit (alias quantum)
 export def quick-ubuntu-and-tools-update-module [
+  --update-yandex-repo(-y)  #also update yandex.disk repo
   --update-scripts(-s)  #also update nushell scripts public repo
   --upload-debs(-d)     #also upload debs files to gdrive
-  --upload-zed(-z)      #also upload zed files to mega
   --force(-f)           #force the copy
-  --gemini(-G)          #use google gemini-1.5-pro-latest instead of gpt-4o
+  --gemini(-G)          #use google gemini instead of gpt
 ] {
   let destination = "~/software/ubuntu_semiautomatic_install/" | path expand
   if not ($destination | path exists) {
     return-error "destination path doesn't exists!!"
   }
 
-  copy-yandex-and-commit -G $gemini
+  if $update_yandex_repo {
+    copy-yandex-and-commit -G $gemini
+  }
 
   print (echo-g "updating private repository...")
   if $force {
@@ -67,7 +69,7 @@ export def quick-ubuntu-and-tools-update-module [
 }
 
 #alias for short call
-export alias quantum = quick-ubuntu-and-tools-update-module
+export alias quantum = quick-ubuntu-and-tools-update-module -G
 
 #upload deb files to gdrive
 export def upload-debs-to-gdrive [] {
