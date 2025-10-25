@@ -24,8 +24,20 @@ open append_to_config.nu | save --append $nu.config-path
 3. Restart Nushell.
 
 ## Files description
-### ai_tools
-They provide a comprehensive suite of tools for interacting with AI services, facilitating tasks such as transcription, summarization, image generation, and text-to-speech conversion. Users can manage and query PDFs, utilize OpenAI's ChatGPT or Google's Gemini for conversations, generate commit messages, transcribe audio from different sources, and create summaries of transcribed text. Additionally, the functions offer the ability to generate subtitles, interact with DALL-E for image creation, and use text-to-speech services from OpenAI and ElevenLabs. These functions are designed to streamline the integration of AI capabilities into users' workflows, enhancing productivity and automation within the Nushell environment.
+### AI Tools
+The AI tools are a collection of scripts that provide a comprehensive suite of tools for interacting with various AI services. These tools are organized into separate files based on the service they interact with:
+
+*   `ai_chatpdf.nu`: Manage and query PDFs with ChatPDF.
+*   `ai_claude.nu`: Interact with Anthropic's Claude models.
+*   `ai_deepl.nu`: Translate text using the DeepL API.
+*   `ai_elevenlabs.nu`: Generate speech from text using ElevenLabs API.
+*   `ai_google.nu`: Interact with Google's Gemini and Imagen models.
+*   `ai_ollama.nu`: Interact with local Ollama models.
+*   `ai_openai.nu`: Interact with OpenAI's ChatGPT and DALL-E models.
+*   `ai_stablediffusion.nu`: Generate images using Stable Diffusion models.
+*   `ai_tools.nu`: A collection of general AI-related tools and wrappers that provide a unified interface to the other AI scripts.
+
+These scripts facilitate tasks such as transcription, summarization, image generation, and text-to-speech conversion, streamlining the integration of AI capabilities into users' workflows and enhancing productivity and automation within the Nushell environment.
 
 ### alias_def
 These custom functions for Nushell provide a variety of utilities for streamlining tasks on a Unix-like system. These functions allow users to analyze code statistics, manage keybindings, navigate to the nu configuration directory, monitor core temperatures, check battery stats, view listening ports, connect to a Bluetooth headset, gather RAM usage data, interface with YouTube through a command-line client, and perform ADB operations for Android devices. Each function is designed to execute a specific task, such as retrieving system information, manipulating environmental settings, or integrating with external applications and devices, all from within the Nushell environment.
