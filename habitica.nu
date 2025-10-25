@@ -147,22 +147,35 @@ export def "h complete-daily" [
 }
 
 # Marks all due and incomplete daily tasks as complete
-export def "h mark-dailys-done" [] {
+export def "h mark-dailys-done" [--verbose(-v)] {
   let dailys_to_complete = h ls dailys | where completed == false and isDue == true
 
   if ($dailys_to_complete | is-empty) {
     print (echo-r "No due and incomplete daily tasks found to mark as done.")
     return
   }
-
+  
+  let total = $dailys_to_complete | length
+  mut index = 0
+  
   for $daily in $dailys_to_complete {
-    print -n $"Completing daily: ($daily.text) "
+    if $verbose {
+      print -n $"Completing daily: ($daily.text) "
+    }
     h complete-daily $daily._id
-    print (echo-g (char -u ebb1))
+    if $verbose {
+      print (echo-g (char -u ebb1))
+    }
+    if not $verbose {
+      progress_bar ($index + 1) $total
+    }
+    $index = $index + 1
     sleep 5sec
   }
   
-  print (echo-g "All due and incomplete daily tasks marked as done.")
+  if $verbose {
+    print (echo-g "All due and incomplete daily tasks marked as done.")
+  }
 }
 
 const add_types = ["daily", "todo", "habit"]
