@@ -94,6 +94,8 @@ const web_engines = ["google" "ollama"]
 #if --force and --chat are used together, first prompt is taken from file
 #
 #For more personalization use `chat_gpt` or `google_ai`
+# 
+#A pre-prompt message is a pre-fabricated prompt that is appended before the user's prompt.
 @category ai
 @search-terms chatgpt gemini claude ollama ask
 export def askai [
@@ -1728,4 +1730,68 @@ export def "ai analyze_religious_text" [
   } else {
     return $consolidation  
   } 
+}
+
+#show system prompts and pre-prompts definitions
+export def show-prompts [
+	--system(-s):string #selected system prompt
+	--pre-prompt(-p):string #selected pre-prompt
+	--list-system-prompt(-l) #show list of available system prompts
+	--list-pre-prompt(-L) #show list of available pre-prompts
+	--select-system-from-list(-S) #select system prompt from list
+	--select-pre-prompt-from-list(-P) #select pre-prompt from list
+] {
+	let system_prompts_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join system) | sort-by name | get name 
+	let system_prompts = $system_prompts_files | path parse | get stem
+	
+	let pre_prompts_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join prompt) | sort-by name | get name 
+	let pre_prompts = $pre_prompts_files | path parse | get stem
+	
+	# LIST
+	if $list_system_prompt {
+		return $system_prompts
+	}
+	
+	if $list_pre_prompt {
+		return $pre_prompts
+	}
+	
+	mut selection = ""
+	# SYSTEM	
+	if $select_system_from_list {
+		$selection = $system_prompts | input list -f (echo-g "Select system message: ")
+	}
+
+	let system = if ($selection | is-not-empty) {
+		$selection
+	} else {
+		$system
+	}
+	
+	if ($system | is-not-empty) {
+		if $system not-in $system_prompts {
+			return-error $"System prompt '($system)' not found."
+		}
+		
+		return (open ($system_prompts_files | find -n ("/" + $system + ".md") | get 0))
+	}
+	
+	# PREPROMPT
+	if $select_pre_prompt_from_list {
+		$selection = $pre_prompts | input list -f (echo-g "Select pre-prompt message: ")
+	}
+	
+	let pre_prompt = if ($selection | is-not-empty) {
+		$selection
+	} else {
+		$pre_prompt
+	}
+	
+	if ($pre_prompt | is-not-empty) {
+		if $pre_prompt not-in $pre_prompts {
+			return-error $"Pre-prompt '($pre_prompt)' not found."
+		}
+		
+		return (open ($pre_prompts_files | find -n ("/" + $pre_prompt + ".md") | get 0))
+	}
 }
