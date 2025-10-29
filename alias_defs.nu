@@ -140,6 +140,19 @@ export def paste [] {
     
 }
 
+#netspeed graph
+export def netspeed [] {
+let host = sys host | get hostname
+  
+  let device = if ($host like $env.MY_ENV_VARS.hosts.2) or ($host like $env.MY_ENV_VARS.hosts.8) {
+        sys net | where name =~ '^en' | get name.0
+      } else {
+        sys net | where name =~ '^wl' | get name.0
+      }
+      
+    nload -u H -U H $device
+}
+
 #wrapper for gemini cli
 export def --wrapped gmn [
   ...rest
@@ -152,18 +165,12 @@ export def --wrapped gmn [
     $mcp_servers
   }
   
-  ^gemini --yolo --show-memory-usage --allowed-mcp-server-names ...$allowed ...$rest
+  ^gemini --yolo --allowed-mcp-server-names ...$allowed ...$rest
 }
 
-#netspeed graph
-export def netspeed [] {
-let host = sys host | get hostname
-  
-  let device = if ($host like $env.MY_ENV_VARS.hosts.2) or ($host like $env.MY_ENV_VARS.hosts.8) {
-        sys net | where name =~ '^en' | get name.0
-      } else {
-        sys net | where name =~ '^wl' | get name.0
-      }
-      
-    nload -u H -U H $device
+#wrapper for claude code
+export def --wrapped cld [
+  ...rest
+] {
+	^claude --dangerously-skip-permissions
 }
