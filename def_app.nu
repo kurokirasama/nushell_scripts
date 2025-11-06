@@ -54,7 +54,7 @@ export def matlab-cli [
   }
 
   if not $background {
-    matlab -nosplash -nodesktop -softwareopengl -sd ($env.PWD) -logfile ("~/Dropbox/matlab" | path join $"($log_file).txt" | path expand) -r "setenv('SHELL', '/bin/bash');"
+    matlab -nosplash -nodesktop -sd ($env.PWD) -logfile ("~/Dropbox/matlab" | path join $"($log_file).txt" | path expand) -r "setenv('SHELL', '/bin/bash');"
     return
   }
 
