@@ -1315,7 +1315,7 @@ export def "ai debunk" [
 export def debunk-table [
   data
   --system_message(-s): string = "debunker"
-  --web_results(-w) = true  #use web search results to write the refutation
+  --web-results(-w) = true  #use web search results to write the refutation
   --ollama(-o) = false      #use ollama model
   --ollama_model(-m):string #ollama model to use
 ] {
@@ -1336,9 +1336,9 @@ export def debunk-table [
 
   for $i in 0..($n_data) {
     let refutal = if $ollama {
-      o_llama ($data | get $i | to json) --select_system $system_message --select_preprompt debunk_argument -d true -w $web_results -m $ollama_model
+      o_llama ($data | get $i | to json) --select_system $system_message --select_preprompt debunk_argument -d true -w $web_results -m $ollama_model --web_engine ollama
     } else {
-      google_ai ($data | get $i | to json) --select_system $system_message --select_preprompt debunk_argument -d true -w $web_results -m gemini-2.5
+      google_ai ($data | get $i | to json) --select_system $system_message --select_preprompt debunk_argument -d true -w $web_results -m gemini-2.5 --web_engine ollama
     }
     $data_refutal = $data_refutal ++ [$refutal]
   }
@@ -1634,7 +1634,7 @@ export def "ai analyze_religious_text" [
   --gpt(-g)   #use gpt-5 to consolidate the debunk instead of gemini-2.5
   --ollama(-o) #usa ollama model
   --ollama_model(-m):string #ollama model to use
-  --web_results(-w) #use web search results as input for the refutations
+  --web-results(-w) #use web search results as input for the refutations
   --clean(-C)    #do not clean text
   --copy(-c)        #copy response to clipboard
   --verbose(-v)     #show gemini attempts

@@ -165,7 +165,8 @@ export def --wrapped gmn [
     $mcp_servers
   }
   
-  ^gemini --yolo --allowed-mcp-server-names ...$allowed ...$rest
+  # gemini --yolo --allowed-mcp-server-names ...$allowed ...$rest
+  gemini --yolo ...$rest
 }
 
 #wrapper for claude code
