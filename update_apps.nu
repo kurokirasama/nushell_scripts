@@ -249,11 +249,11 @@ export def apps-update [] {
   } catch {
     print (echo-r "Something went wrong with zoom instalation!")
   }
-  # try {
-  #  apps-update chrome
-  # } catch {
-  #  print (echo-r "Something went wrong with chrome instalation!")
-  # }
+  try {
+   apps-update chrome
+  } catch {
+   print (echo-r "Something went wrong with chrome instalation!")
+  }
   # try {
   #   apps-update nmap
   # } catch {
@@ -271,6 +271,7 @@ export def get-github-latest [
   owner:string
   repo:string
   --file_type(-f):string = "deb"
+  --pattern(-p):string
 ] {
   let git_token = $env.MY_ENV_VARS.api_keys.github.api_key
 
@@ -286,7 +287,11 @@ export def get-github-latest [
   let info = http get $assets_url.assets_url -H ["Authorization", $"Bearer ($git_token)"] -H ['Accept', 'application/vnd.github+json']
     | select name browser_download_url
     | upsert version $assets_url.tag_name
-    | find -n $file_type 
+    | if ($pattern | is-not-empty) {
+    	find -n $pattern
+    } else {
+    	find -n $file_type 
+    }
 
   if ($info | length) > 0 {
     $info | if ($repo =~ "Monocraft") {
@@ -305,13 +310,14 @@ export def github-app-update [
   repo:string
   --file_type(-f):string = "deb"
   --down_dir(-d):string
+  --pattern(-p):string
   --alternative_name(-a):string
   --version_from_json(-j)
 ] {
   let down_dir = if ($down_dir | is-empty) {$env.MY_ENV_VARS.debs} else {$down_dir}
   cd $down_dir
 
-  let info = get-github-latest $owner $repo -f $file_type
+  let info = get-github-latest $owner $repo -f $file_type -p $pattern
 
   if ($info | is-empty) {return}
 
@@ -342,7 +348,7 @@ export def github-app-update [
       | get 1
     }
   
-  let exists = (ls | find $app | find $file_type | length) > 0
+  let exists = (ls | find $app | if ($pattern | is-not-empty) {find -n $pattern} else {find $file_type} | length) > 0
 
   if $exists {
     let current_version = (
@@ -351,7 +357,11 @@ export def github-app-update [
         | from json
         | get version
       } else {
-        ls ($"*.($file_type)" | into glob)
+        if ($pattern | is-not-empty) {
+        	ls | find -n $pattern
+        } else {
+        	ls ($"*.($file_type)" | into glob)
+        }
         | find -n $app
         | get 0 
         | get name
@@ -511,8 +521,6 @@ export def "apps-update zoom" [] {
   open ([$env.MY_ENV_VARS.debs zoom.json] | path join) 
   | upsert version $last_version 
   | save -f ([$env.MY_ENV_VARS.debs zoom.json] | path join) 
-
-  apps-update chrome 
 }
 
 #update chrome deb
@@ -1099,4 +1107,10 @@ export def "apps-update zed-windows" [] {
     aria2c https://zed.dev/api/releases/stable/latest/Zed-x86_64.exe
     cp -pf Zed-x86_64.exe $path
     rm Zed-x86_64.exe
+}
+
+#update matlab-mcp-server
+export def "apps-update matlab-mcp-server" [] {
+  github-app-update matlab matlab-mcp-core-server -p glnx -a matlab-mcp-core-server-glnxa64 -j
+  chmod +x ($env.MY_ENV_VARS.debs | path join "matlab-mcp-core-server-glnxa64")
 }
