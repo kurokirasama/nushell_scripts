@@ -1,6 +1,7 @@
 #single call to google ai LLM api wrapper and chat mode
 #
 #Available models at https://ai.google.dev/models:
+# - gemini-3-pro-preview
 # - gemini-2.5-pro (paid version)
 # - gemini-2.5-flash: Audio, images, video, and text -> text, 1048576 (tokens)
 # - gemini-2.0-flash-exp-image-generation: images and text -> image and text
@@ -103,6 +104,7 @@ export def google_ai [
   let model = if $model == "gemini-1.5" {"gemini-1.5-flash"} else {$model}
   let model = if $model == "gemini-2.0" {"gemini-2.0-flash"} else {$model}
   let model = if $model == "gemini-2.5" {"gemini-2.5-flash"} else {$model}
+  let model = if $model == "gemini-3.0" {"gemini-3-pro-preview"} else {$model}  
 
   let url_request = {
       scheme: "https",
@@ -433,7 +435,7 @@ export def google_ai [
   #trying different models in case of error
   mut answer = []
   mut index_model = 0
-  let models = ["gemini-2.5-flash" "gemini-1.5-pro" "gemini-2.0-flash" "gemini-2.0-flash-lite" "gemini-1.5-flash"]
+  let models = ["gemini-3-pro-preview" "gemini-2.5-flash" "gemini-1.5-pro" "gemini-2.0-flash" "gemini-2.0-flash-lite" "gemini-1.5-flash"]
   let n_models = $models | length 
   
   if $verbose {print ("retrieving from gemini models...")}

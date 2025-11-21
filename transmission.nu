@@ -43,7 +43,11 @@ export def "t reload" [] {
 
 #transmission list
 export def "t list" [] {
-  transmission-remote -n 'transmission:transmission' -l | from ssv | default-table | drop
+  transmission-remote -n 'transmission:transmission' -l 
+  | from ssv 
+  | default-table 
+  | drop
+  | update Have {|c| $c.Have | into filesize}
 }
 
 #transmission basic stats
