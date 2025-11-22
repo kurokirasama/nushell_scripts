@@ -105,7 +105,7 @@ export def google_ai [
   let model = if $model == "gemini-pro-vision" {"gemini-2.0-flash"} else {$model}
   let model = if $model == "gemini-1.5" {"gemini-1.5-flash"} else {$model}
   let model = if $model == "gemini-2.0" {"gemini-2.0-flash"} else {$model}
-  let model = if $model == "gemini-2.5" {"gemini-2.5-flash"} else {$model}
+  let model = if $model == "gemini-2.5" {"gemini-2.5-pro"} else {$model}
   let model = if $model == "gemini-3.0" {$last_gemini_model} else {$model}  
 
   let url_request = {
@@ -437,7 +437,15 @@ export def google_ai [
   #trying different models in case of error
   mut answer = []
   mut index_model = 0
-  let models = ["gemini-3-pro-preview" "gemini-2.5-flash" "gemini-1.5-pro" "gemini-2.0-flash" "gemini-2.0-flash-lite" "gemini-1.5-flash"]
+  let models = [
+  	"gemini-3-pro-preview" 
+    "gemini-2.5-pro" 
+    "gemini-2.5-flash" 
+    "gemini-2.5-flash-lite"
+    "gemini-2.0-flash" 
+    "gemini-2.0-flash-lite" 
+  ]
+  
   let n_models = $models | length 
   
   if $verbose {print ("retrieving from gemini models...")}

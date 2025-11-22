@@ -129,7 +129,6 @@ export def askai [
   --image(-i):string      # filepath of the image to prompt to vision models
   --fast(-f)   #get prompt from prompt.md file and save response to answer.md
   --gemini(-G) #use google gemini-3.0 instead of chatgpt. 
-  --pro        # use google gemini-2.5-pro (paid version) (needs --gemini)
   --bison(-b)  #use google bison instead of chatgpt (needs --gemini)
   --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt
   --database(-D)   #load chat conversation from database
@@ -253,12 +252,10 @@ export def askai [
     }
   )
 
-  let gemini_model = if $pro {"gemini-2.5-pro"} else {$gemini_model_to_use} 
-
   #chat mode
   if $chat {
     if $gemini {
-      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -n $web_results --select_preprompt $pre_prompt --document $document --web_engine $web_engine -m $gemini_model
+      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -n $web_results --select_preprompt $pre_prompt --document $document --web_engine $web_engine -m $gemini_model_to_use
     } else if $ollama {
       o_llama $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -n $web_results --select_preprompt $pre_prompt --document $document --web_engine $web_engine -m $ollama_model
     } else {
@@ -277,7 +274,7 @@ export def askai [
       } else {
           match $bison {
           true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d true -w $web_search -n $web_results --select_preprompt $pre_prompt --select_system $system --document $document --web_engine $web_engine},
-          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m $gemini_model -d true -w $web_search -n $web_results --select_preprompt $pre_prompt --select_system $system --document $document --web_engine $web_engine},
+          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m $gemini_model_to_use -d true -w $web_search -n $web_results --select_preprompt $pre_prompt --select_system $system --document $document --web_engine $web_engine},
         }
       }
     )
@@ -533,7 +530,6 @@ export def "ai media-summary" [
   --lang(-l):string = "Spanish" # language of the summary
   --gpt(-g)             # to use gpt-5 instead of gpt-5-mini
   --gemini(-G)           # use google gemini-3.0 instead of gpt
-  --pro(-p)             # use gemini-2.5-pro (paid version)
   --claude(-C)           # use anthropic claude
   --ollama(-o)           # use ollama
   --ollama_model(-m):string #ollama model to use
@@ -618,7 +614,7 @@ export def "ai media-summary" [
     $files | each {|split_file|
       let t_input = open ($split_file | get name)
       let t_output = $split_file | get name | path parse | get stem
-      ai transcription-summary $t_input $t_output -g $gpt -t $type -G $gemini -C $claude -o $ollama -m $ollama_model -p $pro
+      ai transcription-summary $t_input $t_output -g $gpt -t $type -G $gemini -C $claude -o $ollama -m $ollama_model
     }
 
     let temp_output = $"($title)_summaries.md"
@@ -635,14 +631,13 @@ export def "ai media-summary" [
 
     let prompt = (open $temp_output)
     let model = if $gemini {"gemini"} else if $claude {"claude"} else if $ollama {"ollama"} else {"chatgpt"}
-    let gemini_model = if $pro {"gemini-2.5-pro"} else {$gemini_model_to_use}
 
     print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
 
     if $gpt {
       chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-5
     } else if $gemini {
-      google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $gemini_model
+      google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $gemini_model_to_use
     } else if $claude {
       claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-sonnet-4-5
     } else if $ollama {
@@ -658,7 +653,7 @@ export def "ai media-summary" [
     return
   }
   
-  ai transcription-summary (open $the_subtitle) $output -g $gpt -t $type -G $gemini -C $claude -o $ollama -m $ollama_model -c $complete -p $pro
+  ai transcription-summary (open $the_subtitle) $output -g $gpt -t $type -G $gemini -C $claude -o $ollama -m $ollama_model -c $complete
 
   if $upload {cp $output $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory}
   if $notify {"summary finished!" | tasker send-notification}
@@ -676,7 +671,6 @@ export def "ai transcription-summary" [
   --complete(-c):string #use complete preprompt with input file as the incomplete summary
   --gpt(-g) = false     #whether to use gpt-5
   --gemini(-G) = false  #use google gemini-3.0
-  --pro(-p) = false    #use gemini-2.5-pro (paid)
   --claude(-C) = false  #use anthropic claide
   --ollama(-o) = false  #use ollama
   --ollama_model(-m):string #ollama model to use
@@ -685,7 +679,6 @@ export def "ai transcription-summary" [
 ] {
   let output_file = $"($output | path parse | get stem).md"
   let model = if $gemini {"gemini"} else if $claude {"claude"} else {"chatgpt"}
-  let gemini_model = if $pro {"gemini-2.5-pro"} else {$gemini_model_to_use}
   let complete_flag = $complete | is-not-empty
 
   if $complete_flag and not ($complete | path expand | path exists) {
@@ -726,7 +719,7 @@ export def "ai transcription-summary" [
   if $gpt {
     chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-5
   } else if $gemini {
-    google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $gemini_model
+    google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $gemini_model_to_use
   } else if $claude {
     claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-sonnet-4-5
   } else if $ollama {
