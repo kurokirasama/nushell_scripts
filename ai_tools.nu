@@ -1,3 +1,5 @@
+const gemini_model_to_use = "gemini-3.0"
+
 #ai tools
 export def "ai help" [] {
   let commands_description = [
@@ -251,7 +253,7 @@ export def askai [
     }
   )
 
-  let gemini_model = if $pro {"gemini-2.5-pro"} else {"gemini-3.0"} 
+  let gemini_model = if $pro {"gemini-2.5-pro"} else {$gemini_model_to_use} 
 
   #chat mode
   if $chat {
@@ -412,12 +414,12 @@ export def "ai git-push" [
         },
         [false,true] => {
           try {
-            google_ai $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true -m gemini-3.0
+            google_ai $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true -m $gemini_model_to_use
           } catch {
             try {
-              google_ai $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true -m gemini-3.0
+              google_ai $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true -m $gemini_model_to_use
             } catch {
-              google_ai $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d true -m gemini-3.0
+              google_ai $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d true -m $gemini_model_to_use
             }
           }
         }
@@ -633,7 +635,7 @@ export def "ai media-summary" [
 
     let prompt = (open $temp_output)
     let model = if $gemini {"gemini"} else if $claude {"claude"} else if $ollama {"ollama"} else {"chatgpt"}
-    let gemini_model = if $pro {"gemini-3.0-pro"} else {"gemini-3.0"}
+    let gemini_model = if $pro {"gemini-2.5-pro"} else {$gemini_model_to_use}
 
     print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
 
@@ -683,7 +685,7 @@ export def "ai transcription-summary" [
 ] {
   let output_file = $"($output | path parse | get stem).md"
   let model = if $gemini {"gemini"} else if $claude {"claude"} else {"chatgpt"}
-  let gemini_model = if $pro {"gemini-2.5-pro"} else {"gemini-3.0"}
+  let gemini_model = if $pro {"gemini-2.5-pro"} else {$gemini_model_to_use}
   let complete_flag = $complete | is-not-empty
 
   if $complete_flag and not ($complete | path expand | path exists) {
@@ -976,7 +978,7 @@ export def "ai gcal" [
     } else if $gpt {
       chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d -m gpt-5
     } else if $gemini {
-      google_ai $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d true -m gemini-3.0
+      google_ai $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d true -m $gemini_model_to_use
     } else {
       chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d
     }
@@ -1008,7 +1010,7 @@ export def "ai gcal" [
         } else if $gpt {
           chat_gpt $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -m gpt-5
         } else if $gemini {
-          google_ai $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -d false -m gemini-3.0
+          google_ai $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -d false -m $gemini_model_to_use
         } else {
           chat_gpt $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl
         }
@@ -1025,7 +1027,7 @@ export def "ai gcal" [
       let prompt = "if the next text is using a naming convention, rewrite it in normal writing in the original language, i.e., separate words by a space. Only return your response without any commentary on your part, in plain text without any formatting. The text: " + ($gcal_query | get title)
 
       let title = if $gemini {
-        google_ai $prompt -m gemini-3.0
+        google_ai $prompt -m $gemini_model_to_use
       } else if $gpt {
          chat_gpt -m gpt-5
       } else if $ollama {
@@ -1078,7 +1080,7 @@ export def "ai trans" [
     if $ollama {
       o_llama $prompt -t 0.5 -s $system_prompt -m $ollama_model
     } else if $gemini {
-      google_ai $prompt -t 0.5 -s $system_prompt -m gemini-3.0
+      google_ai $prompt -t 0.5 -s $system_prompt -m $gemini_model_to_use
     } else if $gpt {
       chat_gpt $prompt -t 0.5 -s $system_prompt -m gpt-5
     } else {
@@ -1282,7 +1284,7 @@ export def "ai debunk" [
   let log_fallacies = if $ollama {
     o_llama $data -t 0.2 --select_system logical_falacies_finder --select_preprompt find_fallacies -d true -m $ollama_model
     } else {
-      google_ai $data -t 0.2 --select_system logical_falacies_finder --select_preprompt find_fallacies -d true -m gemini-3.0
+      google_ai $data -t 0.2 --select_system logical_falacies_finder --select_preprompt find_fallacies -d true -m $gemini_model_to_use
     } | remove-code-blocks | from json 
 
   print (echo-g "debunking found logical fallacies...")
@@ -1293,7 +1295,7 @@ export def "ai debunk" [
   let false_claims = if $ollama {
     o_llama $data -t 0.2 --select_system false_claims_extracter --select_preprompt extract_false_claims -d true -m $ollama_model
   } else {
-    google_ai $data -t 0.2 --select_system false_claims_extracter --select_preprompt extract_false_claims -d true -m gemini-3.0
+    google_ai $data -t 0.2 --select_system false_claims_extracter --select_preprompt extract_false_claims -d true -m $gemini_model_to_use
   } | remove-code-blocks | from json
 
   print (echo-g "debunking found false claims...")
@@ -1305,7 +1307,7 @@ export def "ai debunk" [
   let consolidation = if $ollama {
     o_llama $all_arguments --select_system debunker --select_preprompt consolidate_refutation -d true -m $ollama_model
   } else {
-    google_ai $all_arguments --select_system debunker --select_preprompt consolidate_refutation -d true -m gemini-3.0
+    google_ai $all_arguments --select_system debunker --select_preprompt consolidate_refutation -d true -m $gemini_model_to_use
   }
 
   return $consolidation
@@ -1338,7 +1340,7 @@ export def debunk-table [
     let refutal = if $ollama {
       o_llama ($data | get $i | to json) --select_system $system_message --select_preprompt debunk_argument -d true -w $web_results -m $ollama_model --web_engine ollama
     } else {
-      google_ai ($data | get $i | to json) --select_system $system_message --select_preprompt debunk_argument -d true -w $web_results -m gemini-3.0 --web_engine ollama
+      google_ai ($data | get $i | to json) --select_system $system_message --select_preprompt debunk_argument -d true -w $web_results -m $gemini_model_to_use --web_engine ollama
     }
     $data_refutal = $data_refutal ++ [$refutal]
   }
@@ -1399,7 +1401,7 @@ export def "ai analyze_paper" [
     } else if $ollama {
       o_llama $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -m $ollama_model -v $verbose
     } else {
-      google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -m gemini-3.0 -v $verbose
+      google_ai $data --select_system paper_analyzer --select_preprompt analyze_paper -d true -m $gemini_model_to_use -v $verbose
     }
 
   print (echo-c "summarizing paper..." "green")
@@ -1409,7 +1411,7 @@ export def "ai analyze_paper" [
     } else if $ollama {
       o_llama $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -m $ollama_model -v $verbose
     } else {
-      google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -m gemini-3.0 -v $verbose 
+      google_ai $data --select_system paper_summarizer --select_preprompt summarize_paper -d true -m $gemini_model_to_use -v $verbose 
   }
 
   let paper_wisdom = $analysis + "\n\n" + $summary
@@ -1421,7 +1423,7 @@ export def "ai analyze_paper" [
   } else if $ollama {
     o_llama $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -m $ollama_model -v $verbose 
   } else {
-    google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -m gemini-3.0 -v $verbose    
+    google_ai $paper_wisdom --select_system paper_wisdom_consolidator --select_preprompt consolidate_paper_wisdom -d true -m $gemini_model_to_use -v $verbose    
   }
 
   $paper_wisdom + "\n\n# CONSOLIDATED SUMMARY\n\n" + $consolidated_summary | save -f $output
@@ -1471,7 +1473,7 @@ export def "ai batch-paper-analyser" [
     
     let year_prompt = "From the following text, extract the publication year. Respond with the four-digit year, and nothing else. If you can't find a year, respond with 'no-year'. Text:\n" + $content
     
-    let reference_year = google_ai $year_prompt -m gemini-3.0
+    let reference_year = google_ai $year_prompt -m $gemini_model_to_use
     sleep 1sec
     
     { id: $id, year: $reference_year, summary: $summary, full_content: $content }
@@ -1485,7 +1487,7 @@ export def "ai batch-paper-analyser" [
   let classification_system_prompt = "You are a meticulous research analyst specializing in thematic analysis and data categorization. Your primary skill is identifying underlying themes in complex information and organizing it logically."
   let classification_user_prompt = $"Your task is to classify a list of research papers into a set of 1-5 relevant sub-topics, considering that the main topic is ($main_topic). First, read all the summaries and full content to understand the full scope of the research. Then, for each paper, assign a topic. You will be given a JSON array of objects, where each object has an 'id', a 'summary', and 'full_content'. Your output must be a single, valid JSON array of objects, where each object contains only the original id in the key 'id' and the assigned topic in the key 'topic'. It's totally fine to return a single topic for all the papers. Do not add any commentary. The input JSON is:\n($summaries_json)"
   
-  let classified_topics = google_ai $classification_user_prompt --system $classification_system_prompt -m gemini-3.0 |  remove-code-blocks | from json
+  let classified_topics = google_ai $classification_user_prompt --system $classification_system_prompt -m $gemini_model_to_use |  remove-code-blocks | from json
   
   let classified_summaries = $summaries | join $classified_topics id
   
@@ -1511,7 +1513,7 @@ export def "ai batch-paper-analyser" [
   let public_review_system_prompt = "You are a gifted science communicator and journalist, writing for a prestigious publication known for making complex topics accessible and engaging, like 'Quanta Magazine' or 'The Atlantic'. Your strength is weaving a compelling narrative from technical data."
   let public_review_user_prompt = $"Your task is to synthesize the information from the following collection of research paper analyses into a single, engaging article for a non-expert audience. Your article should have a clear, cohesive, and coherent narrative. Identify the main, overarching topic and explain the key findings and their collective significance in an accessible way. Avoid jargon. Keep in mind that the main topic of the research is ($main_topic). Your output should be only the article text. The collected analyses are delimited by triple hyphens:\n\n---\n($all_full_content)\n---"
   
-  let public_review_body = google_ai $public_review_user_prompt --system $public_review_system_prompt -m gemini-3.0
+  let public_review_body = google_ai $public_review_user_prompt --system $public_review_system_prompt -m $gemini_model_to_use
   let public_review_with_title = "# A Narrative Synthesis\n\n" + $public_review_body
   
   # 6. Generate the final conclusion in a variable
@@ -1519,7 +1521,7 @@ export def "ai batch-paper-analyser" [
   let conclusion_system_prompt = "You are a senior research analyst and strategist. Your role is to distill complex information from multiple sources into a high-level, authoritative conclusion. You focus on the 'so what?' – the strategic implications and the definitive takeaway."
   let conclusion_user_prompt = $"Your task is to write a final, conclusive summary based on the two provided documents delimited by XML tags. Synthesize the information from both to craft a robust conclusion, considering that the main topic of the research is ($main_topic). Your conclusion must: 1. Address the overall objective or research question that unifies the papers. 2. Extract and clearly explain the most critical insights and key findings. 3. Discuss the significance and potential implications of these findings. 4. Provide a final, authoritative statement that encapsulates the core takeaway from the entire body of research. Your output should be only the conclusion text.\n\n<expert_review>\n($expert_output)\n</expert_review>\n\n<public_review>\n($public_review_with_title)\n</public_review>"
   
-  let conclusion_body = google_ai $conclusion_user_prompt --system $conclusion_system_prompt -m gemini-3.0
+  let conclusion_body = google_ai $conclusion_user_prompt --system $conclusion_system_prompt -m $gemini_model_to_use
   let conclusion_with_title = "# Conclusion\n\n" + $conclusion_body
   
   # 7. Generate the introduction in a variable
@@ -1527,7 +1529,7 @@ export def "ai batch-paper-analyser" [
   let introduction_system_prompt = "You are the lead author of a multi-faceted research document. Your role is to provide a clear and compelling introduction that frames the entire work for the reader. You must set the stage, explain the document's structure, and present the core thesis with clarity and authority."
   let introduction_user_prompt = $"Based on the three provided documents delimited by XML tags, write a compelling introduction, considering that the main topic of the research is ($main_topic) Your introduction should: 1. Start with a strong hook to grab the reader's attention. 2. Clearly state the central topic and why it is important. 3. Briefly describe the scope of the research covered. 4. Outline the structure of the document you are introducing, mentioning the different sections like the technical review, the narrative synthesis, and the conclusion. 5. End with a clear thesis statement that presents the main argument or takeaway of the entire review. Your output should be only the introduction text.\n\n<public_review>\n($public_review_with_title)\n</public_review>\n\n<expert_review>\n($expert_output)\n</expert_review>\n\n<conclusion>\n($conclusion_with_title)\n</conclusion>"
   
-  let introduction_body = google_ai $introduction_user_prompt --system $introduction_system_prompt -m gemini-3.0
+  let introduction_body = google_ai $introduction_user_prompt --system $introduction_system_prompt -m $gemini_model_to_use
   let introduction_with_title = "# Introduction\n\n" + $introduction_body
 
   # 8. Generate the final title in a variable
@@ -1535,7 +1537,7 @@ export def "ai batch-paper-analyser" [
   let title_system_prompt = "You are an expert academic editor specializing in creating concise and impactful titles."
   let title_user_prompt = $"Based on the following four documents, generate a single, descriptive title for the entire collection, considering that the main topic of the research is ($main_topic). The title must be no more than 5 words. Return only the title and nothing else.\n\n<introduction>\n($introduction_with_title)\n</introduction>\n\n<public_review>\n($public_review_with_title)\n</public_review>\n\n<expert_review>\n($expert_output)\n</expert_review>\n\n<conclusion>\n($conclusion_with_title)\n</conclusion>"
   
-  let title = google_ai $title_user_prompt --system $title_system_prompt -m gemini-3.0
+  let title = google_ai $title_user_prompt --system $title_system_prompt -m $gemini_model_to_use
 
   # 9. Compile and save the final document
   print (echo-g "compiling the final document...")
@@ -1570,7 +1572,7 @@ export def "ai analyze_ai_generated_text" [
     } else if $ollama {
       o_llama $text --select_system ai_generated_text_detector --select_preprompt analize_ai_generated_text -d true -m $ollama_model -t 0.1
     } else {
-      google_ai $text --select_system ai_generated_text_detector --select_preprompt analize_ai_generated_text -d true -m gemini-3.0 -t 0.1
+      google_ai $text --select_system ai_generated_text_detector --select_preprompt analize_ai_generated_text -d true -m $gemini_model_to_use -t 0.1
     }
 
   if not $correct_text {
@@ -1593,7 +1595,7 @@ export def "ai analyze_ai_generated_text" [
     } else if $ollama {
       o_llama $prompt --select_system ai_generated_text_corrector --select_preprompt correct_ai_generated_text -d false -m $ollama_model -t 0.9
     } else {
-      google_ai $prompt --select_system ai_generated_text_corrector --select_preprompt correct_ai_generated_text -d false -m gemini-3.0 -t 0.9
+      google_ai $prompt --select_system ai_generated_text_corrector --select_preprompt correct_ai_generated_text -d false -m $gemini_model_to_use -t 0.9
     }
 
   let response = "# REPORT\n\n" + $analysis + "\n\n# CORRECTED TEXT \n\n" + $fixed
@@ -1622,7 +1624,7 @@ export def "ai clean-text" [
   } else if $ollama {
     o_llama $raw_data --select_system text_cleaner --select_preprompt clean_text -d true -m $ollama_model
   } else {
-    google_ai $raw_data --select_system text_cleaner --select_preprompt clean_text -d true -m gemini-3.0
+    google_ai $raw_data --select_system text_cleaner --select_preprompt clean_text -d true -m $gemini_model_to_use
   }
 }
 
@@ -1669,7 +1671,7 @@ export def "ai analyze_religious_text" [
   } else if $ollama {
     o_llama $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_false_bible_claims -d true -v $verbose -m $ollama_model
   } else {
-    google_ai $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_false_bible_claims -d true -v $verbose -m gemini-3.0
+    google_ai $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_false_bible_claims -d true -v $verbose -m $gemini_model_to_use
   } | remove-code-blocks | from json 
 
   print (echo-g "debunking found false claims...")
@@ -1682,7 +1684,7 @@ export def "ai analyze_religious_text" [
   } else if $ollama {
     o_llama $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_biblical_references -d true -v $verbose -m $ollama_model
   } else {
-    google_ai $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_biblical_references -d true -v $verbose -m gemini-3.0
+    google_ai $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_biblical_references -d true -v $verbose -m $gemini_model_to_use
   } | remove-code-blocks | from json 
 
   # search for new biblical references
@@ -1692,7 +1694,7 @@ export def "ai analyze_religious_text" [
   } else if $ollama {
     o_llama $data -t 0.2 --select_system biblical_assistant --select_preprompt find_biblical_references -d true -v $verbose -m $ollama_model
   } else {
-    google_ai $data -t 0.2 --select_system biblical_assistant --select_preprompt find_biblical_references -d true -v $verbose -m gemini-3.0
+    google_ai $data -t 0.2 --select_system biblical_assistant --select_preprompt find_biblical_references -d true -v $verbose -m $gemini_model_to_use
   } | remove-code-blocks | from json 
 
   # extract main message
@@ -1702,7 +1704,7 @@ export def "ai analyze_religious_text" [
   } else if $ollama {
     o_llama $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_main_idea -d true -v $verbose -m $ollama_model
   } else {
-    google_ai $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_main_idea -d true -v $verbose -m gemini-3.0
+    google_ai $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_main_idea -d true -v $verbose -m $gemini_model_to_use
   } 
 
   # consolidation and compatibility test
@@ -1720,7 +1722,7 @@ export def "ai analyze_religious_text" [
   } else if $ollama {
     o_llama $all_info --select_system biblical_assistant --select_preprompt consolidate_religious_text_analysus -d true -m $ollama_model -v $verbose
   } else {
-    google_ai $all_info --select_system biblical_assistant --select_preprompt consolidate_religious_text_analysus -d true -m gemini-3.0 -v $verbose 
+    google_ai $all_info --select_system biblical_assistant --select_preprompt consolidate_religious_text_analysus -d true -m $gemini_model_to_use -v $verbose 
   }
 
   if $notify {"analysis finished!" | tasker send-notification}
