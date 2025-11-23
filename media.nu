@@ -1040,7 +1040,12 @@ export def "media get-frame" [
   file? #file or list of files
 ] {
   let files = get-input $in $file
-
+  print ($time)
+  if ($files | typeof | str contains "string") {
+    ffmpeg -ss $time -i ($files) -vframes 1 $"($files | path parse | get stem).png"
+    return
+  }
+  
   $files 
   | get name 
   | par-each -t ([(sys cpu  | length) / 2 ($files | length)] | math min) {|f| 
