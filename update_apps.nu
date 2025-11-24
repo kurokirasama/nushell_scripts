@@ -245,11 +245,6 @@ export def apps-update [] {
     print (echo-r "Something went wrong with vivaldi instalation!")
   }
   try {
-    apps-update zoom
-  } catch {
-    print (echo-r "Something went wrong with zoom instalation!")
-  }
-  try {
    apps-update chrome
   } catch {
    print (echo-r "Something went wrong with chrome instalation!")
