@@ -1038,11 +1038,12 @@ export def "media crop-video" [
 export def "media get-frame" [
   time:string = "00:00:00" #time of the frame to extract format hh:mm:ss
   file? #file or list of files
+  --single-file(-f):string
 ] {
   let files = get-input $in $file
-  print ($time)
-  if ($files | typeof | str contains "string") {
-    ffmpeg -ss $time -i ($files) -vframes 1 $"($files | path parse | get stem).png"
+  
+  if ($single_file | is-not-empty) {
+    ffmpeg -ss $time -i $single_file -vframes 1 $"($single_file | path parse | get stem).png"
     return
   }
   
