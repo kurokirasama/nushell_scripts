@@ -11,10 +11,11 @@ export def "apps-update nushell" [
   git pull
   
   if $repo {
-    bash scripts/install-all.sh
+    bash scripts/install-all-mcp.sh
   } else {
     if $force {
-      cargo install nu --locked --features=mcp,plugin,trash-support,sqlite,network,rustls-tls,system-clipboard
+      # cargo install nu --locked --features=mcp,plugin,trash-support,sqlite,network,rustls-tls
+      cargo install nu --locked --features=mcp
     } else {
       cargo install-update nu 
     }

@@ -369,6 +369,7 @@ export def "ai git-push" [
   --gpt(-g)   #use gpt-5 instead of gpt-5-mini
   --gemini(-G) #use google gemini-3.0 model
   --claude(-C) #use antropic claude-sonnet-4-5
+  --review(-r) #review and edit the commit message before pushing
 ] {
   if $gpt and $gemini {
     return-error "select only one model!"
@@ -431,12 +432,27 @@ export def "ai git-push" [
   }
 
   #errors now give a record instead of empty string
-  if ($commit | typeof) != "string" {
+  mut final_commit = if ($commit | typeof) != "string" {
     input (echo-g $"Something happened with ($model). Enter your commit message or leave empty to stop: ")
+  } else {
+    $commit
   }
 
-  print (echo-g "resulting commit message:")
-  print (echo $commit)
+  if ($final_commit | is-empty) {
+    return-error "Execution stopped by the user!"
+  }
+
+  print (echo-g "Generated commit message:")
+  print (echo $final_commit)
+  if $review {
+    let choice = input (echo-g "Approve (y), Edit (e), or Cancel (n)? [y/e/n]: ")
+    
+    match $choice {
+      "n" => { return-error "Push cancelled by user." },
+      "e" | "edit" => { $final_commit = input (echo-g "Enter new commit message: ") },
+    }
+  }
+
   print (echo-g "pushing the changes with that commit message...\n")
 
   let branch = (
@@ -451,7 +467,7 @@ export def "ai git-push" [
 
   git add -A
   git status
-  git commit -am $commit
+  git commit -am $final_commit
 
   try {
     git push origin $branch

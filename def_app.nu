@@ -76,3 +76,19 @@ export def matlab-cli [
 
   job spawn {matlab -batch ("setenv('SHELL', '/bin/bash'); " + $input) | save -f $output} | ignore
 }
+
+# Return the flag emoji for a given two-digit country code
+export def country-flag [
+  country_code: string # The two-digit country code (e.g., "US", "de")
+] {
+  let base_offset = 127397
+
+  $country_code
+  | str upcase
+  | split chars
+  | each {|c|
+    ($c | into binary | into int) + $base_offset
+    | char --integer $in
+  }
+  | str join
+}
