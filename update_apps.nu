@@ -301,6 +301,7 @@ export def get-github-latest [
 }
 
 #update github app release
+# if file doesnt have an extension, use the pattern flag
 export def github-app-update [
   owner:string
   repo:string
@@ -347,8 +348,7 @@ export def github-app-update [
   let exists = (ls | find $app | if ($pattern | is-not-empty) {find -n $pattern} else {find $file_type} | length) > 0
 
   if $exists {
-    let current_version = (
-      if $version_from_json {
+    let current_version = if $version_from_json {
         open --raw $app_file 
         | from json
         | get version
@@ -366,7 +366,6 @@ export def github-app-update [
         | split row (if not $find_ {"_"} else {"-"}) 
         | get 1
       }
-    )
 
     if $current_version == $new_version {
       print (echo-g $"($repo) is already in its latest version!")
@@ -374,7 +373,11 @@ export def github-app-update [
     }
 
     print (echo-g $"\nupdating ($repo)...")
-    rm ($"*($app)*.($file_type)" | into glob) | ignore
+    if ($pattern | is-not-empty) {
+      rm $app | ignore
+    } else {
+      rm ($"*.($file_type)" | into glob) | ignore
+    }
     aria2c --download-result=hide $url
     
     if $version_from_json {
@@ -386,6 +389,14 @@ export def github-app-update [
 
     if $file_type != "deb" {
       print (echo-g "file downloaded...")
+      return
+    }
+
+    if ($pattern | is-empty) {
+      let install = (input (echo-g "Would you like to install it now? (y/n): "))
+      if $install == "y" {
+        sudo gdebi -n ($info.name | ansi strip)
+      }
       return
     }
 
