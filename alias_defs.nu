@@ -153,19 +153,30 @@ let host = sys host | get hostname
     nload -u H -U H $device
 }
 
+const profiles = ["minimal", "webui", "research", "googlesuit", "imagen", "full"]
 #wrapper for gemini cli
 export def --wrapped gmn [
   ...rest
-  --filter-mcp-servers(-f) #select servers to exclude
+  --profile(-p):string@$profiles = "minimal" #select servers to exclude
 ] {
-  let mcp_servers = open ~/.gemini/settings.json | get mcpServers | columns | sort
-  let allowed = if $filter_mcp_servers {
-    $mcp_servers | set difference ($mcp_servers | input list -m (echo-g "Select servers to exclude:"))
-  } else {
-    $mcp_servers
-  }
+  let settings = open ($env.MY_ENV_VARS.linux_backup | path join "settings_gemini.json")
+  let mcp_servers = $settings | get mcpServers
+  let mcp_names = $mcp_servers | columns | sort
   
-  # gemini --yolo --allowed-mcp-server-names ...$allowed ...$rest
+  let servers = match $profile {
+    "minimal" => {$mcp_names | find minimal & byterover -n},
+    "webui" => {$mcp_names | find minimal & byterover & webui -n},
+    "research" => {$mcp_names | find minimal & byterover & research -n},
+    "googlesuit" => {$mcp_names | find minimal & byterover & googlesuit -n},
+    "imagen" => {$mcp_names | find minimal & byterover & imagen -n},
+    "full" => {$mcp_names},
+    _ => {return-error "Invalid profile"}
+  }
+
+  let filtered_servers = $mcp_servers | select ...$servers
+  
+  $settings | upsert mcpServers $filtered_servers | save -f ~/.gemini/settings.json
+  
   gemini --yolo ...$rest
 }
 
