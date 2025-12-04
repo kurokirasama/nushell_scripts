@@ -154,10 +154,10 @@ let host = sys host | get hostname
 }
 
 const profiles = ["minimal", "webui", "research", "googlesuit", "imagen", "full"]
-#wrapper for gemini cli
-export def --wrapped gmn [
-  ...rest
-  --profile(-p):string@$profiles = "minimal" #select servers to exclude
+
+#change gemini profile settings
+export def "gmn profile" [
+	profile:string@$profiles = "minimal"
 ] {
   let settings = open ($env.MY_ENV_VARS.linux_backup | path join "settings_gemini.json")
   let mcp_servers = $settings | get mcpServers
@@ -176,7 +176,14 @@ export def --wrapped gmn [
   let filtered_servers = $mcp_servers | select ...$servers
   
   $settings | upsert mcpServers $filtered_servers | save -f ~/.gemini/settings.json
-  
+}
+
+#wrapper for gemini cli
+export def --wrapped gmn [
+  ...rest
+  --profile(-p):string@$profiles = "minimal"
+] {
+  gmn profile $profile
   gemini --yolo ...$rest
 }
 
