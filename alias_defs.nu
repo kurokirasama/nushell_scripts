@@ -184,7 +184,16 @@ export def --wrapped gmn [
   --profile(-p):string@$profiles = "minimal"
 ] {
   gmn profile $profile
-  gemini --yolo ...$rest
+  
+  match $profile { 
+    "minimal" => {gemini --yolo --extensions "code-review,gemini-cli-security" ...$rest},
+    "webui" => {gemini --yolo --extensions "code-review,gemini-cli-security" ...$rest},
+    "research" => {gemini --yolo --extensions "datacommons" ...$rest},
+    "googlesuit" => {gemini --yolo --extensions "code-review,gemini-cli-security,datacommons,gemini-docs-ext" ...$rest},
+    "imagen" => {gemini --yolo --extensions "nanobanana" ...$rest},
+    "full" => {gemini --yolo ...$rest},
+    _ => {return-error "Invalid profile"}
+  }
 }
 
 #wrapper for claude code

@@ -47,7 +47,18 @@ export def "t list" [] {
   | from ssv 
   | default-table 
   | drop
-  | update Have {|c| $c.Have | into filesize}
+  | update Have {|c| try {$c.Have | into filesize} catch {$c.Have}}
+  | update Status {|c|
+  		match $c.Status {
+  			"Stopped" => {$"(ansi red)($c.Status)(ansi reset)"},
+  			"Downloading" => {$"(ansi green)($c.Status)(ansi reset)"},
+  			"Seeding" => {$"(ansi cyan)($c.Status)(ansi reset)"},
+  			"Paused" => {$"(ansi orange)($c.Status)(ansi reset)"},
+  			"Queued" => {$"(ansi yellow)($c.Status)(ansi reset)"},
+  			"Idle" => {$"(ansi blue)($c.Status)(ansi reset)"},
+  			_ => {$c.Status},
+  		}
+  }
 }
 
 #transmission basic stats
