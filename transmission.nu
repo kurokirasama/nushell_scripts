@@ -47,6 +47,7 @@ export def "t list" [] {
   | from ssv 
   | default-table 
   | drop
+  | reject Ratio
   | update Have {|c| try {$c.Have | into filesize} catch {$c.Have}}
   | update Status {|c|
   		match $c.Status {
@@ -58,7 +59,32 @@ export def "t list" [] {
   			"Idle" => {$"(ansi blue)($c.Status)(ansi reset)"},
   			_ => {$c.Status},
   		}
-  }
+    }
+  | update Up {|c| $c.Up | into float}
+  | update Down {|c| $c.Down | into float}
+  | update Up {|c|
+  		if $c.Up > 0 {
+ 			$"(ansi cyan)($c.Up)(ansi reset)"
+  		} else {
+  			$c.Up | into string --decimals 1
+  		}
+    }
+  | update Down {|c|
+ 		if $c.Down > 0 {
+ 			$"(ansi green)($c.Down)(ansi reset)"
+ 		} else {
+ 			$c.Down | into string --decimals 1
+ 		}
+    }
+  | update Name {|c| 
+  		if ($c.Name | path parse | get stem | is-empty) {
+  			$"(ansi blue_bold)($c.Name)(ansi reset)"
+  		} else if ($c.Name | path parse | get extension) in ["mp4", "mkv", "mp3", "avi", "mov", "webm", "flv", "png", "jpg", "jpeg", "gif"] {
+  			$"(ansi purple_bold)($c.Name)(ansi reset)"
+  		} else {
+  			$"(ansi white_bold)($c.Name)(ansi reset)"
+  		}
+    }
 }
 
 #transmission basic stats
