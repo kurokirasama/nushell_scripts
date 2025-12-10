@@ -77,7 +77,7 @@ export def "t list" [] {
  		}
     }
   | update Name {|c| 
-  		if ($c.Name | path parse | get stem | is-empty) {
+  		if ($c.Name | path parse | get extension | is-empty) {
   			$"(ansi blue_bold)($c.Name)(ansi reset)"
   		} else if ($c.Name | path parse | get extension) in ["mp4", "mkv", "mp3", "avi", "mov", "webm", "flv", "png", "jpg", "jpeg", "gif"] {
   			$"(ansi purple_bold)($c.Name)(ansi reset)"
