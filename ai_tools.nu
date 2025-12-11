@@ -1619,6 +1619,7 @@ export def "ai analyze_ai_generated_text" [
         google_ai $prompt --select_system ai_generated_text_corrector --select_preprompt $pre_prompt_name -d false -m $gemini_model_to_use -t 0.9
       }
     
+    let new_text = $new_text | str replace --regex '(?i)^\s*#\s*CORRECTED\s+TEXT\s*' ''
     $fixed_text = $fixed_text + $new_text
 
     #check if complete
