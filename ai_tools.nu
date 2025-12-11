@@ -1593,21 +1593,49 @@ export def "ai analyze_ai_generated_text" [
   }
 
   print (echo-g $"starting correction of the analyzed input text...")
-  let prompt = if ($style | is-not-empty) {
-    "# REPORT\n\n" + $analysis + "\n\n# INPUT \n\n" + $text + "\n\n# STYLE \n\nUse the following style: " + $style + "\n\n# CORRECTED TEXT \n\n"
-  } else {
-    "# REPORT\n\n" + $analysis + "\n\n# INPUT \n\n" + $text + "\n\n# CORRECTED TEXT \n\n"
-  }
-
-  let fixed = if $gpt {
-      chat_gpt $prompt --select_system ai_generated_text_corrector --select_preprompt correct_ai_generated_text -m gpt-5 -t 0.9
-    } else if $ollama {
-      o_llama $prompt --select_system ai_generated_text_corrector --select_preprompt correct_ai_generated_text -d false -m $ollama_model -t 0.9
+  
+  mut fixed_text = ""
+  mut complete = false
+  
+  while not $complete {
+    let prompt = if ($fixed_text | is-empty) {
+      if ($style | is-not-empty) {
+        "# REPORT\n\n" + $analysis + "\n\n# INPUT \n\n" + $text + "\n\n# STYLE \n\nUse the following style: " + $style + "\n\n# CORRECTED TEXT \n\n"
+      } else {
+        "# REPORT\n\n" + $analysis + "\n\n# INPUT \n\n" + $text + "\n\n# CORRECTED TEXT \n\n"
+      }
     } else {
-      google_ai $prompt --select_system ai_generated_text_corrector --select_preprompt correct_ai_generated_text -d false -m $gemini_model_to_use -t 0.9
+      let pre_prompt = open ($env.MY_ENV_VARS.chatgpt_config | path join prompt complete_corrected_text.md)
+      $pre_prompt + "\n\n# REPORT\n\n" + $analysis + "\n\n# INPUT_TEXT \n\n" + $text + "\n\n# PARTIAL_CORRECTED_TEXT \n\n" + $fixed_text + "\n\n# CORRECTED TEXT \n\n"
     }
 
-  let response = "# REPORT\n\n" + $analysis + "\n\n# CORRECTED TEXT \n\n" + $fixed
+    let pre_prompt_name = if ($fixed_text | is-empty) {"correct_ai_generated_text"} else {"complete_corrected_text"}
+
+    let new_text = if $gpt {
+        chat_gpt $prompt --select_system ai_generated_text_corrector --select_preprompt $pre_prompt_name -m gpt-5 -t 0.9
+      } else if $ollama {
+        o_llama $prompt --select_system ai_generated_text_corrector --select_preprompt $pre_prompt_name -d false -m $ollama_model -t 0.9
+      } else {
+        google_ai $prompt --select_system ai_generated_text_corrector --select_preprompt $pre_prompt_name -d false -m $gemini_model_to_use -t 0.9
+      }
+    
+    $fixed_text = $fixed_text + $new_text
+
+    #check if complete
+    let validation_prompt = "\n\n# INPUT_TEXT \n\n" + $text + "\n\n# CORRECTED_TEXT \n\n" + $fixed_text
+    
+    let is_complete = if $gpt {
+        chat_gpt $validation_prompt --select_system json_fixer --select_preprompt is_corrected_text_complete -m gpt-5 -t 0.1
+      } else if $ollama {
+        o_llama $validation_prompt --select_system json_fixer --select_preprompt is_corrected_text_complete -d false -m $ollama_model -t 0.1
+      } else {
+        google_ai $validation_prompt --select_system json_fixer --select_preprompt is_corrected_text_complete -d false -m $gemini_model_to_use -t 0.1
+      } | remove-code-blocks | from json | get complete
+
+    $complete = $is_complete
+  }
+
+  let response = "# REPORT\n\n" + $analysis + "\n\n# CORRECTED TEXT \n\n" + $fixed_text
 
   if $fast {
     $response | save -f ($env.MY_ENV_VARS.chatgpt | path join answer.md)

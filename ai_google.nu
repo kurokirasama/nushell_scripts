@@ -1,21 +1,27 @@
 const last_gemini_model = "gemini-3-pro-preview"
+const gemini_models = [
+  "gemini-3-pro-preview" 
+  "gemini-2.5-pro" 
+  "gemini-2.5-flash" 
+  "gemini-2.5-flash-lite"
+  "gemini-2.0-flash" 
+  "gemini-2.0-flash-lite" 
+  "gemini-pro-vision"
+]	
 
 #single call to google ai LLM api wrapper and chat mode
 #
 #Available models at https://ai.google.dev/models:
-# - gemini-3-pro-preview
-# - gemini-2.5-pro (paid version)
-# - gemini-2.5-flash: Audio, images, video, and text -> text, 1048576 (tokens)
-# - gemini-2.0-flash-exp-image-generation: images and text -> image and text
-# - gemini-2.0-flash: Audio, images, video, and text -> Audio, images, and text, 1048576 (tokens), 10 RPM
-# - gemini-2.0-flash-lite Audio, images, video, and text -> Audio, images, and text, 1048576 (tokens), 10 RPM
-# - gemini-1.5-pro: Audio, images, video, and text -> text, 2097152 (tokens),  2 RPM
-# - gemini-1.5-flash: Audio, images, video, and text -> text, 1048576 (tokens), 15 RPM
-# - Gemini Pro (gemini-pro): text -> text, 15 RPM
-# - Gemini Pro Vision (gemini-pro-vision): text & images -> text, 12288 (tokens), 60 RP 
-# - PaLM2 Bison (text-bison-001): text -> text
-# - Embedding (embedding-001): text -> text
-# - Retrieval (aqa): text -> text
+# - gemini-3-pro-preview: Reasoning-first, complex agentic workflows, coding, 1M context
+# - gemini-2.5-pro: High-capability, complex reasoning, coding, multimodal, 1M context
+# - gemini-2.5-flash: Fast, capable, balances intelligence and latency
+# - gemini-2.5-flash-lite: Optimized for efficiency and cost-performance
+# - gemini-2.0-flash: Multimodal, cost-effective, general-purpose
+# - gemini-2.0-flash-lite: Streamlined, ultra-efficient
+# - gemini-1.5-pro: Audio, images, video, and text -> text, 2M context
+# - gemini-1.5-flash: Audio, images, video, and text -> text, 1M context
+# - text-embedding-004: Text embedding model
+# - aqa: Retrieval
 #
 #system messages are available in:
 #   [$env.MY_ENV_VARS.chatgpt_config system] | path join
@@ -45,10 +51,10 @@ const last_gemini_model = "gemini-3-pro-preview"
 @search-terms gemini
 export def google_ai [
     query?: string                          # the query to Gemini
-    --model(-m):string = "gemini-2.5-flash" # the model gemini-1.5-flash, gemini-pro-vision, gemini-2.0, etc
+    --model(-m):string@$gemini_models = "gemini-2.5-flash" # the model gemini-1.5-flash, gemini-pro-vision, gemini-2.0, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9             # the temperature of the model
-    --image(-i):string                  # filepath of image file for gemini-pro-vision
+    --image(-i):any                     # filepath of image file (or list of files) for gemini-pro-vision
     --list_system(-l) = false           # select system message from list
     --pre_prompt(-p) = false            # select pre-prompt from list
     --delim_with_backquotes(-d) = false # to delimit prompt (not pre-prompt) with triple backquotes (')
@@ -99,10 +105,14 @@ export def google_ai [
   let for_bison_beta = if ($model like "bison") {"3"} else {""}
   let for_bison_gen = if ($model like "bison") {":generateText"} else {":generateContent"}
 
-  let max_output_tokens = if $model =~ "gemini-2.5" {65536} else {8192}
+  let max_output_tokens = match $model {
+    $m if ($m =~ "gemini-3") => 64000
+    $m if ($m =~ "gemini-2.5") => 65536
+    _ => 8192
+  }
 
   let input_model = $model
-  let model = if $model == "gemini-pro-vision" {"gemini-2.0-flash"} else {$model}
+  let model = if $model == "gemini-pro-vision" {"gemini-2.5-flash"} else {$model}
   let model = if $model == "gemini-1.5" {"gemini-1.5-flash"} else {$model}
   let model = if $model == "gemini-2.0" {"gemini-2.0-flash"} else {$model}
   let model = if $model == "gemini-2.5" {"gemini-2.5-pro"} else {$model}
@@ -325,27 +335,36 @@ export def google_ai [
     return-error "Empty prompt!!!"
   }
   
-  if ($input_model == "gemini-pro-vision") and ($image | is-empty) {
-    return-error "gemini-pro-vision needs and image file!"
+  # Handle multiple images
+  let images = if ($image | is-empty) { [] } else {
+    if ($image | describe) == "string" { [$image] } else { $image }
   }
 
-  if ($input_model == "gemini-pro-vision") and (not ($image | path expand | path exists)) {
-    return-error "image file not found!" 
+  if ($input_model == "gemini-pro-vision") {
+     if ($images | is-empty) { 
+     	return-error "gemini-pro-vision needs at least one image file!" 
+     }
+     for img in $images {
+       if not ($img | path expand | path exists) { 
+       	return-error "image file not found"
+       }
+     }
   }
 
-  let extension = (
+  let image_parts = (
     if $input_model == "gemini-pro-vision" {
-      $image | path parse | get extension
+      $images | each {|img|
+        let ext = ($img | path parse | get extension)
+        let data = (open ($img | path expand) | encode base64)
+        {
+          inline_data: {
+            mime_type: ("image/" + $ext),
+            data: $data
+          }
+        }
+      }
     } else {
-      ""
-    }
-  )
-
-  let image = (
-    if $input_model == "gemini-pro-vision" {
-      open ($image | path expand) | encode base64
-    } else {
-      ""
+      []
     }
   )
 
@@ -383,17 +402,9 @@ export def google_ai [
         contents: [
           {
             role: "user",
-            parts: [
-              {
-                text: $prompt
-              },
-              {
-                  inline_data: {
-                    mime_type:  ("image/" + $extension),
-                    data: $image
-                }
-              }
-            ]
+            parts: (
+              [{text: $prompt}] ++ $image_parts
+            )
           }
         ],
         generationConfig: {
@@ -435,16 +446,10 @@ export def google_ai [
   )
 
   #trying different models in case of error
+  # ONLY REPEAT OR RETRY IF input_model IS NOT VISION
   mut answer = []
   mut index_model = 0
-  let models = [
-  	"gemini-3-pro-preview" 
-    "gemini-2.5-pro" 
-    "gemini-2.5-flash" 
-    "gemini-2.5-flash-lite"
-    "gemini-2.0-flash" 
-    "gemini-2.0-flash-lite" 
-  ]
+  let models = $gemini_models | find -v vision
   
   let n_models = $models | length 
   
@@ -474,7 +479,7 @@ export def google_ai [
   }
 
   if ($answer | get error? | is-not-empty) {
-    return-error $answer.error
+    return-error $answer.error.message
   }
   
   let answer = $answer
