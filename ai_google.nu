@@ -69,9 +69,14 @@ export def google_ai [
     --max_retries(-r):int = 5 #max number of retries in case of server-side errors 
     --verbose(-v) = false     #show the attempts to call the gemini api
     --document:string         #uses provided document to retrieve the answer
+    --paid(-P) = false	  	  #use the billing api for greater limits
 ] {
   #api parameters
-  let apikey = $env.MY_ENV_VARS.api_keys.google.gemini
+  let apikey = if $paid {
+    $env.MY_ENV_VARS.api_keys.google.gemini_paid
+  } else {
+    $env.MY_ENV_VARS.api_keys.google.gemini
+  }
 
   let safetySettings = (
     if ($safety_settings | is-empty) {
@@ -587,11 +592,16 @@ export def google_aimage [
     --aspect-ratio(-a):string = "16:9" #aspect ratio: 1:1, 3:4, 4:3, 9:16 or 16:9 (for imagen only)
     --person-generation(-p):string = "ALLOW_ADULT" #ALLOW_ADULT or DONT_ALLOW (imagen only)
     --output(-o):string                #output filename
+    --paid(-P) = false	           #use paid gemini
 ] {
   let prompt = get-input $in $query
 
   #api parameters
-  let apikey = $env.MY_ENV_VARS.api_keys.google.gemini
+  let apikey = if $paid {
+    $env.MY_ENV_VARS.api_keys.google.gemini_paid
+  } else {
+    $env.MY_ENV_VARS.api_keys.google.gemini
+  }
 
   if ($number_of_images > 4) and ($model like "imagen") {
     return-error "Max. number of requested images is 4!!!"
@@ -642,16 +652,16 @@ export def google_aimage [
     } | url join
 
   let output = if ($output | is-empty) {
-      (google_ai --select_preprompt dalle_image_name -d true $prompt | from json | get name) + "_G"
+      (google_ai --select_preprompt dalle_image_name -d true $prompt -P $paid | from json | get name) + "_G"
     } else {
       $output
     }
 
   #translate prompt if not in english
-  let english = google_ai --select_preprompt is_in_english -d true $prompt | from json | get english | into bool
-  let prompt = if $english and $task == "generation" {google_ai --select_system ai_art_creator --select_preprompt translate_dalle_prompt -d true $prompt} else {$prompt}
+  let english = google_ai --select_preprompt is_in_english -d true $prompt -P $paid | from json | get english | into bool
+  let prompt = if $english and $task == "generation" {google_ai --select_system ai_art_creator --select_preprompt translate_dalle_prompt -d true $prompt -P $paid} else {$prompt}
   let prompt = if $task == "generation" {
-      google_ai --select_system ai_art_creator --select_preprompt improve_dalle_prompt -d true $prompt
+      google_ai --select_system ai_art_creator --select_preprompt improve_dalle_prompt -d true $prompt -P $paid
     } else {
       $prompt
     }
@@ -748,6 +758,7 @@ export def "ai google_search-summary" [
   web_content = ""       #output of google_search, md or table
   --md(-m)            #return concatenated md instead of table
   --model(-M):string = "gemini" #select model: gpt4, gemini, ollama
+  --paid(-P)          #use paid gemini
 ] {
   let web_content = if ($web_content | is-empty) {$in} else {$web_content}
   let max_words = if $model == "gemini" {800000} else {100000}
@@ -780,7 +791,7 @@ export def "ai google_search-summary" [
         chat_gpt $complete_prompt --select_system html2text_summarizer -m gpt-4.1
       },
       "gemini" => {
-        google_ai $complete_prompt --select_system html2text_summarizer -m gemini-2.5-flash
+        google_ai $complete_prompt --select_system html2text_summarizer -m gemini-2.5-flash -P $paid
       }
     }
     
@@ -805,7 +816,7 @@ export def "ai google_search-summary" [
         chat_gpt $complete_prompt --select_system html2text_summarizer -m gpt-4.1
       },
       "gemini" => {
-        google_ai $complete_prompt --select_system html2text_summarizer -m gemini-2.5-flash
+        google_ai $complete_prompt --select_system html2text_summarizer -m gemini-2.5-flash -P $paid
       }
     }
 
