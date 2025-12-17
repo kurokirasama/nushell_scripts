@@ -42,9 +42,9 @@ export def "h stats" [--show-avatar(-s)] {
         hp: $hp,
         experience: $"($response.stats.exp | math round | into string)/($response.stats.toNextLevel | math round | into string)",
         mana: $"($response.stats.mp | math round | into string)/($response.stats.maxMP | math round | into string)",
-        logged_in_today: (not $response.needsCron),
         dailys_to_complete: (h ls dailys | where completed == false and isDue == true | length),
         todos_to_complete: (h ls todos | where completed == false | length),
+        logged_in_today: (not $response.needsCron),
         in_quest: $party.quest.active,
         pending_quest: $pending_quest
     }
