@@ -120,7 +120,7 @@ export def google_ai [
   let model = if $model == "gemini-pro-vision" {"gemini-2.5-flash"} else {$model}
   let model = if $model == "gemini-1.5" {"gemini-1.5-flash"} else {$model}
   let model = if $model == "gemini-2.0" {"gemini-2.0-flash"} else {$model}
-  let model = if $model == "gemini-2.5" {"gemini-2.5-pro"} else {$model}
+  let model = if $model == "gemini-2.5" {"gemini-2.5-flash"} else {$model}
   let model = if $model == "gemini-3.0" {$last_gemini_model} else {$model}  
 
   let url_request = {
