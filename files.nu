@@ -336,6 +336,10 @@ export def l [--du(-d),--sort_by_size(-s)] {
   }
 }
 
+export def lc [] {
+  l | grid -ci
+}
+
 #ls only name
 export def lo [] {
   ls 
