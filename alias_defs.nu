@@ -164,11 +164,11 @@ export def "gmn profile" [
   let mcp_names = $mcp_servers | columns | sort
   
   let servers = match $profile {
-    "minimal" => {$mcp_names | find minimal & byterover -n},
-    "webui" => {$mcp_names | find minimal & byterover & webui -n},
-    "research" => {$mcp_names | find minimal & byterover & research -n},
-    "googlesuit" => {$mcp_names | find minimal & byterover & googlesuit -n},
-    "imagen" => {$mcp_names | find minimal & byterover & imagen -n},
+    "minimal" => {$mcp_names | find minimal -n},
+    "webui" => {$mcp_names | find minimal & webui -n},
+    "research" => {$mcp_names | find minimal & research -n},
+    "googlesuit" => {$mcp_names | find minimal & googlesuit -n},
+    "imagen" => {$mcp_names | find minimal & imagen -n},
     "full" => {$mcp_names},
     _ => {return-error "Invalid profile"}
   }
