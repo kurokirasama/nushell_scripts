@@ -1,7 +1,7 @@
-const last_gemini_model = "gemini-3-pro-preview"
+const last_gemini_model = "gemini-3-pro"
 const gemini_models = [
-  "gemini-3-pro-preview" 
-  "gemini-3-flash-preview"
+  "gemini-3-pro" 
+  "gemini-3-flash"
   "gemini-2.5-pro" 
   "gemini-2.5-flash" 
   "gemini-2.5-flash-lite"
@@ -13,14 +13,14 @@ const gemini_models = [
 #single call to google ai LLM api wrapper and chat mode
 #
 #Available models at https://ai.google.dev/models:
-# - gemini-3-pro-preview: Reasoning-first, complex agentic workflows, coding, 1M context
+# - gemini-3-pro: Reasoning-first, complex agentic workflows, coding, 1M context
+# - gemini-3-flash: Built for speed, agentic coding, visual & spatial reasoning
 # - gemini-2.5-pro: High-capability, complex reasoning, coding, multimodal, 1M context
 # - gemini-2.5-flash: Fast, capable, balances intelligence and latency
 # - gemini-2.5-flash-lite: Optimized for efficiency and cost-performance
 # - gemini-2.0-flash: Multimodal, cost-effective, general-purpose
 # - gemini-2.0-flash-lite: Streamlined, ultra-efficient
-# - gemini-1.5-pro: Audio, images, video, and text -> text, 2M context
-# - gemini-1.5-flash: Audio, images, video, and text -> text, 1M context
+# - gemini-pro-vision: Placeholder for use images as input, uses gemini-3-flash
 # - text-embedding-004: Text embedding model
 # - aqa: Retrieval
 #
@@ -118,7 +118,7 @@ export def google_ai [
   }
 
   let input_model = $model
-  let model = if $model == "gemini-pro-vision" {"gemini-2.5-flash"} else {$model}
+  let model = if $model == "gemini-pro-vision" {"gemini-3-flash"} else {$model}
   let model = if $model == "gemini-1.5" {"gemini-1.5-flash"} else {$model}
   let model = if $model == "gemini-2.0" {"gemini-2.0-flash"} else {$model}
   let model = if $model == "gemini-2.5" {"gemini-2.5-flash"} else {$model}
