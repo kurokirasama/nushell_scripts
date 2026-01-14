@@ -690,3 +690,29 @@ export def "hyprlnd replace-wallpaper-paths" [
 
     print "All specified files processed."
 }
+
+# UPS Status Check Command
+# Returns a structured table with comprehensive UPS metrics
+export def check-ups [ups_name: string = "forza"] {
+    let raw = try {
+    	upsc $"($ups_name)@localhost" | lines | parse "{k}: {v}" | update v { str trim }
+    } catch {|e|
+    	return-error ($"Error fetching UPS data: " + $e.msg)
+    }
+    
+    let data = $raw | reduce -f {} {|it, acc| $acc | upsert $it.k $it.v }
+    
+    {
+        model: $data."device.model"
+        status: $data."ups.status"
+        charge: ($data."battery.charge" | into int)
+        runtime: (($data."battery.runtime" | into int) * 1sec)
+        load: ($data."ups.load" | into int)
+        temp: ($data."ups.temperature" | into float)
+        input_v: ($data."input.voltage" | into float)
+        input_hz: ($data."input.frequency" | into float)
+        output_v: ($data."output.voltage" | into float)
+        output_hz: ($data."output.frequency" | into float)
+        batt_v: ($data."battery.voltage" | into float)
+    }
+}
