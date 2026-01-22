@@ -1852,3 +1852,8 @@ export def show-prompts [
 		return (open ($pre_prompts_files | find -n ("/" + $pre_prompt + ".md") | get 0))
 	}
 }
+
+#gemini-cli stats
+export def "gmn stats" [] {
+	npx gemini-wrapped
+}

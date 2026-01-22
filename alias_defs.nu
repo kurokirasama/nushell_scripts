@@ -188,9 +188,9 @@ export def --wrapped gmn [
   match $profile { 
     "minimal" => {gemini --yolo --extensions "conductor,code-review,gemini-cli-security" ...$rest},
     "webui" => {gemini --yolo --extensions "conductor,code-review,gemini-cli-security" ...$rest},
-    "research" => {gemini --yolo --extensions "datacommons" ...$rest},
+    "research" => {gemini --yolo --extensions "conductor,datacommons" ...$rest},
     "googlesuit" => {gemini --yolo --extensions "conductor,code-review,gemini-cli-security,datacommons,gemini-docs-ext" ...$rest},
-    "imagen" => {gemini --yolo --extensions "nanobanana" ...$rest},
+    "imagen" => {gemini --yolo --extensions "conductor,nanobanana" ...$rest},
     "full" => {gemini --yolo ...$rest},
     _ => {return-error "Invalid profile"}
   }

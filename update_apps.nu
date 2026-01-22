@@ -14,17 +14,14 @@ export def "apps-update nushell" [
     bash scripts/install-all-mcp.sh
   } else {
     if $force {
-      # cargo install nu --locked --features=mcp,plugin,trash-support,sqlite,network,rustls-tls
-      cargo install nu --locked --features=mcp
+      # cargo install nu --locked --features=mcp
+      cargo install nu --locked
     } else {
       cargo install-update nu 
     }
   }
 
   cargo clean
-
-  print (echo-g "updating config file...")
-  update-nu-config
 
   print (echo-g "now restart nushell...")
 }
@@ -40,7 +37,8 @@ export def "apps-update nushell-plugins" [
       cargo install nu_plugin_polars --locked
     }
   } else {
-    cargo install-update nu_plugin_inc nu_plugin_gstat nu_plugin_query nu_plugin_formats 
+    cargo install-update nu_plugin_inc nu_plugin_gstat nu_plugin_query 
+    cargo install-update nu_plugin_formats --locked
     if not $server {
       cargo install-update nu_plugin_polars --locked
     }
@@ -88,6 +86,9 @@ export def "apps-update nushell-plugins-external" [--force(-f)] {
     "plugin use ~/.cargo/bin/nu_plugin_port_extension"
     "plugin use ~/.cargo/bin/nu_plugin_plot"
   ] | str join "\n")
+  
+  print (echo-g "updating config file...")
+  update-nu-config
 }
 
 #update polars aliases

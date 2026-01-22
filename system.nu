@@ -181,7 +181,7 @@ export def left_prompt [] {
   } else if ($env.MY_ENV_VARS.l_prompt | is-empty) or ($env.MY_ENV_VARS.l_prompt == 'short') {
       $env.PWD | path parse | get stem
   } else {
-      $env.PWD | str replace $nu.home-path '~'
+      $env.PWD | str replace $nu.home-dir '~'
   }
 }
 
@@ -221,7 +221,7 @@ export def killn [name?:string] {
 
 #short pwd
 export def pwd-short [] {
-  $env.PWD | str replace $nu.home-path '~'
+  $env.PWD | str replace $nu.home-dir '~'
 }
 
 #go to dir (via pipe)
