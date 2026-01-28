@@ -693,16 +693,36 @@ export def "hyprlnd replace-wallpaper-paths" [
 
 # UPS Status Check Command
 # Returns a structured table with comprehensive UPS metrics
-export def check-ups [ups_name: string = "forza"] {
+export def check-ups [
+    ups_name: string = "forza"
+    --logs(-l) # include latest logs and boot time
+] {
+    let desktop_name = "lgomez-desktop"
+    let is_remote = (sys host | get hostname) != $desktop_name
+    
+    let fetch = {|cmd|
+        if $is_remote {
+            let ips = open $env.MY_ENV_VARS.ips
+            let ip = ($ips | get $desktop_name | get internal)
+            let user = "kira"
+            ssh $"($user)@($ip)" $cmd
+        } else {
+            ^sh -c $cmd
+        }
+    }
+
     let raw = try {
-    	upsc $"($ups_name)@localhost" | lines | parse "{k}: {v}" | update v { str trim }
-    } catch {|e|
-    	return-error ($"Error fetching UPS data: " + $e.msg)
+        do $fetch $"upsc ($ups_name)@localhost" 
+        | lines 
+        | parse "{k}: {v}" 
+        | update v { str trim }
+    } catch {
+        return-error "Could not connect to UPS. Is the remote host up and NUT running?"
     }
     
     let data = $raw | reduce -f {} {|it, acc| $acc | upsert $it.k $it.v }
     
-    {
+    mut output = {
         model: $data."device.model"
         status: $data."ups.status"
         charge: ($data."battery.charge" | into int)
@@ -715,4 +735,17 @@ export def check-ups [ups_name: string = "forza"] {
         output_hz: ($data."output.frequency" | into float)
         batt_v: ($data."battery.voltage" | into float)
     }
+
+    if $logs {
+        let logs_data = do $fetch "journalctl -u nut-monitor --no-pager -n 100 | grep -E 'on battery|on line power|Communications|Shutdown' | tail -n 10" 
+            | lines
+        let boot = do $fetch "uptime -s" | str trim
+        
+        $output = ($output 
+            | upsert logs $logs_data 
+            | upsert desktop_boot ($boot | into datetime)
+        )
+    }
+
+    $output
 }
