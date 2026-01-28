@@ -697,14 +697,14 @@ export def check-ups [
     ups_name: string = "forza"
     --logs(-l) # include latest logs and boot time
 ] {
-    let desktop_name = "lgomez-desktop"
+    let desktop_name = $env.MY_ENV_VARS.hosts.2
     let is_remote = (sys host | get hostname) != $desktop_name
     
     let fetch = {|cmd|
         if $is_remote {
             let ips = open $env.MY_ENV_VARS.ips
             let ip = ($ips | get $desktop_name | get internal)
-            let user = "kira"
+            let user = $env.USER
             ssh $"($user)@($ip)" $cmd
         } else {
             ^sh -c $cmd
@@ -741,10 +741,9 @@ export def check-ups [
             | lines
         let boot = do $fetch "uptime -s" | str trim
         
-        $output = ($output 
+        $output = $output 
             | upsert logs $logs_data 
             | upsert desktop_boot ($boot | into datetime)
-        )
     }
 
     $output
