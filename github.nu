@@ -3,7 +3,7 @@ export def copy-scripts-and-commit [--gemini(-G) = false] {
   print (echo-g "updating public repository...")
   let files = (
     ls $env.MY_ENV_VARS.nu_scripts
-    | find -v private & signature & env_vars & aliases & before & send_not & deprecated & Gemini
+    | find -v private & signature & env_vars & aliases & before & send_not & deprecated & Gemini & conductor
     | append (ls $env.MY_ENV_VARS.linux_backup | find -n append)
     | append (ls $env.MY_ENV_VARS.credentials | find -v .asc | find -v credential)
   )
@@ -39,6 +39,7 @@ export def quick-ubuntu-and-tools-update-module [
   --upload-debs(-d)     #also upload debs files to gdrive
   --force(-f)           #force the copy
   --gemini(-G)          #use google gemini instead of gpt
+  --review(-r)          #review the changes before committing
 ] {
   let destination = "~/software/ubuntu_semiautomatic_install/" | path expand
   if not ($destination | path exists) {
@@ -58,7 +59,11 @@ export def quick-ubuntu-and-tools-update-module [
 
   cd $destination
   if $gemini {
-    ai git-push -G
+    if $review {
+      ai git-push -G --review
+    } else {
+      ai git-push -G
+    }
   } else {
     ai git-push -g
   }

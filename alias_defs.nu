@@ -153,7 +153,7 @@ let host = sys host | get hostname
     nload -u H -U H $device
 }
 
-const profiles = ["minimal", "webui", "research", "googlesuit", "imagen", "full"]
+const profiles = ["no-mcp", "basic", "minimal", "webui", "research", "googlesuit", "imagen", "full"]
 
 #change gemini profile settings
 export def "gmn profile" [
@@ -169,11 +169,13 @@ export def "gmn profile" [
     "research" => {$mcp_names | find minimal & research -n},
     "googlesuit" => {$mcp_names | find minimal & googlesuit -n},
     "imagen" => {$mcp_names | find minimal & imagen -n},
+    "no-mcp" => {[]},
+    "basic" => {$mcp_names | find nushell -n},
     "full" => {$mcp_names},
     _ => {return-error "Invalid profile"}
   }
 
-  let filtered_servers = $mcp_servers | select ...$servers
+  let filtered_servers = if ($servers | is-empty) { {} } else { $mcp_servers | select ...$servers }
   
   $settings | upsert mcpServers $filtered_servers | save -f ~/.gemini/settings.json
 }
@@ -191,6 +193,8 @@ export def --wrapped gmn [
     "research" => {gemini --yolo --extensions "conductor,datacommons" ...$rest},
     "googlesuit" => {gemini --yolo --extensions "conductor,code-review,gemini-cli-security,datacommons,gemini-docs-ext" ...$rest},
     "imagen" => {gemini --yolo --extensions "conductor,nanobanana" ...$rest},
+    "no-mcp" => {gemini --yolo --extensions "conductor" ...$rest},
+    "basic" => {gemini --yolo --extensions "conductor" ...$rest},
     "full" => {gemini --yolo ...$rest},
     _ => {return-error "Invalid profile"}
   }
