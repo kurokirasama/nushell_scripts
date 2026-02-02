@@ -206,3 +206,5 @@ export def --wrapped cld [
 ] {
 	^claude --dangerously-skip-permissions
 }
+
+export alias gtes = gtypist --colors 7,0 esp.typ
