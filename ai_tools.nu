@@ -777,7 +777,7 @@ export def "ai yt-get-transcription" [
       let filename = yt-dlp --print filename $url | path parse | get stem | str append ".mp3"
       
       print (echo-g "downloading audio...")
-      yt-dlp --no-warnings -t mp3 $url -o $filename
+      yt-dlp --no-warnings -x --audio-format mp3 $url -o $filename 
       
       print (echo-g "transcribing audio...")
       whisper $filename --language $language --output_format "txt" --verbose False --fp16 False
