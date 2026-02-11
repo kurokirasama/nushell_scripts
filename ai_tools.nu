@@ -774,10 +774,10 @@ export def "ai yt-get-transcription" [
   }
   
   if $force_mp3 {
-      let filename = yt-dlp --print filename $url | path parse | get stem | str append ".mp3"
+      let filename = yt-dlp --js-runtimes node --remote-components ejs:github --print filename $url | path parse | get stem | str append ".mp3"
       
       print (echo-g "downloading audio...")
-      yt-dlp --no-warnings -x --audio-format mp3 $url -o $filename 
+      yt-dlp --js-runtimes node --remote-components ejs:github --no-warnings -x --audio-format mp3 $url -o $filename 
       
       print (echo-g "transcribing audio...")
       whisper $filename --language $language --output_format "txt" --verbose False --fp16 False
@@ -789,7 +789,7 @@ export def "ai yt-get-transcription" [
   if ((ls | find yt_temp | length) > 0) {rm yt_temp* | ignore}
   
   #getting the subtitle
-  yt-dlp -N 10 --write-info-json $url --output yt_temp --skip-download
+  yt-dlp --js-runtimes node --remote-components ejs:github -N 10 --write-info-json $url --output yt_temp --skip-download
 
   let video_info = (open yt_temp.info.json)
   let title = ($video_info | get title)
@@ -800,13 +800,13 @@ export def "ai yt-get-transcription" [
 
   if ($the_language | is-empty) {
     #first try auto-subs then whisper
-    yt-dlp -N 10 --write-auto-subs $url --output yt_temp --skip-download
+    yt-dlp --js-runtimes node --remote-components ejs:github -N 10 --write-auto-subs $url --output yt_temp --skip-download
 
     if ((ls | find yt_temp | find vtt | length) > 0) {
       ffmpeg -i (ls yt_temp*.vtt | get 0 | get name) -f srt $the_subtitle
     } else {
       print (echo-g "downloading audio...")
-      yt-dlp -t mp3 $url -o $"($title).mp3"
+      yt-dlp --js-runtimes node --remote-components ejs:github -t mp3 $url -o $"($title).mp3"
 
       print (echo-g "transcribing audio...")
       whisper $"($title).mp3" --output_format srt --verbose False --fp16 False

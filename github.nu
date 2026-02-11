@@ -3,7 +3,7 @@ export def copy-scripts-and-commit [--gemini(-G) = false] {
   print (echo-g "updating public repository...")
   let files = (
     ls $env.MY_ENV_VARS.nu_scripts
-    | find -v private & signature & env_vars & aliases & before & send_not & deprecated & Gemini & conductor
+    | find -v private & signature & env_vars & aliases & before & send_not & deprecated & Gemini & conductor & tests
     | append (ls $env.MY_ENV_VARS.linux_backup | find -n append)
     | append (ls $env.MY_ENV_VARS.credentials | find -v .asc | find -v credential)
   )
