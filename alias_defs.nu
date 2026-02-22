@@ -188,14 +188,14 @@ export def --wrapped gmn [
   gmn profile $profile
   
   match $profile { 
-    "minimal" => {gemini --yolo --extensions "conductor,code-review,gemini-cli-security" ...$rest},
-    "webui" => {gemini --yolo --extensions "conductor,code-review,gemini-cli-security" ...$rest},
-    "research" => {gemini --yolo --extensions "conductor,datacommons" ...$rest},
-    "googlesuit" => {gemini --yolo --extensions "conductor,code-review,gemini-cli-security,datacommons,gemini-docs-ext" ...$rest},
-    "imagen" => {gemini --yolo --extensions "conductor,nanobanana" ...$rest},
-    "no-mcp" => {gemini --yolo --extensions "conductor" ...$rest},
-    "basic" => {gemini --yolo --extensions "conductor" ...$rest},
-    "full" => {gemini --yolo ...$rest},
+    "minimal" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
+    "webui" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,gemini-cli-security,gemini-docs-ext" ...$rest},
+    "research" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,datacommons" ...$rest},
+    "googlesuit" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,datacommons,gemini-docs-ext" ...$rest},
+    "imagen" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,nanobanana" ...$rest},
+    "no-mcp" => {gemini --approval-mode=yolo --extensions "conductor" ...$rest},
+    "basic" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
+    "full" => {gemini --approval-mode=yolo ...$rest},
     _ => {return-error "Invalid profile"}
   }
 }
