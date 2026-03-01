@@ -94,8 +94,8 @@ export def generate-md-from-dir [output_file = "output.md"] {
   | where type == file
   | where name not-like "png|jpg"
   | where name != $output_file
-  | each { |it|
-    let filepath = $it.name
+  | each { |item|
+    let filepath = $item.name
     let file_content = open $filepath
 
     # Create the section header

@@ -8,8 +8,8 @@ def main [how_many: int = 2] {
 	| skip ($ref_index + 1) 
 	| drop 
 	| parse "{NAME}\t{UP}\t{DOWN}" 
-	| update NAME {|it| 
-			extract-name $it.NAME
+	| update NAME {|item| 
+			extract-name $item.NAME
 	  } 
 	| update UP {|up| 
 			$up.UP | split chars | first 5 | str join

@@ -856,8 +856,8 @@ export def "media delete-mps" [] {
 
   le
   | where type == "file" and ext not-like "mp4|mkv|webm|part" 
-  | each {|it| 
-      rm $"($it.name)" | ignore
+  | each {|item| 
+      rm $"($item.name)" | ignore
     }     
 }
 
@@ -950,7 +950,7 @@ export def "media crop-image" [
   let width = $image_size | get 0 | into int
   let height = $image_size | get 1 | into int
 
-  let new_image = $"($image | path parse | get stem)_cropped.png"t
+  let new_image = $"($image | path parse | get stem)_cropped.png"
 
   if $width > $height {
     let new_image_size = $height

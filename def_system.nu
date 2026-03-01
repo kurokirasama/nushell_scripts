@@ -97,22 +97,22 @@ export def verify [
   let inputs = if ($clausules | is-empty) {$in} else {$clausules}
 
   let test_value = not $false
-  let op = {|it|
-    match ($it | describe) {
-      "bool" => $it
-      "closure" => {do $it}
+  let op = {|item|
+    match ($item | describe) {
+      "bool" => $item
+      "closure" => {do $item}
       $x => {error make {msg: $"inputs of type ($x) is not supported. Please check."}}
     }
   }
 
   let res = match [$and $or $xor] {
-    [true false false] => { $inputs | all {|it| (do $op $it) == $test_value} }
-    [false true false] => { $inputs | any {|it| (do $op $it) == $test_value} }
+    [true false false] => { $inputs | all {|item| (do $op $item) == $test_value} }
+    [false true false] => { $inputs | any {|item| (do $op $item) == $test_value} }
     [false false true] => {
       mut res = false
       mut first_true = false
-      for $it in $inputs {
-        match [((do $op $it) == $test_value) $first_true] {
+      for $item in $inputs {
+        match [((do $op $item) == $test_value) $first_true] {
           [false    _] => {}
           [true false] => {$first_true = true; $res = true;}
           [true  true] => {$res = false;}

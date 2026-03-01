@@ -273,9 +273,9 @@ export def "math prime-list" [n: int] {
 	let primes = [2 3]
 
 	let primes2 = (seq 5 2 $n 
-					| each {|it| 
-						if (math isprime $it) {
-							$it
+					| each {|item| 
+						if (math isprime $item) {
+							$item
 						}
 					}
 				)
@@ -286,8 +286,8 @@ export def "math prime-list" [n: int] {
 #Multiplication table of n till max
 export def "math mtable" [n: int, max: int] {
 	seq 1 $max 
-	| each {|it| 
-		print ($"($it)*($n) = ($n * $it)")
+	| each {|item| 
+		print ($"($item)*($n) = ($n * $item)")
 	}
 }
 
@@ -387,8 +387,8 @@ export def scale-minmax [a, b,input?] {
 	let max = $x | math max
 
 	$x 
-	| each {|it| 
-		(($it - $min) / ($max - $min)) * ($b - $a) + $a
+	| each {|item| 
+		(($item - $min) / ($max - $min)) * ($b - $a) + $a
 	}
 }
 
@@ -401,8 +401,8 @@ export def scale-minmax-table [a, b,input?] {
 	0..($n_cols - 1) | each {|i|
 		($x | column2 $i) | scale-minmax $a $b | wrap ($name_cols | get $i)
 	} 
-	| reduce {|it, acc| 
-		$acc | merge $it
+	| reduce {|item, acc| 
+		$acc | merge $item
 	}
 }
 
@@ -537,8 +537,8 @@ export def "math skew" [x?:number] {
 		} else {
 			$list | wrap data
 		}
-		| update data {|it| 
-			($it.data - $mean) ** 3
+		| update data {|item| 
+			($item.data - $mean) ** 3
 	  	  } 
 		| math sum 
 		| get data
@@ -564,8 +564,8 @@ export def "math kurt" [x?:number] {
 		} else {
 			$list | wrap data
 		}
-		| update data {|it| 
-			($it.data - $mean) ** 4 
+		| update data {|item| 
+			($item.data - $mean) ** 4 
 	  	  } 
 		| math sum 
 		| get data
@@ -662,16 +662,16 @@ export def "math permutations" [
     []
   ] {|element,acc|
     # 1. Calculate permutations of the remaining elements.
-    let remaining = $input | where {|it| $it != $element }
+    let remaining = $input | where {|item| $item != $element }
     let sub_perms = $remaining | iter permutations --optional=($optional)
 
     # 2. For each of those permutations, insert the current element at every possible position.
-    let with_element = ($sub_perms | each {|it|
+    let with_element = ($sub_perms | each {|item|
       # Generate a range of indices from 0 to the length of the permutation
-      let indices = (0..($it | length))
+      let indices = (0..($item | length))
 
       # For each index, insert the current element at that position in the permutation
-      $indices | each {|i| $it | insert $i $element } 
+      $indices | each {|i| $item | insert $i $element } 
     } | flatten) # Flatten the nested list of permutations
 
     # 3. If optional is true, also add each permutation without the current element.
@@ -870,9 +870,9 @@ export def "math solve-linear-system" [
     # --- Create Augmented Matrix [A|b] ---
     # Convert all elements to float for calculations
     mut aug = (
-        $A | enumerate | each {|it|
-            let row_idx = $it.index
-            let row_a = $it.item
+        $A | enumerate | each {|item|
+            let row_idx = $item.index
+            let row_a = $item.item
             let val_b = $b | get $row_idx
             $row_a | append $val_b | each {|val| $val | into float}
         }
@@ -967,7 +967,7 @@ export def "math mix-fraction" [
 
 #scalar product of a list
 export def "math prod-scalar" [list: list, scalar: number] {
-    $list | each {|it| $it * $scalar }
+    $list | each {|item| $item * $scalar }
 }
 
 # Custom command to convert a decimal string to a fraction string

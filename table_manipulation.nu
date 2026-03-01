@@ -145,8 +145,8 @@ export def iselect [] {
     let tgt = $in
     let cols = ($tgt | columns)
 
-    let choices = ($cols | input list -m "Pick columns to get: ")
-    $tgt | select $choices
+    let choices = ($cols | input list -mf "Pick columns to get: ")
+    $tgt | select ...$choices
 }
 
 #default a whole table

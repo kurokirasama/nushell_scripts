@@ -3,10 +3,10 @@ export def nu-sloc [] {
   let stats = (
     ls **/*.nu
     | select name
-    | insert lines { |it|
-        open $it.name
-        | size
-        | get lines
+    | insert lines { |item|
+        open $item.name
+        | lines
+        | length
       }
     | insert blank {|s|
         $s.lines - (open $s.name | lines | find --regex '\S' | length)

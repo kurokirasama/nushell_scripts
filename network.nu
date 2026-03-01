@@ -208,7 +208,7 @@ export def get-devices [] {
   let known_devices = open ($env.MY_ENV_VARS.linux_backup | path join known_devices.csv)
   let known_macs = $known_devices | get mac | str upcase
 
-  let known = $devices | each {|it| $it.mac in $known_macs} | wrap known
+  let known = $devices | each {|item| $item.mac in $known_macs} | wrap known
 
   let devices = $devices | merge $known
 

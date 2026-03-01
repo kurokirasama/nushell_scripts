@@ -252,7 +252,7 @@ let menus = [ {
         source: { |buffer, position|
           scope aliases
           | where name == $buffer
-          | each { |it| {value: $it.expansion }}
+          | each { |item| {value: $item.expansion }}
         }
     },
     # {
@@ -402,7 +402,7 @@ let new_keybinds = [
         mode: emacs
         event: {
           send: executehostcommand,
-          cmd: "cd (ls | where type == dir | each { |it| $it.name | str prepend (ansi -e { fg: '#5555FF' attr: b})} | input list -f (echo-g 'Select dir:'))"
+          cmd: "cd (ls | where type == dir | each { |item| $item.name | str prepend (ansi -e { fg: '#5555FF' attr: b})} | input list -f (echo-g 'Select dir:'))"
         }
     },
     {

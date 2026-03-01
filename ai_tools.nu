@@ -1487,9 +1487,9 @@ export def "ai batch-paper-analyser" [
   }
 
   # 2. Consolidate summaries and store full content
-  let summaries = ls *.md | sort-by name | enumerate | each { |it|
-    let file = $it.item
-    let id = $it.index
+  let summaries = ls *.md | sort-by name | enumerate | each { |item|
+    let file = $item.item
+    let id = $item.index
     print (echo-g $"extracting summary, year, and full content from ($file.name)...")
     let content = open $file.name
     let summary = $content | lines | skip until {|l| $l | str contains "CONSOLIDATED SUMMARY"} | skip 1 | to text

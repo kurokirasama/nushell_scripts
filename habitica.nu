@@ -356,7 +356,7 @@ export def "h complete-todos" [] {
         return
     }
 
-    let selected_indices = $todos | input list -imd text (echo-g "Select todos to complete (use space to multi-select): ")
+    let selected_indices = $todos | input list -ifmd text (echo-g "Select todos to complete (use space to multi-select): ")
     
     let base_url = "https://habitica.com"
 
@@ -396,7 +396,7 @@ export def "h score-habits" [] {
     }
 
     # Prompt the user to select habits to score
-    let selected_indices = $habits | input list -imd text (echo-g "Select habits to score: ")
+    let selected_indices = $habits | input list -ifmd text (echo-g "Select habits to score: ")
     
     let base_url = "https://habitica.com"
     
@@ -686,7 +686,7 @@ export def "h complete-checklist" [
     return
   }
 
-  let selected_checklist_indices = $checklist_items | input list -imd text (echo-g "Select checklist items to complete: ")
+  let selected_checklist_indices = $checklist_items | input list -ifmd text (echo-g "Select checklist items to complete: ")
 
   let base_url = "https://habitica.com"
 

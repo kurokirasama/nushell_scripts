@@ -46,8 +46,8 @@ export def "ydx last" [] {
   | str trim 
   | lines 
   | str trim 
-  | each {|it| 
-      $it 
+  | each {|item| 
+      $item 
       | split row "file: " 
       | last 
       | str replace -a "'" ""
