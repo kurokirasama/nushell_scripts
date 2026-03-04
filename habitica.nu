@@ -50,10 +50,47 @@ export def "h stats" [--show-avatar(-s)] {
     }
 }
 
+const task_types_map = {
+    daily: "dailys",
+    todo: "todos",
+    habit: "habits",
+    reward: "rewards",
+    dailys: "dailys",
+    todos: "todos",
+    habits: "habits",
+    rewards: "rewards",
+    completedTodos: "completedTodos"
+}
+
+const task_types_map_rev = {
+    dailys: "daily",
+    todos: "todo",
+    habits: "habit",
+    rewards: "reward",
+    daily: "daily",
+    todo: "todo",
+    habit: "habit",
+    reward: "reward"
+}
+
+# Normalizes task type input (e.g., "daily" -> "dailys")
+export def normalize-task-type [task_type?: string] {
+    let input = if ($task_type | is-not-empty) { $task_type } else { $in }
+    $task_types_map | get -o $input | default $input
+}
+
+# Denormalizes task type input (e.g., "dailys" -> "daily")
+export def denormalize-task-type [task_type?: string] {
+    let input = if ($task_type | is-not-empty) { $task_type } else { $in }
+    $task_types_map_rev | get -o $input | default $input
+}
+
 const types = ["dailys", "todos", "habits", "rewards", "completedTodos"]
+const add_types = ["daily", "todo", "habit"]
+const all_task_types = ["daily", "todo", "habit", "dailys", "todos", "habits", "rewards", "completedTodos"]
 # Lists user tasks
 export def "h ls" [
-  task_type?: string@$types # Type of task to list (dailys, todos, habits, rewards, completedTodos)
+  task_type?: string@$all_task_types # Type of task to list (dailys, todos, habits, rewards, completedTodos)
   --pending(-p) #show pending dailys only
   --now(-n)   #show todays dailys only
   --no-id(-i) #hide task ids
@@ -65,7 +102,7 @@ export def "h ls" [
     $types
     | input list -f (echo-g "Select task type: ")
   } else {
-    $task_type
+    $task_type | normalize-task-type
   }
 
   if ($task_type not-in $types) {
@@ -105,7 +142,7 @@ export def "h ls" [
     }
     "habits" => {
       $response
-      | select _id frequency text notes checklist tags up down createdAt
+      | select _id frequency text notes tags up down createdAt
       | sort-by createdAt
     }
     "rewards" => {
@@ -143,7 +180,13 @@ export def "h complete-daily" [
     path: $"/api/v3/tasks/($task_id)/score/up"
   } | url join
 
-  http post --content-type application/json $url -H $headers {}
+  let response = http post --content-type application/json $url -H $headers {}
+
+  if ($response.success == true) {
+    print (echo-g $"Successfully completed task ID: ($task_id)")
+  } else {
+    print (echo-r $"Failed to complete task: ($response.message)")
+  }
 }
 
 # Marks all due and incomplete daily tasks as complete
@@ -178,10 +221,12 @@ export def "h mark-dailys-done" [--verbose(-v)] {
   }
 }
 
-const add_types = ["daily", "todo", "habit"]
 # Adds a new task (daily or todo)
 export def "h add" [
-  task_type?: string@$add_types # Type of task to add (daily, todo, habit)
+  task_type?: string@$all_task_types # Type of task to add (daily, todo, habit)
+  --text(-t): string # Task text
+  --notes(-n): string # Task notes
+  --priority(-p): number # Task priority (1, 1.5, 2, 2.5)
 ] {
   let headers = h credentials
   
@@ -189,10 +234,10 @@ export def "h add" [
     $add_types
     | input list -f (echo-g "Select task type: ")
   } else {
-    $task_type
+    $task_type | normalize-task-type
   }
 
-  if ($task_type not-in $add_types) {
+  if ($task_type not-in ["dailys", "todos", "habits"]) {
     return-error "Invalid task type. Must be 'daily', 'todo', or 'habit'."
   }
 
@@ -204,25 +249,30 @@ export def "h add" [
     path: "/api/v3/tasks/user"
   } | url join
 
-  let task_text = (input "Enter task text (required): ")
+  let task_text = if ($text != null) { $text } else { (input "Enter task text (required): ") }
   if ($task_text | is-empty) {
     return-error "Task text is required."
   }
 
-  let task_notes = (input "Enter notes (optional): ")
-  let task_priority_options = ["Trivial (1)", "Easy (1.5)", "Medium (2)", "Hard (2.5)"]
-  let task_priority_input = ($task_priority_options | input list -f (echo-g "Select priority (optional): "))
-  let task_priority = match $task_priority_input {
-    "Trivial (1)" => 1.0,
-    "Easy (1.5)" => 1.5,
-    "Medium (2)" => 2.0,
-    "Hard (2.5)" => 2.5,
-    _ => null
+  let task_notes = if ($notes != null) { $notes } else { (input "Enter notes (optional): ") }
+  
+  let task_priority = if ($priority | is-not-empty) {
+    $priority
+  } else {
+    let task_priority_options = ["Trivial (1)", "Easy (1.5)", "Medium (2)", "Hard (2.5)"]
+    let task_priority_input = ($task_priority_options | input list -f (echo-g "Select priority (optional): "))
+    match $task_priority_input {
+        "Trivial (1)" => 1.0,
+        "Easy (1.5)" => 1.5,
+        "Medium (2)" => 2.0,
+        "Hard (2.5)" => 2.5,
+        _ => null
+    }
   }
 
   mut payload = {
     text: $task_text,
-    type: $task_type,
+    type: ($task_type | denormalize-task-type),
   }
 
   if ($task_notes | is-not-empty) {
@@ -303,7 +353,8 @@ export def "h add" [
 
 # Deletes a task (daily, todo, habit)
 export def "h del" [
-  task_type?: string@$add_types # Type of task to delete (dailys, todos, habits)
+  task_type?: string@$all_task_types # Type of task to delete (dailys, todos, habits)
+  --id: string # Task ID to delete
 ] {
   let headers = h credentials
   
@@ -311,22 +362,26 @@ export def "h del" [
     $add_types
     | input list -f (echo-g "Select task type to delete: ")
   } else {
-    $task_type
+    $task_type | normalize-task-type
   }
 
-  if ($task_type not-in $add_types) {
+  if ($task_type not-in ["dailys", "todos", "habits"]) {
     return-error "Invalid task type for deletion. Must be 'dailys', 'todos', or 'habits'."
   }
 
-  let tasks = h ls $task_type | reverse
+  let task_to_delete = if ($id | is-not-empty) {
+    { _id: $id }
+  } else {
+    let tasks = h ls $task_type | reverse
 
-  if ($tasks | is-empty) {
-    print (echo-r $"No ($task_type) tasks found to delete.")
-    return
+    if ($tasks | is-empty) {
+        print (echo-r $"No ($task_type) tasks found to delete.")
+        return
+    }
+
+    let idx_task_to_delete = $tasks | input list -fid text (echo-g "Select task to delete: ")
+    $tasks | get $idx_task_to_delete
   }
-
-  let idx_task_to_delete = $tasks | input list -fid text (echo-g "Select task to delete: ")
-  let task_to_delete = $tasks | get $idx_task_to_delete
   
   let base_url = "https://habitica.com"
 
@@ -339,7 +394,8 @@ export def "h del" [
   let response = http delete $url -H $headers
 
   if ($response.success == true) {
-    print (echo-g $"Successfully deleted ($task_type) task: ($task_to_delete.text)")
+    let task_text = $task_to_delete.text? | default $task_to_delete._id
+    print (echo-g $"Successfully deleted ($task_type) task: ($task_text)")
   } else {
     print (echo-r $"Failed to delete ($task_type) task: ($response.message)")
   }
@@ -654,7 +710,7 @@ export def "h buy-armoir" [] {
 
 # Completes a checklist item for a task
 export def "h complete-checklist" [
-  task_type?: string@$add_types # Type of task to complete checklist for (dailys, todos, habits)
+  task_type?: string@$all_task_types # Type of task to complete checklist for (dailys, todos, habits)
 ] {
   let headers = h credentials
   
@@ -662,10 +718,10 @@ export def "h complete-checklist" [
     $add_types
     | input list -f (echo-g "Select task type: ")
   } else {
-    $task_type
+    $task_type | normalize-task-type
   }
 
-  if ($task_type not-in $add_types) {
+  if ($task_type not-in ["dailys", "todos", "habits"]) {
     return-error "Invalid task type. Must be 'dailys', 'todos', or 'habits'."
   }
 
@@ -714,7 +770,7 @@ export def "h complete-checklist" [
 
 # Adds a checklist item to a task
 export def "h add-checklist" [
-  task_type?: string@$add_types # Type of task to add checklist item to (dailys, todos, habits)
+  task_type?: string@$all_task_types # Type of task to add checklist item to (dailys, todos, habits)
 ] {
   let headers = h credentials
   
@@ -722,10 +778,10 @@ export def "h add-checklist" [
     $add_types
     | input list -f (echo-g "Select task type: ")
   } else {
-    $task_type
+    $task_type | normalize-task-type
   }
 
-  if ($task_type not-in $add_types) {
+  if ($task_type not-in ["dailys", "todos", "habits"]) {
     return-error "Invalid task type. Must be 'dailys', 'todos', or 'habits'."
   }
 
@@ -822,6 +878,48 @@ export def "h auto-quest" [] {
     } else {
         print "No pending quests to accept."
     }
+}
+
+# Show help for Habitica commands
+export def "h help" [] {
+  let commands_description = [
+    { name: "h add", description: "Adds a new task (daily, todo, habit)" },
+    { name: "h add-checklist", description: "Adds a checklist item to a task" },
+    { name: "h auto-quest", description: "Accepts a pending quest" },
+    { name: "h buy-armoir", description: "Buys an item from the armoire" },
+    { name: "h buy-potion", description: "Buys a health potion" },
+    { name: "h complete-checklist", description: "Completes a checklist item for a task" },
+    { name: "h complete-daily", description: "Completes a daily task" },
+    { name: "h complete-todos", description: "Marks selected todo tasks as completed" },
+    { name: "h credentials", description: "Get credentials" },
+    { name: "h del", description: "Deletes a task (daily, todo, habit)" },
+    { name: "h help", description: "Show this help message" },
+    { name: "h login", description: "Logs in to Habitica and runs cron" },
+    { name: "h ls", description: "Lists user tasks" },
+    { name: "h mark-dailys-done", description: "Marks all due and incomplete daily tasks as complete" },
+    { name: "h party", description: "Party info" },
+    { name: "h score-habits", description: "Score habits" },
+    { name: "h skill", description: "Casts a skill" },
+    { name: "h skill-max", description: "Casts a skill multiple times" },
+    { name: "h skills", description: "Lists skills" },
+    { name: "h stats", description: "Gets user stats" },
+  ] | sort-by name
+
+  # Calculate the maximum length of the command names for padding
+  let max_name_length = ($commands_description | get name | str length | math max)
+
+  # Format the help text with padding and descriptions
+  let help_text = $commands_description
+    | each {|cmd|
+        # Pad the command name to align descriptions
+        let padded_name = ($cmd.name | fill -w ($max_name_length + 2) -a left)
+        # Format the line: "command_name    # description"
+        $"($padded_name)  # ($cmd.description)"
+      }
+    | prepend "Habitica Tools Help:\n" # Add a header
+
+  # Print the formatted help text with syntax highlighting
+  print ($help_text | str join "\n" | nu-highlight)
 }
 
 #aliases

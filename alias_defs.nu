@@ -190,7 +190,7 @@ export def --wrapped gmn [
   match $profile { 
     "minimal" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
     "webui" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,gemini-cli-security,gemini-docs-ext" ...$rest},
-    "research" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,datacommons" ...$rest},
+    "research" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,datacommons,gemini-deep-research" ...$rest},
     "googlesuit" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,datacommons,gemini-docs-ext" ...$rest},
     "imagen" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,nanobanana" ...$rest},
     "no-mcp" => {gemini --approval-mode=yolo --extensions "conductor" ...$rest},

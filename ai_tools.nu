@@ -37,6 +37,7 @@ export def "ai help" [] {
     { name: "askaimage", description: "Fast call wrapper for DALL-E, Stable Diffusion, and Google image models" },
     { name: "tts", description: "Fast call to text-to-speech wrappers with defaults" },
     { name: "ai gcal", description: "Interact with Google Calendar using natural language via AI" },
+    { name: "ai habitica", description: "Interact with Habitica using natural language via AI" },
     { name: "g", description: "Alias for 'ai gcal -G' (uses Gemini)" },
     { name: "ai trans", description: "AI translation via GPT, Gemini, or Ollama APIs" },
     { name: "get-deepl-lang-code", description: "Helper function to get DeepL language code from common language names" },
@@ -1061,6 +1062,99 @@ export def "ai gcal" [
 
 #alias for ai gcal with gemini
 export alias g = ai gcal -G
+
+# Interact with Habitica using natural language via AI
+@category ai
+@search-terms habitica task todo daily
+export def "ai habitica" [
+  ...request:string #query to habitica
+  --gpt(-g)        #uses gpt-5
+  --gemini(-G)      #uses gemini-3.0
+  --ollama(-o)      #use ollama
+  --ollama_model(-m):string #ollama model to use
+  --paid(-P)        #use paid gemini
+] {
+  let request = get-input $in $request | str join " "
+  let date_now = date now | format date "%Y.%m.%d"
+  let prompt =  $request + ".\nPor favor considerar que la fecha de hoy es " + $date_now
+
+  #get data to make query to habitica
+  let habitica_query = (
+    if $ollama {
+      o_llama $prompt -t 0.2 --select_system habitica_assistant --select_preprompt nl2habitica -d true -m $ollama_model
+    } else if $gpt {
+      chat_gpt $prompt -t 0.2 --select_system habitica_assistant --select_preprompt nl2habitica -d -m gpt-5
+    } else if $gemini {
+      google_ai $prompt -t 0.2 --select_system habitica_assistant --select_preprompt nl2habitica -d true -m $gemini_model_to_use -P $paid
+    } else {
+      chat_gpt $prompt -t 0.2 --select_system habitica_assistant --select_preprompt nl2habitica -d
+    }
+    | remove-code-blocks | from json
+  )
+
+  let method = $habitica_query | get method 
+  let params = $habitica_query | get params
+
+  # Commands that return data and need translation
+  let data_commands = ["h stats", "h ls", "h skills", "h party"]
+  
+  # Commands that are interactive or just actions
+  let action_commands = ["h add", "h del", "h complete-daily", "h mark-dailys-done", "h complete-todos", "h score-habits", "h skill", "h skill-max", "h login", "h buy-potion", "h buy-armoir", "h complete-checklist", "h add-checklist", "h auto-quest"]
+
+  if ($method in $data_commands) {
+    let habitica_info = (
+        match $method {
+            "h stats" => { h stats | table -e | str join (char newline) },
+            "h ls" => { h ls ($params.type? | default "dailys") | table -e | str join (char newline) },
+            "h skills" => { h skills | table -e | str join (char newline) },
+            "h party" => { h party | table -e | str join (char newline) },
+            _ => { return-error "Unexpected data command" }
+        }
+    )
+
+    let habitica2nl_prompt = "'''\n" + $habitica_info + "\n'''\n===\n" + $prompt + "\n==="
+
+    let habitica_response = (
+      if $ollama {
+        o_llama $habitica2nl_prompt -t 0.2 --select_system habitica_translator --select_preprompt habitica2nl -d true -m $ollama_model
+      } else if $gpt {
+        chat_gpt $habitica2nl_prompt -t 0.2 --select_system habitica_translator --select_preprompt habitica2nl -m gpt-5
+      } else if $gemini {
+        google_ai $habitica2nl_prompt -t 0.2 --select_system habitica_translator --select_preprompt habitica2nl -d false -m $gemini_model_to_use -P $paid
+      } else {
+        chat_gpt $habitica2nl_prompt -t 0.2 --select_system habitica_translator --select_preprompt habitica2nl
+      }
+    )
+
+    return $habitica_response
+  } else if ($method in $action_commands) {
+    match $method {
+        "h add" => { 
+            let priority = if ($params.priority? | is-not-empty) { $params.priority | into string | into float } else { 1.0 }
+            let text = $params.text? | default ""
+            let notes = $params.notes? | default ""
+            h add ($params.type? | default "todo") --text $text --notes $notes --priority $priority
+        },
+        "h del" => { h del ($params.type? | default "todo") --id $params.id? },
+        "h complete-daily" => { h complete-daily $params.id },
+        "h mark-dailys-done" => { h mark-dailys-done },
+        "h complete-todos" => { h complete-todos },
+        "h score-habits" => { h score-habits },
+        "h skill" => { h skill $params.name? },
+        "h skill-max" => { h skill-max $params.name? },
+        "h login" => { h login },
+        "h buy-potion" => { h buy-potion },
+        "h buy-armoir" => { h buy-armoir },
+        "h complete-checklist" => { h complete-checklist ($params.type? | default "todo") },
+        "h add-checklist" => { h add-checklist ($params.type? | default "todo") },
+        "h auto-quest" => { h auto-quest },
+        _ => { return-error "Unexpected action command" }
+    }
+  } else {
+    return-error "Unknown method returned by AI"
+  }
+}
+
 
 #ai translation via gpt or gemini apis
 @category ai
