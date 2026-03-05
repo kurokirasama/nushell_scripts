@@ -1,3 +1,5 @@
+use files.nu *
+
 #short help
 export def ? [...search,--find(-f)] {
   let search = $search | str join " "
@@ -428,7 +430,7 @@ export def um [
       | path parse
       | get stem
       | input list -f (echo-g "Select drive to umount: ")
-      | str prepend "~/rclone/"
+      | each { |it| $"~/rclone/($it)" }
       | path expand
     } else {
       ("~/rclone/" + $drive) | path expand
@@ -453,7 +455,7 @@ export def rmount [drive?:string] {
       | str replace ":" "" 
       | str trim 
       | input list -f (echo-g "Select drive to umount: ")
-      | str prepend "~/rclone/"
+      | each { |it| $"~/rclone/($it)" }
     } else {
       "~/rclone/" + $drive
     }
@@ -533,19 +535,41 @@ export def autouse-file [] {
 #list bluetooth devices and connect
 export def cblue [] {
   let os_version = sys host | get os_version
-  let devices = if $os_version == "20.04" {
+  let devices_raw = if $os_version == "20.04" {
     ^bluetoothctl paired-devices
   } else {
     ^bluetoothctl devices
-  } | parse "Device {mac} {name}"
+  }
 
-  let connected = ^bluetoothctl info | lines | first | parse "{Device} {mac} {public}" | get mac.0
+  if ($devices_raw | is-empty) {
+    print (echo-r "No bluetooth devices found.")
+    return
+  }
+
+  let devices = $devices_raw | parse "Device {mac} {name}"
+
+  # Find currently connected device MAC
+  # We look for a device that has 'Connected: yes' in its info
+  let connected_mac = $devices | each { |it|
+    let is_connected = (^bluetoothctl info $it.mac | lines | find "Connected: yes" | is-not-empty)
+    if $is_connected { $it.mac } else { null }
+  } | reduce --fold null { |it acc| if ($it != null) { $it } else { $acc } }
+
   let chosen_name = $devices | get name | input list -f (echo-g "Select device: ")
+  if ($chosen_name | is-empty) {
+    return
+  }
+
   let chosen = $devices | where name == $chosen_name | get mac.0
   
-  if $chosen == $connected {
+  if $chosen == $connected_mac {
+    print (echo-y $"Disconnecting from ($chosen_name)...")
     ^bluetoothctl disconnect $chosen
   } else {
+    # If another device is connected, disconnect it first? 
+    # bluetoothctl usually allows multiple but some devices/profiles don't.
+    # For now just connect to the chosen one.
+    print (echo-y $"Connecting to ($chosen_name)...")
     ^bluetoothctl connect $chosen
   }
 }

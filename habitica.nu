@@ -50,47 +50,12 @@ export def "h stats" [--show-avatar(-s)] {
     }
 }
 
-const task_types_map = {
-    daily: "dailys",
-    todo: "todos",
-    habit: "habits",
-    reward: "rewards",
-    dailys: "dailys",
-    todos: "todos",
-    habits: "habits",
-    rewards: "rewards",
-    completedTodos: "completedTodos"
-}
-
-const task_types_map_rev = {
-    dailys: "daily",
-    todos: "todo",
-    habits: "habit",
-    rewards: "reward",
-    daily: "daily",
-    todo: "todo",
-    habit: "habit",
-    reward: "reward"
-}
-
-# Normalizes task type input (e.g., "daily" -> "dailys")
-export def normalize-task-type [task_type?: string] {
-    let input = if ($task_type | is-not-empty) { $task_type } else { $in }
-    $task_types_map | get -o $input | default $input
-}
-
-# Denormalizes task type input (e.g., "dailys" -> "daily")
-export def denormalize-task-type [task_type?: string] {
-    let input = if ($task_type | is-not-empty) { $task_type } else { $in }
-    $task_types_map_rev | get -o $input | default $input
-}
-
 const types = ["dailys", "todos", "habits", "rewards", "completedTodos"]
-const add_types = ["daily", "todo", "habit"]
-const all_task_types = ["daily", "todo", "habit", "dailys", "todos", "habits", "rewards", "completedTodos"]
+const add_types = ["dailys", "todos", "habits"]
+
 # Lists user tasks
 export def "h ls" [
-  task_type?: string@$all_task_types # Type of task to list (dailys, todos, habits, rewards, completedTodos)
+  task_type?: string@$types # Type of task to list (dailys, todos, habits, rewards, completedTodos)
   --pending(-p) #show pending dailys only
   --now(-n)   #show todays dailys only
   --no-id(-i) #hide task ids
@@ -102,7 +67,7 @@ export def "h ls" [
     $types
     | input list -f (echo-g "Select task type: ")
   } else {
-    $task_type | normalize-task-type
+    $task_type
   }
 
   if ($task_type not-in $types) {
@@ -223,7 +188,7 @@ export def "h mark-dailys-done" [--verbose(-v)] {
 
 # Adds a new task (daily or todo)
 export def "h add" [
-  task_type?: string@$all_task_types # Type of task to add (daily, todo, habit)
+  task_type?: string@$add_types # Type of task to add (dailys, todos, habits)
   --text(-t): string # Task text
   --notes(-n): string # Task notes
   --priority(-p): number # Task priority (1, 1.5, 2, 2.5)
@@ -234,11 +199,11 @@ export def "h add" [
     $add_types
     | input list -f (echo-g "Select task type: ")
   } else {
-    $task_type | normalize-task-type
+    $task_type
   }
 
   if ($task_type not-in ["dailys", "todos", "habits"]) {
-    return-error "Invalid task type. Must be 'daily', 'todo', or 'habit'."
+    return-error "Invalid task type. Must be 'dailys', 'todos', or 'habits'."
   }
 
   let base_url = "https://habitica.com"
@@ -270,9 +235,16 @@ export def "h add" [
     }
   }
 
+  let task_singular = match $task_type {
+    "dailys" => "daily",
+    "todos" => "todo",
+    "habits" => "habit",
+    _ => $task_type
+  }
+
   mut payload = {
     text: $task_text,
-    type: ($task_type | denormalize-task-type),
+    type: $task_singular,
   }
 
   if ($task_notes | is-not-empty) {
@@ -283,7 +255,7 @@ export def "h add" [
   }
 
   match $task_type {
-    "todo" => {
+    "todos" => {
       let task_date = (input "Enter due date (YYYY-MM-DD, optional): ")
       if ($task_date | is-not-empty) {
         # Convert to ISO 8601 format
@@ -303,7 +275,7 @@ export def "h add" [
         $payload = ($payload | upsert checklist $checklist)
       }
     }
-    "daily" => {
+    "dailys" => {
       let frequency_options = ["daily", "weekly", "monthly", "yearly"]
       let task_frequency = ($frequency_options | input list -f (echo-g "Select frequency (required): "))
       if ($task_frequency | is-empty) {
@@ -330,7 +302,7 @@ export def "h add" [
         $payload = ($payload | upsert repeats $repeats)
       }
     }
-    "habit" => {
+    "habits" => {
       let direction_options = ["positive", "negative", "both"]
       let task_direction = ($direction_options | input list -f (echo-g "Select direction (required): "))
       $payload = match $task_direction {
@@ -353,7 +325,7 @@ export def "h add" [
 
 # Deletes a task (daily, todo, habit)
 export def "h del" [
-  task_type?: string@$all_task_types # Type of task to delete (dailys, todos, habits)
+  task_type?: string@$add_types # Type of task to delete (dailys, todos, habits)
   --id: string # Task ID to delete
 ] {
   let headers = h credentials
@@ -362,7 +334,7 @@ export def "h del" [
     $add_types
     | input list -f (echo-g "Select task type to delete: ")
   } else {
-    $task_type | normalize-task-type
+    $task_type
   }
 
   if ($task_type not-in ["dailys", "todos", "habits"]) {
@@ -710,7 +682,7 @@ export def "h buy-armoir" [] {
 
 # Completes a checklist item for a task
 export def "h complete-checklist" [
-  task_type?: string@$all_task_types # Type of task to complete checklist for (dailys, todos, habits)
+  task_type?: string@$add_types # Type of task to complete checklist for (dailys, todos, habits)
 ] {
   let headers = h credentials
   
@@ -718,7 +690,7 @@ export def "h complete-checklist" [
     $add_types
     | input list -f (echo-g "Select task type: ")
   } else {
-    $task_type | normalize-task-type
+    $task_type
   }
 
   if ($task_type not-in ["dailys", "todos", "habits"]) {
@@ -770,7 +742,7 @@ export def "h complete-checklist" [
 
 # Adds a checklist item to a task
 export def "h add-checklist" [
-  task_type?: string@$all_task_types # Type of task to add checklist item to (dailys, todos, habits)
+  task_type?: string@$add_types # Type of task to add checklist item to (dailys, todos, habits)
 ] {
   let headers = h credentials
   
@@ -778,7 +750,7 @@ export def "h add-checklist" [
     $add_types
     | input list -f (echo-g "Select task type: ")
   } else {
-    $task_type | normalize-task-type
+    $task_type
   }
 
   if ($task_type not-in ["dailys", "todos", "habits"]) {

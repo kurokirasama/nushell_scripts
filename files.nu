@@ -1,3 +1,5 @@
+use string_manipulation.nu *
+
 ######################################################
 # here because they are needed in this file
 ######################################################
@@ -15,6 +17,11 @@ export def echo-g [text:string] {
 #red echo
 export def echo-r [text:string] {
   echo $"(ansi -e { fg: '#ff0000' attr: b })($text)(ansi reset)"
+}
+
+#yellow echo
+export def echo-y [text:string] {
+  echo $"(ansi -e { fg: '#ffff00' attr: b })($text)(ansi reset)"
 }
 
 #custom color echo

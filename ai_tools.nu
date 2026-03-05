@@ -1133,9 +1133,9 @@ export def "ai habitica" [
             let priority = if ($params.priority? | is-not-empty) { $params.priority | into string | into float } else { 1.0 }
             let text = $params.text? | default ""
             let notes = $params.notes? | default ""
-            h add ($params.type? | default "todo") --text $text --notes $notes --priority $priority
+            h add ($params.type? | default "todos") --text $text --notes $notes --priority $priority
         },
-        "h del" => { h del ($params.type? | default "todo") --id $params.id? },
+        "h del" => { h del ($params.type? | default "todos") --id $params.id? },
         "h complete-daily" => { h complete-daily $params.id },
         "h mark-dailys-done" => { h mark-dailys-done },
         "h complete-todos" => { h complete-todos },
@@ -1145,8 +1145,8 @@ export def "ai habitica" [
         "h login" => { h login },
         "h buy-potion" => { h buy-potion },
         "h buy-armoir" => { h buy-armoir },
-        "h complete-checklist" => { h complete-checklist ($params.type? | default "todo") },
-        "h add-checklist" => { h add-checklist ($params.type? | default "todo") },
+        "h complete-checklist" => { h complete-checklist ($params.type? | default "todos") },
+        "h add-checklist" => { h add-checklist ($params.type? | default "todos") },
         "h auto-quest" => { h auto-quest },
         _ => { return-error "Unexpected action command" }
     }
