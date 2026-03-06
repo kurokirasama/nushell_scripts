@@ -134,6 +134,7 @@ export def "h ls" [
 # Completes a daily task
 export def "h complete-daily" [
   task_id: string # The ID of the daily task to complete
+  --verbose(-v)
 ] {
   let headers = h credentials
 
@@ -147,11 +148,12 @@ export def "h complete-daily" [
 
   let response = http post --content-type application/json $url -H $headers {}
 
-  if ($response.success == true) {
-    print (echo-g $"Successfully completed task ID: ($task_id)")
-  } else {
-    print (echo-r $"Failed to complete task: ($response.message)")
+  if ($response.success != true) {
+  	return-error $"Failed to complete task: ($response.message)"
   }
+  if ($verbose) {
+    print (echo-g $"Successfully completed task ID: ($task_id)")
+  } 
 }
 
 # Marks all due and incomplete daily tasks as complete

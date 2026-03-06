@@ -1155,6 +1155,8 @@ export def "ai habitica" [
   }
 }
 
+#alias for ai habitica with gemini
+export alias g = ai habitica -G
 
 #ai translation via gpt or gemini apis
 @category ai
