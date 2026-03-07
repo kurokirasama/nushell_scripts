@@ -42,7 +42,7 @@ export def indexify [
 export def uniq-by [
   column: string  #the column to scan for duplicate values
 ] {
-  reduce { |item, acc|
+  reduce --fold [] { |item, acc|
     if ($acc | any { |storedItem|
       ($storedItem | get $column) == ($item | get $column)
     }) {
