@@ -1,26 +1,28 @@
-const last_gemini_model = "gemini-3-pro"
+const last_gemini_model = "gemini-3.1-pro-preview"
 const gemini_models = [
-  "gemini-3-pro" 
-  "gemini-3-flash"
-  "gemini-2.5-pro" 
-  "gemini-2.5-flash" 
+  "gemini-3.1-pro-preview"
+  "gemini-3.1-flash-lite-preview"
+  "gemini-3-flash-preview"
+  "gemini-2.5-pro"
+  "gemini-2.5-flash"
   "gemini-2.5-flash-lite"
-  "gemini-2.0-flash" 
-  "gemini-2.0-flash-lite" 
+  "gemini-2.0-flash"
+  "gemini-2.0-flash-lite"
   "gemini-pro-vision"
 ]	
 
 #single call to google ai LLM api wrapper and chat mode
 #
 #Available models at https://ai.google.dev/models:
-# - gemini-3-pro: Reasoning-first, complex agentic workflows, coding, 1M context
-# - gemini-3-flash: Built for speed, agentic coding, visual & spatial reasoning
-# - gemini-2.5-pro: High-capability, complex reasoning, coding, multimodal, 1M context
-# - gemini-2.5-flash: Fast, capable, balances intelligence and latency
-# - gemini-2.5-flash-lite: Optimized for efficiency and cost-performance
-# - gemini-2.0-flash: Multimodal, cost-effective, general-purpose
-# - gemini-2.0-flash-lite: Streamlined, ultra-efficient
-# - gemini-pro-vision: Placeholder for use images as input, uses gemini-3-flash
+# - gemini-3.1-pro-preview: High-capability, complex reasoning, agentic coding, 1M context
+# - gemini-3.1-flash-lite-preview: Fast, cost-efficient model for high-volume tasks
+# - gemini-3-flash-preview: Built for speed, visual & spatial reasoning
+# - gemini-2.5-pro: High-capability, complex reasoning, multimodal (Stable until June 2026)
+# - gemini-2.5-flash: Fast, capable, balances intelligence and latency (Stable until June 2026)
+# - gemini-2.5-flash-lite: Optimized for efficiency and cost-performance (Stable until June 2026)
+# - gemini-2.0-flash: Multimodal, general-purpose (Stable until June 2026)
+# - gemini-2.0-flash-lite: Streamlined, ultra-efficient (Stable until June 2026)
+# - gemini-pro-vision: Placeholder for image input, uses gemini-3-flash-preview
 # - text-embedding-004: Text embedding model
 # - aqa: Retrieval
 #
@@ -52,7 +54,7 @@ const gemini_models = [
 @search-terms gemini
 export def google_ai [
     query?: string                          # the query to Gemini
-    --model(-m):string@$gemini_models = "gemini-2.5-flash" # the model gemini-1.5-flash, gemini-pro-vision, gemini-2.0, etc
+    --model(-m):string@$gemini_models = "gemini-3-flash-preview" # the model gemini-3-flash-preview, gemini-pro-vision, gemini-2.0, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9             # the temperature of the model
     --image(-i):any                     # filepath of image file (or list of files) for gemini-pro-vision
@@ -112,17 +114,20 @@ export def google_ai [
   let for_bison_gen = if ($model like "bison") {":generateText"} else {":generateContent"}
 
   let max_output_tokens = match $model {
+    $m if ($m =~ "gemini-3.1") => 64000
     $m if ($m =~ "gemini-3") => 64000
     $m if ($m =~ "gemini-2.5") => 65536
     _ => 8192
   }
 
   let input_model = $model
-  let model = if $model == "gemini-pro-vision" {"gemini-3-flash"} else {$model}
-  let model = if $model == "gemini-1.5" {"gemini-1.5-flash"} else {$model}
-  let model = if $model == "gemini-2.0" {"gemini-2.0-flash"} else {$model}
-  let model = if $model == "gemini-2.5" {"gemini-2.5-flash"} else {$model}
-  let model = if $model == "gemini-3.0" {$last_gemini_model} else {$model}  
+  let model = match $model {
+    "gemini-pro-vision" => "gemini-3-flash-preview"
+    "gemini-2.0" => "gemini-2.0-flash"
+    "gemini-2.5" => "gemini-2.5-flash"
+    "gemini-3.0" | "gemini-3" => $last_gemini_model
+    _ => $model
+  }  
 
   let url_request = {
       scheme: "https",

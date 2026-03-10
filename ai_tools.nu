@@ -1,4 +1,4 @@
-const gemini_model_to_use = "gemini-3.0"
+const gemini_model_to_use = "gemini-3.1-pro-preview"
 
 #ai tools
 export def "ai help" [] {
@@ -129,7 +129,7 @@ export def askai [
   --vision(-v)            # use gpt-4-vision/gemini-pro-vision
   --image(-i):string      # filepath of the image to prompt to vision models
   --fast(-f)   #get prompt from prompt.md file and save response to answer.md
-  --gemini(-G) #use google gemini-3.0 instead of chatgpt. 
+  --gemini(-G) #use google gemini-3.1 instead of chatgpt. 
   --paid       #use the billing account for gemini
   --bison(-b)  #use google bison instead of chatgpt (needs --gemini)
   --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt
@@ -369,7 +369,7 @@ export alias ochat = askai -con 2
 @search-terms git chatgpt gemini claude
 export def "ai git-push" [
   --gpt(-g)   #use gpt-5 instead of gpt-5-mini
-  --gemini(-G) #use google gemini-3.0 model
+  --gemini(-G) #use google gemini-3.1 model
   --claude(-C) #use antropic claude-sonnet-4-5
   --review(-r) #review and edit the commit message before pushing
   --paid(-P)   #use paid gemini
@@ -548,7 +548,7 @@ export def "ai media-summary" [
   file:string            # video, audio or subtitle file (vtt, srt, txt, url) file name with extension
   --lang(-l):string = "Spanish" # language of the summary
   --gpt(-g)             # to use gpt-5 instead of gpt-5-mini
-  --gemini(-G)           # use google gemini-3.0 instead of gpt
+  --gemini(-G)           # use google gemini-3.1 instead of gpt
   --claude(-C)           # use anthropic claude
   --ollama(-o)           # use ollama
   --ollama_model(-m):string #ollama model to use
@@ -690,7 +690,7 @@ export def "ai transcription-summary" [
   output                #output name without extension
   --complete(-c):string #use complete preprompt with input file as the incomplete summary
   --gpt(-g) = false     #whether to use gpt-5
-  --gemini(-G) = false  #use google gemini-3.0
+  --gemini(-G) = false  #use google gemini-3.1
   --claude(-C) = false  #use anthropic claide
   --ollama(-o) = false  #use ollama
   --ollama_model(-m):string #ollama model to use
@@ -980,7 +980,7 @@ export def tts [
 export def "ai gcal" [
   ...request:string #query to gcal
   --gpt(-g)        #uses gpt-5
-  --gemini(-G)      #uses gemini-3.0
+  --gemini(-G)      #uses gemini-3.1
   --ollama(-o)      #use ollama
   --ollama_model(-m):string #ollama model to use
   --paid(-P)        #use paid gemini
@@ -1069,7 +1069,7 @@ export alias g = ai gcal -G
 export def "ai habitica" [
   ...request:string #query to habitica
   --gpt(-g)        #uses gpt-5
-  --gemini(-G)      #uses gemini-3.0
+  --gemini(-G)      #uses gemini-3.1
   --ollama(-o)      #use ollama
   --ollama_model(-m):string #ollama model to use
   --paid(-P)        #use paid gemini
@@ -1783,7 +1783,7 @@ export def "ai clean-text" [
 @search-terms chatgpt gemini ollama
 export def "ai analyze_religious_text" [
   data?        #file record with name field or plain text
-  --gpt(-g)   #use gpt-5 to consolidate the debunk instead of gemini-3.0
+  --gpt(-g)   #use gpt-5 to consolidate the debunk instead of gemini-3.1
   --ollama(-o) #usa ollama model
   --ollama_model(-m):string #ollama model to use
   --web-results(-w) #use web search results as input for the refutations

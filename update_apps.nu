@@ -982,6 +982,7 @@ export def "apps-update rclone" [] {
 #update matlab lsp server
 export def "apps-update matlab-lsp" [] {
   cd ~/software/MATLAB-language-server
+  git reset --hard
   git pull 
   npm install
   npm run compile
