@@ -69,7 +69,7 @@ export def google_ai [
     --web_search(-w) = false #include $web_results web search results in the prompt
     --web_results(-n):int = 5     #number of web results to include
     --web_engine:string = "google" #how to get web results: 'google' search (+gemini for summary) or ollama (web search)
-    --max_retries(-r):int = 5 #max number of retries in case of server-side errors 
+    --no_retry_models = false #if true, only the primary model is attempted
     --verbose(-v) = false     #show the attempts to call the gemini api
     --document:string         #uses provided document to retrieve the answer
     --paid(-P) = false	  	  #use the billing api for greater limits
@@ -468,7 +468,7 @@ export def google_ai [
 
   $answer = http post -t application/json $url_request $request -e
   
-  while (($answer | is-empty) or ($answer == null) or ($answer | get error? | is-not-empty) or ($answer | describe) == nothing) and ($index_model < $n_models) {
+  while (not $no_retry_models) and (($answer | is-empty) or ($answer == null) or ($answer | get error? | is-not-empty) or ($answer | describe) == nothing) and ($index_model < $n_models) {
     let model = $models | get $index_model
 
     let url_request = {
