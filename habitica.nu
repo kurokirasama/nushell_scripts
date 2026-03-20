@@ -1,16 +1,16 @@
 # Get credentials
 export def "h credentials" [] {
     {
-        x-client : ($env.MY_ENV_VARS.api_keys.habitica.id + ' - nushell habitica api wrapper'),
-        x-api-user: $env.MY_ENV_VARS.api_keys.habitica.id,
-        x-api-key: $env.MY_ENV_VARS.api_keys.habitica.token
+        x-client : ((get-api-key "habitica.id") + ' - nushell habitica api wrapper'),
+        x-api-user: (get-api-key "habitica.id"),
+        x-api-key: (get-api-key "habitica.token")
     }
 }
 
 # Gets user stats
 export def "h stats" [--show-avatar(-s)] {
     let headers = h credentials 
-    let hab_id = $env.MY_ENV_VARS.api_keys.habitica.id
+    let hab_id = get-api-key "habitica.id"
     let base_url = "https://habitica.com"
 
     let url = {
@@ -828,7 +828,7 @@ export def "h party" [] {
 # Accepts a pending quest
 export def "h auto-quest" [] {
     let headers = h credentials
-    let hab_id = $env.MY_ENV_VARS.api_keys.habitica.id
+    let hab_id = get-api-key "habitica.id"
     let base_url = "https://habitica.com"
 
     let party = h party

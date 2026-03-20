@@ -270,7 +270,7 @@ export def get-github-latest [
   --file_type(-f):string = "deb"
   --pattern(-p):string
 ] {
-  let git_token = $env.MY_ENV_VARS.api_keys.github.api_key
+  let git_token = get-api-key "github.api_key"
 
   let assets_url = {
       scheme: "https",

@@ -1,3 +1,43 @@
+use files.nu *
+use table_manipulation.nu *
+
+# Standardized API key retrieval with robust error handling
+#
+# Usage: get-api-key google.gemini_paid
+export def get-api-key [path: string] {
+    let keys = $path | split row "."
+    mut current = $env.MY_ENV_VARS.api_keys
+    
+    for key in $keys {
+        if ($current | describe | str starts-with "record") and ($key in ($current | columns)) {
+            $current = ($current | get $key)
+        } else {
+            return-error $"API key not found! The key must be stored in $env.MY_ENV_VARS.api_keys.($path)"
+        }
+    }
+    
+    return $current
+}
+
+# Toggle Gemini API Key between free and paid
+#
+# Usage: toggle-gemini-key
+export def --env toggle-gemini-key [] {
+    let paid_key = (get-api-key "google.gemini_paid")
+    let free_key = (get-api-key "google.gemini")
+    
+    let current_key = ($env | get -o GEMINI_API_KEY)
+    
+    if $current_key == $paid_key {
+        $env.GEMINI_API_KEY = $free_key
+        print (echo-y "Gemini API Key switched to FREE mode")
+    } else {
+        # Default to paid if current matches free or something else
+        $env.GEMINI_API_KEY = $paid_key
+        print (echo-g "Gemini API Key switched to PAID mode")
+    }
+}
+
 #get bitly short link
 @category apis
 @search-terms bitly shortlink
@@ -6,7 +46,7 @@ export def bitly [longurl] {
     return-error "no url provided!"
   } 
 
-  let bitly_credential = $env.MY_ENV_VARS.api_keys.bitly
+  let bitly_credential = get-api-key "bitly"
   let Accesstoken = $bitly_credential | get token
   let guid = $bitly_credential | get guid
     
@@ -45,7 +85,7 @@ export def trans [
     return-error "no search query provided!"
   } 
 
-  let trans_credential = $env.MY_ENV_VARS.api_keys.mymemmory
+  let trans_credential = get-api-key "mymemmory"
   let apikey = $trans_credential | get token
   let user = $trans_credential | get username
 
@@ -92,7 +132,7 @@ export def "rebrandly get" [longurl] {
     return-error "no url provided"
   }
 
-  let credential = $env.MY_ENV_VARS.api_keys.rebrandly
+  let credential = get-api-key "rebrandly"
   let api_key = $credential | get api_key
     
   let url = "https://api.rebrandly.com/v1/links"
@@ -113,7 +153,7 @@ export def "rebrandly list" [longurl="www.google.com"] {
     return-error "no url provided"
   } 
 
-  let credential = $env.MY_ENV_VARS.api_keys.rebrandly
+  let credential = get-api-key "rebrandly"
   let apikey = $credential | get api_key
     
   let url = {
@@ -141,7 +181,7 @@ export def "maps eta" [
   --mode:string@$modes = "driving"  #driving mode (driving, transit, walking)
   --avoid             #whether to avoid highways (default:false)
 ] {
-  let apikey = $env.MY_ENV_VARS.api_keys.google.general
+  let apikey = get-api-key "google.general"
 
   let origin_address = (
     if $origin like '^(-?\d+\.\d+),(-?\d+\.\d+)$' {
@@ -199,7 +239,7 @@ export def "maps eta" [
       }
     } 
     | url join 
-    | str append $avoid_option
+    | $in + $avoid_option
     | http get $in
 
   let distance = $response.routes.legs.0.distance.text.0
@@ -236,7 +276,7 @@ export def "maps eta" [
 @category apis
 @search-terms google coordinates
 export def "maps loc-from-address" [address:string] {
-  let mapsAPIkey = $env.MY_ENV_VARS.api_keys.google.general
+  let mapsAPIkey = get-api-key "google.general"
   
   let url = {
     scheme: "https"
@@ -255,7 +295,7 @@ export def "maps loc-from-address" [address:string] {
 @category apis
 @search-terms google coordinates
 export def "maps address-from-loc" [latitude:number,longitude:number] {
-  let mapsAPIkey = $env.MY_ENV_VARS.api_keys.google.general
+  let mapsAPIkey = get-api-key "google.general"
 
   let url = {
     scheme: "https"
@@ -286,7 +326,7 @@ export def exchange_rates [
   --symbols(-s)         #only show available symbols
   --update_dataset(-u)  #update local dataset
 ] {
-  let api_key = $env.MY_ENV_VARS.api_keys.fixer_io.api_key
+  let api_key = get-api-key "fixer_io.api_key"
 
   if $symbols {
     let url_symbols = $"http://data.fixer.io/api/symbols?access_key=($api_key)"
@@ -403,8 +443,8 @@ export def google_search [
     return-error "empty query!"
   }
 
-  let apikey = $env.MY_ENV_VARS.api_keys.google.search.apikey
-  let cx = $env.MY_ENV_VARS.api_keys.google.search.cx
+  let apikey = get-api-key "google.search.apikey"
+  let cx = get-api-key "google.search.cx"
 
   if $verbose {print (echo-g $"asking to google search: ($query)")}
   let response = {
@@ -653,7 +693,7 @@ export def gg-contacts [
     --count(-c): int = 10 # Number of results to return (default 10)
     --fields(-f): string = "names,emailAddresses,phoneNumbers"  # Fields to include
 ] {
-    let oauth_token = $env.MY_ENV_VARS.api_keys.google.contacts
+    let oauth_token = get-api-key "google.contacts"
 
     let url = {
         scheme: "https",
@@ -670,7 +710,7 @@ export def gg-contacts [
     
     if ($response | get -o results | is-empty) {
       if ($response.error.status == "UNAUTHENTICATED") {
-        print (echo-g "get Access token at https://bit.ly/3DMItbs and replace value in $env.MY_ENV_VARS.api_keys.google.contacts") 
+        print (echo-g "get Access token at https://bit.ly/3DMItbs and replace value in the appropriate key storage.") 
       }
       return-error $"code ($response.error.code)\n($response.error.message)\nstatus: ($response.error.status)"
     }
@@ -697,7 +737,8 @@ export def ollama_search [
 
   if $verbose {print (echo-g $"searching the web: ($query)")}
 
-  let response = http post $url -H { Authorization: $"Bearer ($env.MY_ENV_VARS.api_keys.ollama)" } $data -e
+  let ollama_key = get-api-key "ollama"
+  let response = http post $url -H { Authorization: $"Bearer ($ollama_key)" } $data -e
     
   if ($response | get error? | is-not-empty) {
     return-error $"Error: ($response.error)"

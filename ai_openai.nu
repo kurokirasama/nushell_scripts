@@ -142,7 +142,7 @@ export def chat_gpt [
   let temp = if $model =~ "gpt-5" {1} else {$temp}
 
   # call to api
-  let header = [Authorization $"Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"]
+  let header = [Authorization $"Bearer (get-api-key "open_ai.api_key")"]
   let site = "https://api.openai.com/v1/chat/completions"
   let image_url = ("data:image/" + $extension + ";base64," + $image)
   
@@ -233,7 +233,7 @@ export def dall_e [
   }
 
   #methods
-  let header = [Authorization $"Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"]
+  let header = [Authorization $"Bearer (get-api-key "open_ai.api_key")"]
 
   match $task {
     "generation" => {
@@ -303,7 +303,7 @@ export def dall_e [
           return-error "image and mask needed for editing!!!"
         }
 
-        let header = $"Authorization: Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"
+        let header = $"Authorization: Bearer (get-api-key "open_ai.api_key")"
 
         let image = media crop-image $image --name        
         let mask = media crop-image $mask --name
@@ -342,7 +342,7 @@ export def dall_e [
           return-error "image needed for variation!!!"
         }
 
-        let header = $"Authorization: Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"
+        let header = $"Authorization: Bearer (get-api-key "open_ai.api_key")"
 
         let image = media crop-image $image --name        
 
@@ -383,7 +383,7 @@ export def "ai openai-tts" [
   let prompt = get-input $in $prompt
   let output = get-input "speech" $output
 
-  let header = [Authorization $"Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"]
+  let header = [Authorization $"Bearer (get-api-key "open_ai.api_key")"]
 
   let url = "https://api.openai.com/v1/audio/speech"
 

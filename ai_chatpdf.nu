@@ -11,7 +11,7 @@ export def "chatpdf add" [
     return-error "wrong file type, it must be a pdf!"
   }
 
-  let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
+  let api_key = get-api-key "chatpdf.api_key"
   let database_file = $env.MY_ENV_VARS.chatgpt_config | path join chatpdf_ids.json
   let database = open $database_file
 
@@ -54,7 +54,7 @@ export def "chatpdf add" [
 @example "Convert tokens to words" {token2word 1048000} --result [628800.0000 838400.0000]
 export def "chatpdf del" [
 ] {
-  let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
+  let api_key = get-api-key "chatpdf.api_key"
   let database_file = $env.MY_ENV_VARS.chatgpt_config | path join chatpdf_ids.json
   let database = open $database_file
 
@@ -78,7 +78,7 @@ export def "chatpdf ask" [
 ] {
   let prompt = get-input $in $prompt
 
-  let api_key = $env.MY_ENV_VARS.api_keys.chatpdf.api_key
+  let api_key = get-api-key "chatpdf.api_key"
   let database_file = $env.MY_ENV_VARS.chatgpt_config  | path join chatpdf_ids.json
   let database = open $database_file
 

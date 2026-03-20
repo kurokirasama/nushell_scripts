@@ -154,7 +154,7 @@ export def yt-api [
 ] {
   # Automatically fetch a valid token
   let token = yt-get-access-token
-  let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
+  let youtube_credential = get-api-key "youtube"
   let api_key = $youtube_credential | get api_key
 
   #playlist|playlist nextPage|songs|songs nextPage
@@ -269,7 +269,7 @@ export def "yt-api update-all" [
   --playlist1 = "all_music"
   --playlist2 = "new_likes"
 ] {
-  let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
+  let youtube_credential = get-api-key "youtube"
   let api_key = $youtube_credential | get api_key
   let token = $youtube_credential | get token
   let response = yt-api
@@ -324,7 +324,7 @@ export def "yt-api empty-playlist" [playlist?:string] {
   let response = yt-api
 
   print (echo-g "listing playlists...")
-  let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
+  let youtube_credential = get-api-key "youtube"
   let api_key = $youtube_credential | get api_key
   let token = $youtube_credential | get token
 
@@ -370,7 +370,7 @@ export def "yt-api remove-duplicated-songs" [
   let response = yt-api
 
   print (echo-g "listing playlists...")
-  let youtube_credential = $env.MY_ENV_VARS.api_keys.youtube
+  let youtube_credential = get-api-key "youtube"
   let api_key = $youtube_credential | get api_key
   let token = $youtube_credential | get token
 
@@ -471,9 +471,9 @@ def is-token-expired [token_data?: record] {
 
 # Custom command to initiate the OAuth2 authorization flow
 def yt-oauth-authorize [] {
-    let client_id = $env.MY_ENV_VARS.api_keys.google.zed_mcp_server.client_id
-    let redirect_uri = $env.MY_ENV_VARS.api_keys.google.zed_mcp_server.redirect_uris.0
-    let GOOGLE_AUTH_URL = $env.MY_ENV_VARS.api_keys.google.zed_mcp_server.auth_uri
+    let client_id = get-api-key "google.zed_mcp_server.client_id"
+    let redirect_uri = get-api-key "google.zed_mcp_server.redirect_uris.0"
+    let GOOGLE_AUTH_URL = get-api-key "google.zed_mcp_server.auth_uri"
     let scope = "https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/userinfo.profile" # Adjust scopes as needed
     let state = random uuid
 
@@ -503,10 +503,10 @@ def yt-oauth-authorize [] {
 
 # Custom command to exchange authorization code for access and refresh tokens
 def yt-oauth-exchange-code [auth_code: string] {
-let client_id = $env.MY_ENV_VARS.api_keys.google.zed_mcp_server.client_id
-let client_secret = $env.MY_ENV_VARS.api_keys.google.zed_mcp_server.client_secret
-let redirect_uri = $env.MY_ENV_VARS.api_keys.google.zed_mcp_server.redirect_uris.0
-let GOOGLE_TOKEN_URL = $env.MY_ENV_VARS.api_keys.google.zed_mcp_server.token_uri
+let client_id = get-api-key "google.zed_mcp_server.client_id"
+let client_secret = get-api-key "google.zed_mcp_server.client_secret"
+let redirect_uri = get-api-key "google.zed_mcp_server.redirect_uris.0"
+let GOOGLE_TOKEN_URL = get-api-key "google.zed_mcp_server.token_uri"
 
     let body = {
         client_id: $client_id,
@@ -530,9 +530,9 @@ let GOOGLE_TOKEN_URL = $env.MY_ENV_VARS.api_keys.google.zed_mcp_server.token_uri
 
 # Custom command to refresh the access token using the refresh token
 def yt-oauth-refresh-token [refresh_token: string] {
-    let client_id = $env.MY_ENV_VARS.api_keys.google.zed_mcp_server.client_id
-    let client_secret = $env.MY_ENV_VARS.api_keys.google.zed_mcp_server.client_secret
-    let GOOGLE_TOKEN_URL = $env.MY_ENV_VARS.api_keys.google.zed_mcp_server.token_uri
+    let client_id = get-api-key "google.zed_mcp_server.client_id"
+    let client_secret = get-api-key "google.zed_mcp_server.client_secret"
+    let GOOGLE_TOKEN_URL = get-api-key "google.zed_mcp_server.token_uri"
 
     let body = {
         client_id: $client_id,

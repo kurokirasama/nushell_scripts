@@ -58,7 +58,7 @@ export def stable_diffusion [
   let output = (google_ai --select_preprompt dalle_image_name -d true $prompt | from json | get name) + "_SD"
 
   #methods
-  let header = {authorization: $"Bearer ($env.MY_ENV_VARS.api_keys.stable_diffusion)", accept: "image/*"}
+  let header = {authorization: $"Bearer (get-api-key "stable_diffusion")", accept: "image/*"}
 
   match $task {
     "generate" => {
@@ -121,7 +121,7 @@ export def stable_diffusion [
   #         return-error "image and mask needed for editing!!!"
   #       }
 
-  #       let header = $"Authorization: Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"
+  #       let header = $"Authorization: Bearer (get-api-key 'open_ai.api_key')"
 
   #       let image = media crop-image $image --name        
   #       let mask = media crop-image $mask --name
@@ -153,7 +153,7 @@ export def stable_diffusion [
   #         return-error "image needed for variation!!!"
   #       }
 
-  #       let header = $"Authorization: Bearer ($env.MY_ENV_VARS.api_keys.open_ai.api_key)"
+  #       let header = $"Authorization: Bearer (get-api-key 'open_ai.api_key')"
 
   #       let image = media crop-image $image --name        
 

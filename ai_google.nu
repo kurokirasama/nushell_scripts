@@ -76,9 +76,9 @@ export def google_ai [
 ] {
   #api parameters
   let apikey = if $paid {
-    $env.MY_ENV_VARS.api_keys.google.gemini_paid
+    get-api-key "google.gemini_paid"
   } else {
-    $env.MY_ENV_VARS.api_keys.google.gemini
+    get-api-key "google.gemini"
   }
 
   let safetySettings = (
@@ -604,9 +604,9 @@ export def google_aimage [
 
   #api parameters
   let apikey = if $paid {
-    $env.MY_ENV_VARS.api_keys.google.gemini_paid
+    get-api-key "google.gemini_paid"
   } else {
-    $env.MY_ENV_VARS.api_keys.google.gemini
+    get-api-key "google.gemini"
   }
 
   if ($number_of_images > 4) and ($model like "imagen") {

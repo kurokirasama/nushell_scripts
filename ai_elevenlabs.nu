@@ -38,8 +38,8 @@ export def "ai elevenlabs-tts" [
   }
 
   let site = "https://api.elevenlabs.io/v1/"
-  let header = [xi-api-key $env.MY_ENV_VARS.api_keys.elevenlabs.api_key]
-  let record_header = {xi-api-key: $env.MY_ENV_VARS.api_keys.elevenlabs.api_key, Accept: "audio/mpeg"}
+  let header = [xi-api-key (get-api-key "elevenlabs.api_key")]
+  let record_header = {xi-api-key: (get-api-key "elevenlabs.api_key"), Accept: "audio/mpeg"}
   let url = $site + $endpoint
 
   ## get_endpoints

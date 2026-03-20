@@ -120,7 +120,7 @@ def get_location [--home(-h),--ubb(-b)] {
 
 # tomorrow.io
 def fetch_api [loc] {
-    let apiKey = $env.MY_ENV_VARS.api_keys.tomorrow_io.api_key
+    let apiKey = get-api-key "tomorrow_io.api_key"
 
     let units = "metric"
     mut response = {}
@@ -174,7 +174,7 @@ def fetch_api [loc] {
 
 # street address
 def get_address [loc] {
-    let mapsAPIkey = $env.MY_ENV_VARS.api_keys.google.general
+    let mapsAPIkey = get-api-key "google.general"
 
     {
       scheme: "https",
@@ -226,7 +226,7 @@ def uv_class [uvIndex:number] {
 
 # air pollution
 def get_airCond [loc] {
-    let apikey = $env.MY_ENV_VARS.api_keys.air_visual.api_key
+    let apikey = get-api-key "air_visual.api_key"
 
     let aqius = {
           scheme: "https",

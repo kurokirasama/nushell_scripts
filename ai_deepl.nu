@@ -24,10 +24,7 @@ export def deep_l [
 ] {
     let query = get-input $in $query
     
-    let api_key = $env.MY_ENV_VARS.api_keys.deepl
-    if ($api_key | is-empty) {
-        return-error "DeepL API key not found in `$env.MY_ENV_VARS.api_keys.deepl`"
-    }
+    let api_key = get-api-key "deepl"
     
     let header = [Authorization $"DeepL-Auth-Key ($api_key)"]
     let base_url = if $pro { "https://api.deepl.com/v2" } else { "https://api-free.deepl.com/v2" }

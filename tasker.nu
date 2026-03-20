@@ -41,14 +41,14 @@ export def "tasker-join send-notification" [
 	let text = get-input $in $text
 	let title = get-input ("from " + $env.HOST) $title
 	
-	let apikey = $env.MY_ENV_VARS.api_keys.join.apikey
+	let apikey = get-api-key "join.apikey"
 	let deviceId = (
 		if not $select_device {
-			$env.MY_ENV_VARS.api_keys.join.devices | get $device
+			(get-api-key "join.devices") | get $device
 		} else {
-			$env.MY_ENV_VARS.api_keys.join.devices
+			(get-api-key "join.devices")
 			| get (
-				$env.MY_ENV_VARS.api_keys.join.devices
+				(get-api-key "join.devices")
 				| columns
 				| input list -f (echo-g "select device:")
 			  ) 	
@@ -80,14 +80,14 @@ export def "tasker-join phone-call" [
 	let phone = get-input $in $phone
 	let title = "phone call started from " + $env.HOST
 
-	let apikey = $env.MY_ENV_VARS.api_keys.join.apikey
+	let apikey = get-api-key "join.apikey"
 	let deviceId = (
 		if ($select_device | is-empty) {
-			$env.MY_ENV_VARS.api_keys.join.devices | get $device
+			(get-api-key "join.devices") | get $device
 		} else {
-			$env.MY_ENV_VARS.api_keys.join.devices
+			(get-api-key "join.devices")
 			| get (
-				$env.MY_ENV_VARS.api_keys.join.devices
+				(get-api-key "join.devices")
 				| columns
 				| input list -f (echo-g "select device:")
 			  ) 	
@@ -120,14 +120,14 @@ export def "tasker-join tts" [
 	let text = get-input $in $text
 	let title = "tts sent from " + $env.HOST
 
-	let apikey = $env.MY_ENV_VARS.api_keys.join.apikey
+	let apikey = get-api-key "join.apikey"
 	let deviceId = (
 		if not $select_device {
-			$env.MY_ENV_VARS.api_keys.join.devices | get $device
+			(get-api-key "join.devices") | get $device
 		} else {
-			$env.MY_ENV_VARS.api_keys.join.devices
+			(get-api-key "join.devices")
 			| get (
-				$env.MY_ENV_VARS.api_keys.join.devices
+				(get-api-key "join.devices")
 				| columns
 				| input list -f (echo-g "select device:")
 			  ) 	
@@ -160,14 +160,14 @@ export def "tasker-join sms" [
 ] {
 	let sms = get-input $in $text
 
-	let apikey = $env.MY_ENV_VARS.api_keys.join.apikey
+	let apikey = get-api-key "join.apikey"
 	let deviceId = (
 		if ($select_device | is-empty) {
-			$env.MY_ENV_VARS.api_keys.join.devices | get $device
+			(get-api-key "join.devices") | get $device
 		} else {
-			$env.MY_ENV_VARS.api_keys.join.devices
+			(get-api-key "join.devices")
 			| get (
-				$env.MY_ENV_VARS.api_keys.join.devices
+				(get-api-key "join.devices")
 				| columns
 				| input list -f (echo-g "select device:")
 			  ) 	

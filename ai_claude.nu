@@ -145,7 +145,7 @@ export def claude_ai [
   let max_tokens = if $model like "claude-4-" {32000} else if $model like "claude-3-7" {64000} else if $model like "claude-3-5" {8192} else {4096}
 
   # call to api
-  let header = {x-api-key: $env.MY_ENV_VARS.api_keys.anthropic.api_key, anthropic-version: $anthropic_version}
+  let header = {x-api-key: (get-api-key "anthropic.api_key"), anthropic-version: $anthropic_version}
   let site = "https://api.anthropic.com/v1/messages"
   
   let request = (
