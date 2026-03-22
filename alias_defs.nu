@@ -153,24 +153,42 @@ let host = sys host | get hostname
     nload -u H -U H $device
 }
 
-const profiles = ["no-mcp", "basic", "minimal", "webui", "research", "googlesuit", "imagen", "full"]
+const profiles = ["no-mcp", "minimal", "standard", "webui", "research", "googlesuit", "imagen", "full"]
 
 #change gemini profile settings
+#profiles:
+# - no-mcp: none
+# - minimal: nushell mcp + conductor, google-workspace extensions
+# - standard: deepwiki, context7, grep, Ref, nushell, ollama-search, exa, bravesearch, firecrawl, sequentialthinking, markdonify mcp servers + conductor, google-workspace extensions
+# - webui: standard + magicui mcp servers + gemini-cli-security, gemini-docs-ext extensions
+# - research: standard + research-semantic-paper, research-paper mcp servers + datacommons, gemini-deep-research extensions
+# - googlesuit: standard + google-forms, youtube mcp servers + datacommons, gemini-docs-ext extensions
+# - imagen: standard + imagen mcp server + nanobanana extension
+# - full: all mcp + all extensions
 export def "gmn profile" [
-	profile:string@$profiles = "minimal"
+	profile:string@$profiles = "standard"
+	--list-mcp-servers-and-extensions(-l)
 ] {
   let settings = open ($env.MY_ENV_VARS.linux_backup | path join "settings_gemini.json")
   let mcp_servers = $settings | get mcpServers
   let mcp_names = $mcp_servers | columns | sort
   
+  if $list_mcp_servers_and_extensions {
+  	print (echo-g "mcp servers:")
+   	print ($mcp_names)
+    print (echo-g "extensions:")
+    gemini -l
+  	return
+  }
+  
   let servers = match $profile {
-    "minimal" => {$mcp_names | find minimal -n},
-    "webui" => {$mcp_names | find minimal & webui -n},
-    "research" => {$mcp_names | find minimal & research -n},
-    "googlesuit" => {$mcp_names | find minimal & googlesuit -n},
-    "imagen" => {$mcp_names | find minimal & imagen -n},
+    "standard" => {$mcp_names | find standard -n},
+    "webui" => {$mcp_names | find standard & webui -n},
+    "research" => {$mcp_names | find standard & research -n},
+    "googlesuit" => {$mcp_names | find standard & googlesuit -n},
+    "imagen" => {$mcp_names | find standard & imagen -n},
     "no-mcp" => {[]},
-    "basic" => {$mcp_names | find nushell -n},
+    "minimal" => {$mcp_names | find nushell -n},
     "full" => {$mcp_names},
     _ => {return-error "Invalid profile"}
   }
@@ -183,18 +201,18 @@ export def "gmn profile" [
 #wrapper for gemini cli
 export def --wrapped gmn [
   ...rest
-  --profile(-p):string@$profiles = "minimal"
+  --profile(-p):string@$profiles = "standard"
 ] {
   gmn profile $profile
   
   match $profile { 
-    "minimal" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
+    "standard" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
     "webui" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,gemini-cli-security,gemini-docs-ext" ...$rest},
     "research" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,datacommons,gemini-deep-research" ...$rest},
     "googlesuit" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,datacommons,gemini-docs-ext" ...$rest},
     "imagen" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,nanobanana" ...$rest},
-    "no-mcp" => {gemini --approval-mode=yolo --extensions "conductor" ...$rest},
-    "basic" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
+    "no-mcp" => {gemini --approval-mode=yolo ...$rest},
+    "minimal" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
     "full" => {gemini --approval-mode=yolo ...$rest},
     _ => {return-error "Invalid profile"}
   }
