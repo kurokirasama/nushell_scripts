@@ -1123,3 +1123,8 @@ export def "apps-update matlab-mcp-server" [] {
   github-app-update matlab matlab-mcp-core-server -p glnx -a matlab-mcp-core-server-glnxa64 -j
   chmod +x ($env.MY_ENV_VARS.debs | path join "matlab-mcp-core-server-glnxa64")
 }
+
+#update cliamp
+export def "apps-update cliamp" [] {
+	curl -fsSL https://raw.githubusercontent.com/bjarneo/cliamp/HEAD/install.sh | sh
+}

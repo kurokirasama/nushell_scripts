@@ -157,7 +157,7 @@ const profiles = ["no-mcp", "minimal", "standard", "webui", "research", "googles
 
 #change gemini profile settings
 #profiles:
-# - no-mcp: none
+# - no-mcp: no mcp + conductor extension
 # - minimal: nushell mcp + conductor, google-workspace extensions
 # - standard: deepwiki, context7, grep, Ref, nushell, ollama-search, exa, bravesearch, firecrawl, sequentialthinking, markdonify mcp servers + conductor, google-workspace extensions
 # - webui: standard + magicui mcp servers + gemini-cli-security, gemini-docs-ext extensions
@@ -211,7 +211,7 @@ export def --wrapped gmn [
     "research" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,datacommons,gemini-deep-research" ...$rest},
     "googlesuit" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,datacommons,gemini-docs-ext" ...$rest},
     "imagen" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,nanobanana" ...$rest},
-    "no-mcp" => {gemini --approval-mode=yolo ...$rest},
+    "no-mcp" => {gemini --approval-mode=yolo --extensions "conductor" ...$rest},
     "minimal" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
     "full" => {gemini --approval-mode=yolo ...$rest},
     _ => {return-error "Invalid profile"}
@@ -226,3 +226,21 @@ export def --wrapped cld [
 }
 
 export alias gtes = gtypist --colors 7,0 esp.typ
+
+#wrapper for cliamp
+export def ytm2 [
+	--youtube-playlist(-y) #select youtube playlist url from list, otherwise all liked music from local playlist
+] {
+	let playlist = match $youtube_playlist {
+		true => {
+			open ($env.MY_ENV_VARS.linux_backup | path join "youtube_music_playlists" | path join "youtube_playlists_urls.json")
+			| input list -fd name (echo-g "Select a playlist:")
+			| get url
+		},
+		false => {
+			$env.MY_ENV_VARS.linux_backup | path join "youtube_music_playlists" | path join "all_likes.m3u" 
+		}
+	}
+	
+  	^cliamp $playlist --shuffle --visualizer Wave --eq-preset Rock --theme mine --auto-play
+}
