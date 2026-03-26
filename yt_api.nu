@@ -1,3 +1,6 @@
+use apis.nu *
+use string_manipulation.nu *
+
 #help info for yt-api
 export def "yt-api help" [] {
   print ([
@@ -551,7 +554,7 @@ def yt-oauth-refresh-token [refresh_token: string] {
         let refresh_token_to_keep = if ("refresh_token" in $new_tokens) { $new_tokens.refresh_token } else { $existing_tokens.refresh_token }
 
         # Calculate expiration time for new access token
-        let expires_at = (date now | format date "%s") + $new_tokens.expires_in
+        let expires_at = (date now) + ($new_tokens.expires_in * 1sec)
         let full_tokens = {
             access_token: $new_tokens.access_token,
             token_type: $new_tokens.token_type,

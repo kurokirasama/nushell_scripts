@@ -11,6 +11,8 @@ export def get-api-key [path: string] {
     for key in $keys {
         if ($current | describe | str starts-with "record") and ($key in ($current | columns)) {
             $current = ($current | get $key)
+        } else if ($current | describe | str starts-with "list") and ($key =~ `^\d+$`) {
+            $current = ($current | get ($key | into int))
         } else {
             return-error $"API key not found! The key must be stored in $env.MY_ENV_VARS.api_keys.($path)"
         }
