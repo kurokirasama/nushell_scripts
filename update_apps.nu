@@ -1126,5 +1126,5 @@ export def "apps-update matlab-mcp-server" [] {
 
 #update cliamp
 export def "apps-update cliamp" [] {
-	curl -fsSL https://raw.githubusercontent.com/bjarneo/cliamp/HEAD/install.sh | sh
+	cliamp --upgrade
 }
