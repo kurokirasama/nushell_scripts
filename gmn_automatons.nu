@@ -19,12 +19,15 @@ const profiles = ["no-mcp", "minimal", "standard", "webui", "research", "googles
 #run cron gemini skills
 export def "gmn cron" [
 	skill:string@$skills 
-	--model(-m):string = "gemini-3.1-flash-lite-preview"
+	--model(-m):string = "gemini-3-flash-preview" #gemini-3.1-flash-lite-preview in free tier
 	--profile(-p):string@$profiles = "minimal"
+	--dont-kill(-d) #dont kill gemini
 ] {
 	let prompt = $"run ($skill) skill"
 	
 	gmn --profile $profile --model $model --prompt $prompt
-	sleep 2sec
-	killnode
+	if not $dont_kill {
+		sleep 2sec
+		killnode
+	}
 }
