@@ -167,6 +167,7 @@ const profiles = ["no-mcp", "minimal", "standard", "webui", "research", "googles
 # - full: all mcp + all extensions
 export def "gmn profile" [
 	profile:string@$profiles = "standard"
+	--matlab-mcp(-l) = false #add the matlab mcp server
 	--list-mcp-servers-and-extensions(-l)
 ] {
   let settings = open ($env.MY_ENV_VARS.linux_backup | path join "settings_gemini.json")
@@ -182,17 +183,23 @@ export def "gmn profile" [
   }
   
   let servers = match $profile {
-    "standard" => {$mcp_names | find standard -n},
-    "webui" => {$mcp_names | find standard & webui -n},
-    "research" => {$mcp_names | find standard & research -n},
-    "googlesuit" => {$mcp_names | find standard & googlesuit -n},
-    "imagen" => {$mcp_names | find standard & imagen -n},
+    "standard" => {$mcp_names | find standard & context-mode -n},
+    "webui" => {$mcp_names | find standard & webui & context-mode -n},
+    "research" => {$mcp_names | find standard & research & context-mode -n},
+    "googlesuit" => {$mcp_names | find standard & googlesuit & context-mode -n},
+    "imagen" => {$mcp_names | find standard & imagen & context-mode -n},
     "no-mcp" => {[]},
-    "minimal" => {$mcp_names | find nushell -n},
+    "minimal" => {$mcp_names | find nushell & context-mode -n},
     "full" => {$mcp_names},
     _ => {return-error "Invalid profile"}
   }
 
+  let servers = if $matlab_mcp {
+  	$servers ++ ($mcp_names | find -n matlab)
+  } else {
+  	$servers
+  }
+  
   let filtered_servers = if ($servers | is-empty) { {} } else { $mcp_servers | select ...$servers }
   
   $settings | upsert mcpServers $filtered_servers | save -f ~/.gemini/settings.json
@@ -202,8 +209,9 @@ export def "gmn profile" [
 export def --wrapped gmn [
   ...rest
   --profile(-p):string@$profiles = "standard"
+  --matlab-mcp(-m) #use the matlab mcp server
 ] {
-  gmn profile $profile
+  gmn profile $profile --matlab-mcp $matlab_mcp
   
   match $profile { 
     "standard" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
@@ -229,18 +237,33 @@ export alias gtes = gtypist --colors 7,0 esp.typ
 
 #wrapper for cliamp
 export def ytm2 [
-	--youtube-playlist(-y) #select youtube playlist url from list, otherwise all liked music from local playlist
+        --local-youtube-playlist(-l) #select youtube playlist url from list, otherwise all liked music from local playlist
+        --youtube-music(-m) #use cliamp builtin youtube music provider
+        --youtube(-y) #use cliamp builtin youtube provider
 ] {
-	let playlist = match $youtube_playlist {
-		true => {
-			open ($env.MY_ENV_VARS.linux_backup | path join "youtube_music_playlists" | path join "youtube_playlists_urls.json")
-			| input list -fd name (echo-g "Select a playlist:")
-			| get url
-		},
-		false => {
-			$env.MY_ENV_VARS.linux_backup | path join "youtube_music_playlists" | path join "all_likes.m3u" 
-		}
-	}
-	
-  	^cliamp $playlist --shuffle --visualizer Wave --eq-preset Rock --theme mine --auto-play
+        let is_work = (sys host | get hostname) == "lgomez-desktop"
+        let common = [--shuffle --visualizer Wave --eq-preset Rock --theme mine --auto-play]
+
+        if $youtube {
+            if $is_work { ^cliamp-wrapper --provider youtube ...$common } else { ^cliamp --provider youtube ...$common }
+            return
+        }
+
+        if $youtube_music {
+            if $is_work { ^cliamp-wrapper --provider ytmusic ...$common } else { ^cliamp --provider ytmusic ...$common }
+            return
+        }
+
+        let playlist = match $local_youtube_playlist {
+                true => {
+                        open ($env.MY_ENV_VARS.linux_backup | path join "youtube_music_playlists" | path join "youtube_playlists_urls.json")
+                        | input list -fd name (echo-g "Select a playlist:")
+                        | get url
+                },
+                false => {
+                        $env.MY_ENV_VARS.linux_backup | path join "youtube_music_playlists" | path join "all_likes.m3u" 
+                }
+        }
+
+        if $is_work { ^cliamp-wrapper $playlist ...$common } else { ^cliamp $playlist ...$common }
 }

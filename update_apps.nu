@@ -1126,5 +1126,5 @@ export def "apps-update matlab-mcp-server" [] {
 
 #update cliamp
 export def "apps-update cliamp" [] {
-	cliamp --upgrade
+	sudo cliamp --upgrade
 }
