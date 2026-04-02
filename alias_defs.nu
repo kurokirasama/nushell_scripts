@@ -153,17 +153,18 @@ let host = sys host | get hostname
     nload -u H -U H $device
 }
 
-const profiles = ["no-mcp", "minimal", "standard", "webui", "research", "googlesuit", "imagen", "full"]
+const profiles = ["no-mcp", "minimal", "standard", "webui", "research", "googlesuit", "imagen", "websearch", "full"]
 
 #change gemini profile settings
 #profiles:
 # - no-mcp: no mcp + conductor extension
-# - minimal: nushell mcp + conductor, google-workspace extensions
+# - minimal: nushell +context-mode mcp + conductor, google-workspace extensions
 # - standard: deepwiki, context7, grep, Ref, nushell, ollama-search, exa, bravesearch, firecrawl, sequentialthinking, markdonify mcp servers + conductor, google-workspace extensions
 # - webui: standard + magicui mcp servers + gemini-cli-security, gemini-docs-ext extensions
 # - research: standard + research-semantic-paper, research-paper mcp servers + datacommons, gemini-deep-research extensions
 # - googlesuit: standard + google-forms, youtube mcp servers + datacommons, gemini-docs-ext extensions
 # - imagen: standard + imagen mcp server + nanobanana extension
+# - websearch: minimal + ollama-search, exa, bravesearch, firecrawl, sequentialthinking, markdonify mcp servers
 # - full: all mcp + all extensions
 export def "gmn profile" [
 	profile:string@$profiles = "standard"
@@ -190,6 +191,7 @@ export def "gmn profile" [
     "imagen" => {$mcp_names | find standard & imagen & context-mode -n},
     "no-mcp" => {[]},
     "minimal" => {$mcp_names | find nushell & context-mode -n},
+    "websearch" => {$mcp_names | find nushell & context-mode & ollama-search & exa & bravesearch & firecrawl & sequentialthinking & markdonify & context-mode -n},
     "full" => {$mcp_names},
     _ => {return-error "Invalid profile"}
   }
@@ -221,6 +223,7 @@ export def --wrapped gmn [
     "imagen" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,nanobanana" ...$rest},
     "no-mcp" => {gemini --approval-mode=yolo --extensions "conductor" ...$rest},
     "minimal" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
+    "websearch" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
     "full" => {gemini --approval-mode=yolo ...$rest},
     _ => {return-error "Invalid profile"}
   }

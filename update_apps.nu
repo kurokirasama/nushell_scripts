@@ -1128,3 +1128,8 @@ export def "apps-update matlab-mcp-server" [] {
 export def "apps-update cliamp" [] {
 	sudo cliamp --upgrade
 }
+
+#update context-mode mcp server
+export def "apps-update context-mode" [] {
+  npm update -g context-mode
+}
