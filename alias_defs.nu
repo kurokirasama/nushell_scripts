@@ -245,7 +245,7 @@ export def ytm2 [
         --youtube(-y) #use cliamp builtin youtube provider
 ] {
         let is_work = (sys host | get hostname) == "lgomez-desktop"
-        let common = [--shuffle --visualizer Wave --eq-preset Rock --theme mine --auto-play]
+        let common = [--shuffle --visualizer Wave --eq-preset Rock --start-theme mine --auto-play --repeat all]
 
         if $youtube {
             if $is_work { ^cliamp-wrapper --provider youtube ...$common } else { ^cliamp --provider youtube ...$common }

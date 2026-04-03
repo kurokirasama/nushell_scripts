@@ -1126,10 +1126,18 @@ export def "apps-update matlab-mcp-server" [] {
 
 #update cliamp
 export def "apps-update cliamp" [] {
-	sudo cliamp --upgrade
+        sudo cliamp upgrade
 }
 
 #update context-mode mcp server
 export def "apps-update context-mode" [] {
   npm update -g context-mode
+}
+
+#update markdonify-mcp
+export def "apps-update markdonify-mcp" [] {
+  cd ~/software/markdownify-mcp
+  git pull
+  pnpm install
+  pnpm run build
 }
