@@ -1,5 +1,3 @@
-use files.nu *
-
 #short help
 export def ? [...search,--find(-f)] {
   let search = $search | str join " "
@@ -771,4 +769,147 @@ export def check-ups [
     }
 
     $output
+}
+
+# Unified system cleanup command to reclaim disk space.
+#
+# Categories:
+# 1. User Caches: thumbnails, fontconfig, wallust, pip, uv, npm, stack.
+# 2. Package Managers: apt (clean/autoremove), uv, pip, npm, stack.
+# 3. System Logs: journalctl vacuum (last 3 days).
+# 4. Aggressive: rustup toolchains (stable only), old build dirs (node_modules, target > 30d).
+#
+# Note: Privileged commands (apt, journalctl) require sudo and will only be executed if --sudo is provided.
+export def system-cleanup [
+    --dry-run(-d) # Preview cleanup actions without deleting.
+    --aggressive(-a) # Include aggressive cleanup tasks (Rust toolchains, old build artifacts).
+    --sudo(-s) # Execute cleanup methods that require sudo (e.g., apt, journalctl).
+] {
+    let home = $nu.home-dir
+    let cache_dir = $"($home)/.cache"
+    mut total_saved = 0b
+    
+    # 1. User Caches
+    print "--- 1. User Caches ---"
+    let user_caches = [
+        "thumbnails"
+        "fontconfig"
+        "wallust"
+        "pip"
+        "uv"
+        "npm"
+        "stack"
+    ]
+    
+    for cache in $user_caches {
+        let path = $"($cache_dir)/($cache)"
+        if ($path | path exists) {
+            let size = (du $path | get 0.apparent)
+            $total_saved += $size
+            if $dry_run {
+                print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would remove ($path) - approx. ($size)")
+            } else {
+                print ((echo-r 'Cleaning:') + $" ($path) - approx. ($size)")
+                rm -rf $path
+            }
+        }
+    }
+
+    # 2. Package Managers
+    print "\n--- 2. Package Managers ---"
+    
+    # APT
+    if $sudo and (which apt-get | is-not-empty) {
+        if $dry_run {
+            print ((echo-c 'DRY RUN:' 'yellow' -b) + " Would run 'apt-get clean' and 'apt-get autoremove' - requires sudo")
+        } else {
+            print ((echo-r 'Running:') + " apt-get clean & autoremove")
+            ^sudo apt-get clean
+            ^sudo apt-get autoremove -y
+        }
+    }
+
+    # Language Specific
+    let lang_tools = [
+        { name: "uv", cmd: "uv cache clean", path: $"($cache_dir)/uv" }
+        { name: "pip", cmd: "pip cache purge", path: $"($cache_dir)/pip" }
+        { name: "npm", cmd: "npm cache clean --force", path: $"($cache_dir)/npm" }
+        { name: "stack", cmd: "stack purge", path: $"($cache_dir)/stack" }
+    ]
+
+    for tool in $lang_tools {
+        if (which $tool.name | is-not-empty) {
+            if $dry_run {
+                print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would run '($tool.cmd)'")
+            } else {
+                print ((echo-r 'Running:') + $" ($tool.cmd)")
+                ^bash -c $tool.cmd
+            }
+        }
+    }
+
+    # 3. System Logs
+    if $sudo {
+        print "\n--- 3. System Logs ---"
+        if (which journalctl | is-not-empty) {
+            if $dry_run {
+                print ((echo-c 'DRY RUN:' 'yellow' -b) + " Would run 'journalctl --vacuum-time=3d' - requires sudo")
+            } else {
+                print ((echo-r 'Vacuuming logs:') + " journalctl --vacuum-time=3d")
+                ^sudo journalctl --vacuum-time=3d
+            }
+        }
+    }
+
+    # 4. Aggressive Cleanup (Build Artifacts & Toolchains)
+    if $aggressive {
+        print "\n--- 4. Aggressive Cleanup ---"
+        
+        # Rustup toolchains
+        if (which rustup | is-not-empty) {
+            let toolchains = (rustup toolchain list | lines | split column " " name | get name)
+            let targets = ($toolchains | where $it != "stable" and $it != "stable-x86_64-unknown-linux-gnu")
+            
+            if ($targets | is-empty) {
+                print "No non-stable Rust toolchains found."
+            } else {
+                for t in $targets {
+                    if $dry_run {
+                        print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would uninstall toolchain: ($t)")
+                    } else {
+                        print ((echo-r 'Uninstalling toolchain:') + $" ($t)")
+                        ^rustup toolchain uninstall $t
+                    }
+                }
+            }
+        }
+
+        # Old build directories (node_modules, target)
+        print "\nSearching for old build directories (node_modules, target) modified > 30 days ago in current tree..."
+        let old_dirs = (glob "**/node_modules" --exclude [ "**/node_modules/**/*" ] 
+            | append (glob "**/target" --exclude [ "**/target/**/*" ])
+            | each { |p| ls -d $p } 
+            | flatten
+            | where modified < ((date now) - 30day))
+        
+        if ($old_dirs | is-empty) {
+            print "No old build directories found."
+        } else {
+            for dir in $old_dirs {
+                let size = (du $dir.name | get 0.apparent)
+                $total_saved += $size
+                if $dry_run {
+                    print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would remove old directory: ($dir.name) - Modified: ($dir.modified), Size: ($size)")
+                } else {
+                    print ((echo-r 'Removing old directory:') + $" ($dir.name) - Size: ($size)")
+                    rm -rf $dir.name
+                }
+            }
+        }
+    }
+
+    let summary = if $dry_run { "Estimated space to save:" } else { "Total space reclaimed:" }
+    print ""
+    print (echo-g "System cleanup complete!")
+    print ((echo-c $summary 'cyan' -b) + $" ($total_saved)")
 }

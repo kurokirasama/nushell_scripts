@@ -153,14 +153,14 @@ let host = sys host | get hostname
     nload -u H -U H $device
 }
 
-const profiles = ["no-mcp", "minimal", "standard", "webui", "research", "googlesuit", "imagen", "websearch", "full"]
+const profiles = ["no-mcp", "minimal", "standard", "webdev", "research", "googlesuit", "imagen", "websearch", "full"]
 
 #change gemini profile settings
 #profiles:
 # - no-mcp: no mcp + conductor extension
 # - minimal: nushell +context-mode mcp + conductor, google-workspace extensions
 # - standard: deepwiki, context7, grep, Ref, nushell, ollama-search, exa, bravesearch, firecrawl, sequentialthinking, markdonify mcp servers + conductor, google-workspace extensions
-# - webui: standard + magicui mcp servers + gemini-cli-security, gemini-docs-ext extensions
+# - webdev: standard + magicui and crome-dev-tools mcp servers + gemini-cli-security, gemini-docs-ext extensions
 # - research: standard + research-semantic-paper, research-paper mcp servers + datacommons, gemini-deep-research extensions
 # - googlesuit: standard + google-forms, youtube mcp servers + datacommons, gemini-docs-ext extensions
 # - imagen: standard + imagen mcp server + nanobanana extension
@@ -185,7 +185,7 @@ export def "gmn profile" [
   
   let servers = match $profile {
     "standard" => {$mcp_names | find standard & context-mode -n},
-    "webui" => {$mcp_names | find standard & webui & context-mode -n},
+    "webdev" => {$mcp_names | find standard & webdev & context-mode -n},
     "research" => {$mcp_names | find standard & research & context-mode -n},
     "googlesuit" => {$mcp_names | find standard & googlesuit & context-mode -n},
     "imagen" => {$mcp_names | find standard & imagen & context-mode -n},
@@ -217,7 +217,7 @@ export def --wrapped gmn [
   
   match $profile { 
     "standard" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
-    "webui" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,gemini-cli-security,gemini-docs-ext" ...$rest},
+    "webdev" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,gemini-cli-security,gemini-docs-ext" ...$rest},
     "research" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,datacommons,gemini-deep-research" ...$rest},
     "googlesuit" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,datacommons,gemini-docs-ext" ...$rest},
     "imagen" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,nanobanana" ...$rest},

@@ -47,7 +47,7 @@ export def --wrapped "gcal agenda" [
   ...rest     #extra flags for gcalcli between quotes (specified full needed)
 ] {
   let calendars = gcal list -R (not $full) -f $full| str join "|"
-  
+
   gcalcli --calendar $"($calendars)" agenda --military ...$rest
 }
 
@@ -92,15 +92,11 @@ export def "gcal list" [
   gcalcli list
   | ansi strip
   | lines
-  | skip 2 
-  | if $readers or $readers_bool {find -v reader} else {find ""}
-  | if $full {find ""} else {find -v Cuentas}
-  | drop 
-  | str replace -a "owner" "" 
-  | str replace "writer" "" 
-  | str replace "reader" "" 
-  | str replace "    " "" 
-  | str replace "   " "" 
+  | skip 2
+  | parse -r '^\s*(?P<access>\w+)\s+(?P<title>.+)$'
+  | if $readers or $readers_bool { where access !~ "reader" } else { $in }
+  | if not $full { where title !~ "Cuentas" } else { $in }
+  | get title
   | str trim
 }
 
