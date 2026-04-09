@@ -26,9 +26,16 @@ export def "gmn cron" [
 ] {
 	let prompt = $"run ($skill) skill"
 	
-	gmn --profile $profile --model $model --prompt $prompt
-	if not $dont_kill {
-		sleep 2sec
-		killnode
+	try {
+		gmn --profile $profile --model $model --prompt $prompt
+		if not $dont_kill {
+			sleep 2sec
+			killnode
+		}
+	} catch {|e|
+		let subject = $"Log gemini-cli: Error when executing ($skill)"
+		let body = $e.json | from json | to text
+		
+		send-gmail $env.MY_ENV_VARS.mail $subject --body $body
 	}
 }
