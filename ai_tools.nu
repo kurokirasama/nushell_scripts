@@ -143,7 +143,7 @@ export def askai [
   --embed(-e) #make embedding instead of generate or chat
 ] {
   let prompt = if $fast {
-      open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
+      open --raw ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
     } else {
       get-input $in $prompt
     }
@@ -897,7 +897,7 @@ export def askaimage [
   --paid(-P)      #use paid gemini
 ] {
   let prompt = if $fast {
-    open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
+    open --raw ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
   } else {
     get-input $in $prompt
   }
@@ -1175,7 +1175,7 @@ export def "ai trans" [
   --paid(-P)    #use paid gemini
 ] {
   let prompt = if $fast {
-    open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
+    open --raw ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
   } else if ($prompt | is-empty) {
     $in
   } else {
@@ -1683,7 +1683,7 @@ export def "ai analyze_ai_generated_text" [
   --paid(-P)    #use paid gemini
 ] {
   let text = get-input $in $text
-  let text = if $fast {open ($env.MY_ENV_VARS.chatgpt | path join prompt.md)} else {$text}
+  let text = if $fast {open --raw ($env.MY_ENV_VARS.chatgpt | path join prompt.md)} else {$text}
 
   print (echo-g $"starting analysis of the input text...")
 
@@ -1716,7 +1716,7 @@ export def "ai analyze_ai_generated_text" [
         "# REPORT\n\n" + $analysis + "\n\n# INPUT \n\n" + $text + "\n\n# CORRECTED TEXT \n\n"
       }
     } else {
-      let pre_prompt = open ($env.MY_ENV_VARS.chatgpt_config | path join prompt complete_corrected_text.md)
+      let pre_prompt = open --raw ($env.MY_ENV_VARS.chatgpt_config | path join prompt complete_corrected_text.md)
       $pre_prompt + "\n\n# REPORT\n\n" + $analysis + "\n\n# INPUT_TEXT \n\n" + $text + "\n\n# PARTIAL_CORRECTED_TEXT \n\n" + $fixed_text + "\n\n# CORRECTED TEXT \n\n"
     }
 
@@ -1797,7 +1797,7 @@ export def "ai analyze_religious_text" [
   let data = if ($data | is-empty) and not $fast {
     $in
   } else if $fast {
-    open ($env.MY_ENV_VARS.chatgpt | path join prompt.md)
+    open --raw ($env.MY_ENV_VARS.chatgpt | path join prompt.md)
   } else {
     $data
   }
@@ -1926,7 +1926,7 @@ export def show-prompts [
 			return-error $"System prompt '($system)' not found."
 		}
 		
-		return (open ($system_prompts_files | find -n ("/" + $system + ".md") | get 0))
+		return (open --raw ($system_prompts_files | find -n ("/" + $system + ".md") | get 0))
 	}
 	
 	# PREPROMPT
@@ -1945,7 +1945,7 @@ export def show-prompts [
 			return-error $"Pre-prompt '($pre_prompt)' not found."
 		}
 		
-		return (open ($pre_prompts_files | find -n ("/" + $pre_prompt + ".md") | get 0))
+		return (open --raw ($pre_prompts_files | find -n ("/" + $pre_prompt + ".md") | get 0))
 	}
 }
 

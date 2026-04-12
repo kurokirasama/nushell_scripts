@@ -358,8 +358,8 @@ export def lo [] {
 export def le [] {
   ls
   | sort-by -i type name 
-  | insert "ext" {|in|
-      $in.name 
+  | insert "ext" {|item|
+      $item.name 
       | path parse 
       | get extension 
     } 

@@ -187,8 +187,8 @@ export def "set combinations" [k: int] {
 export def "set partition" [condition: closure] {
     let input = $in | set from-list
     {
-        true: ($input | where (do $condition $it))
-        false: ($input | where not (do $condition $it))
+        "true": ($input | where (do $condition $it))
+        "false": ($input | where not (do $condition $it))
     }
 }
 

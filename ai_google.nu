@@ -145,10 +145,10 @@ export def google_ai [
   mut ssystem = ""
   if $list_system {
     let selection = ($system_messages | input list -f (echo-g "Select system message: "))
-    $ssystem = (($system_messages_files | find -n ("/" + $selection + ".md") | get 0))
+    $ssystem = (open --raw ($system_messages_files | find -n ("/" + $selection + ".md") | get 0))
   } else if (not ($select_system | is-empty)) {
     try {
-      $ssystem = (open ($system_messages_files | find -n ("/" + $select_system + ".md") | get 0))
+      $ssystem = (open --raw ($system_messages_files | find -n ("/" + $select_system + ".md") | get 0))
     } 
   }
   let system = if ($ssystem | is-empty) {$system} else {$ssystem}
@@ -160,17 +160,17 @@ export def google_ai [
   mut preprompt = ""
   if $pre_prompt {
     let selection = ($pre_prompts | input list -f (echo-g "Select pre-prompt: "))
-    $preprompt = (open ($pre_prompt_files | find -n ("/" + $selection + ".md") | get 0))
+    $preprompt = (open --raw ($pre_prompt_files | find -n ("/" + $selection + ".md") | get 0))
   } else if (not ($select_preprompt | is-empty)) {
     try {
-      $preprompt = (open ($pre_prompt_files | find -n ("/" + $select_preprompt + ".md") | get 0))
+      $preprompt = (open --raw ($pre_prompt_files | find -n ("/" + $select_preprompt + ".md") | get 0))
     }
   }
 
   #build prompt
   let prompt = (
     if ($document | is-not-empty) {
-      $preprompt + "\n# DOCUMENT\n\n" + (open $document) + "\n\n# INPUT\n\n'''\n" + $query + "\n'''" 
+      $preprompt + "\n# DOCUMENT\n\n" + (open --raw $document) + "\n\n# INPUT\n\n'''\n" + $query + "\n'''" 
     } else if ($preprompt | is-empty) and $delim_with_backquotes {
       "'''" + "\n" + $query + "\n" + "'''"
     } else if ($preprompt | is-empty) {
@@ -777,7 +777,7 @@ export def "ai google_search-summary" [
   }
 
   let prompt = (
-    open ([$env.MY_ENV_VARS.chatgpt_config prompt summarize_html2text.md] | path join) 
+    open --raw ([$env.MY_ENV_VARS.chatgpt_config prompt summarize_html2text.md] | path join) 
     | str replace "<question>" $question 
   )
 

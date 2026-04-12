@@ -31,6 +31,8 @@ $env.config.table.trim = {
 
 #miscelaneous
 $env.config.history.file_format = "sqlite"
+$env.config.history.ignore_space_prefixed = true
+$env.config.auto_cd_implicit = false
 $env.config.show_banner = false
 $env.config.ls.clickable_links = false
 $env.config.use_kitty_protocol = true

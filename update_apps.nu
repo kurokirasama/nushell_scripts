@@ -740,7 +740,7 @@ export def "apps-update ttyplot" [] {
   
   let url = http get https://packages.debian.org/sid/amd64/ttyplot/download
     | lines 
-    | find .deb 
+    | find ".deb"
     | find http 
     | find ttyplot 
     | first 

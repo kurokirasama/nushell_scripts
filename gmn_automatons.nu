@@ -22,20 +22,43 @@ export def "gmn cron" [
 	skill:string@$skills 
 	--model(-m):string = "gemini-3-flash-preview" #gemini-3.1-flash-lite-preview in free tier
 	--profile(-p):string@$profiles = "minimal"
-	--dont-kill(-d) #dont kill gemini
+	--dont-kill(-d) #dont kill gemini mcp servers
 ] {
 	let prompt = $"run ($skill) skill"
 	
-	try {
-		gmn --profile $profile --model $model --prompt $prompt
-		if not $dont_kill {
-			sleep 2sec
-			killnode
-		}
-	} catch {|e|
-		let subject = $"Log gemini-cli: Error when executing ($skill)"
-		let body = $e.json | from json | to text
-		
-		send-gmail $env.MY_ENV_VARS.mail $subject --body $body
+	let output =  gmn --profile $profile --model $model --prompt $prompt | complete 
+	
+	gmn-cron-email $skill $output
+	
+	if not $dont_kill {
+		sleep 2sec
+		killnode
 	}
+	
+	#retry with gemini-3-flash
+	if $output.exit_code != 0 {
+		let output =  gmn --profile $profile --model gemini-3-flash-preview --prompt $prompt | complete
+		gmn-cron-email $"Retry of ($skill)" $output
+	}
+	
+	if not $dont_kill {
+		sleep 2sec
+		killnode
+	}
+}
+
+#send cron outputs emails
+def gmn-cron-email [
+	skill:string
+	output:record
+] {
+	let subject = if $output.exit_code == 0 {
+		$"Log gemini-cli: ($skill)"
+	} else {
+		$"Log gemini-cli: Error when executing ($skill)"
+	}
+	
+	let body = $"# Exit code\n\n($output.exit_code)\n\n# stdout\n\n($output.stdout)\n\n# stderr\n\n($output.stderr)"
+		
+	send-gmail $env.MY_ENV_VARS.mail $subject --body $body
 }

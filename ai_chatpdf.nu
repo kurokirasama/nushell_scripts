@@ -128,7 +128,7 @@ export def askpdf [
   --fast(-f)  #get prompt from ~/Yandex.Disk/ChatGpt/prompt.md and save response to ~/Yandex.Disk/ChatGpt/answer.md
 ] {
   let prompt = if $fast {
-    open ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
+    open --raw ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
   } else {
     get-input $in $prompt
   }
@@ -137,7 +137,7 @@ export def askpdf [
     match [$rubb,$btx] {
       [true,true] => {return-error "only one of these flags allowed!"},
       [true,false] => {chatpdf ask $prompt -s rubb},
-      [false,true] => {chatpdf ask ((open ([$env.MY_ENV_VARS.chatgpt_config prompt chatpdf_btx.md] | path join)) + "\n"  + $prompt) -s btx},
+      [false,true] => {chatpdf ask ((open --raw ([$env.MY_ENV_VARS.chatgpt_config prompt chatpdf_btx.md] | path join)) + "\n"  + $prompt) -s btx},
       [false,false] => {chatpdf ask $prompt}
     }
   )

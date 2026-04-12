@@ -291,7 +291,9 @@ export def pivot-table [
 ] {
   let table_1 = if ($table_1 | is-empty) {$in} else {$table_1}
 
-  $table_1 | polars into-df | polars pivot -o $columns -i $index -v $values
+  let on_cols = ($table_1 | get ($columns | first) | uniq)
+
+  $table_1 | polars into-df | polars pivot -o $columns -c $on_cols -i $index --values $values
 }
 
 #generates table with an unique constant value
