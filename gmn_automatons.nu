@@ -25,27 +25,47 @@ export def "gmn cron" [
 	--dont-kill(-d) #dont kill gemini mcp servers
 ] {
 	let prompt = $"run ($skill) skill"
-	
-	let output =  gmn --profile $profile --model $model --prompt $prompt | complete 
-	
+	let output =  gmn --profile $profile --model $model --prompt $prompt | complete
+
+	# Clean up output: extract only the report after the last horizontal rule (---)
+	let cleaned_stdout = (_clean-output $output.stdout)
+
 	gmn-cron-email $skill $output
-	
+
 	if not $dont_kill {
 		sleep 2sec
 		killnode
 	}
-	
+
 	#retry with gemini-3-flash
 	if $output.exit_code != 0 {
-		let output =  gmn --profile $profile --model gemini-3-flash-preview --prompt $prompt | complete
 		gmn-cron-email $"Retry of ($skill)" $output
+		let output =  gmn --profile $profile --model gemini-3-flash-preview --prompt $prompt | complete
+
+		let cleaned_stdout_retry = (_clean-output $output.stdout)
+
+		$cleaned_stdout_retry | to discord
+
+		return
 	}
-	
+
+	$cleaned_stdout | to discord
+
 	if not $dont_kill {
 		sleep 2sec
 		killnode
 	}
 }
+
+# Helper to extract final report from gemini output
+def _clean-output [stdout: string] {
+	if ($stdout | str contains "---") {
+		$stdout | split row "---" | last | str trim
+	} else {
+		$stdout
+	}
+}
+
 
 #send cron outputs emails
 def gmn-cron-email [
