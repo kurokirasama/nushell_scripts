@@ -105,7 +105,7 @@ let hooks = {
             
                 ## update ip
                 print (echo $"(ansi -e { fg: '#00ff00' attr: b })getting device ips...(ansi reset)")
-                let host = (sys host | get hostname)
+                let host = sys host | get hostname
                 let ips_file = $env.MY_ENV_VARS.ips
                 let ips_content = open $ips_file
                 let ips = nu ($env.MY_ENV_VARS.nu_scripts | path join get-ips.nu) ...$env.MY_ENV_VARS.hosts
@@ -158,8 +158,8 @@ let hooks = {
             
             #checking conditions
             let interval = 12hr 
-            let last_record = (open ~/.pwd_sizes.json | where directory == $env.PWD)
-            let now = (date now)
+            let last_record = open ~/.pwd_sizes.json | where directory == $env.PWD
+            let now = date now
             let not_update = (
                 if ($last_record | length) == 0 {
                     false

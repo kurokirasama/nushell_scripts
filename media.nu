@@ -773,7 +773,7 @@ export def "media delete-non-compressed" [
         | get name
         | path expand
         | path parse
-        | upsert stem ($file | get name | path parse | get stem | str append $"_($append)")
+        | upsert stem ($file | get name | path parse | get stem | { $in + $"_($append)" })
         | upsert extension mp4
         | path join
       )

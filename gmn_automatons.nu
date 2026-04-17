@@ -13,6 +13,7 @@ const skills = [
 	"cron-conductor-monitor"
 	"cron-nnet-ga-researcher"
 	"cron-news-feed"
+	"cron-manga-download-checker"
 ]
 const gmn_models = ["gemini-3.1-flash-lite-preview" "gemini-3-flash-preview" "gemini-2.5-flash" "gemini-2.5-flash-lite"]
 const profiles = ["no-mcp", "minimal", "standard", "webui", "research", "googlesuit", "imagen", "full"]
@@ -25,31 +26,28 @@ export def "gmn cron" [
 	--dont-kill(-d) #dont kill gemini mcp servers
 ] {
 	let prompt = $"run ($skill) skill"
-	let output =  gmn --profile $profile --model $model --prompt $prompt | complete
-
-	# Clean up output: extract only the report after the last horizontal rule (---)
-	let cleaned_stdout = (_clean-output $output.stdout)
+	let output =  gmn --profile $profile --model $model --output-format json --prompt $prompt | complete
 
 	gmn-cron-email $skill $output
 
-	if not $dont_kill {
-		sleep 2sec
-		killnode
-	}
-
 	#retry with gemini-3-flash
 	if $output.exit_code != 0 {
+		let output =  gmn --profile $profile --model gemini-3-flash-preview --output-format json --prompt $prompt | complete
 		gmn-cron-email $"Retry of ($skill)" $output
-		let output =  gmn --profile $profile --model gemini-3-flash-preview --prompt $prompt | complete
 
-		let cleaned_stdout_retry = (_clean-output $output.stdout)
+		let cleaned_stdout_retry = _clean-output $output.stdout
+		$cleaned_stdout_retry | to-discord -p --process
 
-		$cleaned_stdout_retry | to discord
-
+		if not $dont_kill {
+			sleep 2sec
+			killnode
+		}
 		return
 	}
 
-	$cleaned_stdout | to discord
+	# Clean up output: extract only the JSON part
+	let cleaned_stdout = _clean-output $output.stdout
+	$cleaned_stdout | to-discord -p --process
 
 	if not $dont_kill {
 		sleep 2sec
@@ -59,10 +57,41 @@ export def "gmn cron" [
 
 # Helper to extract final report from gemini output
 def _clean-output [stdout: string] {
-	if ($stdout | str contains "---") {
-		$stdout | split row "---" | last | str trim
+    # 1. Parse the top-level JSON from gemini --output-format json
+    let outer_data = (try { $stdout | from json } catch { { "response": $stdout } })
+
+    let model_response = (if ($outer_data | describe | str contains "record") and "response" in ($outer_data | columns) {
+        $outer_data.response
+    } else {
+        $stdout
+    })
+
+    # 2. Search for JSON inside the model's response (which might be wrapped in code blocks)
+    # 2a. Look for ```json ... ``` blocks
+    let markdown_json_parsed = ($model_response | parse -r '(?s).*```json\s*(.*?)\s*```')
+    let markdown_json = (if ($markdown_json_parsed | is-not-empty) { $markdown_json_parsed | get 0.capture0 } else { "" })
+    
+    if ($markdown_json | is-not-empty) {
+        try {
+            return ($markdown_json | from json)
+        } catch { }
+    }
+
+    # 2b. Look for raw {...} block
+    let raw_json_parsed = ($model_response | parse -r '(?s).*?(\{.*\})')
+    let raw_json = (if ($raw_json_parsed | is-not-empty) { $raw_json_parsed | get 0.capture0 } else { "" })
+    
+    if ($raw_json | is-not-empty) {
+        try {
+            return ($raw_json | from json)
+        } catch { }
+    }
+
+    # 3. Fallback: return the response as a simple record with report key if it's just text
+	if ($model_response | str contains "---") {
+		{ "report": ($model_response | split row "---" | last | str trim) }
 	} else {
-		$stdout
+		{ "report": ($model_response | str trim) }
 	}
 }
 

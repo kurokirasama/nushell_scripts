@@ -63,12 +63,7 @@ export def "h ls" [
 ] {
   let headers = h credentials    
   
-  let task_type = if ($task_type | is-empty) {
-    $types
-    | input list -f (echo-g "Select task type: ")
-  } else {
-    $task_type
-  }
+  let task_type = _h-input $task_type "Select task type: " --options $types
 
   if ($task_type not-in $types) {
     return-error "Invalid task type"
@@ -135,6 +130,7 @@ export def "h ls" [
 export def "h complete-daily" [
   task_id: string # The ID of the daily task to complete
   --verbose(-v)
+  --dry-run # Return payload without sending
 ] {
   let headers = h credentials
 
@@ -194,15 +190,17 @@ export def "h add" [
   --text(-t): string # Task text
   --notes(-n): string # Task notes
   --priority(-p): number # Task priority (1, 1.5, 2, 2.5)
+  --due(-d): string # Due date (YYYY-MM-DD) for todos
+  --checklist(-c): list<string> # Checklist items for todos
+  --frequency(-f): string # frequency (daily, weekly, monthly, yearly) for dailys
+  --every-x(-x): int # Repeat every X days/weeks/etc.
+  --days(-s): list<string> # Days of week for weekly dailys (m, t, w, th, f, s, su)
+  --direction(-r): string # Direction for habits (positive, negative, both)
+  --dry-run # Return payload without sending
 ] {
   let headers = h credentials
   
-  let task_type = if ($task_type | is-empty) {
-    $add_types
-    | input list -f (echo-g "Select task type: ")
-  } else {
-    $task_type
-  }
+  let task_type = _h-input $task_type "Select task type: " --options $add_types
 
   if ($task_type not-in ["dailys", "todos", "habits"]) {
     return-error "Invalid task type. Must be 'dailys', 'todos', or 'habits'."
@@ -216,18 +214,18 @@ export def "h add" [
     path: "/api/v3/tasks/user"
   } | url join
 
-  let task_text = if ($text != null) { $text } else { (input "Enter task text (required): ") }
+  let task_text = _h-input $text "Enter task text (required): "
   if ($task_text | is-empty) {
     return-error "Task text is required."
   }
 
-  let task_notes = if ($notes != null) { $notes } else { (input "Enter notes (optional): ") }
+  let task_notes = _h-input $notes "Enter notes (optional): "
   
-  let task_priority = if ($priority | is-not-empty) {
+  let task_priority = if ($priority != null) {
     $priority
   } else {
     let task_priority_options = ["Trivial (1)", "Easy (1.5)", "Medium (2)", "Hard (2.5)"]
-    let task_priority_input = ($task_priority_options | input list -f (echo-g "Select priority (optional): "))
+    let task_priority_input = _h-input null "Select priority (optional): " --options $task_priority_options
     match $task_priority_input {
         "Trivial (1)" => 1.0,
         "Easy (1.5)" => 1.5,
@@ -252,61 +250,86 @@ export def "h add" [
   if ($task_notes | is-not-empty) {
     $payload = ($payload | upsert notes $task_notes)
   }
-  if ($task_priority | is-not-empty) {
+  if ($task_priority != null) {
     $payload = ($payload | upsert priority $task_priority)
   }
 
   match $task_type {
     "todos" => {
-      let task_date = (input "Enter due date (YYYY-MM-DD, optional): ")
+      let task_date = _h-input $due "Enter due date (YYYY-MM-DD, optional): "
       if ($task_date | is-not-empty) {
         # Convert to ISO 8601 format
-        let iso_date = ($task_date | into datetime | date format "%Y-%m-%dT%H:%M:%S.000Z")
+        let iso_date = ($task_date | into datetime | format date "%Y-%m-%dT%H:%M:%S.000Z")
         $payload = ($payload | upsert date $iso_date)
       }
 
-      mut checklist = []
-      loop {
-        let checklist_item = (input "Enter checklist item (leave empty to finish): ")
-        if ($checklist_item | is-empty) {
-          break
+      let checklist_data = if ($checklist != null) {
+        $checklist | each { |it| {text: $it, completed: false} }
+      } else {
+        mut list = []
+        loop {
+            let checklist_item = (input "Enter checklist item (leave empty to finish): ")
+            if ($checklist_item | is-empty) {
+                break
+            }
+            $list = ($list | append {text: $checklist_item, completed: false})
         }
-        $checklist = ($checklist | append {text: $checklist_item, completed: false})
+        $list
       }
-      if ($checklist | is-not-empty) {
-        $payload = ($payload | upsert checklist $checklist)
+      
+      if ($checklist_data | is-not-empty) {
+        $payload = ($payload | upsert checklist $checklist_data)
       }
     }
     "dailys" => {
       let frequency_options = ["daily", "weekly", "monthly", "yearly"]
-      let task_frequency = ($frequency_options | input list -f (echo-g "Select frequency (required): "))
+      let task_frequency = _h-input $frequency "Select frequency (required): " --options $frequency_options
+      
       if ($task_frequency | is-empty) {
         return-error "Frequency is required for daily tasks."
       }
       $payload = ($payload | upsert frequency $task_frequency)
 
       if ($task_frequency == "daily") {
-        let every_x = (input "Repeat every X days (optional, e.g., 2 for every other day): ")
-        if ($every_x | is-not-empty) {
-          $payload = ($payload | upsert everyX ($every_x | into int))
+        let every_x_input = if ($every_x != null) {
+            $every_x
+        } else {
+            let input_val = (input "Repeat every X days (optional, e.g., 2 for every other day): ")
+            if ($input_val | is-not-empty) { $input_val | into int } else { null }
+        }
+        
+        if ($every_x_input != null) {
+          $payload = ($payload | upsert everyX $every_x_input)
         }
       } else if ($task_frequency == "weekly") {
         let days_of_week = ["m", "t", "w", "th", "f", "s", "su"]
         mut repeats = {}
-        for $day in $days_of_week {
-          let repeat_day = (input $"Repeat on ($day)? (y/n): ")
-          if ($repeat_day == "y") {
-            $repeats = ($repeats | upsert $day true)
-          } else {
-            $repeats = ($repeats | upsert $day false)
-          }
+        
+        if ($days != null) {
+            for $day in $days_of_week {
+                if ($day in $days) {
+                    $repeats = ($repeats | upsert $day true)
+                } else {
+                    $repeats = ($repeats | upsert $day false)
+                }
+            }
+        } else {
+            for $day in $days_of_week {
+                let repeat_day = (input $"Repeat on ($day)? (y/n): ")
+                if ($repeat_day == "y") {
+                    $repeats = ($repeats | upsert $day true)
+                } else {
+                    $repeats = ($repeats | upsert $day false)
+                }
+            }
         }
         $payload = ($payload | upsert repeats $repeats)
       }
     }
     "habits" => {
       let direction_options = ["positive", "negative", "both"]
-      let task_direction = ($direction_options | input list -f (echo-g "Select direction (required): "))
+      let task_direction = _h-input $direction "Select direction (required): " --options $direction_options
+      
       $payload = match $task_direction {
         "positive" => ($payload | upsert up true | upsert down false),
         "negative" => ($payload | upsert up false | upsert down true),
@@ -315,6 +338,8 @@ export def "h add" [
       }
     }
   }
+
+  if ($dry_run) { return $payload }
 
   let response = http post --content-type application/json $url -H $headers ($payload | to json)
   
@@ -329,15 +354,12 @@ export def "h add" [
 export def "h del" [
   task_type?: string@$add_types # Type of task to delete (dailys, todos, habits)
   --id: string # Task ID to delete
+  --text(-t): string # Task text to delete (first match)
+  --dry-run # Return payload without sending
 ] {
   let headers = h credentials
   
-  let task_type = if ($task_type | is-empty) {
-    $add_types
-    | input list -f (echo-g "Select task type to delete: ")
-  } else {
-    $task_type
-  }
+  let task_type = _h-input $task_type "Select task type to delete: " --options $add_types
 
   if ($task_type not-in ["dailys", "todos", "habits"]) {
     return-error "Invalid task type for deletion. Must be 'dailys', 'todos', or 'habits'."
@@ -345,6 +367,13 @@ export def "h del" [
 
   let task_to_delete = if ($id | is-not-empty) {
     { _id: $id }
+  } else if ($text | is-not-empty) {
+    let tasks = h ls $task_type
+    let found = $tasks | where text == $text
+    if ($found | is-empty) {
+        return-error $"No ($task_type) task found with text: ($text)"
+    }
+    $found | get 0
   } else {
     let tasks = h ls $task_type | reverse
 
@@ -353,10 +382,12 @@ export def "h del" [
         return
     }
 
-    let idx_task_to_delete = $tasks | input list -fid text (echo-g "Select task to delete: ")
+    let idx_task_to_delete = _h-input null "Select task to delete: " --options $tasks --id
     $tasks | get $idx_task_to_delete
   }
   
+  if ($dry_run) { return $task_to_delete }
+
   let base_url = "https://habitica.com"
 
   let url = {
@@ -376,7 +407,11 @@ export def "h del" [
 }
 
 # Marks selected todo tasks as completed
-export def "h complete-todos" [] {
+export def "h complete-todos" [
+    --ids: list<string> # Task IDs to complete
+    --texts: list<string> # Task texts to complete
+    --dry-run # Return payload without sending
+] {
     let headers = h credentials
 
     let todos = h ls todos | where completed == false | reverse
@@ -386,12 +421,20 @@ export def "h complete-todos" [] {
         return
     }
 
-    let selected_indices = $todos | input list -ifmd text (echo-g "Select todos to complete (use space to multi-select): ")
+    let selected_todos = if ($ids != null) {
+        $todos | where _id in $ids
+    } else if ($texts != null) {
+        $todos | where text in $texts
+    } else {
+        let selected_indices = _h-input null "Select todos to complete (use space to multi-select): " --options $todos --multi
+        $todos | enumerate | where index in $selected_indices | get item
+    }
     
+    if ($dry_run) { return $selected_todos }
+
     let base_url = "https://habitica.com"
 
-    for $index in $selected_indices {
-        let todo = $todos | get $index
+    for $todo in $selected_todos {
         print -n $"Completing todo: ($todo.text) "
       
         let url = {
@@ -413,7 +456,12 @@ export def "h complete-todos" [] {
 }
 
 # Define the function to score habits
-export def "h score-habits" [] {
+export def "h score-habits" [
+    --ids: list<string> # Habit IDs to score
+    --texts: list<string> # Habit texts to score
+    --direction(-d): string # Direction to score (up, down)
+    --dry-run # Return payload without sending
+] {
     let headers = h credentials
 
     # Fetch the list of habits
@@ -425,15 +473,22 @@ export def "h score-habits" [] {
         return
     }
 
-    # Prompt the user to select habits to score
-    let selected_indices = $habits | input list -ifmd text (echo-g "Select habits to score: ")
+    # Selection logic
+    let selected_habits = if ($ids != null) {
+        $habits | where _id in $ids
+    } else if ($texts != null) {
+        $habits | where text in $texts
+    } else {
+        let selected_indices = $habits | input list -ifmd text (echo-g "Select habits to score: ")
+        $habits | enumerate | where index in $selected_indices | get item
+    }
     
+    if ($dry_run) { return { habits: $selected_habits, direction: $direction } }
+
     let base_url = "https://habitica.com"
     
     # Loop over the selected habits
-    for index in $selected_indices {
-        let habit = $habits | get $index
-
+    for $habit in $selected_habits {
         # Determine available directions for the habit
         mut directions = []
         if $habit.up {
@@ -449,13 +504,21 @@ export def "h score-habits" [] {
             continue
         }
 
-        # Prompt the user to choose a direction
-        let direction = $directions | input list -f $"Choose a direction to score in habit '($habit.text)': "
+        # Direction logic
+        let score_dir = if ($direction != null) {
+            if ($direction in $directions) {
+                $direction
+            } else {
+                return-error $"Invalid direction '($direction)' for habit '($habit.text)'. Available: ($directions)"
+            }
+        } else {
+             $directions | input list -f $"Choose a direction to score in habit '($habit.text)': "
+        }
         
         let url = {
             scheme: ( $base_url | split row "://" | get 0 ),
             host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
-            path: $"/api/v3/tasks/($habit._id)/score/($direction)"
+            path: $"/api/v3/tasks/($habit._id)/score/($score_dir)"
         } | url join
         
         # Score the habit
@@ -463,7 +526,7 @@ export def "h score-habits" [] {
 
         # Handle the response
         if ($response.success == true) {
-            print $"Scored habit '($habit.text)' as ($direction)."
+            print $"Scored habit '($habit.text)' as ($score_dir)."
         } else {
             print $"Failed to score habit '($habit.text)': ($response.body.message)"
         }
@@ -516,7 +579,7 @@ export def "h skill" [
             print (echo-r $"No skills available for your class: ($user_class).")
             return
         }
-        $available_skills | input list -fd name (echo-g "Select a skill to cast: ")
+        _h-input null "Select a skill to cast: " --options $available_skills --id
     } else {
         let skill_found = $available_skills | where name == $skill_name
         if ($skill_found | is-empty) {
@@ -566,7 +629,7 @@ export def "h skill-max" [
             print (echo-r $"No skills available for your class: ($user_class).")
             return
         }
-        $available_skills | input list -fd name (echo-g "Select a skill to cast multiple times: ")
+        _h-input null "Select a skill to cast multiple times: " --options $available_skills --id
     } else {
         let skill_found = $available_skills | where name == $skill_name
         if ($skill_found | is-empty) {
@@ -685,29 +748,39 @@ export def "h buy-armoir" [] {
 # Completes a checklist item for a task
 export def "h complete-checklist" [
   task_type?: string@$add_types # Type of task to complete checklist for (dailys, todos, habits)
+  --id: string # Task ID
+  --text(-t): string # Task text
+  --indices(-i): list<int> # Checklist item indices to complete
+  --items(-s): list<string> # Checklist item texts to complete
+  --dry-run # Return payload without sending
 ] {
   let headers = h credentials
   
-  let task_type = if ($task_type | is-empty) {
-    $add_types
-    | input list -f (echo-g "Select task type: ")
-  } else {
-    $task_type
-  }
+  let task_type = _h-input $task_type "Select task type: " --options $add_types
 
   if ($task_type not-in ["dailys", "todos", "habits"]) {
     return-error "Invalid task type. Must be 'dailys', 'todos', or 'habits'."
   }
 
-  let tasks_with_checklist = h ls $task_type | where ($it.checklist | is-not-empty) | reverse
-
-  if ($tasks_with_checklist | is-empty) {
-    print (echo-r $"No tasks with checklists found for type '($task_type)'.")
-    return
+  let selected_task = if ($id | is-not-empty) {
+    let tasks = h ls $task_type
+    let found = $tasks | where _id == $id
+    if ($found | is-empty) { return-error $"No ($task_type) task found with ID: ($id)" }
+    $found | get 0
+  } else if ($text | is-not-empty) {
+    let tasks = h ls $task_type
+    let found = $tasks | where text == $text
+    if ($found | is-empty) { return-error $"No ($task_type) task found with text: ($text)" }
+    $found | get 0
+  } else {
+    let tasks_with_checklist = h ls $task_type | where ($it.checklist | is-not-empty) | reverse
+    if ($tasks_with_checklist | is-empty) {
+        print (echo-r $"No tasks with checklists found for type '($task_type)'.")
+        return
+    }
+    let selected_task_index = _h-input null "Select a task to complete checklist items for: " --options $tasks_with_checklist --id
+    $tasks_with_checklist | get $selected_task_index
   }
-
-  let selected_task_index = $tasks_with_checklist | input list -fid text (echo-g "Select a task to complete checklist items for: ")
-  let selected_task = $tasks_with_checklist | get $selected_task_index
 
   let checklist_items = $selected_task.checklist | where completed == false
 
@@ -716,7 +789,15 @@ export def "h complete-checklist" [
     return
   }
 
-  let selected_checklist_indices = $checklist_items | input list -ifmd text (echo-g "Select checklist items to complete: ")
+  let selected_checklist_indices = if ($indices != null) {
+    $indices
+  } else if ($items != null) {
+    $checklist_items | enumerate | where item.text in $items | get index
+  } else {
+    _h-input null "Select checklist items to complete: " --options $checklist_items --multi
+  }
+
+  if ($dry_run) { return { task: $selected_task, item_indices: $selected_checklist_indices } }
 
   let base_url = "https://habitica.com"
 
@@ -745,38 +826,54 @@ export def "h complete-checklist" [
 # Adds a checklist item to a task
 export def "h add-checklist" [
   task_type?: string@$add_types # Type of task to add checklist item to (dailys, todos, habits)
+  --id: string # Task ID
+  --text(-t): string # Task text
+  --items(-s): list<string> # Checklist items to add
+  --dry-run # Return payload without sending
 ] {
   let headers = h credentials
   
-  let task_type = if ($task_type | is-empty) {
-    $add_types
-    | input list -f (echo-g "Select task type: ")
-  } else {
-    $task_type
-  }
+  let task_type = _h-input $task_type "Select task type: " --options $add_types
 
   if ($task_type not-in ["dailys", "todos", "habits"]) {
     return-error "Invalid task type. Must be 'dailys', 'todos', or 'habits'."
   }
 
-  let tasks = h ls $task_type | reverse
-
-  if ($tasks | is-empty) {
-    print (echo-r $"No tasks found for type '($task_type)'.")
-    return
-  }
-
-  let selected_task_index = $tasks | input list -fid text (echo-g "Select a task to add a checklist item to: ")
-  let selected_task = $tasks | get $selected_task_index
-
-  mut checklist_items = []
-  loop {
-    let item_text = (input "Enter checklist item (leave empty to finish): ")
-    if ($item_text | is-empty) {
-      break
+  let selected_task = if ($id | is-not-empty) {
+    let tasks = h ls $task_type
+    let found = $tasks | where _id == $id
+    if ($found | is-empty) { return-error $"No ($task_type) task found with ID: ($id)" }
+    $found | get 0
+  } else if ($text | is-not-empty) {
+    let tasks = h ls $task_type
+    let found = $tasks | where text == $text
+    if ($found | is-empty) { return-error $"No ($task_type) task found with text: ($text)" }
+    $found | get 0
+  } else {
+    let tasks = h ls $task_type | reverse
+    if ($tasks | is-empty) {
+        print (echo-r $"No tasks found for type '($task_type)'.")
+        return
     }
-    $checklist_items = ($checklist_items | append $item_text)
+    let selected_task_index = _h-input null "Select a task to add a checklist item to: " --options $tasks --id
+    $tasks | get $selected_task_index
   }
+
+  let checklist_items = if ($items != null) {
+    $items
+  } else {
+    mut list = []
+    loop {
+        let item_text = (input "Enter checklist item (leave empty to finish): ")
+        if ($item_text | is-empty) {
+            break
+        }
+        $list = ($list | append $item_text)
+    }
+    $list
+  }
+
+  if ($dry_run) { return { task: $selected_task, items: $checklist_items } }
 
   if ($checklist_items | is-empty) {
     print (echo-r "No checklist items entered.")
@@ -904,4 +1001,28 @@ export alias dailys = h ls dailys -ni
 #budget
 export def budget [] {
     h ls dailys | find budget | get checklist.0
+}
+
+# Private helper for handling flag vs interactive input
+def _h-input [
+    flag: any,
+    prompt_msg: string,
+    --options: any, # List of options for input list
+    --multi, # Use multi-select
+    --id, # Use -fid text (returns index but shows text)
+    --is-list # If true, returns flag directly if not null (for lists)
+] {
+    if ($flag != null) { return $flag }
+
+    if ($options != null) {
+        if $multi {
+            $options | input list -ifmd text (echo-g $prompt_msg)
+        } else if $id {
+            $options | input list -fid text (echo-g $prompt_msg)
+        } else {
+            $options | input list -f (echo-g $prompt_msg)
+        }
+    } else {
+        input $prompt_msg
+    }
 }

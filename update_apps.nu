@@ -394,14 +394,14 @@ export def github-app-update [
     }
 
     if ($pattern | is-empty) {
-      let install = (input (echo-g "Would you like to install it now? (y/n): "))
+      let install = input (echo-g "Would you like to install it now? (y/n): ")
       if $install == "y" {
         sudo gdebi -n ($info.name | ansi strip)
       }
       return
     }
 
-    let install = (input (echo-g "Would you like to install it now? (y/n): "))
+    let install = input (echo-g "Would you like to install it now? (y/n): ")
     if $install == "y" {
       sudo gdebi -n ($info.name | ansi strip)
     }
@@ -412,7 +412,7 @@ export def github-app-update [
   aria2c --download-result=hide $url
 
   if $file_type == "deb" {
-    let install = (input (echo-g "Would you like to install it now? (y/n): "))
+    let install = input (echo-g "Would you like to install it now? (y/n): ")
     if $install == "y" {
       sudo gdebi -n ($info.name | ansi strip)
     }
@@ -1140,4 +1140,22 @@ export def "apps-update markdonify-mcp" [] {
   git pull
   pnpm install
   pnpm run build
+}
+
+#update/install matlab-agentic-toolkit
+export def "apps-update matlab-agentic-toolkit" [] {
+	let args = open --raw ($env.MY_ENV_VARS.linux_backup | path join matlab_mcp_arguments.md)
+	cd ~/software/
+	
+	if ("~/software" | path join matlab-agentic-toolkit | path expand | path exists) {
+		cd matlab-agentic-toolkit
+		git pull
+	} else {
+		git clone https://github.com/matlab/matlab-agentic-toolkit.git
+	}	
+	
+	print (echo-c "\nNow cd into ~/software/matlab-agentic-toolkit directory, launch gemini and ask it to:\n" "orange")
+	print ("Set up the MATLAB Agentic Toolkit according to @AGENTS.md, and this args for the mcp:\n")
+	print ($"($args)")
+	print ($"also update the mcp configuration, if necessary, in this file: ($env.MY_ENV_VARS.linux_backup | path join settings_gemini.json)")
 }

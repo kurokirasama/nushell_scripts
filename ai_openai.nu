@@ -77,7 +77,7 @@ export def chat_gpt [
 
   mut ssystem = ""
   if $list_system {
-    let selection = ($system_messages | input list -f (echo-g "Select system message: "))
+    let selection = $system_messages | input list -f (echo-g "Select system message: ")
     $ssystem = (open --raw ($system_messages_files | find -n ("/" + $selection + ".md") | get 0))
   } else if (not ($select_system | is-empty)) {
     try {
@@ -92,7 +92,7 @@ export def chat_gpt [
 
   mut preprompt = ""
   if $pre_prompt {
-    let selection = ($pre_prompts | input list -f (echo-g "Select pre-prompt: "))
+    let selection = $pre_prompts | input list -f (echo-g "Select pre-prompt: ")
     $preprompt = (open --raw ($pre_prompt_files | find -n ("/" + $selection + ".md") | get 0))
   } else if (not ($select_preprompt | is-empty)) {
     try {

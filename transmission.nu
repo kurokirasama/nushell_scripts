@@ -149,12 +149,12 @@ export def "t remove-delete" [
   if ($ids | is-empty) {
     $t
     | each {|id| 
-        transmission-remote -t $id.ID -n 'transmission:transmission' -rad
+        transmission-remote -t ($id.ID | str replace "*" "") -n 'transmission:transmission' -rad
       }
   } else {
     $ids 
     | each {|id| 
-        transmission-remote -t $id -n 'transmission:transmission' -rad
+        transmission-remote -t ($id | str replace "*" "") -n 'transmission:transmission' -rad
       }
   }
 }

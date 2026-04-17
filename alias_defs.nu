@@ -158,7 +158,7 @@ const profiles = ["no-mcp", "minimal", "standard", "webdev", "research", "google
 #change gemini profile settings
 #profiles:
 # - no-mcp: no mcp + conductor extension
-# - minimal: nushell +context-mode mcp + conductor, google-workspace extensions
+# - minimal: nushell + context-mode mcp + conductor, google-workspace extensions
 # - standard: deepwiki, context7, grep, Ref, nushell, ollama-search, exa, bravesearch, firecrawl, sequentialthinking, markdonify mcp servers + conductor, google-workspace extensions
 # - webdev: standard + magicui and crome-dev-tools mcp servers + gemini-cli-security, gemini-docs-ext extensions
 # - research: standard + research-semantic-paper, research-paper mcp servers + datacommons, gemini-deep-research extensions
