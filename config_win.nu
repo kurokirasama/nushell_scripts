@@ -60,15 +60,7 @@ let hooks = {
                         _ => {"f4ac"}
                     }
                 } else {
-                    match (sys host | get name) {
-                        $p if $p like "Debian*" => {"f306"},
-                        "Windows" => {"f17a"},
-                        "Ubuntu"  => {"f31b"},
-                        "CentOs" => {"f304"},
-                        "RedHat" => {"ef5d"},
-                        "Rocky Linux" => {"f32b"},
-                        _ => {"e712"}
-                    } 
+                    "f17a" # Always Windows in this config
                 } 
         },
         {
@@ -222,12 +214,12 @@ let hooks = {
         },
         {
             condition: {"venv" | path exists},
-            code: "overlay use venv/bin/activate.nu"
+            code: "overlay use venv/Scripts/activate.nu"
         }
         ,
         {
             condition: {".venv" | path exists},
-            code: "overlay use .venv/bin/activate.nu"
+            code: "overlay use .venv/Scripts/activate.nu"
         }
       ]
     }

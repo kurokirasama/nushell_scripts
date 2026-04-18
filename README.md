@@ -16,12 +16,20 @@ git clone https://github.com/kurokirasama/nushell_scripts
 Modify `$env.PATH` and `$env.MY_ENV_VARS` in `$env_vars.nu` according to your settings.
 
 ### Nushell config
+#### Linux
 1. Modify `append_to_config.nu` and replace with the path to this repo.
 2. Take the content of `append_to_config.nu` and copy it at the end of the config.nu file. Or, you can run:
 ```nu
 open append_to_config.nu | save --append $nu.config-path
 ```
 3. Restart Nushell.
+
+#### Windows
+1. Take the content of `append_to_config_win.nu` and copy it at the end of the `config.nu` file. Or, you can run:
+```nu
+open append_to_config_win.nu | save --append $nu.config-path
+```
+2. Restart Nushell.
 
 ## Files description
 ### AI Tools

@@ -2,7 +2,9 @@
 
 export def main [] {
 	let dpx_output = (
-		/home/kira/.local/bin/maestral status 
+		let maestral = ($env.HOME | path join ".local" "bin" "maestral")
+		^$maestral status 
+ 
 		| lines 
 		| parse "{item}  {status}" 
 		| str trim 

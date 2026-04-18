@@ -32,7 +32,8 @@ export def "media help" [] {
 
 #cuda ffmpeg
 export def --wrapped my-ffmpeg [...rest] {
-  /home/kira/software/nvidia/ffmpeg/./ffmpeg -hwaccel cuda ...$rest
+  let ffmpeg = if (sys host | get name | str downcase) == "windows" { "ffmpeg.exe" } else { ($env.HOME | path join "software" "nvidia" "ffmpeg" "ffmpeg") }
+  ^$ffmpeg -hwaccel cuda ...$rest
 }
 
 #video info

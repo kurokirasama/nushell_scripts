@@ -32,7 +32,7 @@ export def --env weather [
 
 # Get weather for right command prompt
 export def --env get_weather_by_interval [INTERVAL_WEATHER:duration] {
-    let weather_runtime_file = $env.HOME | path join .weather_runtime_file.json
+    let weather_runtime_file = ($env.MY_ENV_VARS.nushell_dir | path join "weather_runtime_file.json")
     
     if ($weather_runtime_file | path exists) {
         let last_runtime_data = open $weather_runtime_file
@@ -49,35 +49,39 @@ export def --env get_weather_by_interval [INTERVAL_WEATHER:duration] {
         }
 
         if not $env.MY_ENV_VARS.NETWORK.status or $not_update {
-            return ($last_runtime_data | get weather)
+            let w = ($last_runtime_data | get weather)
+            return (if ($w | describe) =~ "record" { $"($w.Icon) ($w.Temperature)" } else { $w })
         } 
     
         let WEATHER = get_weather_for_prompt (get_location)
 
         if not $WEATHER.mystatus {
-            return ($last_runtime_data | get weather)
+            let w = ($last_runtime_data | get weather)
+            return (if ($w | describe) =~ "record" { $"($w.Icon) ($w.Temperature)" } else { $w })
         }
         
         let NEW_WEATHER_TIME = date now | format date '%Y-%m-%d %H:%M:%S %z'
+        let formatted_weather = $"($WEATHER.Icon) ($WEATHER.Temperature)"
            
         $last_runtime_data 
-        | upsert weather $"($WEATHER.Icon) ($WEATHER.Temperature)" 
+        | upsert weather $formatted_weather 
         | upsert weather_text $"($WEATHER.Condition) ($WEATHER.Temperature)" 
         | upsert last_weather_time $NEW_WEATHER_TIME 
         | save -f $weather_runtime_file
     
-        return $"($WEATHER.Icon) ($WEATHER.Temperature)"
+        return $formatted_weather
     } else {
         let WEATHER = get_weather_for_prompt (get_location)
         let LAST_WEATHER_TIME = date now | format date '%Y-%m-%d %H:%M:%S %z'
+        let formatted_weather = $"($WEATHER.Icon) ($WEATHER.Temperature)"
     
         let WEATHER_DATA = {
-            "weather": ($WEATHER)
+            "weather": $formatted_weather
             "last_weather_time": ($LAST_WEATHER_TIME)
         } 
     
         $WEATHER_DATA | save -f $weather_runtime_file
-        return ($WEATHER)
+        return $formatted_weather
     }
 }
 

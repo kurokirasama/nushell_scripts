@@ -117,7 +117,8 @@ export def update-nu-config [] {
   
   cp -f $default $nu.config-path
 
-  open ([$env.MY_ENV_VARS.linux_backup "append_to_config.nu"] | path join)
+  let append_file = if (sys host | get name | str downcase) == "windows" { "append_to_config_win.nu" } else { "append_to_config.nu" }
+  open ([$env.MY_ENV_VARS.linux_backup $append_file] | path join)
   | str replace kira $env.USER -a
   | save --append $nu.config-path
 

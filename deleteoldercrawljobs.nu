@@ -1,7 +1,7 @@
 #!/usr/bin/env nu
 
 def main [] {
-    let directory = "/home/kira/Dropbox/Aplicaciones/Gmail/folderwatched/added"
+    let directory = ("~/Dropbox/Aplicaciones/Gmail/folderwatched/added" | path expand)
 
     if not (($directory | path exists) and ($directory | path type) == "dir") {
         print $"Directory not found or is not a directory: ($directory)"

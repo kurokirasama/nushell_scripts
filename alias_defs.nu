@@ -54,7 +54,7 @@ export def ram [] {
 
 #yewtube
 export def ytcli [] {
-  yt set show_video True, set fullscreen False, set search_music False, set player mpv, set notifier notify-send, set order date, set user_order date, set playerargs default, set video_format webm, set ddir /home/kira/Yandex.Disk/mps, userpl kurokirasama
+  yt set show_video True, set fullscreen False, set search_music False, set player mpv, set notifier notify-send, set order date, set user_order date, set playerargs default, set video_format webm, set ddir ($env.MY_ENV_VARS.mps), userpl kurokirasama
 }
 
 #adbtasker
@@ -66,7 +66,7 @@ export def adbtasker [] {
 #open gmail client (cmdg)
 export def --env gmail [] {
   cd $env.MY_ENV_VARS.download_dir
-  cmdg -shell "/home/kira/.cargo/bin/nu"
+  cmdg -shell ($env.HOME | path join ".cargo" "bin" "nu")
 }
 
 #wrapper for mermaid diagrams
