@@ -167,7 +167,7 @@ export def "t remove-done" [] {
   | where Done == "100%"
   | get ID 
   | each {|id|
-      transmission-remote  -t $id -n 'transmission:transmission' --remove
+      transmission-remote  -t ($id | str replace "*" "") -n 'transmission:transmission' --remove
     } 
 }
 
