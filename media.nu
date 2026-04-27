@@ -22,6 +22,7 @@ export def "media help" [] {
       "- media myt"
       "- media delete-mps"
       "- media crop-video"
+      "- media auto-remove-logo"
       "- mpv (alias)"
       "- media to"
     ]
@@ -1157,5 +1158,112 @@ export def "media remove-logo" [
     } catch {
         print (echo-r "my-ffmpeg with CUDA failed, falling back to standard ffmpeg (CPU)...")
         ffmpeg -i $file -vf $filter $ofile
+    }
+}
+
+# Automatically detect and remove logo from video or image
+#
+# Examples:
+# media auto-remove-logo input.mp4
+# media auto-remove-logo input.mp4 --method find_rect --template logo.png
+# media auto-remove-logo input.jpg --template logo.png
+export def "media auto-remove-logo" [
+    file: string,                  # The input file (video or image)
+    --method(-m): string = "auto", # Detection method: 'auto' (zelea2/delogo), 'find_rect' (ffmpeg)
+    --template(-t): string,        # Template image for 'find_rect' method (required for images)
+    --output(-o): string,          # Optional output file name
+    --canny(-y),                   # Force canny edge detection (for zelea2 method)
+    --notify(-n)                   # Notify to android via join/tasker
+] {
+    let ext = $file | path parse | get extension | str downcase
+    let name = $file | path parse | get stem
+    let is_video = $ext in ["mp4", "mkv", "avi", "webm", "h264"]
+    let is_image = $ext in ["jpg", "jpeg", "png", "webp"]
+
+    if not $is_video and not $is_image {
+        return-error $"Unsupported file extension: .($ext)"
+    }
+
+    if $is_image and $template == null and $method != "auto" {
+        return-error "Template is required for image logo removal with find_rect method"
+    }
+
+    let delogo_bin = $"($env.HOME)/software/delogo/delogo"
+    let ofile = if ($output | is-empty) {
+        $"($name)_nologo.($ext)"
+    } else {
+        $output
+    }
+
+    let params = if $method == "auto" and $is_video {
+        print (echo-g $"Attempting automatic logo detection on ($file) using zelea2/delogo...")
+        let canny_flag = if $canny { "-y" } else { "" }
+        let detection = (bash -c $"($delogo_bin) ($canny_flag) '($file)'" | complete)
+        
+        if ($detection.stdout | str contains "delogo=") {
+            let p = ($detection.stdout | lines | where $it =~ "delogo=" | first | split row " corner" | first | str trim)
+            print (echo-g $"Detected logo params: ($p)")
+            $p
+        } else {
+            print (echo-r "Automatic detection failed. Trying canny edge detection...")
+            let detection_canny = (bash -c $"($delogo_bin) -y '($file)'" | complete)
+            if ($detection_canny.stdout | str contains "delogo=") {
+                let p = ($detection_canny.stdout | lines | where $it =~ "delogo=" | first | split row " corner" | first | str trim)
+                print (echo-g $"Detected logo params [canny]: ($p)")
+                $p
+            } else {
+                return-error "Automatic logo detection failed. Please provide a template and use --method find_rect."
+            }
+        }
+    } else if $method == "find_rect" or ($is_image and ($template | is-not-empty)) {
+        if ($template | is-empty) { return-error "Template file is required for find_rect method." }
+        
+        print (echo-g $"Attempting logo detection on ($file) using FFmpeg find_rect with template ($template)...")
+        
+        # Convert template to gray if needed
+        let template_gray = $"($template | path parse | get stem)_gray.png"
+        ffmpeg -i $template -vf format=gray $template_gray -y -loglevel quiet
+
+        let detection = (ffmpeg -i $file -vf $"find_rect=object=($template_gray)" -t 5 -f null - | complete)
+        rm $template_gray | ignore
+
+        if ($detection.stderr | str contains "Found at") {
+            # Parse coordinates: [Parsed_find_rect_0 @ 0x...] Found at n=0 pts_time=0.000000 x=1102 y=688 with score=0.000914
+            let line = ($detection.stderr | lines | where $it =~ "Found at" | first)
+            let x = ($line | parse -r r#'x=(?<x>\d+)'# | get x.0 | into int)
+            let y = ($line | parse -r r#'y=(?<y>\d+)'# | get y.0 | into int)
+            
+            # We also need width and height from template
+            let info = (ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 $template | str trim | split row "x" | into int)
+            let w = $info.0
+            let h = $info.1
+
+            let p = $"delogo=x=($x):y=($y):w=($w):h=($h)"
+            print (echo-g $"Detected logo params via find_rect: ($p)")
+            $p
+        } else {
+            return-error "Logo detection via find_rect failed."
+        }
+    } else {
+        return-error $"Method ($method) not supported for this file type."
+    }
+
+    # Removal Phase
+    print (echo-g $"Applying removal filter to ($ofile)...")
+    if $is_video {
+        try {
+            my-ffmpeg -i $file -vf $params -c:a copy $ofile -y
+        } catch {
+            ffmpeg -i $file -vf $params -c:a copy $ofile -y
+        }
+    } else {
+        ffmpeg -i $file -vf $params $ofile -y
+    }
+
+    if ($ofile | path exists) {
+        print (echo-g $"SUCCESS: Logo removed. Output saved to ($ofile)")
+        if $notify { "Logo removal finished!" | tasker send-notification }
+    } else {
+        return-error "FFmpeg failed to produce output file."
     }
 }
