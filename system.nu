@@ -913,3 +913,16 @@ export def system-cleanup [
     print (echo-g "System cleanup complete!")
     print ((echo-c $summary 'cyan' -b) + $" ($total_saved)")
 }
+
+#change window focus in hyprland
+export def "hypr focus-grep" [query: string] {
+    let windows = (hyprctl clients -j | from json)
+    let selected = ($windows
+        | where class =~ $query or title =~ $query
+        | select class title address
+        | input list --fuzzy "Select windows to focus:")
+
+    if ($selected != null) {
+        hyprctl dispatch focuswindow $"address:($selected.address)"
+    }
+}

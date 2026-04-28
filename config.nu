@@ -73,11 +73,11 @@ let hooks = {
         },
         {
             condition: {".git" | path exists},
-            code: "$env.GIT_STATUS = if (git status -s | str length) > 0 {git status -s | lines | length} else {0}"
+            code: "let m = (get-git-metrics); $env.GIT_BRANCH = $m.branch; $env.GIT_AHEAD = $m.ahead; $env.GIT_STAGED = $m.staged; $env.GIT_MODIFIED = $m.modified; $env.GIT_DELETED = $m.deleted; $env.GIT_UNTRACKED = $m.untracked"
         },
         {
             condition: {not (".git" | path exists)},
-            code: "$env.GIT_STATUS = 0"
+            code: "$env.GIT_BRANCH = ''; $env.GIT_AHEAD = 0; $env.GIT_STAGED = 0; $env.GIT_MODIFIED = 0; $env.GIT_DELETED = 0; $env.GIT_UNTRACKED = 0"
         }
     ]
     pre_execution: [

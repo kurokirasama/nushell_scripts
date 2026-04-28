@@ -1,3 +1,5 @@
+use string_manipulation.nu *
+use files.nu *
 
 export def "media help" [] {
   print ([
@@ -339,7 +341,7 @@ export def "media split-video" [
   )
 
   let full_secs = ($full_length + "sec") | into duration
-  let full_hhmmss = into hhmmss $full_secs
+  let full_hhmmss = ($full_secs | into hhmmss)
 
   let n_segments = (
     if not ($number_segments | is-empty) {
@@ -353,14 +355,14 @@ export def "media split-video" [
   let seg_end = $seg_duration
 
   for $it in 1..($n_segments - 1) {
-    let segment_start = into hhmmss (($it - 1) * $seg_duration)
-    let segment_end = into hhmmss ($seg_end + ($it - 1) * $seg_duration + $delta)
+    let segment_start = ((($it - 1) * $seg_duration) | into hhmmss)
+    let segment_end = (($seg_end + ($it - 1) * $seg_duration + $delta) | into hhmmss)
 
     print (echo-g $"generating part ($it): ($segment_start) - ($segment_end)...")
     media cut-video $file $segment_start $segment_end -a $it
   }
 
-  let segment_start = into hhmmss (($n_segments - 1) * $seg_duration)
+  let segment_start = ((($n_segments - 1) * $seg_duration) | into hhmmss)
 
   print (echo-g $"generating part ($n_segments): ($segment_start) - ($full_hhmmss)...")
   media cut-video $file $segment_start $full_hhmmss -a $n_segments
@@ -1161,7 +1163,96 @@ export def "media remove-logo" [
     }
 }
 
-# Automatically detect and remove logo from video or image
+# Clip delogo parameters to ensure they are within frame boundaries
+export def "media clip-delogo-params" [params: string, file: string, --w_band: int = 35, --h_band: int = 18] {
+    # Expected format: delogo=x=832:y=591:w=442:h=129
+    let parsed = ($params | parse -r r#'delogo=x=(?<x>\d+):y=(?<y>\d+):w=(?<w>\d+):h=(?<h>\d+)'# | get 0)
+    let p_x = ($parsed.x | into int)
+    let p_y = ($parsed.y | into int)
+    let p_w = ($parsed.w | into int)
+    let p_h = ($parsed.h | into int)
+    
+    # Get media dimensions (works for video and image)
+    let info = (ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 $file | str trim | split row "x" | into int)
+    let v_width = $info.0
+    let v_height = $info.1
+
+    # Tightening check: warn if area matches search bands
+    let max_w_band = ($v_width * $w_band / 100 | into int)
+    let max_h_band = ($v_height * $h_band / 100 | into int)
+
+    if $p_w >= ($max_w_band - 10) or $p_h >= ($max_h_band - 10) {
+        print (echo-y $"WARNING: Detected logo area w:($p_w), h:($p_h) is near search band limits max_w:($max_w_band), max_h:($max_h_band).")
+        print (echo-y "The rectangle might be too big. Consider reducing --width_band (-W) or --height_band (-H).")
+    }
+
+    # Ensure x, y >= 0 and within frame
+    let x = (if $p_x < 0 { 0 } else if $p_x >= $v_width { $v_width - 1 } else { $p_x })
+    let y = (if $p_y < 0 { 0 } else if $p_y >= $v_height { $v_height - 1 } else { $p_y })
+
+    # Ensure w, h > 0
+    let w = (if $p_w < 1 { 1 } else { $p_w })
+    let h = (if $p_h < 1 { 1 } else { $p_h })
+    
+    # Final boundary check: x + w < v_width, y + h < v_height
+    # We use strictly < to be absolutely safe
+    let w = (if ($x + $w) >= $v_width { $v_width - $x - 1 } else { $w })
+    let h = (if ($y + $h) >= $v_height { $v_height - $y - 1 } else { $h })
+
+    # Final safety: if width or height became <= 0 after clipping, reset to 1
+    let w = (if $w < 1 { 1 } else { $w })
+    let h = (if $h < 1 { 1 } else { $h })
+
+    $"delogo=x=($x):y=($y):w=($w):h=($h)"
+}
+
+# Trim specified seconds from the end of a video
+export def "media trim-end" [
+    file: string,                  # The input video file
+    --seconds(-s): float = 2.5,    # Number of seconds to remove from the end (default: 2.5)
+    --output(-o): string,          # Optional output file name
+    --notify(-n)                   # Notify to android via join/tasker
+] {
+    let ext = $file | path parse | get extension | str downcase
+    let name = $file | path parse | get stem
+    let is_video = $ext in ["mp4", "mkv", "avi", "webm", "h264"]
+    
+    if not $is_video {
+        return-error "This command only supports video files."
+    }
+
+    let ofile = (if not ($output | is-empty) { $output } else { $"($name)_trimmed.($ext)" })
+
+    # Get total duration
+    let full_length = (
+        ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $file 
+        | str trim 
+        | into float
+    )
+
+    if $full_length <= $seconds {
+        return-error $"Video duration (($full_length)s) is shorter than or equal to trim time (($seconds)s)."
+    }
+
+    let new_duration = $full_length - $seconds
+    print (echo-g $"Trimming ($seconds)s from end. New duration: ($new_duration)s. Output: ($ofile)...")
+
+    try {
+        my-ffmpeg -i $file -t $new_duration -c copy $ofile -y
+    } catch {
+        print (echo-y "my-ffmpeg failed, falling back to standard ffmpeg...")
+        ffmpeg -i $file -t $new_duration -c copy $ofile -y
+    }
+
+    if ($ofile | path exists) {
+        print (echo-g $"SUCCESS: Video trimmed. Output saved to ($ofile)")
+        if $notify { "Video trimming finished!" | tasker send-notification }
+    } else {
+        return-error "FFmpeg failed to produce output file."
+    }
+}
+
+# Automatically remove logo from media file
 #
 # Examples:
 # media auto-remove-logo input.mp4
@@ -1171,8 +1262,12 @@ export def "media auto-remove-logo" [
     file: string,                  # The input file (video or image)
     --method(-m): string = "auto", # Detection method: 'auto' (zelea2/delogo), 'find_rect' (ffmpeg)
     --template(-t): string,        # Template image for 'find_rect' method (required for images)
+    --threshold(-T): float = 0.5,  # Detection threshold for find_rect (0.0 to 1.0)
     --output(-o): string,          # Optional output file name
     --canny(-y),                   # Force canny edge detection (for zelea2 method)
+    --width_band(-W): int = 35,    # Width search band percentage (default 35)
+    --height_band(-H): int = 18,   # Height search band percentage (default 18)
+    --corner(-c): int,             # Fix logo corner [0-3] (NW, NE, SW, SE)
     --notify(-n)                   # Notify to android via join/tasker
 ] {
     let ext = $file | path parse | get extension | str downcase
@@ -1188,7 +1283,15 @@ export def "media auto-remove-logo" [
         return-error "Template is required for image logo removal with find_rect method"
     }
 
-    let delogo_bin = $"($env.HOME)/software/delogo/delogo"
+    let delogo_bin = (
+        if ("~/software/delogo/delogo" | path expand | path exists) {
+            "~/software/delogo/delogo" | path expand
+        } else if (($env.HOME? | default "" | path join "software/delogo/delogo") | path exists) {
+            $env.HOME | path join "software/delogo/delogo"
+        } else {
+            "delogo" # Assume it's in PATH as last resort
+        }
+    )
     let ofile = if ($output | is-empty) {
         $"($name)_nologo.($ext)"
     } else {
@@ -1196,35 +1299,40 @@ export def "media auto-remove-logo" [
     }
 
     let params = if $method == "auto" and $is_video {
-        print (echo-g $"Attempting automatic logo detection on ($file) using zelea2/delogo...")
+        print (echo-g $"Attempting automatic logo detection on ($file) using ($delogo_bin) [W:($width_band)%, H:($height_band)%]...")
         let canny_flag = if $canny { "-y" } else { "" }
-        let detection = (bash -c $"($delogo_bin) ($canny_flag) '($file)'" | complete)
+        let corner_flag = if not ($corner | is-empty) { $"-c ($corner)" } else { "" }
+        let detection = (bash -c $"($delogo_bin) ($canny_flag) ($corner_flag) -W ($width_band) -H ($height_band) '($file)'" | complete)
         
         if ($detection.stdout | str contains "delogo=") {
             let p = ($detection.stdout | lines | where $it =~ "delogo=" | first | split row " corner" | first | str trim)
             print (echo-g $"Detected logo params: ($p)")
             $p
         } else {
-            print (echo-r "Automatic detection failed. Trying canny edge detection...")
-            let detection_canny = (bash -c $"($delogo_bin) -y '($file)'" | complete)
+            print (echo-r "Default detection failed. Attempting with Canny edge detection...")
+            let detection_canny = (bash -c $"($delogo_bin) -y ($corner_flag) -W ($width_band) -H ($height_band) '($file)'" | complete)
             if ($detection_canny.stdout | str contains "delogo=") {
                 let p = ($detection_canny.stdout | lines | where $it =~ "delogo=" | first | split row " corner" | first | str trim)
                 print (echo-g $"Detected logo params [canny]: ($p)")
                 $p
             } else {
+                # print (echo-r $"[Debug] stdout: ($detection_canny.stdout)")
+                # print (echo-r $"[Debug] stderr: ($detection_canny.stderr)")
+                # print (echo-r $"[Debug] exit code: ($detection_canny.exit_code)")
                 return-error "Automatic logo detection failed. Please provide a template and use --method find_rect."
             }
         }
     } else if $method == "find_rect" or ($is_image and ($template | is-not-empty)) {
         if ($template | is-empty) { return-error "Template file is required for find_rect method." }
+        if not ($template | path exists) { return-error $"Template file not found: ($template)" }
         
-        print (echo-g $"Attempting logo detection on ($file) using FFmpeg find_rect with template ($template)...")
+        print (echo-g $"Attempting logo detection on ($file) using FFmpeg find_rect with template ($template) and threshold ($threshold)...")
         
         # Convert template to gray if needed
         let template_gray = $"($template | path parse | get stem)_gray.png"
         ffmpeg -i $template -vf format=gray $template_gray -y -loglevel quiet
 
-        let detection = (ffmpeg -i $file -vf $"find_rect=object=($template_gray)" -t 5 -f null - | complete)
+        let detection = (ffmpeg -i $file -vf $"find_rect=object=($template_gray):threshold=($threshold)" -t 5 -f null - | complete)
         rm $template_gray | ignore
 
         if ($detection.stderr | str contains "Found at") {
@@ -1248,13 +1356,19 @@ export def "media auto-remove-logo" [
         return-error $"Method ($method) not supported for this file type."
     }
 
+    # Validate and clip coordinates to prevent FFmpeg "outside of frame" errors
+    let params = (media clip-delogo-params $params $file --w_band $width_band --h_band $height_band)
+
     # Removal Phase
     print (echo-g $"Applying removal filter to ($ofile)...")
     if $is_video {
         try {
             my-ffmpeg -i $file -vf $params -c:a copy $ofile -y
         } catch {
-            ffmpeg -i $file -vf $params -c:a copy $ofile -y
+            do -i { ffmpeg -i $file -vf $params -c:a copy $ofile -y } | complete
+            if not ($ofile | path exists) {
+                return-error $"FFmpeg failed to produce output file using params: ($params). The area might still be invalid for this video's codec or dimensions."
+            }
         }
     } else {
         ffmpeg -i $file -vf $params $ofile -y
