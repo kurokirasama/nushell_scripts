@@ -1268,12 +1268,14 @@ export def "media auto-remove-logo" [
     --width_band(-W): int = 35,    # Width search band percentage (default 35)
     --height_band(-H): int = 18,   # Height search band percentage (default 18)
     --corner(-c): int,             # Fix logo corner [0-3] (NW, NE, SW, SE)
+    --return-info(-i),             # Return detection info (start, end, coordinates)
     --notify(-n)                   # Notify to android via join/tasker
 ] {
     let ext = $file | path parse | get extension | str downcase
     let name = $file | path parse | get stem
     let is_video = $ext in ["mp4", "mkv", "avi", "webm", "h264"]
     let is_image = $ext in ["jpg", "jpeg", "png", "webp"]
+    mut info = {}
 
     if not $is_video and not $is_image {
         return-error $"Unsupported file extension: .($ext)"
@@ -1292,8 +1294,9 @@ export def "media auto-remove-logo" [
             "delogo" # Assume it's in PATH as last resort
         }
     )
+    let dir = $file | path parse | get parent
     let ofile = if ($output | is-empty) {
-        $"($name)_nologo.($ext)"
+        $dir | path join $"($name)_nologo.($ext)"
     } else {
         $output
     }
@@ -1304,24 +1307,33 @@ export def "media auto-remove-logo" [
         let corner_flag = if not ($corner | is-empty) { $"-c ($corner)" } else { "" }
         let detection = (bash -c $"($delogo_bin) ($canny_flag) ($corner_flag) -W ($width_band) -H ($height_band) '($file)'" | complete)
         
-        if ($detection.stdout | str contains "delogo=") {
-            let p = ($detection.stdout | lines | where $it =~ "delogo=" | first | split row " corner" | first | str trim)
-            print (echo-g $"Detected logo params: ($p)")
-            $p
+        let p = if ($detection.stdout | str contains "delogo=") {
+            ($detection.stdout | lines | where $it =~ "delogo=" | first | split row " corner" | first | str trim)
         } else {
             print (echo-r "Default detection failed. Attempting with Canny edge detection...")
             let detection_canny = (bash -c $"($delogo_bin) -y ($corner_flag) -W ($width_band) -H ($height_band) '($file)'" | complete)
             if ($detection_canny.stdout | str contains "delogo=") {
-                let p = ($detection_canny.stdout | lines | where $it =~ "delogo=" | first | split row " corner" | first | str trim)
-                print (echo-g $"Detected logo params [canny]: ($p)")
-                $p
+                ($detection_canny.stdout | lines | where $it =~ "delogo=" | first | split row " corner" | first | str trim)
             } else {
-                # print (echo-r $"[Debug] stdout: ($detection_canny.stdout)")
-                # print (echo-r $"[Debug] stderr: ($detection_canny.stderr)")
-                # print (echo-r $"[Debug] exit code: ($detection_canny.exit_code)")
                 return-error "Automatic logo detection failed. Please provide a template and use --method find_rect."
             }
         }
+        
+        print (echo-g $"Detected logo params: ($p)")
+
+        if $return_info {
+            let duration = (ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $file | str trim | into float)
+            let coords = ($p | parse -r r#'delogo=x=(?<x>\d+):y=(?<y>\d+):w=(?<w>\d+):h=(?<h>\d+)'# | get 0)
+            $info = {
+                start_time: 0,
+                end_time: $duration,
+                x: ($coords.x | into int),
+                y: ($coords.y | into int),
+                w: ($coords.w | into int),
+                h: ($coords.h | into int)
+            }
+        }
+        $p
     } else if $method == "find_rect" or ($is_image and ($template | is-not-empty)) {
         if ($template | is-empty) { return-error "Template file is required for find_rect method." }
         if not ($template | path exists) { return-error $"Template file not found: ($template)" }
@@ -1332,19 +1344,34 @@ export def "media auto-remove-logo" [
         let template_gray = $"($template | path parse | get stem)_gray.png"
         ffmpeg -i $template -vf format=gray $template_gray -y -loglevel quiet
 
-        let detection = (ffmpeg -i $file -vf $"find_rect=object=($template_gray):threshold=($threshold)" -t 5 -f null - | complete)
+        let time_limit = if $return_info { "" } else { "-t 5" }
+        let detection = (bash -c $"ffmpeg -i '($file)' -vf 'find_rect=object=($template_gray):threshold=($threshold)' ($time_limit) -f null -" | complete)
         rm $template_gray | ignore
 
         if ($detection.stderr | str contains "Found at") {
             # Parse coordinates: [Parsed_find_rect_0 @ 0x...] Found at n=0 pts_time=0.000000 x=1102 y=688 with score=0.000914
-            let line = ($detection.stderr | lines | where $it =~ "Found at" | first)
-            let x = ($line | parse -r r#'x=(?<x>\d+)'# | get x.0 | into int)
-            let y = ($line | parse -r r#'y=(?<y>\d+)'# | get y.0 | into int)
+            let matches = ($detection.stderr | lines | where $it =~ "Found at" | parse -r r#'pts_time=(?<t>[\d.]+).*x=(?<x>\d+).*y=(?<y>\d+)'#)
+            let first_match = ($matches | first)
+            let x = ($first_match.x | into int)
+            let y = ($first_match.y | into int)
             
             # We also need width and height from template
-            let info = (ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 $template | str trim | split row "x" | into int)
-            let w = $info.0
-            let h = $info.1
+            let info_template = (ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 $template | str trim | split row "x" | into int)
+            let w = $info_template.0
+            let h = $info_template.1
+
+            if $return_info {
+                let start_t = ($matches.t | into float | math min)
+                let end_t = ($matches.t | into float | math max)
+                $info = {
+                    start_time: $start_t,
+                    end_time: $end_t,
+                    x: $x,
+                    y: $y,
+                    w: $w,
+                    h: $h
+                }
+            }
 
             let p = $"delogo=x=($x):y=($y):w=($w):h=($h)"
             print (echo-g $"Detected logo params via find_rect: ($p)")
@@ -1377,7 +1404,273 @@ export def "media auto-remove-logo" [
     if ($ofile | path exists) {
         print (echo-g $"SUCCESS: Logo removed. Output saved to ($ofile)")
         if $notify { "Logo removal finished!" | tasker send-notification }
+        if $return_info { return $info }
     } else {
         return-error "FFmpeg failed to produce output file."
+    }
+}
+
+# Add one or more logos to a video file
+#
+# Examples:
+# media add-logo input.mp4 [{image: 'logo.png', x: 10, y: 10, start_time: 5, end_time: 15}]
+# media add-logo input.mp4 logo_config.json
+export def "media add-logo" [
+    file: string,          # The input video file
+    logo_data: any,        # List of records or path to JSON/YAML file
+    --iterative(-I),       # Process logos iteratively (one pass per logo)
+    --output(-o): string   # Optional output file name
+] {
+    let ext = $file | path parse | get extension | str downcase
+    let name = $file | path parse | get stem
+    let is_video = $ext in ["mp4", "mkv", "avi", "webm", "h264"]
+
+    if not $is_video {
+        return-error "This command only supports video files."
+    }
+
+    let data = if ($logo_data | describe) == "string" {
+        if ($logo_data | path exists) {
+            let config_ext = $logo_data | path parse | get extension | str downcase
+            match $config_ext {
+                "json" => (open $logo_data),
+                "yaml" | "yml" => (open $logo_data),
+                _ => (return-error $"Unsupported config file extension: .($config_ext)")
+            }
+        } else {
+            return-error $"Config file not found: ($logo_data)"
+        }
+    } else {
+        $logo_data
+    }
+
+    let data_desc = ($data | describe)
+    if not ($data_desc =~ "list") and not ($data_desc =~ "table") {
+        return-error $"Logo data must be a list or table of records. Found: ($data_desc)"
+    }
+
+    # Validation and default values
+    let duration = (ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $file | str trim | into float)
+    
+    let validated_data = ($data | each {|row|
+        if ($row.image? | is-empty) or ($row.x? | is-empty) or ($row.y? | is-empty) {
+            return-error "Each logo record must contain 'image', 'x', and 'y'."
+        }
+        if not ($row.image | path exists) {
+            return-error $"Logo image not found: ($row.image)"
+        }
+        {
+            image: ($row.image | path expand),
+            x: ($row.x | into int),
+            y: ($row.y | into int),
+            w: (if ($row.w? | is-not-empty) { $row.w | into int } else { null }),
+            h: (if ($row.h? | is-not-empty) { $row.h | into int } else { null }),
+            scale: (if ($row.scale? | is-not-empty) { $row.scale | into float } else { null }),
+            start_time: ($row.start_time? | default 0 | into float),
+            end_time: ($row.end_time? | default $duration | into float)
+        }
+    })
+
+    # Pre-resize logos if needed using ImageMagick
+    let validated_data = ($validated_data | each {|row|
+        if $row.scale != null or $row.w != null or $row.h != null {
+            let temp_logo = $"(( $row.image | path parse | get stem ))_resized_(( random chars --length 5 )).png"
+            let resize_param = if $row.scale != null {
+                $"(( $row.scale * 100 ))%"
+            } else if $row.w != null and $row.h != null {
+                $"($row.w)x($row.h)!"
+            } else if $row.w != null {
+                $"($row.w)x"
+            } else {
+                $"x($row.h)"
+            }
+            
+            print (echo-g $"Pre-resizing logo: ($row.image) to ($resize_param)...")
+            try {
+                ^convert $row.image -resize $resize_param $temp_logo
+            } catch {
+                # Fallback if convert fails
+                print (echo-y "Warning: ImageMagick resizing failed. Using original image.")
+                $row
+            }
+            
+            if ($temp_logo | path exists) {
+                $row | update image ($temp_logo | path expand)
+            } else {
+                $row
+            }
+        } else {
+            $row
+        }
+    })
+
+    mut ofile = if ($output | is-empty) {
+        $"($name)_with_logo.($ext)"
+    } else {
+        $output
+    }
+
+    # Overwriting prevention
+    let abs_file = ($file | path expand)
+    let abs_ofile = ($ofile | path expand)
+    if $abs_file == $abs_ofile {
+        let new_ofile = $"($ofile | path parse | get stem)_v2.($ext)"
+        print (echo-y $"WARNING: Output path same as input. Changing output to: ($new_ofile)")
+        $ofile = $new_ofile
+    }
+
+    if $iterative {
+        print (echo-g "Processing logos iteratively...")
+        mut current_input = $file
+        let total_logos = ($validated_data | length)
+        
+        for i in 0..($total_logos - 1) {
+            let row = ($validated_data | get $i)
+            let temp_output = if $i == ($total_logos - 1) { $ofile } else { $"(($ofile | path parse | get stem))_temp_($i).(($ofile | path parse | get extension))" }
+            let in_file = $current_input # Create immutable copy for the catch block
+            
+            print (echo-g $"Applying logo ($i + 1)/($total_logos): ($row.image) at [($row.x), ($row.y)] from ($row.start_time)s to ($row.end_time)s...")
+            
+            let filter = $"overlay=x=($row.x):y=($row.y):enable='between\(t,($row.start_time),($row.end_time)\)'"
+            
+            try {
+                my-ffmpeg -i $in_file -i $row.image -filter_complex $filter -map 0:v -map 0:a? -c:a copy $temp_output -y
+            } catch {
+                ffmpeg -i $in_file -i $row.image -filter_complex $filter -map 0:v -map 0:a? -c:a copy $temp_output -y
+            }
+
+            if $i > 0 {
+                rm $current_input | ignore
+            }
+            $current_input = $temp_output
+        }
+        
+        # Cleanup temporary resized logos
+        for row in $validated_data {
+            if ($row.image | str contains "_resized_") {
+                rm $row.image | ignore
+            }
+        }
+        
+        print (echo-g $"SUCCESS: Logos added iteratively. Output saved to ($ofile)")
+        return
+    } else {
+        print (echo-g "Processing logos in a single pass...")
+        
+        mut inputs = ["-i" $file]
+        mut filter_parts = []
+        mut last_label = "[0:v]"
+        
+        for i in 0..(($validated_data | length) - 1) {
+            let row = ($validated_data | get $i)
+            let img_idx = $i + 1
+            $inputs = ($inputs | append ["-i" $row.image])
+            
+            let next_label = $"[v($img_idx)]"
+            let filter = $"($last_label)[($img_idx):v]overlay=x=($row.x):y=($row.y):enable='between\(t,($row.start_time),($row.end_time)\)'($next_label)"
+            $filter_parts = ($filter_parts | append $filter)
+            $last_label = $next_label
+        }
+        
+        let filter_complex = ($filter_parts | str join ";")
+        let final_inputs = $inputs # Immutable copy for try/catch
+        let map_label = $last_label # Immutable copy for try/catch
+        let final_ofile = $ofile # Immutable copy for try/catch
+        
+        print (echo-g $"Executing single-pass FFmpeg with ($validated_data | length) logos...")
+        
+        try {
+            my-ffmpeg ...$final_inputs -filter_complex $filter_complex -map $map_label -map 0:a? -c:a copy $final_ofile -y
+        } catch {
+            ffmpeg ...$final_inputs -filter_complex $filter_complex -map $map_label -map 0:a? -c:a copy $final_ofile -y
+        }
+
+        # Cleanup temporary resized logos
+        for row in $validated_data {
+            if ($row.image | str contains "_resized_") {
+                rm $row.image | ignore
+            }
+        }
+
+        if ($final_ofile | path exists) {
+            print (echo-g $"SUCCESS: Logos added in a single pass. Output saved to ($final_ofile)")
+        } else {
+            return-error "FFmpeg failed to produce output file."
+        }
+    }
+}
+
+# Replace a logo in a video file with a new image
+#
+# This command automatically detects the existing logo, removes it,
+# and places the new image in the same location and timestamps.
+#
+# Examples:
+# media replace-logo input.mp4 new_logo.png
+# media replace-logo input.mp4 new_logo.png --scale 1.0
+# media replace-logo input.mp4 new_logo.png --resize 200x100 --clean
+export def "media replace-logo" [
+    file: string,                  # The input video file
+    image: string,                 # The new logo image
+    --scale(-s): float,            # Scale factor for the new logo (1.0 = original size)
+    --resize(-r): string,          # Force custom size (WxH, e.g., 200x100)
+    --clean(-c)                    # Delete intermediate logo-free video
+] {
+    let ext = $file | path parse | get extension | str downcase
+    let name = $file | path parse | get stem
+    let is_video = $ext in ["mp4", "mkv", "avi", "webm", "h264"]
+
+    if not $is_video {
+        return-error "This command only supports video files."
+    }
+    if not ($image | path exists) {
+        return-error $"Logo image not found: ($image)"
+    }
+
+    # Phase 2: Logo Removal and Data Extraction
+    print (echo-g $"Detecting and removing original logo from ($file)...")
+    let info = (media auto-remove-logo $file --return-info)
+    
+    if ($info | is-empty) {
+        return-error "Logo detection failed or returned no information. Aborting replacement."
+    }
+
+    let dir = $file | path parse | get parent
+    let intermediate_file = $dir | path join $"($name)_nologo.($ext)"
+    if not ($intermediate_file | path exists) {
+        return-error $"Intermediate logo-free file missing: ($intermediate_file)"
+    }
+
+    # Phase 3: Logo Addition and Resizing Logic
+    print (echo-g "Preparing new logo data...")
+    
+    mut logo_record = $info | insert image $image
+    
+    if ($resize | is-not-empty) {
+        let parts = $resize | split row "x"
+        if ($parts | length) != 2 {
+            return-error "Resize format must be WxH (e.g., 200x100)."
+        }
+        $logo_record = ($logo_record | upsert w ($parts.0 | into int) | upsert h ($parts.1 | into int) | upsert scale null)
+    } else if $scale != null {
+        $logo_record = ($logo_record | upsert scale $scale | upsert w null | upsert h null)
+    } else {
+        # Default: match detected logo dimensions
+        $logo_record = ($logo_record | upsert scale null)
+    }
+
+    let ofile = $dir | path join $"($name)_replaced.($ext)"
+    
+    print (echo-g $"Adding new logo to ($intermediate_file)...")
+    media add-logo $intermediate_file [$logo_record] --output $ofile
+
+    if ($ofile | path exists) {
+        print (echo-g $"SUCCESS: Logo replaced. Final output: ($ofile)")
+        if $clean {
+            print (echo-y $"Cleaning up intermediate file: ($intermediate_file)...")
+            rm $intermediate_file | ignore
+        }
+    } else {
+        return-error "Failed to produce final replaced-logo video."
     }
 }
