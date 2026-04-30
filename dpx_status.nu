@@ -1,17 +1,13 @@
 #!/usr/bin/env nu
 
 export def main [] {
-	let dpx_output = (
-		let maestral = ($env.HOME | path join ".local" "bin" "maestral")
-		^$maestral status 
- 
+	let dpx_output = ^maestral status 
 		| lines 
 		| parse "{item}  {status}" 
 		| str trim 
 		| skip
 		| get status 
 		| get 0 1
-	)
 
 	let output = $dpx_output | get 1
 	let output_2 = $dpx_output
