@@ -152,5 +152,281 @@ These custom functions provide a suite of tools for interacting with the YouTube
 ### zoxide
 These custom functions offer enhanced directory navigation capabilities. They allow users to quickly jump to directories using keywords or an interactive search interface. The first function defines a command that accepts one or more keywords to identify and change to a target directory, handling cases where the path needs expansion or querying a database. The second function presents an interactive search method, where users can select from a list of directories that match the input criteria. Both functions integrate with `zoxide`, a smarter `cd` command, and use fuzzy matching to improve the user experience. Additionally, there's a completion function designed to suggest directory paths based on the user's input, further aiding navigation by providing real-time, context-aware options. Taken from the official zoxide repository.
 
+## Available Commands
+
+| Command | Description |
+| --- | --- |
+| `?` | short help |
+| `activate` | No description provided. |
+| `adbtasker` | adbtasker |
+| `ago` | Calculates a past datetime by subtracting a duration from the current time. |
+| `aimsc` | No description provided. |
+| `aimsy` | No description provided. |
+| `ansi-strip-table` | ansi strip table |
+| `apagar` | No description provided. |
+| `apps-update` | update off-package manager apps |
+| `askai` | No description provided. |
+| `askaimage` | No description provided. |
+| `askpdf` | No description provided. |
+| `autolister` | create media database for downloads and all mounted disks |
+| `autouse-file` | generate autouse file |
+| `bar` | Print a multi-sectional bar  Examples: `$ ui bar {foo: 0.5, bar: 0.5}` `$ ui bar {foo: {fraction: 0.4, color: lur}, bar: {fraction: 0.6, color: cr}}` `$ ui bar --width 10 {foo: 0.5, bar: 0.5}` `$ ui bar --normalize {foo: 0.1, bar: 0.1}` `$ ui bar {progress%: 0.4}` |
+| `bard` | alias for bard |
+| `base2dec` | Custom base representation number to decimal |
+| `bat` | No description provided. |
+| `batstat` | battery stats |
+| `bitly` | No description provided. |
+| `btop` | No description provided. |
+| `budget` | budget |
+| `cal` | No description provided. |
+| `cava` | No description provided. |
+| `cblue` | list bluetooth devices and connect |
+| `chat_gpt` | No description provided. |
+| `check-link` | check validity of a link |
+| `check-ups` | UPS Status Check Command Returns a structured table with comprehensive UPS metrics |
+| `claude_ai` | No description provided. |
+| `clean-analytics` | delete empty google analytics csv files |
+| `clone-ubuntu-install` | clone ubuntu backup repo as main local repo |
+| `clone-yandex-disk` | clone yandex.disk repo as main local repo |
+| `colorpicker` | No description provided. |
+| `column` | select column of a table (to table) |
+| `column2` | get column of a table (to list) |
+| `const-table` | generates table with an unique constant value |
+| `copy` | copy text to clipboard |
+| `copy-scripts-and-commit` | copy private nushell script dir to public repo and commit |
+| `copy-yandex-and-commit` | update yandex.disk repository |
+| `coretemp` | cores temp |
+| `countdown` | countdown alarm |
+| `country-flag` | Return the flag emoji for a given two-digit country code |
+| `cp-pipe` | cp trough pipe to same dir  Example ls *.txt \| first 5 \| cp-pipe ~/temp |
+| `cputemp` | No description provided. |
+| `cpwd` | copy pwd |
+| `create-virtualenv` | create virtual env |
+| `dailys` | No description provided. |
+| `dall_e` | No description provided. |
+| `debunk-table` | debug data given in table form |
+| `dec2base` | Decimal number to custom base representation |
+| `deep_l` | No description provided. |
+| `default-table` | default a whole table |
+| `echo-c` | custom color echo |
+| `echo-g` | green echo |
+| `echo-r` | red echo |
+| `echo-y` | yellow echo |
+| `exchange_rates` | No description provided. |
+| `export-nushell-docs` | export nushell.github documentation |
+| `filter-command` | No description provided. |
+| `find` | No description provided. |
+| `find-file` | find file in dir recursively |
+| `find-index` | find index of a search term |
+| `finished` | No description provided. |
+| `fix-docker` | fix docker run error |
+| `fix-green-dirs` | fix green dirs |
+| `fuzzy-dispatcher` | No description provided. |
+| `fuzzy-select-fs` | select files and dirs |
+| `g` | alias for ai gcal with gemini |
+| `generate-md-from-dir` | generate an unique md from all files in current directory recursively |
+| `generate-nushell-doc` | generates nushell document for llm (gemini and claude) |
+| `get-aliases` | get aliases |
+| `get-api-key` | Standardized API key retrieval with robust error handling  Usage: get-api-key google.gemini_paid |
+| `get-deepl-lang-code` | Helper function to get DeepL language code from common language names |
+| `get-devices` | get devices connected to network  It needs nmap2json, installable (ubuntu at least) via: `sudo gem install nmap2json`  |
+| `get-dirs` | get list of directories in current path |
+| `get-files` | get list of files recursively |
+| `get-git-metrics` | Extract git metrics using porcelain v2 |
+| `get-github-latest` | get latest release info in github repo |
+| `get-input` | get $in input if necessary |
+| `get-ips` | get ips |
+| `get-keybindings` | keybindings |
+| `get-mac` | No description provided. |
+| `get-monitors` | get monitors |
+| `get-phone-number` | get phone number from google contacts |
+| `get-rows` | select rows in a table from list of ints |
+| `get-used-keybindings` | current used keybindinds |
+| `get-wg` | No description provided. |
+| `gg-contacts` | No description provided. |
+| `gg-trans` | No description provided. |
+| `github-app-update` | update github app release if file doesnt have an extension, use the pattern flag |
+| `gnu-plot` | plot data table using gnuplot  Example: If $x is a table with 2 columns $x \| gnu-plot ($x \| column 0) \| gnu-plot ($x \| column 1) \| gnu-plot ($x \| column 0) \| gnu-plot --title "My Title" gnu-plot $x --title "My Title" |
+| `google_ai` | No description provided. |
+| `google_aimage` | No description provided. |
+| `google_search` | No description provided. |
+| `grep-nu` | grep for nu  Examples; grep-nu search file.txt ls **/* \| some_filter \| grep-nu search open file.txt \| grep-nu search |
+| `group-list` | group list Example: [1 1 2 2 3 4] \| group list {$in mod 2 == 0} |
+| `grp` | No description provided. |
+| `gtes` | No description provided. |
+| `h` | alias for ai habitica with gemini |
+| `his` | last 100 elements in history with highlight |
+| `history-stats` | Show some history stats similar to how atuin does it |
+| `hs` | aliases |
+| `htop` | No description provided. |
+| `indexify` | add a hidden column with the content of the # column |
+| `install-font` | install font |
+| `intersect` | intersection between two lists |
+| `is-column` | verify if a column exist within a table |
+| `is-in` | checks to see if the elements in the first list are contained in the second list analog to polars is-in  Example:  let a = [[a]; [a] [b] [c] [d]] let b = [[a]; [a] [c]] $a \| is-in $b |
+| `is-mounted` | check if drive is mounted |
+| `iselect` | interactively select columns from a table |
+| `isleap` | Check if year is leap |
+| `jd` | jdownloader downloads info |
+| `jdown` | jdown.py wrapper |
+| `join-text-files` | concatenate all files in current directory  asummes all are text files |
+| `killn` | kill specified process  Receives a name or a list of processes |
+| `killnode` | kill mcp node servers running |
+| `l` | ls sorted by name |
+| `label-encode` | No description provided. |
+| `last-command` | get last command |
+| `lc` | No description provided. |
+| `le` | ls sorted by extension |
+| `left_prompt` | helper for displaying left prompt |
+| `lg` | ls in text grid |
+| `list-diff` | difference between 2 lists of numbers Example: let a = [1 2 3]  list-sum $a $a |
+| `list-sum` | sum lists of numbers Example: let a = [1 2 3]  list-sum $a $a list-sum $a $a $a |
+| `listen-ports` | listen ports |
+| `lister` | list all files and save it to json in Dropbox/Directorios |
+| `lists2table` | list of lists into table |
+| `lo` | ls only name |
+| `ls-ports` | list used network sockets |
+| `lt` | ls by date (newer last) |
+| `matlab-cli` | run matlab in cli |
+| `max-vol` | No description provided. |
+| `mcv` | No description provided. |
+| `mcx` | open mcomix |
+| `mk-anime` | create anime dirs according to files |
+| `mk-manga` | create manga dirs according to files |
+| `monitor` | Monitor the output of a command |
+| `mpv` | mpv wrapper |
+| `multiwhere` | filter by multiple where conditions simultaneous Example:  ls \| multiwhere { name: .txt, type: file } |
+| `mute` | No description provided. |
+| `mv-pipe` | mv trough pipe to same dir  Example ls *.txt \| first 5 \| mv-pipe ~/temp |
+| `my-pandoc` | pandoc md compiler |
+| `my-pdflatex` | my pdflatex |
+| `nala-fetch` | No description provided. |
+| `ncdu` | No description provided. |
+| `nerd-fonts-clean` | clean nerd-fonts repo |
+| `netspeed` | netspeed graph |
+| `network-switcher` | network switcher |
+| `newer-than` | Check if date is closer to the present than specified duration |
+| `node-info` | No description provided. |
+| `nu-clean` | No description provided. |
+| `nu-crypt` | crypt |
+| `nu-sloc` | nushell source files info |
+| `nufetch` | neofetch but nu |
+| `nullify-record` | make null all values of a record, recursively |
+| `nushell-syntax-2-sublime` | No description provided. |
+| `nutts` | No description provided. |
+| `nuwget` | Download file with nu |
+| `nvitop` | No description provided. |
+| `o_llama` | No description provided. |
+| `ochat` | alias for ollama chat |
+| `older-than` | Check if date is further in the past than specified duration |
+| `ollama_search` | ollama web search |
+| `one-hot-encode` | No description provided. |
+| `op` | open text file |
+| `open-analytics` | open google analytics csv file |
+| `open-config` | No description provided. |
+| `open-credential` | open credentials |
+| `open-link` | extract first link from text |
+| `openl` | open last file |
+| `openm` | accumulate a list of files into the same table  Example ls *.json \| openm let list = ls *.json; openm $list |
+| `parse-git-status-v2` | Git metrics helper for prompt Parse git status --porcelain=v2 --branch output |
+| `paste` | paste text from clipboard |
+| `patch-font` | patch font with nerd font |
+| `pchat` | private-gpt chat |
+| `pip3-upgrade` | upgrade pip3 packages |
+| `pivot-table` | simple pivoting of a table without aggregation It's a process of summarizing data from a table into a new table by grouping values from one or more columns into new columns and then applying an aggregation function to the values in other columns.  For instance:  table_1: YEAR,ITEM,VALUE 2000,case1,10 2000,case2,20 2000,case3,20 2001,case1,20 2001,case2,10 2001,case3,50 2003,case2,30 2003,case1,50 2004,case3,10 2004,case2,39  converts to table_2: ITEM,2000,2001,2003,2004 case1,10,20,50, case2,20,10,30,39 case3,20,50,,10  via:  $table_1 \| pivot-table --columns [YEAR] --index [ITEM] --values [VALUE] |
+| `pl` | No description provided. |
+| `plot-table` | plot data table using plot plugin  Example: |
+| `png` | No description provided. |
+| `png-plot` | ping with plot |
+| `print-file` | send to printer |
+| `print-list` | No description provided. |
+| `private_gpt` | No description provided. |
+| `progress_bar` | progress bar  Example 1: def test [] { let max = 200 mut progress_bar = progress_bar 0 $max for i in 1..($max) { $progress_bar = (progress_bar $i $max $progress_bar) sleep 0.01sec } }  Example 2 : def test [] { let max = 200 mut progress_bar = "" for i in 0..($max) { $progress_bar = (progress_bar $i $max $progress_bar) sleep 0.01sec } } |
+| `psn` | search for specific process |
+| `pwd-short` | short pwd |
+| `qrenc` | qr code generator |
+| `quantum` | alias for short call |
+| `quick-ubuntu-and-tools-update-module` | copy private linux backup dir to private repo and commit (alias quantum) |
+| `R` | No description provided. |
+| `ram` | ram info |
+| `rand-select` | random selection from a list or table |
+| `randi` | random int |
+| `range2list` | range to list |
+| `re-enamerate` | rename all files starting with certain prefix, enumerating them |
+| `reiniciar` | No description provided. |
+| `remove-code-blocks` | No description provided. |
+| `rename` | No description provided. |
+| `rename-all` | manually rename files in a directory |
+| `rename-date` | date renaming |
+| `rename-file` | rename file via pattern replace |
+| `replicate-tree` | replicate directory structure to a new location |
+| `reset-alpine-auth` | reset alpine authentification |
+| `return-error` | ##################################################### here because they are needed in this file ##################################################### generate error output |
+| `rm-empty-dirs` | delete empty dirs recursively |
+| `rm-pipe` | rm trough pipe  Example ls *.txt \| first 5 \| rm-pipe |
+| `rml` | rm last |
+| `rmount` | mount fuse drive via rclone  possible drives: - box - gdrive - onedrive - yandex - mega |
+| `run-private-gpt` | No description provided. |
+| `s` | No description provided. |
+| `save-credential` | save credentials |
+| `scale-minmax` | Scale list to [a,b] interval |
+| `scale-minmax-table` | Scale every column of a table (separately) to [a,b] interval |
+| `scompact` | compact with empty strings and nulls |
+| `select-pattern` | select columns by pattern |
+| `set-screen` | second screen positioning |
+| `setdiff` | calculates elements that are in list a but not in list b |
+| `show_banner` | nushell banner |
+| `show-ips` | show stored ips |
+| `show-prompts` | show system prompts and pre-prompts definitions |
+| `speedtest-plot` | plot download-upload speed |
+| `ssh-sin-pass` | enable ssh without password |
+| `stable_diffusion` | No description provided. |
+| `stop-net-apps` | stop network applications |
+| `subtitle-renamer` | Renames subtitles files according to tv shows names found in a directory Accepted syntaxes for season/episode are: 304, s3e04, s03e04, 3x04 (case insensitive) |
+| `sum-size` | get total sizes of ls output |
+| `supgrade` | update-upgrade system |
+| `svg2pdf` | convert svg image into a pdf file |
+| `system-cleanup` | Unified system cleanup command to reclaim disk space.  Categories: 1. User Caches: thumbnails, fontconfig, wallust, pip, uv, npm, stack. 2. Package Managers: apt (clean/autoremove), uv, pip, npm, stack. 3. System Logs: journalctl vacuum (last 3 days). 4. Aggressive: rustup toolchains (stable only), old build dirs (node_modules, target > 30d).  Note: Privileged commands (apt, journalctl) require sudo and will only be executed if --sudo is provided. |
+| `table-diff` | table diff |
+| `table2record` | table to record |
+| `takephoto` | No description provided. |
+| `termshot` | No description provided. |
+| `timg` | wrapper for timg |
+| `todos` | No description provided. |
+| `tokei` | tokei wrapper |
+| `token2word` | No description provided. |
+| `trans` | No description provided. |
+| `tree` | No description provided. |
+| `tts` | No description provided. |
+| `typeof` | ##################################################### ##################################################### wrapper for describe |
+| `um` | umount fuse drive  possible drives: - box - gdrive - onedrive - yandex - photos |
+| `umall` | umount all drives |
+| `union` | join 2 lists |
+| `uniq-by` | returns a filtered table that has distinct values in the specified column |
+| `unmute` | No description provided. |
+| `update-all-likes` | update all_likes m3u playlist via gemini |
+| `update-nu-config` | update nu config (after nushell update) |
+| `upload-debs-to-gdrive` | upload deb files to gdrive |
+| `upload-debs-to-mega` | upload deb files to mega |
+| `upload-zed-backup-to-mega` | upload zed backup to mega |
+| `usage` | get the examples from tldr as a table |
+| `ver` | get the version information formatting the plugins |
+| `verify` | Performs logical operations on multiple predicates. User has to specify exactly one of the following flags: `--all`, `--any` or `--one-of`. |
+| `view-code` | get code of custom command |
+| `web_search` | wrapper for web search |
+| `wget-all` | get files all at once from webpage using wget |
+| `wifi-info` | wifi info |
+| `wifi-pass` | get wifi pass |
+| `wsp` | No description provided. |
+| `xls2csv` | xls/ods 2 csv |
+| `ydx` | yandex-disk wrappers |
+| `yt-api` | youtube api implementation to get playlists and songs info |
+| `yt-get-access-token` | Main function to get a valid access token, handling refresh automatically |
+| `ytcli` | yewtube |
+| `ytm` | play youtube music with playlist items pulled from local database  First run `yt-api download-music-playlists` |
+| `ytm2` | wrapper for cliamp |
+| `zed-backup` | No description provided. |
+| `zed-restore` | No description provided. |
+
 # Disclaimer
 - Some of these have been taken from the `#cool-scripts` Discord channel of Nushell ;)

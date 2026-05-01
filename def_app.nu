@@ -40,7 +40,13 @@ export def matlab-cli [
   --output(-o):string #output file for log without extension
   --log_file(-l):string = "log24" #log file in foreground mode
   --kill(-k)          #kill current matlab processes
+  --login(-L)         #verify matlab license via terminal
 ] {
+  if $login {
+    matlab -nodisplay -batch "opengl info"
+    return
+  }
+
   if $kill {
     ps -l
     | find -i matlab
