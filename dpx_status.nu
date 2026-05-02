@@ -1,7 +1,7 @@
 #!/usr/bin/env nu
 
 export def main [] {
-	let dpx_output = ^maestral status 
+	let dpx_output = /home/kira/.local/bin/maestral status 
 		| lines 
 		| parse "{item}  {status}" 
 		| str trim 
