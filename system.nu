@@ -782,8 +782,8 @@ export def check-ups [
 # Note: Privileged commands (apt, journalctl) require sudo and will only be executed if --sudo is provided.
 export def system-cleanup [
     --dry-run(-d) # Preview cleanup actions without deleting.
-    --aggressive(-a) # Include aggressive cleanup tasks (Rust toolchains, old build artifacts).
-    --sudo(-s) # Execute cleanup methods that require sudo (e.g., apt, journalctl).
+    --aggressive(-a) # Include aggressive cleanup tasks (Rust toolchains, old build artifacts, LaTeX docs, deep Docker prune).
+    --sudo(-s) # Execute cleanup methods that require sudo (e.g., apt, journalctl, docker).
 ] {
     let home = $nu.home-dir
     let cache_dir = $"($home)/.cache"
@@ -799,6 +799,9 @@ export def system-cleanup [
         "uv"
         "npm"
         "stack"
+        "puppeteer"
+        "vivaldi"
+        "go-build"
     ]
     
     for cache in $user_caches {
@@ -829,10 +832,20 @@ export def system-cleanup [
         }
     }
 
+    # LaTeX Docs (Aggressive + Sudo)
+    if $aggressive and $sudo and (which apt-get | is-not-empty) {
+        if $dry_run {
+            print ((echo-c 'DRY RUN:' 'yellow' -b) + " Would remove 'texlive-*-doc' packages - requires sudo")
+        } else {
+            print ((echo-r 'Removing:') + " texlive-*-doc")
+            ^sudo apt-get remove --purge "texlive-*-doc" -y
+        }
+    }
+
     # Language Specific
     let lang_tools = [
         { name: "uv", cmd: "uv cache clean", path: $"($cache_dir)/uv" }
-        { name: "pip", cmd: "pip cache purge", path: $"($cache_dir)/pip" }
+        { name: "pip", cmd: "rm -rf ~/.cache/pip/*", path: $"($cache_dir)/pip" }
         { name: "npm", cmd: "npm cache clean --force", path: $"($cache_dir)/npm" }
         { name: "stack", cmd: "stack purge", path: $"($cache_dir)/stack" }
     ]
@@ -848,22 +861,34 @@ export def system-cleanup [
         }
     }
 
-    # 3. System Logs
+    # 3. Docker (Sudo)
+    if $sudo and (which docker | is-not-empty) {
+        print "\n--- 3. Docker ---"
+        let prune_cmd = if $aggressive { "docker system prune -a --volumes -f" } else { "docker system prune -f" }
+        if $dry_run {
+            print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would run '($prune_cmd)' - requires sudo")
+        } else {
+            print ((echo-r 'Running:') + $" ($prune_cmd)")
+            ^sudo bash -c $prune_cmd
+        }
+    }
+
+    # 4. System Logs
     if $sudo {
-        print "\n--- 3. System Logs ---"
+        print "\n--- 4. System Logs ---"
         if (which journalctl | is-not-empty) {
             if $dry_run {
-                print ((echo-c 'DRY RUN:' 'yellow' -b) + " Would run 'journalctl --vacuum-time=3d' - requires sudo")
+                print ((echo-c 'DRY RUN:' 'yellow' -b) + " Would run 'journalctl --vacuum-size=500M' - requires sudo")
             } else {
-                print ((echo-r 'Vacuuming logs:') + " journalctl --vacuum-time=3d")
-                ^sudo journalctl --vacuum-time=3d
+                print ((echo-r 'Vacuuming logs:') + " journalctl --vacuum-size=500M")
+                ^sudo journalctl --vacuum-size=500M
             }
         }
     }
 
-    # 4. Aggressive Cleanup (Build Artifacts & Toolchains)
+    # 5. Aggressive Cleanup (Build Artifacts & Toolchains)
     if $aggressive {
-        print "\n--- 4. Aggressive Cleanup ---"
+        print "\n--- 5. Aggressive Cleanup ---"
         
         # Rustup toolchains
         if (which rustup | is-not-empty) {
