@@ -91,7 +91,7 @@ let hooks = {
             #checking conditions
             let interval = 12hr 
             let now = date now
-            let autolister_content = open $autolister_path
+            let autolister_content = (open $autolister_path | default {})
             let update = ($autolister_content | get updated | into datetime) + $interval < $now
             
             if $update and ((sys host | get hostname) != "rayen") {
@@ -160,7 +160,7 @@ let hooks = {
             
             #checking conditions
             let interval = 12hr 
-            let last_record = open $pwd_sizes_path | where directory == $env.PWD
+            let last_record = (open $pwd_sizes_path | default []) | where directory == $env.PWD
             let now = date now
             let not_update = (
                 if ($last_record | length) == 0 {
