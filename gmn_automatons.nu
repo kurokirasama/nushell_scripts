@@ -8,12 +8,16 @@ export def update-all-likes [] {
 }
 
 const skills = [
+	"cron-ai-researcher"
+	"cron-conductor-monitor"
 	"cron-email-summaries"
 	"cron-habitica-todos-summary"
-	"cron-conductor-monitor"
-	"cron-nnet-ga-researcher"
-	"cron-news-feed"
 	"cron-manga-download-checker"
+	"cron-news-feed"
+	"cron-nnet-ga-researcher"
+	"cron-nvidia-kernel-audit"
+	"cron-research-linkedin-post"
+	"cron-skills-expert"
 ]
 const gmn_models = ["gemini-3.1-flash-lite-preview" "gemini-3-flash-preview" "gemini-2.5-flash" "gemini-2.5-flash-lite"]
 const profiles = ["no-mcp", "minimal", "standard", "webui", "research", "googlesuit", "imagen", "full"]
@@ -36,7 +40,7 @@ export def "gmn cron" [
 		gmn-cron-email $"Retry of ($skill)" $output
 
 		let cleaned_stdout_retry = _clean-output $output.stdout
-		$cleaned_stdout_retry | to-discord -p --process
+		$cleaned_stdout_retry | to-discord -p --process -c gemini_cli_cron
 
 		if not $dont_kill {
 			sleep 2sec
@@ -47,7 +51,7 @@ export def "gmn cron" [
 
 	# Clean up output: extract only the JSON part
 	let cleaned_stdout = _clean-output $output.stdout
-	$cleaned_stdout | to-discord -p --process
+	$cleaned_stdout | to-discord -p --process -c gemini_cli_cron
 
 	if not $dont_kill {
 		sleep 2sec
