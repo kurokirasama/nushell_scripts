@@ -44,6 +44,7 @@ use C:\Users\usuario\AppData\Roaming\nushell\linux\my_scripts\nushell\defs_priva
 use C:\Users\usuario\AppData\Roaming\nushell\linux\my_scripts\nushell\github.nu *
 use C:\Users\usuario\AppData\Roaming\nushell\linux\my_scripts\nushell\gmn_automatons.nu *
 use C:\Users\usuario\AppData\Roaming\nushell\linux\my_scripts\nushell\git_tools.nu *
+use C:\Users\usuario\AppData\Roaming\nushell\linux\my_scripts\nushell\dataestado.nu *
 # use C:\Users\usuario\AppData\Roaming\nushell\linux\my_scripts\nushell\polars_aliases.nu *
 # source-env C:\Users\usuario\AppData\Roaming\nushell\carapace\init.nu
 source-env C:\Users\usuario\AppData\Roaming\nushell\linux\my_scripts\nushell\env_vars.nu

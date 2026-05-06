@@ -911,8 +911,18 @@ export def system-cleanup [
 
         # Old build directories (node_modules, target)
         print "\nSearching for old build directories (node_modules, target) modified > 30 days ago in current tree..."
-        let old_dirs = (glob "**/node_modules" --exclude [ "**/node_modules/**/*" ] 
-            | append (glob "**/target" --exclude [ "**/target/**/*" ])
+        let exclusions = [ 
+            "**/node_modules/**/*" 
+            "**/target/**/*" 
+            "**/.local/**" 
+            "**/.gemini/**" 
+            "**/.config/**" 
+            "**/.rustup/**" 
+            "**/.cargo/**"
+            "**/.mcp/**"
+        ]
+        let old_dirs = (glob "**/node_modules" --exclude $exclusions 
+            | append (glob "**/target" --exclude $exclusions)
             | each { |p| ls -d $p } 
             | flatten
             | where modified < ((date now) - 30day))
