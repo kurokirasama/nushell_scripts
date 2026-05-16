@@ -1076,7 +1076,30 @@ export def "apps-update nvitop" [] {
 export def "apps-update scrcpy" [] {
   cd ~/software/scrcpy
   git pull
-  ./install_release.sh
+
+  # scrcpy 4.0+ requires SDL3, which is not in Ubuntu 24.04 repos
+  if ((sys host | get name | str downcase) in ["linux" "ubuntu"]) and (lsb_release -rs | str trim) == "24.04" {
+    let sdl3_path = ($env.HOME | path join "software/scrcpy/app/deps/work/install/linux-native-shared/lib/pkgconfig")
+    
+    let sdl3_exists = (with-env { PKG_CONFIG_PATH: $sdl3_path } { 
+      pkg-config --exists sdl3 
+      $env.LAST_EXIT_CODE == 0
+    })
+
+    if not $sdl3_exists {
+      print (echo-g "SDL3 not found or check failed, attempting to build from source...")
+      # Ensure dependencies for SDL3 are present
+      sudo nala install -y libasound2-dev libpulse-dev libx11-dev libwayland-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxinerama-dev libxss-dev libxkbcommon-dev libdrm-dev libgbm-dev libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev libdbus-1-dev libibus-1.0-dev libudev-dev libpipewire-0.3-dev
+      
+      bash app/deps/sdl.sh linux native shared
+    }
+    
+    with-env { PKG_CONFIG_PATH: ([$sdl3_path ($env.PKG_CONFIG_PATH? | default "")] | str join (char esep)) } {
+      ./install_release.sh
+    }
+  } else {
+    ./install_release.sh
+  }
 }
 
 #update gemini-cli filter

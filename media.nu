@@ -1,5 +1,6 @@
 use string_manipulation.nu *
 use files.nu *
+use table_manipulation.nu *
 
 export def "media help" [] {
   print ([
@@ -25,12 +26,142 @@ export def "media help" [] {
       "- media delete-mps"
       "- media crop-video"
       "- media auto-remove-logo"
+      "- media repeat"
+      "- media add-audio"
       "- mpv (alias)"
       "- media to"
     ]
     | str join "\n"
     | nu-highlight
   ) 
+}
+
+#add audio track to video file
+export def "media add-audio" [
+  video_file: string      # input video file
+  audio_file: string      # input audio file
+  --volume-factor(-v): float = 0.5 # volume factor for background audio
+  --output(-o): string     # optional output filename
+  --notify(-n)             # notify to android via join/tasker
+] {
+  let v_info = media video-info $video_file
+  let v_duration = ($v_info.format.duration | into float)
+  let v_has_audio = ($v_info.streams | where codec_type == "audio" | is-not-empty)
+  
+  let a_duration = (ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $audio_file | str trim | into float)
+
+  let v_ext = $video_file | path parse | get extension
+  let v_stem = $video_file | path parse | get stem
+  let ofile = if ($output | is-empty) {
+    $"($v_stem)_merged.($v_ext)"
+  } else {
+    $output
+  }
+
+  mut final_audio = $audio_file
+  mut temp_files = []
+
+  # Logic for duration adjustment
+  if $a_duration < ($v_duration - 0.1) {
+    # Case B: Looping audio
+    let n_repeats = ($v_duration / $a_duration | math ceil | into int)
+    let looped_audio = $"tmp_looped_($v_stem).($audio_file | path parse | get extension)"
+    $temp_files = ($temp_files | append $looped_audio)
+    
+    media repeat $audio_file $n_repeats --output $looped_audio
+    $final_audio = $looped_audio
+    
+    # Trim the looped audio to match video length
+    let trimmed_audio = $"tmp_trimmed_($v_stem).($audio_file | path parse | get extension)"
+    $temp_files = ($temp_files | append $trimmed_audio)
+    media cut-audio $final_audio $trimmed_audio 0 ($v_duration | math round | into int)
+    $final_audio = $trimmed_audio
+  } else if $a_duration > ($v_duration + 0.1) {
+    # Case A: Trimming longer audio
+    let trimmed_audio = $"tmp_trimmed_($v_stem).($audio_file | path parse | get extension)"
+    $temp_files = ($temp_files | append $trimmed_audio)
+    media cut-audio $audio_file $trimmed_audio 0 ($v_duration | math round | into int)
+    $final_audio = $trimmed_audio
+  }
+
+  print (echo-g $"Merging audio into video ($video_file)...")
+
+  # Case C vs D: Mixing vs Simple Add
+  let filter = if $v_has_audio {
+    $"[1:a]volume=($volume_factor)[a1];[0:a][a1]amix=inputs=2:duration=first"
+  } else {
+    ""
+  }
+
+  # Final audio path for the try/catch blocks (must be immutable for capture)
+  let final_audio_frozen = $final_audio
+  let filter_frozen = $filter
+  let ofile_frozen = $ofile
+
+  try {
+    print (echo-g "Trying with my-ffmpeg...")
+    if $v_has_audio {
+      my-ffmpeg -i $video_file -i $final_audio_frozen -filter_complex $filter_frozen -map 0:v -c:v copy -c:a aac -b:a 128k $ofile_frozen -y
+    } else {
+      my-ffmpeg -i $video_file -i $final_audio_frozen -map 0:v -map 1:a -c:v copy -c:a aac -b:a 128k $ofile_frozen -y
+    }
+  } catch {
+    print (echo-y "my-ffmpeg failed, falling back to standard ffmpeg...")
+    if $v_has_audio {
+      ffmpeg -i $video_file -i $final_audio_frozen -filter_complex $filter_frozen -map 0:v -c:v copy -c:a aac -b:a 128k $ofile_frozen -y
+    } else {
+      ffmpeg -i $video_file -i $final_audio_frozen -map 0:v -map 1:a -c:v copy -c:a aac -b:a 128k $ofile_frozen -y
+    }
+  }
+
+  # Cleanup temp files
+  for f in $temp_files {
+    if ($f | path exists) { rm $f }
+  }
+
+  if ($ofile | path exists) {
+    print (echo-g $"SUCCESS: Audio merged. Output: ($ofile)")
+    if $notify { "Audio merge finished!" | tasker send-notification }
+  } else {
+    return-error "FFmpeg failed to produce output file."
+  }
+}
+
+#repeat audio file n times
+export def "media repeat" [
+  file: string          # audio file name
+  n: int                # number of times to repeat
+  --output(-o): string  # output file name
+  --notify(-n)          # notify to android via join/tasker
+] {
+  let filename = $file | path parse | get stem
+  let ext = $file | path parse | get extension
+  let ofile = if ($output | is-empty) {
+    $"($filename)_repeated_($n).($ext)"
+  } else {
+    $output
+  }
+
+  print (echo-g $"Repeating audio ($file) ($n) times...")
+  
+  # stream_loop uses 0 for infinite, -1 for no loop? 
+  # Actually, -stream_loop N means loop N times. 0 means loop 0 times (play once). 1 means loop once (play twice).
+  let loops = $n - 1
+  
+  try {
+    print (echo-g "Trying with my-ffmpeg...")
+    my-ffmpeg -stream_loop $loops -i $file -c copy $ofile -y
+  } catch {
+    print (echo-y "my-ffmpeg failed, falling back to standard ffmpeg...")
+    ffmpeg -stream_loop $loops -i $file -c copy $ofile -y
+  }
+
+  if ($ofile | path exists) {
+    print (echo-g $"SUCCESS: Audio repeated ($n) times. Output: ($ofile)")
+    if $notify { "Audio repeat finished!" | tasker send-notification }
+  } else {
+    return-error "FFmpeg failed to produce output file."
+  }
 }
 
 #cuda ffmpeg
@@ -1209,8 +1340,8 @@ export def "media clip-delogo-params" [params: string, file: string, --w_band: i
 # Trim specified seconds from the end of a video
 export def "media trim-end" [
     file: string,                  # The input video file
-    --seconds(-s): float = 2.5,    # Number of seconds to remove from the end (default: 2.5)
-    --output(-o): string,          # Optional output file name
+    --seconds(-s): float = 2.6     # Number of seconds to remove from the end (default: 2.5)
+    --output(-o): string           # Optional output file name
     --notify(-n)                   # Notify to android via join/tasker
 ] {
     let ext = $file | path parse | get extension | str downcase
@@ -1419,6 +1550,7 @@ export def "media add-logo" [
     file: string,          # The input video file
     logo_data: any,        # List of records or path to JSON/YAML file
     --iterative(-I),       # Process logos iteratively (one pass per logo)
+    --fit(-f),             # Reposition logos for best fit within frame
     --output(-o): string   # Optional output file name
 ] {
     let ext = $file | path parse | get extension | str downcase
@@ -1450,7 +1582,10 @@ export def "media add-logo" [
     }
 
     # Validation and default values
-    let duration = (ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $file | str trim | into float)
+    let v_info = media video-info $file
+    let duration = ($v_info.format.duration | into float)
+    let frame_w = ($v_info.streams | where codec_type == "video" | get 0.width | into int)
+    let frame_h = ($v_info.streams | where codec_type == "video" | get 0.height | into int)
     
     let validated_data = ($data | each {|row|
         if ($row.image? | is-empty) or ($row.x? | is-empty) or ($row.y? | is-empty) {
@@ -1471,37 +1606,56 @@ export def "media add-logo" [
         }
     })
 
-    # Pre-resize logos if needed using ImageMagick
+    # Phase: Fit and Resize
     let validated_data = ($validated_data | each {|row|
-        if $row.scale != null or $row.w != null or $row.h != null {
-            let temp_logo = $"(( $row.image | path parse | get stem ))_resized_(( random chars --length 5 )).png"
-            let resize_param = if $row.scale != null {
-                $"(( $row.scale * 100 ))%"
-            } else if $row.w != null and $row.h != null {
-                $"($row.w)x($row.h)!"
-            } else if $row.w != null {
-                $"($row.w)x"
+        mut r = $row
+        
+        # Get dimensions of the logo image
+        let logo_info = (^identify $r.image | str trim | split row " ")
+        let logo_dim = ($logo_info | get 2 | split row "x")
+        let curr_w = ($logo_dim | get 0 | into int)
+        let curr_h = ($logo_dim | get 1 | into int)
+
+        # Apply fit logic BEFORE potential resizing (based on specified target or native)
+        if $fit {
+            # Target dimensions (what it would be if we didn't resize)
+            let target_w = if $r.scale != null { ($curr_w | into float) * $r.scale | into int } else if $r.w != null { $r.w } else { $curr_w }
+            let target_h = if $r.scale != null { ($curr_h | into float) * $r.scale | into int } else if $r.h != null { $r.h } else { $curr_h }
+
+            if ($r.x + $target_w) > $frame_w {
+                let new_x = $frame_w - $target_w
+                $r = ($r | upsert x (if $new_x < 0 { 0 } else { $new_x }))
+            }
+            if ($r.y + $target_h) > $frame_h {
+                let new_y = $frame_h - $target_h
+                $r = ($r | upsert y (if $new_y < 0 { 0 } else { $new_y }))
+            }
+        }
+
+        if $r.scale != null or $r.w != null or $r.h != null {
+            let temp_logo = $"(( $r.image | path parse | get stem ))_resized_(( random chars --length 5 )).png"
+            let resize_param = if $r.scale != null {
+                $"(( $r.scale * 100 ))%"
+            } else if $r.w != null and $r.h != null {
+                $"($r.w)x($r.h)!"
+            } else if $r.w != null {
+                $"($r.w)x"
             } else {
-                $"x($row.h)"
+                $"x($r.h)"
             }
             
-            print (echo-g $"Pre-resizing logo: ($row.image) to ($resize_param)...")
+            print (echo-g $"Pre-resizing logo: ($r.image) to ($resize_param)...")
             try {
-                ^convert $row.image -resize $resize_param $temp_logo
+                ^convert $r.image -resize $resize_param $temp_logo
             } catch {
-                # Fallback if convert fails
                 print (echo-y "Warning: ImageMagick resizing failed. Using original image.")
-                $row
             }
             
             if ($temp_logo | path exists) {
-                $row | update image ($temp_logo | path expand)
-            } else {
-                $row
+                $r = ($r | update image ($temp_logo | path expand))
             }
-        } else {
-            $row
         }
+        $r
     })
 
     mut ofile = if ($output | is-empty) {
@@ -1614,6 +1768,7 @@ export def "media replace-logo" [
     image: string,                 # The new logo image
     --scale(-s): float,            # Scale factor for the new logo (1.0 = original size)
     --resize(-r): string,          # Force custom size (WxH, e.g., 200x100)
+    --fit(-f),                     # Reposition logo for best fit without scaling
     --clean(-c)                    # Delete intermediate logo-free video
 ] {
     let ext = $file | path parse | get extension | str downcase
@@ -1625,6 +1780,9 @@ export def "media replace-logo" [
     }
     if not ($image | path exists) {
         return-error $"Logo image not found: ($image)"
+    }
+    if $fit and ($scale != null or ($resize | is-not-empty)) {
+        return-error "Flag --fit cannot be used with --scale or --resize."
     }
 
     # Phase 2: Logo Removal and Data Extraction
@@ -1654,6 +1812,9 @@ export def "media replace-logo" [
         $logo_record = ($logo_record | upsert w ($parts.0 | into int) | upsert h ($parts.1 | into int) | upsert scale null)
     } else if $scale != null {
         $logo_record = ($logo_record | upsert scale $scale | upsert w null | upsert h null)
+    } else if $fit {
+        # Moving logic to add-logo, but we must ensure we don't scale to original
+        $logo_record = ($logo_record | upsert scale null | upsert w null | upsert h null)
     } else {
         # Default: match detected logo dimensions
         $logo_record = ($logo_record | upsert scale null)
@@ -1662,7 +1823,7 @@ export def "media replace-logo" [
     let ofile = $dir | path join $"($name)_replaced.($ext)"
     
     print (echo-g $"Adding new logo to ($intermediate_file)...")
-    media add-logo $intermediate_file [$logo_record] --output $ofile
+    media add-logo $intermediate_file [$logo_record] --output $ofile --fit=$fit
 
     if ($ofile | path exists) {
         print (echo-g $"SUCCESS: Logo replaced. Final output: ($ofile)")

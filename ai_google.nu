@@ -27,10 +27,10 @@ const gemini_models = [
 # - aqa: Retrieval
 #
 #system messages are available in:
-#   [$env.MY_ENV_VARS.chatgpt_config system] | path join
+#   [$env.MY_ENV_VARS.llms_configs system] | path join
 #
 #pre_prompts are available in:
-#   [$env.MY_ENV_VARS.chatgpt_config prompt] | path join
+#   [$env.MY_ENV_VARS.llms_configs prompt] | path join
 #
 #You can adjust the following safety settings categories:
 # - HARM_CATEGORY_HARASSMENT
@@ -139,7 +139,7 @@ export def google_ai [
     } | url join
 
   #select system message from database
-  let system_messages_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join system) | sort-by name | get name
+  let system_messages_files = ls ($env.MY_ENV_VARS.llms_configs | path join system) | sort-by name | get name
   let system_messages = $system_messages_files | path parse | get stem
 
   mut ssystem = ""
@@ -154,7 +154,7 @@ export def google_ai [
   let system = if ($ssystem | is-empty) {$system} else {$ssystem}
 
   #select pre-prompt from database
-  let pre_prompt_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join prompt) | sort-by name | get name
+  let pre_prompt_files = ls ($env.MY_ENV_VARS.llms_configs | path join prompt) | sort-by name | get name
   let pre_prompts = $pre_prompt_files | path parse | get stem
 
   mut preprompt = ""
@@ -777,7 +777,7 @@ export def "ai google_search-summary" [
   }
 
   let prompt = (
-    open --raw ([$env.MY_ENV_VARS.chatgpt_config prompt summarize_html2text.md] | path join) 
+    open --raw ([$env.MY_ENV_VARS.llms_configs prompt summarize_html2text.md] | path join) 
     | str replace "<question>" $question 
   )
 

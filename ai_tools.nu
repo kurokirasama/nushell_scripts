@@ -1716,7 +1716,7 @@ export def "ai analyze_ai_generated_text" [
         "# REPORT\n\n" + $analysis + "\n\n# INPUT \n\n" + $text + "\n\n# CORRECTED TEXT \n\n"
       }
     } else {
-      let pre_prompt = open --raw ($env.MY_ENV_VARS.chatgpt_config | path join prompt complete_corrected_text.md)
+      let pre_prompt = open --raw ($env.MY_ENV_VARS.llms_configs | path join prompt complete_corrected_text.md)
       $pre_prompt + "\n\n# REPORT\n\n" + $analysis + "\n\n# INPUT_TEXT \n\n" + $text + "\n\n# PARTIAL_CORRECTED_TEXT \n\n" + $fixed_text + "\n\n# CORRECTED TEXT \n\n"
     }
 
@@ -1894,10 +1894,10 @@ export def show-prompts [
 	--select-system-from-list(-S) #select system prompt from list
 	--select-pre-prompt-from-list(-P) #select pre-prompt from list
 ] {
-	let system_prompts_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join system) | sort-by name | get name 
+	let system_prompts_files = ls ($env.MY_ENV_VARS.llms_configs | path join system) | sort-by name | get name 
 	let system_prompts = $system_prompts_files | path parse | get stem
 	
-	let pre_prompts_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join prompt) | sort-by name | get name 
+	let pre_prompts_files = ls ($env.MY_ENV_VARS.llms_configs | path join prompt) | sort-by name | get name 
 	let pre_prompts = $pre_prompts_files | path parse | get stem
 	
 	# LIST

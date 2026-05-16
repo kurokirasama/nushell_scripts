@@ -35,42 +35,19 @@ export def clone-yandex-disk [] {
 #copy private linux backup dir to private repo and commit (alias quantum)
 export def quick-ubuntu-and-tools-update-module [
   --update-yandex-repo(-y)  #also update yandex.disk repo
-  --update-scripts(-s)  #also update nushell scripts public repo
-  --upload-debs(-d)     #also upload debs files to gdrive
-  --force(-f)           #force the copy
-  --gemini(-G)          #use google gemini instead of gpt
-  --review(-r)          #review the changes before committing
+  --upload-debs(-d)         #also upload debs files to gdrive
+  --gemini(-G)              #use google gemini instead of gpt
+  --review(-r)              #review the changes before committing
 ] {
-  let destination = "~/software/ubuntu_semiautomatic_install/" | path expand
-  if not ($destination | path exists) {
-    return-error "destination path doesn't exists!!"
-  }
-
   if $update_yandex_repo {
     copy-yandex-and-commit -G $gemini
   }
 
-  print (echo-g "updating private repository...")
-  if $force {
-    cp -rfp ($env.MY_ENV_VARS.linux_backup + "/*" | into glob) $destination
-  } else {
-    cp -rup ($env.MY_ENV_VARS.linux_backup + "/*" | into glob) $destination
-  }
+  copy-scripts-and-commit -G $gemini
 
-  cd $destination
-  if $gemini {
-    if $review {
-      ai git-push -G --review
-    } else {
-      ai git-push -G
-    }
-  } else {
-    ai git-push -g
+  if $upload_debs {
+    upload-debs-to-mega
   }
-
-  if $update_scripts {copy-scripts-and-commit -G $gemini}
-  if $upload_debs {upload-debs-to-mega}
-  # if $upload_zed {upload-zed-backup-to-mega}
 }
 
 #alias for short call

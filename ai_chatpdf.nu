@@ -12,7 +12,7 @@ export def "chatpdf add" [
   }
 
   let api_key = get-api-key "chatpdf.api_key"
-  let database_file = $env.MY_ENV_VARS.chatgpt_config | path join chatpdf_ids.json
+  let database_file = $env.MY_ENV_VARS.llms_configs | path join chatpdf_ids.json
   let database = open $database_file
 
   let url = "https://api.chatpdf.com/v1/sources/add-file"
@@ -55,7 +55,7 @@ export def "chatpdf add" [
 export def "chatpdf del" [
 ] {
   let api_key = get-api-key "chatpdf.api_key"
-  let database_file = $env.MY_ENV_VARS.chatgpt_config | path join chatpdf_ids.json
+  let database_file = $env.MY_ENV_VARS.llms_configs | path join chatpdf_ids.json
   let database = open $database_file
 
   let selection = $database | columns | sort | input list -f (echo-g "Select file to delete:")
@@ -79,7 +79,7 @@ export def "chatpdf ask" [
   let prompt = get-input $in $prompt
 
   let api_key = get-api-key "chatpdf.api_key"
-  let database_file = $env.MY_ENV_VARS.chatgpt_config  | path join chatpdf_ids.json
+  let database_file = $env.MY_ENV_VARS.llms_configs  | path join chatpdf_ids.json
   let database = open $database_file
 
   let selection = (
@@ -137,7 +137,7 @@ export def askpdf [
     match [$rubb,$btx] {
       [true,true] => {return-error "only one of these flags allowed!"},
       [true,false] => {chatpdf ask $prompt -s rubb},
-      [false,true] => {chatpdf ask ((open --raw ([$env.MY_ENV_VARS.chatgpt_config prompt chatpdf_btx.md] | path join)) + "\n"  + $prompt) -s btx},
+      [false,true] => {chatpdf ask ((open --raw ([$env.MY_ENV_VARS.llms_configs prompt chatpdf_btx.md] | path join)) + "\n"  + $prompt) -s btx},
       [false,false] => {chatpdf ask $prompt}
     }
   )
@@ -153,5 +153,5 @@ export def askpdf [
 @category ai
 @search-terms chatpdf
 export def "chatpdf list" [] {
-  open ($env.MY_ENV_VARS.chatgpt_config | path join chatpdf_ids.json) | columns
+  open ($env.MY_ENV_VARS.llms_configs | path join chatpdf_ids.json) | columns
 }

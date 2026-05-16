@@ -32,7 +32,7 @@ export def o_llama [
   let embed = if ($model like "embed") {true} else {$embed}
 
   #select system message from database
-  let system_messages_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join system) | sort-by name | get name
+  let system_messages_files = ls ($env.MY_ENV_VARS.llms_configs | path join system) | sort-by name | get name
   let system_messages = $system_messages_files | path parse | get stem
 
   mut ssystem = ""
@@ -47,7 +47,7 @@ export def o_llama [
   let system = if ($ssystem | is-empty) {$system} else {$ssystem}
 
   #select pre-prompt from database
-  let pre_prompt_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join prompt) | sort-by name | get name
+  let pre_prompt_files = ls ($env.MY_ENV_VARS.llms_configs | path join prompt) | sort-by name | get name
   let pre_prompts = $pre_prompt_files | path parse | get stem
 
   mut preprompt = ""

@@ -60,9 +60,9 @@ export def export-nushell-docs [] {
   cd ([$env.MY_ENV_VARS.ai_database nushell] | path join)
 
   join-text-files md all_nushell
-  let system_message = (open --raw ([$env.MY_ENV_VARS.chatgpt_config system bash_nushell_programmer.md] | path join)) ++ "\n\nPlease consider the following nushell documentation to elaborate your answer.\n\n"
+  let system_message = (open --raw ([$env.MY_ENV_VARS.llms_configs system bash_nushell_programmer.md] | path join)) ++ "\n\nPlease consider the following nushell documentation to elaborate your answer.\n\n"
 
-  $system_message ++ (open --raw all_nushell.md) | save -f ([$env.MY_ENV_VARS.chatgpt_config system bash_nushell_programmer_with_nushell_docs.md] | path join)
+  $system_message ++ (open --raw all_nushell.md) | save -f ([$env.MY_ENV_VARS.llms_configs system bash_nushell_programmer_with_nushell_docs.md] | path join)
 }
 
 #generates nushell document for llm (gemini and claude)
@@ -82,7 +82,7 @@ export def generate-nushell-doc [] {
 
   let doc = open --raw nushell_book.md
 
-  cd ([$env.MY_ENV_VARS.chatgpt_config system] | path join)
+  cd ([$env.MY_ENV_VARS.llms_configs system] | path join)
 
   let index = open --raw bash_nushell_programmer_with_nushell_docs.md | lines | find-index "NUSHELL DOCUMENTATION" | get 1 | into int
 

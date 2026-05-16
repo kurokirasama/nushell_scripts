@@ -9,35 +9,34 @@ export def --env weather [
     --home(-h)
     --ubb(-b)
     --no_plot(-n)
+    --conditions
+    --forecast-today
+    --forecast-week
 ] {
-    match [$home,$ubb,($coordinates | is-not-empty),($address | is-not-empty)] {
-        [true,false,false,false] => {
-            get_weather (get_location -h) --plot (not $no_plot)
-            },
-        [false,true,false,false] => {
-            get_weather (get_location -b) --plot (not $no_plot)
-            },
-        [false,false,true,false] => {
-            get_weather $coordinates --plot (not $no_plot)
-            },
-        [false,false,false,true] => {
-            get_weather (maps loc-from-address $address | get 0 | get lat lng | str join ",") --plot (not $no_plot)
-            },
-        [false,false,false,false] => {
-            get_weather (get_location) --plot (not $no_plot)
-            },
+    let loc = match [$home,$ubb,($coordinates | is-not-empty),($address | is-not-empty)] {
+        [true,false,false,false] => { get_location -h },
+        [false,true,false,false] => { get_location -b },
+        [false,false,true,false] => { $coordinates },
+        [false,false,false,true] => { maps loc-from-address $address | get 0 | get lat lng | str join "," },
+        [false,false,false,false] => { get_location },
         _ => {return-error "flag combination not allowed!"}
-    }    
+    }
+    
+    get_weather $loc --plot=(not $no_plot) --conditions=$conditions --forecast-today=$forecast_today --forecast-week=$forecast_week
 } 
 
 # Get weather for right command prompt
-export def --env get_weather_by_interval [INTERVAL_WEATHER:duration] {
-    let weather_runtime_file = ($env.MY_ENV_VARS.nushell_dir | path join "weather_runtime_file.json")
+export def --env get_weather_by_interval [
+    interval_weather:duration, 
+    --address(-a):string, 
+    --file(-f):string
+] {
+    let weather_runtime_file = if ($file | is-not-empty) { $file } else { ($env.HOME | path join ".weather_runtime_file.json") }
     
     if ($weather_runtime_file | path exists) {
         let last_runtime_data = open $weather_runtime_file
         let LAST_WEATHER_TIME = $last_runtime_data | get last_weather_time
-        let not_update = ($LAST_WEATHER_TIME | into datetime) + ($INTERVAL_WEATHER | into duration) >= (date now)
+        let not_update = ($LAST_WEATHER_TIME | into datetime) + ($interval_weather | into duration) >= (date now)
 
         if not $not_update {
             $env.MY_ENV_VARS.NETWORK.status = try {
@@ -53,7 +52,12 @@ export def --env get_weather_by_interval [INTERVAL_WEATHER:duration] {
             return (if ($w | describe) =~ "record" { $"($w.Icon) ($w.Temperature)" } else { $w })
         } 
     
-        let WEATHER = get_weather_for_prompt (get_location)
+        let loc = if ($address | is-not-empty) {
+            maps loc-from-address $address | get 0 | get lat lng | str join ","
+        } else {
+            get_location
+        }
+        let WEATHER = get_weather_for_prompt $loc
 
         if not $WEATHER.mystatus {
             let w = ($last_runtime_data | get weather)
@@ -67,17 +71,31 @@ export def --env get_weather_by_interval [INTERVAL_WEATHER:duration] {
         | upsert weather $formatted_weather 
         | upsert weather_text $"($WEATHER.Condition) ($WEATHER.Temperature)" 
         | upsert last_weather_time $NEW_WEATHER_TIME 
+        | upsert sunrise $WEATHER.sunrise
+        | upsert sunset $WEATHER.sunset
         | save -f $weather_runtime_file
     
         return $formatted_weather
     } else {
-        let WEATHER = get_weather_for_prompt (get_location)
+        let loc = if ($address | is-not-empty) {
+            maps loc-from-address $address | get 0 | get lat lng | str join ","
+        } else {
+            get_location
+        }
+        let WEATHER = get_weather_for_prompt $loc
+
+        if not $WEATHER.mystatus {
+            return $WEATHER # Return error if initial fetch fails
+        }
+
         let LAST_WEATHER_TIME = date now | format date '%Y-%m-%d %H:%M:%S %z'
         let formatted_weather = $"($WEATHER.Icon) ($WEATHER.Temperature)"
     
         let WEATHER_DATA = {
-            "weather": $formatted_weather
-            "last_weather_time": ($LAST_WEATHER_TIME)
+            "weather": $formatted_weather,
+            "last_weather_time": ($LAST_WEATHER_TIME),
+            "sunrise": ($WEATHER.sunrise),
+            "sunset": ($WEATHER.sunset)
         } 
     
         $WEATHER_DATA | save -f $weather_runtime_file
@@ -265,7 +283,21 @@ def get_airCond [loc] {
 }
 
 # parse all the information
-def get_weather [loc, --plot = true] {
+def get_weather [
+    loc, 
+    --plot = true
+    --conditions
+    --forecast-today
+    --forecast-week
+] {
+    let flag_count = ([$conditions, $forecast_today, $forecast_week] | where $it == true | length)
+    if $flag_count > 1 {
+        return-error "Flags --conditions, --forecast-today, and --forecast-week are mutually exclusive."
+    }
+    
+    let is_pure_data = $flag_count == 1
+    let actual_plot = if $is_pure_data { false } else { $plot }
+
     let response = fetch_api $loc
 
     if not $response.mystatus {
@@ -371,7 +403,7 @@ def get_weather [loc, --plot = true] {
 
 
     ## plots
-    if $plot {
+    if $actual_plot {
         let canIplot = try {[1 2] | plot;true} catch {false}
 
         if $canIplot {
@@ -404,6 +436,18 @@ def get_weather [loc, --plot = true] {
         }
     }
     
+    if $conditions {
+        return $current
+    }
+    
+    if $forecast_today {
+        return ($forecast | get 0)
+    }
+    
+    if $forecast_week {
+        return $forecast
+    }
+
     ## forecast
     print ("Forecast for today:")
     print ($forecast | get 0) 
@@ -462,7 +506,9 @@ def get_weather_for_prompt [loc] {
     let current = {
         Condition: ($cond),
         Temperature: ($temperature),
-        Icon: ($icon)
+        Icon: ($icon),
+        sunrise: ($sunrise),
+        sunset: ($sunset)
     }
 
     # echo $"($current.Icon) ($current.Temperature)"

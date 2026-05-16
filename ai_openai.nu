@@ -16,10 +16,10 @@
 # - text-davinci-003 (4097 tokens)
 #
 #system messages are available in:
-#   [$env.MY_ENV_VARS.chatgpt_config system] | path join
+#   [$env.MY_ENV_VARS.llms_configs system] | path join
 #
 #pre_prompts are available in:
-#   [$env.MY_ENV_VARS.chatgpt_config prompt] | path join
+#   [$env.MY_ENV_VARS.llms_configs prompt] | path join
 #
 #Note that:
 # - --select_system > --list_system > --system
@@ -72,7 +72,7 @@ export def chat_gpt [
   )
 
   #select system message from database
-  let system_messages_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join system) | sort-by name | get name
+  let system_messages_files = ls ($env.MY_ENV_VARS.llms_configs | path join system) | sort-by name | get name
   let system_messages = $system_messages_files | path parse | get stem
 
   mut ssystem = ""
@@ -87,7 +87,7 @@ export def chat_gpt [
   let system = if ($ssystem | is-empty) {$system} else {$ssystem}
 
   #select pre-prompt from database
-  let pre_prompt_files = ls ($env.MY_ENV_VARS.chatgpt_config | path join prompt) | sort-by name | get name
+  let pre_prompt_files = ls ($env.MY_ENV_VARS.llms_configs | path join prompt) | sort-by name | get name
   let pre_prompts = $pre_prompt_files | path parse | get stem
 
   mut preprompt = ""
