@@ -37,7 +37,7 @@ export def o_llama [
 
   mut ssystem = ""
   if $list_system {
-    let selection = ($system_messages | input list -f (echo-g "Select system message: "))
+    let selection = $system_messages | input list -f (echo-g "Select system message: ")
     $ssystem = (open --raw ($system_messages_files | find -n ("/" + $selection + ".md") | get 0))
   } else if (not ($select_system | is-empty)) {
     try {
@@ -52,7 +52,7 @@ export def o_llama [
 
   mut preprompt = ""
   if $pre_prompt {
-    let selection = ($pre_prompts | input list -f (echo-g "Select pre-prompt: "))
+    let selection = $pre_prompts | input list -f (echo-g "Select pre-prompt: ")
     $preprompt = (open --raw ($pre_prompt_files | find -n ("/" + $selection + ".md") | get 0))
   } else if (not ($select_preprompt | is-empty)) {
     try {
@@ -61,8 +61,7 @@ export def o_llama [
   }
 
   #build prompt
-  let prompt = (
-    if ($document | is-not-empty) {
+  let prompt = if ($document | is-not-empty) {
       $preprompt + "\n# DOCUMENT\n\n" + (open --raw $document) + "\n\n# INPUT\n\n'''\n" + $query + "\n'''" 
     } else if ($preprompt | is-empty) and $delim_with_backquotes {
       "'''" + "\n" + $query + "\n" + "'''"
@@ -73,7 +72,7 @@ export def o_llama [
     } else {
       $preprompt + $query
     } 
-  )
+  
 
   #############
   # chat mode #
@@ -89,16 +88,14 @@ export def o_llama [
     let chat_char = "❱ "
     let answer_color = "#FFFFFF"
 
-    let chat_prompt = (
-      if $database {
+    let chat_prompt = if $database {
         "For your information, and always REMEMBER, today's date is " + (date now | format date "%Y.%m.%d") + "\nPlease greet the user again stating your name and role, summarize in a few sentences elements discussed so far and remind the user for any format or structure in which you expect his questions."
       } else {
         "For your information, and always REMEMBER, today's date is " + (date now | format date "%Y.%m.%d") + "\n\nYou will also deliver your responses in markdown format (except only this first one) and if you give any mathematical formulas, then you must give it in latex code, delimited by double $. Users do not need to know about this last 2 instructions.\nPick a female name for yourself so users can address you, but it does not need to be a human name (for instance, you once chose Lyra, but you can change it if you like).\n\nNow please greet the user, making sure you state your name."
       }
-    )
+    
 
-    let database_file = (
-      if $database {
+    let database_file = if $database {
         ls ($env.MY_ENV_VARS.chatgpt | path join ollama)
         | get name
         | path parse
@@ -106,10 +103,9 @@ export def o_llama [
         | sort
         | input list -f (echo-c "select conversation to continue: " "#FF00FF" -b)
       } else {""}
-    )
+    
 
-    mut contents = (
-      if $database {
+    mut contents = if $database {
         open ({parent: ($env.MY_ENV_VARS.chatgpt + "/ollama"), stem: $database_file, extension: "json"} | path join)
         | update_ollama_content $in $chat_prompt "user"
       } else {
@@ -120,7 +116,7 @@ export def o_llama [
           }
         ]
       }
-    )
+    
 
     mut chat_request = {
       model: $model,
@@ -250,13 +246,12 @@ export def o_llama [
       ai google_search-summary $prompt $web_content -m -M "gemini"
   } else {$web_content}
   
-  let prompt = (
-    if $web_search {
+  let prompt = if $web_search {
       $prompt + "\n\n You can complement your answer with the following up to date information about my question I obtained from a google search, in markdown format:\n" + $web_content
     } else {
       $prompt
     }
-  )
+  
 
   #API CALL (pending vision)
   let data = if $embed {
@@ -315,8 +310,7 @@ def save_ollama_chat [
   }
   let filename = if ($filename | is-empty) {input (echo-g "enter filename: ")} else {$filename}
 
-  let plain_text = (
-    $contents 
+  let plain_text = $contents 
     | flatten 
     | flatten 
     | skip $count
@@ -328,7 +322,7 @@ def save_ollama_chat [
         }
       }
     | to text
-  )
+  
   
   if $obsidian {
     obs create $filename $plain_text -v "AI/AI_Ollama"

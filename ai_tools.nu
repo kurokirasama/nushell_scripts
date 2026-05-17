@@ -53,13 +53,13 @@ export def "ai help" [] {
   ] | sort-by name
 
   # Calculate the maximum length of the command names for padding
-  let max_name_length = ($commands_description | get name | str length | math max)
+  let max_name_length = $commands_description | get name | str length | math max
 
   # Format the help text with padding and descriptions
   let help_text = $commands_description
     | each {|cmd|
         # Pad the command name to align descriptions
-        let padded_name = ($cmd.name | fill -w ($max_name_length + 2) -a left)
+        let padded_name = $cmd.name | fill -w ($max_name_length + 2) -a left
         # Format the line: "command_name    # description"
         $"($padded_name)  # ($cmd.description)"
       }
@@ -198,8 +198,7 @@ export def askai [
     $temperature
   }
   
-  let system = (
-    if ($system | is-empty) {
+  let system = if ($system | is-empty) {
       if $list_system {
         ""
       } else if $programmer or $fix_bug {
@@ -234,10 +233,9 @@ export def askai [
     } else {
       $system
     }
-  )
+  
 
-  let pre_prompt = (
-    if $academic {
+  let pre_prompt = if $academic {
       "improve_academic_writing"
     } else if $summarizer {
       "simple_summary"
@@ -252,7 +250,7 @@ export def askai [
     } else {
       "empty"
     }
-  )
+  
 
   #chat mode
   if $chat {
@@ -270,8 +268,7 @@ export def askai [
   # question mode
   #use google
   if $gemini {    
-    let answer = (
-      if $vision {
+    let answer = if $vision {
         google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -p $list_preprompt -d true -i $image --select_preprompt $pre_prompt --select_system $system -P $paid
       } else {
           match $bison {
@@ -279,7 +276,7 @@ export def askai [
           false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m $gemini_model_to_use -d true -w $web_search -n $web_results --select_preprompt $pre_prompt --select_system $system --document $document --web_engine $web_engine -P $paid},
         }
       }
-    )
+    
 
     if $fast {
       $answer | save -f ($env.MY_ENV_VARS.chatgpt | path join answer.md)
@@ -291,13 +288,12 @@ export def askai [
 
   #use claude
   if $claude {
-    let answer = (
-      if $vision {
+    let answer = if $vision {
         claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-vision -d true -i $image --select_preprompt $pre_prompt --select_system $system -w $web_search -n $web_results --web_engine $web_engine
       } else {
         claude_ai $prompt -t $temp -l $list_system -p $list_preprompt -m claude-sonnet-4-5 -d true  --select_preprompt $pre_prompt --select_system $system --document $document -w $web_search -n $web_results --web_engine $web_engine
       }
-    )
+    
 
     if $fast {
       $answer | save -f ($env.MY_ENV_VARS.chatgpt | path join answer.md)
@@ -309,13 +305,12 @@ export def askai [
 
   #use ollama
   if $ollama {
-    let answer = (
-      if $vision {
+    let answer = if $vision {
         o_llama $prompt -t $temp -l $list_system -p $list_preprompt -m $ollama_model -d true -i $image --select_preprompt $pre_prompt --select_system $system -w $web_search -n $web_results --web_engine $web_engine -e $embed
       } else {
         o_llama $prompt -t $temp -l $list_system -p $list_preprompt -m $ollama_model -d true  --select_preprompt $pre_prompt --select_system $system --document $document -w $web_search -n $web_results --web_engine $web_engine -e $embed
       }
-    )
+    
 
     if $fast {
       $answer | save -f ($env.MY_ENV_VARS.chatgpt | path join answer.md)
@@ -326,8 +321,7 @@ export def askai [
   }
 
   #use chatgpt
-  let answer = (
-    if $vision {
+  let answer = if $vision {
       match [$list_system,$list_preprompt] {
         [true,true] => {chat_gpt $prompt -t $temp -l -m gpt-4-vision -p -d -i $image},
         [true,false] => {chat_gpt $prompt -t $temp -l -m gpt-4-vision -i $image},
@@ -346,7 +340,7 @@ export def askai [
         [false,false,true] => {chat_gpt $prompt -t $temp --select_system $system -p -d -w $web_search -n $web_results --web_engine $web_engine}
       }
     }
-  )
+  
 
   if $fast {
     $answer | save -f ($env.MY_ENV_VARS.chatgpt | path join answer.md)
@@ -384,12 +378,11 @@ export def "ai git-push" [
   let model = if $gemini {"gemini"} else if $claude {"claude"} else {"chatgpt"}
 
   print (echo-g $"asking ($model) to summarize the differences in the repository...")
-  let question = (git diff | str replace "\"" "'" -a)
+  let question = git diff | str replace "\"" "'" -a
   let prompt = $question | str truncate -m $max_words
   let prompt_short = $question | str truncate -m $max_words_short
 
-  let commit = (
-    try {
+  let commit = try {
       match [$gpt,$gemini] {
         [true,false] => {
           try {
@@ -428,7 +421,7 @@ export def "ai git-push" [
     } catch {
       input (echo-g $"Something happened with ($model). Enter your commit message or leave empty to stop: ")
     }
-  )
+  
 
   if ($commit | is-empty) {
     return-error "Execution stopped by the user!"
@@ -458,15 +451,14 @@ export def "ai git-push" [
 
   print (echo-g "pushing the changes with that commit message...\n")
 
-  let branch = (
-    git status 
+  let branch = git status 
     | lines 
     | first 
     | parse "On branch {branch}" 
     | str trim 
     | get branch
     | get 0
-  )
+  
 
   git add -A
   git status
@@ -563,8 +555,8 @@ export def "ai media-summary" [
 
   if ($file | is-empty) {return-error "no input provided!"}
 
-  mut title = ($file | path parse | get stem) 
-  let extension = ($file | path parse | get extension)
+  mut title = $file | path parse | get stem 
+  let extension = $file | path parse | get extension
 
   let prompt = $"does the extension file format ($file) correspond to and audio, video or subtitle file; or an url?. IMPORTANT: include as subtitle type files with txt extension. Please only return your response in json format, with the unique key 'answer' and one of the key values: video, audio, subtitle, url or none. In plain text without any markdown formatting, ie, without ```"
   let media_type = google_ai $prompt | remove-code-blocks | from json | get answer
@@ -625,7 +617,7 @@ export def "ai media-summary" [
 
     let filenames = $"($title)_split_"
 
-    let split_command = ("awk '{total+=NF; print > " + $"\"($filenames)\"" + "sprintf(\"%03d\",int(total/" + $"($max_words)" + "))" + "\".txt\"}'" + $" \"($the_subtitle)\"")
+    let split_command = "awk '{total+=NF; print > " + $"\"($filenames)\"" + "sprintf(\"%03d\",int(total/" + $"($max_words)" + "))" + "\".txt\"}'" + $" \"($the_subtitle)\""
   
     bash -c $split_command
 
@@ -641,7 +633,7 @@ export def "ai media-summary" [
     print (echo-g $"combining the results into ($temp_output)...")
     touch $temp_output
 
-    let files = (ls | find -n split | find summary | enumerate)
+    let files = ls | find -n split | find summary | enumerate
 
     $files | each {|split_file|
       echo $"\n\nResumen de la parte ($split_file.index):\n\n" | save --append $temp_output
@@ -649,7 +641,7 @@ export def "ai media-summary" [
       echo "\n" | save --append $temp_output
     }
 
-    let prompt = (open $temp_output)
+    let prompt = open $temp_output
     let model = if $gemini {"gemini"} else if $claude {"claude"} else if $ollama {"ollama"} else {"chatgpt"}
 
     print (echo-g $"asking ($model) to combine the results in ($temp_output)...")
@@ -792,11 +784,11 @@ export def "ai yt-get-transcription" [
   #getting the subtitle
   yt-dlp --js-runtimes node --remote-components ejs:github -N 10 --write-info-json $url --output yt_temp --skip-download
 
-  let video_info = (open yt_temp.info.json)
-  let title = ($video_info | get title)
-  let subtitles_info = ($video_info | get subtitles?)
-  let languages = ($subtitles_info | columns)
-  let the_language = ($languages | find $lang)
+  let video_info = open yt_temp.info.json
+  let title = $video_info | get title
+  let subtitles_info = $video_info | get subtitles?
+  let languages = $subtitles_info | columns
+  let the_language = $languages | find $lang
   let the_subtitle = $"($title).txt"
 
   if ($the_language | is-empty) {
@@ -814,13 +806,12 @@ export def "ai yt-get-transcription" [
       mv -f $"($title).srt" $the_subtitle
     }
   } else {
-    let sub_url = (
-      $subtitles_info 
+    let sub_url = $subtitles_info 
       | get ($the_language | get 0) 
       | where ext like "vtt" 
       | get url 
       | get 0
-    )
+    
     http get $sub_url | save -f $the_subtitle
 
     ffmpeg -i $"($title).vtt" -f srt $the_subtitle
@@ -990,8 +981,7 @@ export def "ai gcal" [
   let prompt =  $request + ".\nPor favor considerar que la fecha de hoy es " + $date_now
 
   #get data to make query to gcal
-  let gcal_query = (
-    if $ollama {
+  let gcal_query = if $ollama {
       o_llama $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d true -m $ollama_model
     } else if $gpt {
       chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d -m gpt-5
@@ -1001,7 +991,7 @@ export def "ai gcal" [
       chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d
     }
     | remove-code-blocks | from json
-  )
+  
 
   let method = $gcal_query | get method 
 
@@ -1012,18 +1002,16 @@ export def "ai gcal" [
       let start = $gcal_query | get start
       let end = $gcal_query | get end
 
-      let gcal_info = (
-        match $mode {
+      let gcal_info = match $mode {
           "full" => {gcal agenda -f $start $end},
           _ => {gcal agenda $start $end}
         }
-      )
+      
 
       let gcal2nl_prompt =  "'''\n" + $gcal_info + "\n'''\n===\n" + $prompt + "\n==="
 
       #user question response
-      let gcal_response = (
-        if $ollama {
+      let gcal_response = if $ollama {
           o_llama $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -d true -m $ollama_model
         } else if $gpt {
           chat_gpt $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -m gpt-5
@@ -1032,7 +1020,7 @@ export def "ai gcal" [
         } else {
           chat_gpt $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl
         }
-      )
+      
 
       return $gcal_response
     },
@@ -1079,8 +1067,7 @@ export def "ai habitica" [
   let prompt =  $request + ".\nPor favor considerar que la fecha de hoy es " + $date_now
 
   #get data to make query to habitica
-  let habitica_query = (
-    if $ollama {
+  let habitica_query = if $ollama {
       o_llama $prompt -t 0.2 --select_system habitica_assistant --select_preprompt nl2habitica -d true -m $ollama_model
     } else if $gpt {
       chat_gpt $prompt -t 0.2 --select_system habitica_assistant --select_preprompt nl2habitica -d -m gpt-5
@@ -1090,7 +1077,7 @@ export def "ai habitica" [
       chat_gpt $prompt -t 0.2 --select_system habitica_assistant --select_preprompt nl2habitica -d
     }
     | remove-code-blocks | from json
-  )
+  
 
   let method = $habitica_query | get method 
   let params = $habitica_query | get params
@@ -1102,20 +1089,18 @@ export def "ai habitica" [
   let action_commands = ["h add", "h del", "h complete-daily", "h mark-dailys-done", "h complete-todos", "h score-habits", "h skill", "h skill-max", "h login", "h buy-potion", "h buy-armoir", "h complete-checklist", "h add-checklist", "h auto-quest"]
 
   if ($method in $data_commands) {
-    let habitica_info = (
-        match $method {
+    let habitica_info = match $method {
             "h stats" => { h stats | table -e | str join (char newline) },
             "h ls" => { h ls ($params.type? | default "dailys") | table -e | str join (char newline) },
             "h skills" => { h skills | table -e | str join (char newline) },
             "h party" => { h party | table -e | str join (char newline) },
             _ => { return-error "Unexpected data command" }
         }
-    )
+    
 
     let habitica2nl_prompt = "'''\n" + $habitica_info + "\n'''\n===\n" + $prompt + "\n==="
 
-    let habitica_response = (
-      if $ollama {
+    let habitica_response = if $ollama {
         o_llama $habitica2nl_prompt -t 0.2 --select_system habitica_translator --select_preprompt habitica2nl -d true -m $ollama_model
       } else if $gpt {
         chat_gpt $habitica2nl_prompt -t 0.2 --select_system habitica_translator --select_preprompt habitica2nl -m gpt-5
@@ -1124,7 +1109,7 @@ export def "ai habitica" [
       } else {
         chat_gpt $habitica2nl_prompt -t 0.2 --select_system habitica_translator --select_preprompt habitica2nl
       }
-    )
+    
 
     return $habitica_response
   } else if ($method in $action_commands) {
@@ -1281,10 +1266,10 @@ export def "ai trans-sub" [
 
   dos2unix -q $file
 
-  let $file_info = ($file | path parse)
-  let file_content = (cat $file | decode utf-8 | lines)
+  let $file_info = $file | path parse
+  let file_content = cat $file | decode utf-8 | lines
   let new_file = $"($file_info | get stem)_translated.($file_info | get extension)"
-  let lines = ($file_content | length)
+  let lines = $file_content | length
 
   print (echo-g $"translating ($file)...")
 
@@ -1297,8 +1282,7 @@ export def "ai trans-sub" [
         # print (echo $line.item)
         if not ($line.item like "-->") and not ($line.item like '^[0-9]+$') and ($line.item | str length) > 0 {
           let fixed_line = $line.item # | iconv -f UTF-8 -t ASCII//TRANSLIT
-          let translated = (
-            if $ai and $ollama {
+          let translated = if $ai and $ollama {
               $fixed_line | ai trans -onm $ollama_model
             } else if $ai and $gemini {
               $fixed_line | ai trans -Gn -P $paid
@@ -1309,7 +1293,7 @@ export def "ai trans-sub" [
             } else {
               $fixed_line | trans --from $from
             }
-          )
+          
 
           if ($translated | is-empty) or ($translated like "error:") {
             return-error $"error while translating: ($translated)"
@@ -1336,9 +1320,8 @@ export def "ai trans-sub" [
   | enumerate
   | each {|line|
       if not ($line.item like "-->") and not ($line.item like '^[0-9]+$') and ($line.item | str length) > 0 {
-        let fixed_line = ($line.item | iconv -f UTF-8 -t ASCII//TRANSLIT)
-        let translated = (
-          if $ai and $ollama {
+        let fixed_line = $line.item | iconv -f UTF-8 -t ASCII//TRANSLIT
+        let translated = if $ai and $ollama {
             $fixed_line | ai trans -onm $ollama_model
           } else if $ai and $gemini {
             $fixed_line | ai trans -Gn -P $paid
@@ -1349,7 +1332,7 @@ export def "ai trans-sub" [
           } else {
             $fixed_line | trans --from $from
           }
-        )
+        
 
         if $translated like "error:" {
           return-error $"error while translating: ($translated)"
@@ -1382,15 +1365,14 @@ export def "ai debunk" [
   --paid(-P)     #use paid gemini
 ] {
   let data = get-input $in $data
-  let data = (
-    if ($data | typeof) == "table" {
+  let data = if ($data | typeof) == "table" {
       open ($data | get name.0)
     } else if ($data | typeof) == "record" {
       open ($data | get name)
     } else {
       $data
     }
-  )
+  
 
   if $clean {print (echo-g "cleaning text...")}
   let data = if $clean {ai clean-text $data -P $paid} else {$data}
@@ -1438,13 +1420,12 @@ export def debunk-table [
   --ollama_model(-m):string #ollama model to use
   --paid(-P) = false                #use paid gemini
 ] {
-  let data = (
-    if ($data | describe | split row '<' | get 0) == table {
+  let data = if ($data | describe | split row '<' | get 0) == table {
       $data
     } else {
       $data | transpose | transpose -r
     }
-  )
+  
   
   if ($data | is-empty) {
     return []
@@ -1481,8 +1462,7 @@ export def "ai analyze_paper" [
 ] {
   let paper = get-input $in $paper
 
-  let file = (
-    if ($paper | typeof) == "table" {
+  let file = if ($paper | typeof) == "table" {
       $paper | get name.0 
     } else if ($paper | typeof) == "record" {
       $paper | get name
@@ -1490,7 +1470,7 @@ export def "ai analyze_paper" [
       $paper
     }
     | ansi strip
-  )
+  
 
   let name = $file | path parse | get stem 
   let exte = $file | path parse | get extension
@@ -1802,15 +1782,14 @@ export def "ai analyze_religious_text" [
     $data
   }
 
-  let data = (
-    if ($data | typeof) == "table" {
+  let data = if ($data | typeof) == "table" {
       open ($data | get name.0)
     } else if ($data | typeof) == "record" {
       open ($data | get name)
     } else {
       $data
     }
-  )
+  
 
   if $clean {print (echo-g "cleaning text...")}
   let data = if not $clean {$data} else {ai clean-text $data -g $gpt -o $ollama -m $ollama_model -P $paid}

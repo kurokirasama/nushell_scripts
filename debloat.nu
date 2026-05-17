@@ -47,4 +47,3 @@ adb shell pm disable-user --user 0 com.miui.miservice
 # adb shell pm disable-user --user 0 com.miui.audiomonitor
 # adb shell pm disable-user --user 0 com.xiaomi.xmsf
 # adb shell pm disable-user --user 0 com.android.providers.partnerbookmarks
-

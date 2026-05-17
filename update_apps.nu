@@ -470,11 +470,10 @@ export def "apps-update monocraft" [
   --to-patch(-p) = true     #to patch Monocraft.otf, else to use patched ttf
   --type(-t):string = "ttc"  #"otf" if -p, else "ttf"
 ] {
-  let current_version = (
-    open --raw ([$env.MY_ENV_VARS.linux_backup Monocraft.json] | path join) 
+  let current_version = open --raw ([$env.MY_ENV_VARS.linux_backup Monocraft.json] | path join) 
     | from json 
     | get version
-  )
+  
   
   github-app-update IdreesInc Monocraft -f $type -d $env.MY_ENV_VARS.linux_backup -j
   
@@ -510,11 +509,10 @@ export def "apps-update zoom" [] {
     return
   }
 
-  let last_version = (
-    $release_url
+  let last_version = $release_url
     | split row "/" 
     | get 4
-  )
+  
 
   if $current_version == $last_version {
     print (echo-g "zoom is already in its latest version!")
@@ -548,12 +546,11 @@ export def "apps-update chrome" [] {
 export def "apps-update earth" [] {
   cd $env.MY_ENV_VARS.debs
 
-  let new_version = (
-    http get "https://support.google.com/earth/answer/40901#zippy=%2Cearth-version" 
+  let new_version = http get "https://support.google.com/earth/answer/40901#zippy=%2Cearth-version" 
     | query web -q a 
     | find -n version 
     | first
-  )
+  
 
   let current_version = open ([$env.MY_ENV_VARS.debs earth.json] | path join) | get version
 
@@ -578,8 +575,7 @@ export def "apps-update yandex" [] {
 
   let file = [$env.MY_ENV_VARS.debs yandex.json] | path join
   
-  let new_date = (
-    http get http://repo.yandex.ru/yandex-disk/?instant=1 
+  let new_date = http get http://repo.yandex.ru/yandex-disk/?instant=1 
     | lines 
     | find amd64 
     | get 0 
@@ -590,7 +586,7 @@ export def "apps-update yandex" [] {
     | first 2 
     | str join " " 
     | into datetime
-  )
+  
 
   let old_date = open $file | get date | into datetime
 
@@ -622,8 +618,7 @@ export def "apps-update yandex" [] {
 export def "apps-update sejda" [] {
   cd $env.MY_ENV_VARS.debs
 
-  let new_file = (
-    http get https://www.sejda.com/es/desktop 
+  let new_file = http get https://www.sejda.com/es/desktop 
     | lines 
     | find -n linux 
     | find -n deb 
@@ -633,7 +628,7 @@ export def "apps-update sejda" [] {
     | split row ': ' 
     | str replace "," ""
     | get 1
-  )
+  
 
   let new_version = $new_file | split row _ | get 1
 
@@ -642,14 +637,13 @@ export def "apps-update sejda" [] {
   let sedja = (ls *.deb | find sejda | length) > 0
 
   if $sedja {
-    let current_version = (
-      ls *.deb 
+    let current_version = ls *.deb 
       | find -i "sejda" 
       | get 0 
       | get name 
       | split row _ 
       | get 1
-    )
+    
 
     if $current_version == $new_version {
       print (echo-g "sedja is already in its latest version!")
@@ -671,8 +665,7 @@ export def "apps-update sejda" [] {
 export def "apps-update nmap" [] {
   cd $env.MY_ENV_VARS.debs
 
-  let new_file = (
-    http get https://nmap.org/dist 
+  let new_file = http get https://nmap.org/dist 
     | lines 
     | find "href=\"nmap"  
     | find rpm 
@@ -683,7 +676,7 @@ export def "apps-update nmap" [] {
     | split row > 
     | get 0 
     | str replace -a "\"" "" 
-  )
+  
 
   let url = $"https://nmap.org/dist/($new_file)"
 
@@ -692,14 +685,13 @@ export def "apps-update nmap" [] {
   let nmap_list = (ls *.deb | find nmap | length) > 0
 
   if $nmap_list {
-    let current_version = (
-      ls *.deb 
+    let current_version = ls *.deb 
       | find nmap 
       | get 0 
       | get name 
       | split row _ 
       | get 1
-    )
+    
 
     if $current_version == $new_version {
       print (echo-g "nmap is already in its latest version!")
@@ -721,7 +713,7 @@ export def "apps-update nmap" [] {
     aria2c --download-result=hide $url
     sudo alien -v -k $new_file
 
-    let new_deb = (ls *.deb | find -n nmap | get 0 | get name)
+    let new_deb = ls *.deb | find -n nmap | get 0 | get name
 
     sudo gdebi -n $new_deb
     ls $new_file | rm-pipe | ignore
@@ -773,37 +765,34 @@ export def "apps-update ttyplot" [] {
 export def "apps-update vivaldi" [] {
   cd $env.MY_ENV_VARS.debs
   
-  let release_url = (
-    http get "https://vivaldi.com/download/"
+  let release_url = http get "https://vivaldi.com/download/"
     | query web -q .download-link -a href 
     | find -n deb 
     | find -n amd64 
     | get 0
-  )
+  
 
   if ($release_url | is-empty) {
     return-error "no releases found!"
   }
 
-  let last_version = (
-    $release_url 
+  let last_version = $release_url 
     | split row _ 
     | get 1
-  )
+  
 
   if (ls | find vivaldi | length) == 0 {
     aria2c --download-result=hide $release_url
     return 
   } 
 
-  let current_version = (
-    ls 
+  let current_version = ls 
     | where name like vivaldi 
     | get 0 
     | get name 
     | split row _ 
     | get 1
-  )
+  
 
   if $current_version == $last_version {
     print (echo-g "vivaldi is already in its latest version!")
@@ -1079,12 +1068,12 @@ export def "apps-update scrcpy" [] {
 
   # scrcpy 4.0+ requires SDL3, which is not in Ubuntu 24.04 repos
   if ((sys host | get name | str downcase) in ["linux" "ubuntu"]) and (lsb_release -rs | str trim) == "24.04" {
-    let sdl3_path = ($env.HOME | path join "software/scrcpy/app/deps/work/install/linux-native-shared/lib/pkgconfig")
+    let sdl3_path = $env.HOME | path join "software/scrcpy/app/deps/work/install/linux-native-shared/lib/pkgconfig"
     
-    let sdl3_exists = (with-env { PKG_CONFIG_PATH: $sdl3_path } { 
+    let sdl3_exists = with-env { PKG_CONFIG_PATH: $sdl3_path } { 
       pkg-config --exists sdl3 
       $env.LAST_EXIT_CODE == 0
-    })
+    }
 
     if not $sdl3_exists {
       print (echo-g "SDL3 not found or check failed, attempting to build from source...")

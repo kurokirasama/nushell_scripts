@@ -259,7 +259,7 @@ export def "h add" [
       let task_date = _h-input $due "Enter due date (YYYY-MM-DD, optional): "
       if ($task_date | is-not-empty) {
         # Convert to ISO 8601 format
-        let iso_date = ($task_date | into datetime | format date "%Y-%m-%dT%H:%M:%S.000Z")
+        let iso_date = $task_date | into datetime | format date "%Y-%m-%dT%H:%M:%S.000Z"
         $payload = ($payload | upsert date $iso_date)
       }
 
@@ -268,7 +268,7 @@ export def "h add" [
       } else {
         mut list = []
         loop {
-            let checklist_item = (input "Enter checklist item (leave empty to finish): ")
+            let checklist_item = input "Enter checklist item (leave empty to finish): "
             if ($checklist_item | is-empty) {
                 break
             }
@@ -294,7 +294,7 @@ export def "h add" [
         let every_x_input = if ($every_x != null) {
             $every_x
         } else {
-            let input_val = (input "Repeat every X days (optional, e.g., 2 for every other day): ")
+            let input_val = input "Repeat every X days (optional, e.g., 2 for every other day): "
             if ($input_val | is-not-empty) { $input_val | into int } else { null }
         }
         
@@ -315,7 +315,7 @@ export def "h add" [
             }
         } else {
             for $day in $days_of_week {
-                let repeat_day = (input $"Repeat on ($day)? (y/n): ")
+                let repeat_day = input $"Repeat on ($day)? (y/n): "
                 if ($repeat_day == "y") {
                     $repeats = ($repeats | upsert $day true)
                 } else {
@@ -864,7 +864,7 @@ export def "h add-checklist" [
   } else {
     mut list = []
     loop {
-        let item_text = (input "Enter checklist item (leave empty to finish): ")
+        let item_text = input "Enter checklist item (leave empty to finish): "
         if ($item_text | is-empty) {
             break
         }
@@ -977,13 +977,13 @@ export def "h help" [] {
   ] | sort-by name
 
   # Calculate the maximum length of the command names for padding
-  let max_name_length = ($commands_description | get name | str length | math max)
+  let max_name_length = $commands_description | get name | str length | math max
 
   # Format the help text with padding and descriptions
   let help_text = $commands_description
     | each {|cmd|
         # Pad the command name to align descriptions
-        let padded_name = ($cmd.name | fill -w ($max_name_length + 2) -a left)
+        let padded_name = $cmd.name | fill -w ($max_name_length + 2) -a left
         # Format the line: "command_name    # description"
         $"($padded_name)  # ($cmd.description)"
       }

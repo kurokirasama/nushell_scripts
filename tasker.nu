@@ -42,8 +42,7 @@ export def "tasker-join send-notification" [
 	let title = get-input ("from " + $env.HOST) $title
 	
 	let apikey = get-api-key "join.apikey"
-	let deviceId = (
-		if not $select_device {
+	let deviceId = if not $select_device {
 			(get-api-key "join.devices") | get $device
 		} else {
 			(get-api-key "join.devices")
@@ -53,7 +52,7 @@ export def "tasker-join send-notification" [
 				| input list -f (echo-g "select device:")
 			  ) 	
 		}
-	)
+	
 	
 	{
     	scheme: "https",
@@ -81,8 +80,7 @@ export def "tasker-join phone-call" [
 	let title = "phone call started from " + $env.HOST
 
 	let apikey = get-api-key "join.apikey"
-	let deviceId = (
-		if ($select_device | is-empty) {
+	let deviceId = if ($select_device | is-empty) {
 			(get-api-key "join.devices") | get $device
 		} else {
 			(get-api-key "join.devices")
@@ -92,7 +90,7 @@ export def "tasker-join phone-call" [
 				| input list -f (echo-g "select device:")
 			  ) 	
 		}
-	)
+	
 
 	{
     	scheme: "https",
@@ -121,8 +119,7 @@ export def "tasker-join tts" [
 	let title = "tts sent from " + $env.HOST
 
 	let apikey = get-api-key "join.apikey"
-	let deviceId = (
-		if not $select_device {
+	let deviceId = if not $select_device {
 			(get-api-key "join.devices") | get $device
 		} else {
 			(get-api-key "join.devices")
@@ -132,7 +129,7 @@ export def "tasker-join tts" [
 				| input list -f (echo-g "select device:")
 			  ) 	
 		}
-	)
+	
 
 	{
     	scheme: "https",
@@ -161,8 +158,7 @@ export def "tasker-join sms" [
 	let sms = get-input $in $text
 
 	let apikey = get-api-key "join.apikey"
-	let deviceId = (
-		if ($select_device | is-empty) {
+	let deviceId = if ($select_device | is-empty) {
 			(get-api-key "join.devices") | get $device
 		} else {
 			(get-api-key "join.devices")
@@ -172,7 +168,7 @@ export def "tasker-join sms" [
 				| input list -f (echo-g "select device:")
 			  ) 	
 		}
-	)
+	
 
 	{
     	scheme: "https",
@@ -191,15 +187,14 @@ export def "tasker-join sms" [
 }
 
 def get-tasker-server [device: string, select_device: bool] {
-  let device = (
-    if not $select_device {
+  let device = if not $select_device {
       $device
     } else {
       $env.MY_ENV_VARS.tasker_server.devices
       | columns
       | input list -f (echo-g "select device:")
     }
-  )
+  
 
   let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
   let server = open ($env.MY_ENV_VARS.tasker_server.devices | get $device | get file ) | get $device_name

@@ -24,14 +24,13 @@ export def "ai elevenlabs-tts" [
   let get_endpoints = ["models" "voices" "history" "user"]
   let post_endpoints = ["text-to-speech"]
 
-  let endpoint = (
-    if $select_endpoint or ($endpoint | is-empty) {
+  let endpoint = if $select_endpoint or ($endpoint | is-empty) {
       $get_endpoints ++ $post_endpoints
       | input list -f (echo-g "Select endpoint:")
     } else {
       $endpoint
     }
-  )
+  
 
   if $endpoint not-in ($get_endpoints ++ $post_endpoints) {
     return-error "non valid endpoint!!"
@@ -51,8 +50,7 @@ export def "ai elevenlabs-tts" [
   let voices = ai elevenlabs-tts -e voices
   let models = ai elevenlabs-tts -e models
 
-  let voice_name = (
-    if $select_voice {
+  let voice_name = if $select_voice {
       $voices
       | get voices
       | get name
@@ -60,17 +58,16 @@ export def "ai elevenlabs-tts" [
     } else {
       $voice
     }
-  )
+  
 
-  let model_name = (
-    if $select_model {
+  let model_name = if $select_model {
       $models
       | get name
       | input list -f (echo-g "select model: ")
     } else {
       $model
     }
-  )
+  
 
   let voice_id = $voices | get voices | find $voice_name | get voice_id.0
   let model_id = $models | find $model_name | get model_id.0

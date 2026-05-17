@@ -45,10 +45,10 @@ export def "media add-audio" [
   --notify(-n)             # notify to android via join/tasker
 ] {
   let v_info = media video-info $video_file
-  let v_duration = ($v_info.format.duration | into float)
-  let v_has_audio = ($v_info.streams | where codec_type == "audio" | is-not-empty)
+  let v_duration = $v_info.format.duration | into float
+  let v_has_audio = $v_info.streams | where codec_type == "audio" | is-not-empty
   
-  let a_duration = (ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $audio_file | str trim | into float)
+  let a_duration = ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $audio_file | str trim | into float
 
   let v_ext = $video_file | path parse | get extension
   let v_stem = $video_file | path parse | get stem
@@ -64,7 +64,7 @@ export def "media add-audio" [
   # Logic for duration adjustment
   if $a_duration < ($v_duration - 0.1) {
     # Case B: Looping audio
-    let n_repeats = ($v_duration / $a_duration | math ceil | into int)
+    let n_repeats = $v_duration / $a_duration | math ceil | into int
     let looped_audio = $"tmp_looped_($v_stem).($audio_file | path parse | get extension)"
     $temp_files = ($temp_files | append $looped_audio)
     
@@ -239,13 +239,12 @@ export def "media remove-noise" [
     my-ffmpeg -loglevel 1 -i $file $"($filename).wav"
   }
 
-  let output = (
-    if ($output | is-empty) {
+  let output = if ($output | is-empty) {
       $"($filename)-clean.wav"
     } else {
       $"($output).wav"
     }
-  ) 
+   
 
   print (echo-g "extracting noise segment...")
   my-ffmpeg -loglevel 1 -i $"($filename).wav" -acodec pcm_s16le -ar 128k -vn -ss $start -t $end $"tmpSeg($filename).wav"
@@ -285,16 +284,15 @@ export def "media remove-audio-noise" [
     ls ([$env.PWD tmp*] | path join) | rm-pipe
   }
 
-  let filename = ($file | path parse | get stem)
-  let ext = ($file | path parse | get extension)
+  let filename = $file | path parse | get stem
+  let ext = $file | path parse | get extension
 
-  let output = (
-    if ($output | is-empty) {
+  let output = if ($output | is-empty) {
       $"($filename)-clean.($ext)"
     } else {
       $output
     }
-  ) 
+   
 
   let outputA = $"tmp($filename)-clean.wav"
 
@@ -329,7 +327,7 @@ export def "media screen-record" [
       # You can adjust --audio-codec, --audio-codec-param, and --sample-rate for better quality.
       # To find your audio device, run: pactl list sources | grep Name
       # If audio is saturated, check your system's audio input levels (e.g., in pavucontrol).
-      let default_audio_source = (pactl info | grep 'Default Source:' | awk '{print $3}')
+      let default_audio_source = pactl info | grep 'Default Source:' | awk '{print $3}'
       wf-recorder --audio --audio-codec aac --sample-rate 48000 --audio-codec-param "b=192k" --file=$"($file).mp4"
     } else {
       print (echo-g "recording screen without audio for Hyprland...")
@@ -340,8 +338,7 @@ export def "media screen-record" [
 
     if $audio {
       print (echo-g "recording screen with audio for Gnome...")
-      let devices = (
-        if $os_version == "24.04" {
+      let devices = if $os_version == "24.04" {
           pw-dump 
           | lines 
           | find -n '"node.name"' 
@@ -356,7 +353,7 @@ export def "media screen-record" [
         }
         | where device like "alsa_input|bluez_" 
         | get device
-      )
+      
 
       let bluetooth_not_connected = $devices | find blue | is-empty
 
@@ -465,35 +462,33 @@ export def "media split-video" [
   --delta:duration = 10sec  #duration of overlaping beetween segments
   --notify(-n)              #notify to android via join/tasker
 ] {
-  let full_length = (
-    media video-info $file
+  let full_length = media video-info $file
     | get format
     | get duration
-  )
+  
 
   let full_secs = ($full_length + "sec") | into duration
-  let full_hhmmss = ($full_secs | into hhmmss)
+  let full_hhmmss = $full_secs | into hhmmss
 
-  let n_segments = (
-    if not ($number_segments | is-empty) {
+  let n_segments = if not ($number_segments | is-empty) {
       $number_segments
     } else {
       $full_secs / $duration + 1 | into int
     } 
-  )
+  
 
   let seg_duration = $full_secs / $n_segments
   let seg_end = $seg_duration
 
   for $it in 1..($n_segments - 1) {
-    let segment_start = ((($it - 1) * $seg_duration) | into hhmmss)
-    let segment_end = (($seg_end + ($it - 1) * $seg_duration + $delta) | into hhmmss)
+    let segment_start = (($it - 1) * $seg_duration) | into hhmmss
+    let segment_end = ($seg_end + ($it - 1) * $seg_duration + $delta) | into hhmmss
 
     print (echo-g $"generating part ($it): ($segment_start) - ($segment_end)...")
     media cut-video $file $segment_start $segment_end -a $it
   }
 
-  let segment_start = ((($n_segments - 1) * $seg_duration) | into hhmmss)
+  let segment_start = (($n_segments - 1) * $seg_duration) | into hhmmss
 
   print (echo-g $"generating part ($n_segments): ($segment_start) - ($full_hhmmss)...")
   media cut-video $file $segment_start $full_hhmmss -a $n_segments
@@ -519,23 +514,23 @@ export def "media to" [
   if ($file | is-empty) {
     #to aac or mp3
     if $to like "aac" or $to like "mp3" {
-      let n_files = (bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.3gp" -not -name  "*.($to)"'
+      let n_files = bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.3gp" -not -name  "*.($to)"'
           | lines 
           | length
-      )
+      
 
       print (echo-g $"($n_files) audio files found...")
 
       if $n_files > 0 {
         bash -c $'find . -type f -not -name "*.part" -not -name "*.srt" -not -name "*.mkv" -not -name "*.mp4" -not -name "*.txt" -not -name "*.url" -not -name "*.jpg" -not -name "*.png" -not -name "*.3gp" -not -name "*.($to)" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:a ($to) -b:a 64k {.}.($to)'
 
-       let aacs = (ls **/* 
+       let aacs = ls **/* 
          | insert "ext" {|| 
              $in.name | path parse | get extension
            }  
          | where ext like $to 
          | length
-       )
+       
 
         if $n_files == $aacs {
           print (echo-g $"audio conversion to ($to) done")
@@ -546,13 +541,13 @@ export def "media to" [
 
     #to mp4
     } else if $to like "mp4" {
-      let n_files = (ls **/*
+      let n_files = ls **/*
           | insert "ext" {|f| 
               $f.name | path parse | get extension
             }  
           | where ext like "avi|webm"
           | length
-      )
+      
 
       print (echo-g $"($n_files) avi/webm files found...")
 
@@ -563,13 +558,13 @@ export def "media to" [
           bash -c 'find . -type f \( -name "*.avi" -o -name "*.webm" \) -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v libx264 -c:a aac {.}.mp4'
        }
 
-        let aacs = (ls **/* 
+        let aacs = ls **/* 
           | insert "ext" {|| 
               $in.name | path parse | get extension
             }  
           | where ext like "mp4"
           | length
-        )
+        
 
        if $n_files == $aacs {
          print (echo-g $"avi video conversion to mp4 done")
@@ -579,13 +574,13 @@ export def "media to" [
       }
 
       if $mkv {
-        let n_files = (ls **/*
+        let n_files = ls **/*
           | insert "ext" {|f| 
               $f.name | path parse | get extension
             }  
           | where ext like "mkv"
           | length
-        )
+        
 
         print (echo-g $"($n_files) mkv files found...")
 
@@ -596,13 +591,13 @@ export def "media to" [
            bash -c 'find . -type f -name "*.mkv" -print0 | parallel -0 --eta ffmpeg -n -loglevel 0 -i {} -c:v libx264 -c:a aac -c:s mov_text {.}.mp4'
          }
 
-          let aacs = (ls **/* 
+          let aacs = ls **/* 
             | insert "ext" {|| 
                 $in.name | path parse | get extension
               }  
             | where ext like "mp4"
             | length
-          )
+          
 
          if $n_files == $aacs {
            print (echo-g $"mkv video conversion to mp4 done")
@@ -615,8 +610,8 @@ export def "media to" [
     return
   }
 
-  let filename = ($file | path parse | get stem)
-  let ext = ($file | path parse | get extension) 
+  let filename = $file | path parse | get stem
+  let ext = $file | path parse | get extension
 
   if $to like "aac" or $to like "mp3" {
     ffmpeg -n -loglevel 48 -i $file -c:a $to -b:a 64k $"($filename).($to)"
@@ -754,8 +749,7 @@ export def "media compress-video" [
   --notify(-n)              #notify to android via join/tasker
 ] {
   if ($file | is-empty) {
-    let n_files = (
-      if ($level | is-empty) {
+    let n_files = if ($level | is-empty) {
         if not $mkv {
           bash -c $"find . -type f (char -i 92)(char lparen) -iname '*.mp4' -o -iname '*.webm' (char -i 92)(char rparen) -not -name '*($append)*'"
         } else {
@@ -770,7 +764,7 @@ export def "media compress-video" [
       }
       | lines 
       | length
-    )
+    
 
     if $n_files == 0 {return-error "no files found..."}
 
@@ -820,8 +814,8 @@ export def "media compress-video" [
     return
   } 
 
-  let ext = ($file | path parse | get extension)
-  let name = ($file | path parse | get stem)
+  let ext = $file | path parse | get extension
+  let name = $file | path parse | get stem
 
   match $ext {
     "avi" => {
@@ -903,15 +897,14 @@ export def "media delete-non-compressed" [
   ls **/*
   | where name like .webm
   | par-each {|file|
-      let compressed = (
-        $file
+      let compressed = $file
         | get name
         | path expand
         | path parse
         | upsert stem ($file | get name | path parse | get stem | { $in + $"_($append)" })
         | upsert extension mp4
         | path join
-      )
+      
       
       if ($compressed | path exists) {
         $file | rm-pipe
@@ -926,11 +919,10 @@ export def "media find" [
   --manga(-m)       #for searching manga
   --no_manga(-n)    #exclude manga results
 ] {
-  let database = (
-    ls $env.MY_ENV_VARS.media_database 
+  let database = ls $env.MY_ENV_VARS.media_database 
     | where name like ".json" 
     | openm
-  )
+  
   
   let S = if ($season | is-empty) {
       ""
@@ -957,8 +949,7 @@ export def "media find" [
 #play first/last downloaded youtube video
 export def "media myt" [file?, --reverse(-r)] {
   let inp = $in
-  let video = (
-    if not ($inp | is-empty) {
+  let video = if not ($inp | is-empty) {
       $inp | get name
     } else if not ($file | is-empty) {
       $file
@@ -967,17 +958,17 @@ export def "media myt" [file?, --reverse(-r)] {
     } else {
       ls | sort-by modified | where type == "file" | last | get name
     }
-  )
+  
   
   ^mpv --ontop --window-scale=0.4 --save-position-on-quit --no-border $video
 
-  let delete = (input "delete file? (y/n): ")
+  let delete = input "delete file? (y/n): "
   if $delete == "y" {
     rm $video
     return
   } 
 
-  let move = (input "move file to pending? (y/n): ")
+  let move = input "move file to pending? (y/n): "
   if $move == "y" {
     mv $video pending
   } 
@@ -1010,12 +1001,11 @@ export def mpv [
       $video | each {|f| $f | mpv}
     },
     _ => {
-      let file = (
-        match $type {
+      let file = match $type {
           "record" => {$video | get name | ansi strip},
           "string" => {$video | ansi strip}
         }
-      )
+      
       
       if $env.XDG_CURRENT_DESKTOP == "Hyprland" {
         let active_window = ^hyprctl -j activewindow | from json | get workspace.name
@@ -1144,15 +1134,14 @@ export def "media crop-video" [
 ] {
   let video = get-input $in $video -n
   let resolution = media video-info $video | get streams.0 | select width height
-  let output_resolution = (
-    if not ($size | is-empty) {
+  let output_resolution = if not ($size | is-empty) {
       $size
     } else if $android {
       "720:" + ($resolution.height | into string)
     } else {
       return-error "output resolution not specified!"
     }
-  )
+  
 
   let filename = $video | path parse | get stem 
   let extension = $video | path parse | get extension
@@ -1297,20 +1286,20 @@ export def "media remove-logo" [
 # Clip delogo parameters to ensure they are within frame boundaries
 export def "media clip-delogo-params" [params: string, file: string, --w_band: int = 35, --h_band: int = 18] {
     # Expected format: delogo=x=832:y=591:w=442:h=129
-    let parsed = ($params | parse -r r#'delogo=x=(?<x>\d+):y=(?<y>\d+):w=(?<w>\d+):h=(?<h>\d+)'# | get 0)
-    let p_x = ($parsed.x | into int)
-    let p_y = ($parsed.y | into int)
-    let p_w = ($parsed.w | into int)
-    let p_h = ($parsed.h | into int)
+    let parsed = $params | parse -r r#'delogo=x=(?<x>\d+):y=(?<y>\d+):w=(?<w>\d+):h=(?<h>\d+)'# | get 0
+    let p_x = $parsed.x | into int
+    let p_y = $parsed.y | into int
+    let p_w = $parsed.w | into int
+    let p_h = $parsed.h | into int
     
     # Get media dimensions (works for video and image)
-    let info = (ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 $file | str trim | split row "x" | into int)
+    let info = ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 $file | str trim | split row "x" | into int
     let v_width = $info.0
     let v_height = $info.1
 
     # Tightening check: warn if area matches search bands
-    let max_w_band = ($v_width * $w_band / 100 | into int)
-    let max_h_band = ($v_height * $h_band / 100 | into int)
+    let max_w_band = $v_width * $w_band / 100 | into int
+    let max_h_band = $v_height * $h_band / 100 | into int
 
     if $p_w >= ($max_w_band - 10) or $p_h >= ($max_h_band - 10) {
         print (echo-y $"WARNING: Detected logo area w:($p_w), h:($p_h) is near search band limits max_w:($max_w_band), max_h:($max_h_band).")
@@ -1318,21 +1307,21 @@ export def "media clip-delogo-params" [params: string, file: string, --w_band: i
     }
 
     # Ensure x, y >= 0 and within frame
-    let x = (if $p_x < 0 { 0 } else if $p_x >= $v_width { $v_width - 1 } else { $p_x })
-    let y = (if $p_y < 0 { 0 } else if $p_y >= $v_height { $v_height - 1 } else { $p_y })
+    let x = if $p_x < 0 { 0 } else if $p_x >= $v_width { $v_width - 1 } else { $p_x }
+    let y = if $p_y < 0 { 0 } else if $p_y >= $v_height { $v_height - 1 } else { $p_y }
 
     # Ensure w, h > 0
-    let w = (if $p_w < 1 { 1 } else { $p_w })
-    let h = (if $p_h < 1 { 1 } else { $p_h })
+    let w = if $p_w < 1 { 1 } else { $p_w }
+    let h = if $p_h < 1 { 1 } else { $p_h }
     
     # Final boundary check: x + w < v_width, y + h < v_height
     # We use strictly < to be absolutely safe
-    let w = (if ($x + $w) >= $v_width { $v_width - $x - 1 } else { $w })
-    let h = (if ($y + $h) >= $v_height { $v_height - $y - 1 } else { $h })
+    let w = if ($x + $w) >= $v_width { $v_width - $x - 1 } else { $w }
+    let h = if ($y + $h) >= $v_height { $v_height - $y - 1 } else { $h }
 
     # Final safety: if width or height became <= 0 after clipping, reset to 1
-    let w = (if $w < 1 { 1 } else { $w })
-    let h = (if $h < 1 { 1 } else { $h })
+    let w = if $w < 1 { 1 } else { $w }
+    let h = if $h < 1 { 1 } else { $h }
 
     $"delogo=x=($x):y=($y):w=($w):h=($h)"
 }
@@ -1352,14 +1341,13 @@ export def "media trim-end" [
         return-error "This command only supports video files."
     }
 
-    let ofile = (if not ($output | is-empty) { $output } else { $"($name)_trimmed.($ext)" })
+    let ofile = if not ($output | is-empty) { $output } else { $"($name)_trimmed.($ext)" }
 
     # Get total duration
-    let full_length = (
-        ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $file 
+    let full_length = ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $file 
         | str trim 
         | into float
-    )
+    
 
     if $full_length <= $seconds {
         return-error $"Video duration (($full_length)s) is shorter than or equal to trim time (($seconds)s)."
@@ -1416,15 +1404,14 @@ export def "media auto-remove-logo" [
         return-error "Template is required for image logo removal with find_rect method"
     }
 
-    let delogo_bin = (
-        if ("~/software/delogo/delogo" | path expand | path exists) {
+    let delogo_bin = if ("~/software/delogo/delogo" | path expand | path exists) {
             "~/software/delogo/delogo" | path expand
         } else if (($env.HOME? | default "" | path join "software/delogo/delogo") | path exists) {
             $env.HOME | path join "software/delogo/delogo"
         } else {
             "delogo" # Assume it's in PATH as last resort
         }
-    )
+    
     let dir = $file | path parse | get parent
     let ofile = if ($output | is-empty) {
         $dir | path join $"($name)_nologo.($ext)"
@@ -1436,13 +1423,13 @@ export def "media auto-remove-logo" [
         print (echo-g $"Attempting automatic logo detection on ($file) using ($delogo_bin) [W:($width_band)%, H:($height_band)%]...")
         let canny_flag = if $canny { "-y" } else { "" }
         let corner_flag = if not ($corner | is-empty) { $"-c ($corner)" } else { "" }
-        let detection = (bash -c $"($delogo_bin) ($canny_flag) ($corner_flag) -W ($width_band) -H ($height_band) '($file)'" | complete)
+        let detection = bash -c $"($delogo_bin) ($canny_flag) ($corner_flag) -W ($width_band) -H ($height_band) '($file)'" | complete
         
         let p = if ($detection.stdout | str contains "delogo=") {
             ($detection.stdout | lines | where $it =~ "delogo=" | first | split row " corner" | first | str trim)
         } else {
             print (echo-r "Default detection failed. Attempting with Canny edge detection...")
-            let detection_canny = (bash -c $"($delogo_bin) -y ($corner_flag) -W ($width_band) -H ($height_band) '($file)'" | complete)
+            let detection_canny = bash -c $"($delogo_bin) -y ($corner_flag) -W ($width_band) -H ($height_band) '($file)'" | complete
             if ($detection_canny.stdout | str contains "delogo=") {
                 ($detection_canny.stdout | lines | where $it =~ "delogo=" | first | split row " corner" | first | str trim)
             } else {
@@ -1453,8 +1440,8 @@ export def "media auto-remove-logo" [
         print (echo-g $"Detected logo params: ($p)")
 
         if $return_info {
-            let duration = (ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $file | str trim | into float)
-            let coords = ($p | parse -r r#'delogo=x=(?<x>\d+):y=(?<y>\d+):w=(?<w>\d+):h=(?<h>\d+)'# | get 0)
+            let duration = ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $file | str trim | into float
+            let coords = $p | parse -r r#'delogo=x=(?<x>\d+):y=(?<y>\d+):w=(?<w>\d+):h=(?<h>\d+)'# | get 0
             $info = {
                 start_time: 0,
                 end_time: $duration,
@@ -1476,24 +1463,24 @@ export def "media auto-remove-logo" [
         ffmpeg -i $template -vf format=gray $template_gray -y -loglevel quiet
 
         let time_limit = if $return_info { "" } else { "-t 5" }
-        let detection = (bash -c $"ffmpeg -i '($file)' -vf 'find_rect=object=($template_gray):threshold=($threshold)' ($time_limit) -f null -" | complete)
+        let detection = bash -c $"ffmpeg -i '($file)' -vf 'find_rect=object=($template_gray):threshold=($threshold)' ($time_limit) -f null -" | complete
         rm $template_gray | ignore
 
         if ($detection.stderr | str contains "Found at") {
             # Parse coordinates: [Parsed_find_rect_0 @ 0x...] Found at n=0 pts_time=0.000000 x=1102 y=688 with score=0.000914
-            let matches = ($detection.stderr | lines | where $it =~ "Found at" | parse -r r#'pts_time=(?<t>[\d.]+).*x=(?<x>\d+).*y=(?<y>\d+)'#)
-            let first_match = ($matches | first)
-            let x = ($first_match.x | into int)
-            let y = ($first_match.y | into int)
+            let matches = $detection.stderr | lines | where $it =~ "Found at" | parse -r r#'pts_time=(?<t>[\d.]+).*x=(?<x>\d+).*y=(?<y>\d+)'#
+            let first_match = $matches | first
+            let x = $first_match.x | into int
+            let y = $first_match.y | into int
             
             # We also need width and height from template
-            let info_template = (ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 $template | str trim | split row "x" | into int)
+            let info_template = ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 $template | str trim | split row "x" | into int
             let w = $info_template.0
             let h = $info_template.1
 
             if $return_info {
-                let start_t = ($matches.t | into float | math min)
-                let end_t = ($matches.t | into float | math max)
+                let start_t = $matches.t | into float | math min
+                let end_t = $matches.t | into float | math max
                 $info = {
                     start_time: $start_t,
                     end_time: $end_t,
@@ -1515,7 +1502,7 @@ export def "media auto-remove-logo" [
     }
 
     # Validate and clip coordinates to prevent FFmpeg "outside of frame" errors
-    let params = (media clip-delogo-params $params $file --w_band $width_band --h_band $height_band)
+    let params = media clip-delogo-params $params $file --w_band $width_band --h_band $height_band
 
     # Removal Phase
     print (echo-g $"Applying removal filter to ($ofile)...")
@@ -1576,18 +1563,18 @@ export def "media add-logo" [
         $logo_data
     }
 
-    let data_desc = ($data | describe)
+    let data_desc = $data | describe
     if not ($data_desc =~ "list") and not ($data_desc =~ "table") {
         return-error $"Logo data must be a list or table of records. Found: ($data_desc)"
     }
 
     # Validation and default values
     let v_info = media video-info $file
-    let duration = ($v_info.format.duration | into float)
-    let frame_w = ($v_info.streams | where codec_type == "video" | get 0.width | into int)
-    let frame_h = ($v_info.streams | where codec_type == "video" | get 0.height | into int)
+    let duration = $v_info.format.duration | into float
+    let frame_w = $v_info.streams | where codec_type == "video" | get 0.width | into int
+    let frame_h = $v_info.streams | where codec_type == "video" | get 0.height | into int
     
-    let validated_data = ($data | each {|row|
+    let validated_data = $data | each {|row|
         if ($row.image? | is-empty) or ($row.x? | is-empty) or ($row.y? | is-empty) {
             return-error "Each logo record must contain 'image', 'x', and 'y'."
         }
@@ -1604,17 +1591,17 @@ export def "media add-logo" [
             start_time: ($row.start_time? | default 0 | into float),
             end_time: ($row.end_time? | default $duration | into float)
         }
-    })
+    }
 
     # Phase: Fit and Resize
-    let validated_data = ($validated_data | each {|row|
+    let validated_data = $validated_data | each {|row|
         mut r = $row
         
         # Get dimensions of the logo image
-        let logo_info = (^identify $r.image | str trim | split row " ")
-        let logo_dim = ($logo_info | get 2 | split row "x")
-        let curr_w = ($logo_dim | get 0 | into int)
-        let curr_h = ($logo_dim | get 1 | into int)
+        let logo_info = ^identify $r.image | str trim | split row " "
+        let logo_dim = $logo_info | get 2 | split row "x"
+        let curr_w = $logo_dim | get 0 | into int
+        let curr_h = $logo_dim | get 1 | into int
 
         # Apply fit logic BEFORE potential resizing (based on specified target or native)
         if $fit {
@@ -1656,7 +1643,7 @@ export def "media add-logo" [
             }
         }
         $r
-    })
+    }
 
     mut ofile = if ($output | is-empty) {
         $"($name)_with_logo.($ext)"
@@ -1665,8 +1652,8 @@ export def "media add-logo" [
     }
 
     # Overwriting prevention
-    let abs_file = ($file | path expand)
-    let abs_ofile = ($ofile | path expand)
+    let abs_file = $file | path expand
+    let abs_ofile = $ofile | path expand
     if $abs_file == $abs_ofile {
         let new_ofile = $"($ofile | path parse | get stem)_v2.($ext)"
         print (echo-y $"WARNING: Output path same as input. Changing output to: ($new_ofile)")
@@ -1676,10 +1663,10 @@ export def "media add-logo" [
     if $iterative {
         print (echo-g "Processing logos iteratively...")
         mut current_input = $file
-        let total_logos = ($validated_data | length)
+        let total_logos = $validated_data | length
         
         for i in 0..($total_logos - 1) {
-            let row = ($validated_data | get $i)
+            let row = $validated_data | get $i
             let temp_output = if $i == ($total_logos - 1) { $ofile } else { $"(($ofile | path parse | get stem))_temp_($i).(($ofile | path parse | get extension))" }
             let in_file = $current_input # Create immutable copy for the catch block
             
@@ -1716,7 +1703,7 @@ export def "media add-logo" [
         mut last_label = "[0:v]"
         
         for i in 0..(($validated_data | length) - 1) {
-            let row = ($validated_data | get $i)
+            let row = $validated_data | get $i
             let img_idx = $i + 1
             $inputs = ($inputs | append ["-i" $row.image])
             
@@ -1726,7 +1713,7 @@ export def "media add-logo" [
             $last_label = $next_label
         }
         
-        let filter_complex = ($filter_parts | str join ";")
+        let filter_complex = $filter_parts | str join ";"
         let final_inputs = $inputs # Immutable copy for try/catch
         let map_label = $last_label # Immutable copy for try/catch
         let final_ofile = $ofile # Immutable copy for try/catch
@@ -1787,7 +1774,7 @@ export def "media replace-logo" [
 
     # Phase 2: Logo Removal and Data Extraction
     print (echo-g $"Detecting and removing original logo from ($file)...")
-    let info = (media auto-remove-logo $file --return-info)
+    let info = media auto-remove-logo $file --return-info
     
     if ($info | is-empty) {
         return-error "Logo detection failed or returned no information. Aborting replacement."

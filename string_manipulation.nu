@@ -47,13 +47,12 @@ export def "into duration-from-hhmmss" [hhmmss?:string] {
 #convert duration to hh:mm:ss
 export def "into hhmmss" [dur?:duration] {
   let dur = if ($dur | is-empty) {$in} else {$dur}
-  let seconds = (
-    $dur
+  let seconds = $dur
     | format duration sec
     | split row " "
     | get 0
     | into int
-  )
+  
 
   let h = $seconds / 3600 | into int | into string | fill -a r -c "0" -w 2
   let m = ($seconds / 60) mod 60 | into int | into string | fill -a r -c "0" -w 2
@@ -93,14 +92,13 @@ export def "date my-format" [
 
 #date renaming
 export def rename-date [file,--extra = ""] {
-  let extension = ($file | path parse | get extension)
-  let new_name = (
-    $file 
+  let extension = $file | path parse | get extension
+  let new_name = $file 
     | path parse
     | get stem 
     | date my-format --extra $extra
     | str append $".($extension)"
-  )
+  
 }
 
 #progress bar
@@ -138,16 +136,14 @@ export def progress_bar [
     let max = if $max == 0 {1} else {$max}
     let term_length = (term size).columns
     let max_number_of_chars = $term_length / 2 | math ceil
-    let bar_increment = (
-      if $max >= $max_number_of_chars {
+    let bar_increment = if $max >= $max_number_of_chars {
         $max / $max_number_of_chars | math ceil
       } else {
         $max_number_of_chars / $max | math floor
       }
-    )
+    
 
-    let $offset = (
-      match $term_length {
+    let $offset = match $term_length {
         83 => {
           if $max >= $max_number_of_chars {
             7
@@ -171,7 +167,7 @@ export def progress_bar [
         },
         _ => {0}
       }
-    )
+    
 
     mut progress_bar = if ($progress_bar | is-empty) {$symbol} else {$progress_bar}
 
@@ -229,7 +225,7 @@ export def bar [
   --normalize # Adjust bar to fit width exactly
 ] {
   let term_width = (term size).columns
-  let width = ([($width | default $term_width) $term_width] | math min | into float)
+  let width = [($width | default $term_width) $term_width] | math min | into float
 
   let normalize = if $normalize {
     1.0 / (
@@ -252,15 +248,14 @@ export def bar [
     wr lgr lrr lur lyr pr yr lcr mr lpr lmr cr wr dgrr
   ]
   
-  let bar_sections = (
-    $sections
+  let bar_sections = $sections
     | transpose
     | rename title data
     | enumerate
     | each {|entry|
       let index = $entry.index
       let data = $entry.item.data
-        let default_color = ($COLORS | get $index)
+        let default_color = $COLORS | get $index
         let data = match ($entry.item.data | describe --detailed).type {
         "float" | "int" => {
           fraction: $entry.item.data
@@ -275,17 +270,17 @@ export def bar [
         "record" => {ansi --escape $data.color}
       }
 
-      let title = ($entry.item.title | str substring 0..($percent_width | math ceil))
-      let title_width = ($title | str length)
-      let half_width = ([(($percent_width - $title_width) / 2) 0] | math max)
+      let title = $entry.item.title | str substring 0..($percent_width | math ceil)
+      let title_width = $title | str length
+      let half_width = [(($percent_width - $title_width) / 2) 0] | math max
 
-      let lhs = (" " | std repeat ($half_width | math floor) | str join)
-      let rhs = (" " | std repeat ($half_width | math ceil) | str join)
+      let lhs = " " | std repeat ($half_width | math floor) | str join
+      let rhs = " " | std repeat ($half_width | math ceil) | str join
 
       $color + $title + $lhs + $rhs
     }
     | str join
-  )
+  
 
   $bar_sections + (ansi reset)
 }

@@ -128,8 +128,8 @@ export def "dataestado ministerios historial" [
 export def "dataestado personas profile" [
     id: int # Person ID
 ] {
-    let ficha = (dataestado personas ficha $id)
-    let trayectoria = (dataestado personas trayectoria $id)
+    let ficha = dataestado personas ficha $id
+    let trayectoria = dataestado personas trayectoria $id
     $ficha | insert trayectoria $trayectoria
 }
 
@@ -137,7 +137,7 @@ export def "dataestado personas profile" [
 export def "dataestado ministerios authorities-history" [
     codigo: string # Ministry code (e.g., MIN_HACIENDA)
 ] {
-    let info = (dataestado ministerios codigo $codigo)
+    let info = dataestado ministerios codigo $codigo
     let id = $info.id
     dataestado ministerios historial $id
 }

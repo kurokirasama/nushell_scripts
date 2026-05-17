@@ -55,21 +55,19 @@ export def chat_gpt [
     return-error "image file not found!" 
   }
 
-  let extension = (
-    if $model == "gpt-4-vision" {
+  let extension = if $model == "gpt-4-vision" {
       $image | path parse | get extension
     } else {
       ""
     }
-  )
+  
 
-  let image = (
-    if $model == "gpt-4-vision" {
+  let image = if $model == "gpt-4-vision" {
       open ($image | path expand) | encode base64
     } else {
       ""
     }
-  )
+  
 
   #select system message from database
   let system_messages_files = ls ($env.MY_ENV_VARS.llms_configs | path join system) | sort-by name | get name
@@ -101,8 +99,7 @@ export def chat_gpt [
   }
 
   #build prompt
-  let prompt = (
-    if ($document | is-not-empty) {
+  let prompt = if ($document | is-not-empty) {
       $preprompt + "\n# DOCUMENT\n\n" + (open --raw $document) + "\n\n# INPUT\n\n'''\n" + $query + "\n'''" 
     } else if ($preprompt | is-empty) and $delim_with_backquotes {
       "'''" + "\n" + $query + "\n" + "'''"
@@ -113,7 +110,7 @@ export def chat_gpt [
     } else {
       $preprompt + $query
     } 
-  )
+  
 
   #search prompts
   let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
@@ -128,13 +125,12 @@ export def chat_gpt [
       ai google_search-summary $prompt $web_content -m -M "gemini"
   } else {$web_content}
   
-  let prompt = (
-    if $web_search {
+  let prompt = if $web_search {
       $prompt + "\n\n You can complement your answer with the following up to date information about my question I obtained from a google search, in markdown format:\n" + $web_content
     } else {
       $prompt
     }
-  )
+  
 
   # default models
   let model = if $model == "gpt-4" {"gpt-4.1"} else {$model}
@@ -144,10 +140,9 @@ export def chat_gpt [
   # call to api
   let header = [Authorization $"Bearer (get-api-key "open_ai.api_key")"]
   let site = "https://api.openai.com/v1/chat/completions"
-  let image_url = ("data:image/" + $extension + ";base64," + $image)
+  let image_url = "data:image/" + $extension + ";base64," + $image
   
-  let request = (
-    if $model == "gpt-4-vision" {
+  let request = if $model == "gpt-4-vision" {
       {
         model: $model,
         messages: [
@@ -191,7 +186,7 @@ export def chat_gpt [
         temperature: $temp
       }
     }
-  )
+  
 
   let answer = http post -t application/json -H $header $site $request -e
   $answer | save -f a.json
@@ -237,13 +232,12 @@ export def dall_e [
 
   match $task {
     "generation" => {
-        let output = (
-          if ($output | is-empty) {
+        let output = if ($output | is-empty) {
             (google_ai --select_preprompt dalle_image_name -d true $prompt | from json | get name) + "_G"
           } else {
             $output
           }
-        )
+        
 
         let size = if ($size | is-empty) {"1792x1024"} else {$size}
 

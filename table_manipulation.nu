@@ -143,9 +143,9 @@ export def get-rows [rows:list] {
 # interactively select columns from a table
 export def iselect [] {
     let tgt = $in
-    let cols = ($tgt | columns)
+    let cols = $tgt | columns
 
-    let choices = ($cols | input list -mf "Pick columns to get: ")
+    let choices = $cols | input list -mf "Pick columns to get: "
     $tgt | select ...$choices
 }
 
@@ -169,16 +169,14 @@ export def table-diff [
 ] {
   let left = if ($left | describe) not-like '^table' { $left | wrap value } else { $left }
   let right = if ($right | describe) not-like '^table' { $right | wrap value } else { $right }
-  let left_selected = ($left | select ...$keys)
-  let right_selected = ($right | select ...$keys)
-  let left_not_in_right = (
-    $left |
+  let left_selected = $left | select ...$keys
+  let right_selected = $right | select ...$keys
+  let left_not_in_right = $left |
     where { |row| not (($row | select ...$keys) in $right_selected) }
-  )
-  let right_not_in_left = (
-    $right |
+  
+  let right_not_in_left = $right |
     where { |row| not (($row | select ...$keys) in $left_selected) }
-  )
+  
   (
     $left_not_in_right | insert side '<='
   ) ++ (
@@ -244,7 +242,7 @@ export def group-list [cond: closure] {
   | prepend [null]
   | window 2
   | each {|i|
-      let prev = ($i.0 | default $i.1)
+      let prev = $i.0 | default $i.1
       let next = $i.1
       if $prev.1 != $next.1 {
         [null $next.0]
@@ -291,7 +289,7 @@ export def pivot-table [
 ] {
   let table_1 = if ($table_1 | is-empty) {$in} else {$table_1}
 
-  let on_cols = ($table_1 | get ($columns | first) | uniq)
+  let on_cols = $table_1 | get ($columns | first) | uniq
 
   $table_1 | polars into-df | polars pivot -o $columns -c $on_cols -i $index --values $values
 }
@@ -417,15 +415,14 @@ export def rename [
     }
   } else {
     let input = $in
-    let columns = (
-      if ($column | is-not-empty) {
+    let columns = if ($column | is-not-empty) {
         $column | columns
       } else if ($argument | is-not-empty) {
         $argument
       } else {
         $input | columns
       }
-    )
+    
 
     let new_names = $columns
     | if $camel {

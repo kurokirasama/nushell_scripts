@@ -66,8 +66,7 @@ export def matlab-cli [
 
   let log = (date now | format date "%Y.%m.%d_%H.%M.%S") + "_log.txt"
 
-  let input = (
-    if ($input | is-empty) {
+  let input = if ($input | is-empty) {
       ls *.m
       | get name
       | path parse
@@ -76,7 +75,7 @@ export def matlab-cli [
     } else {
       $input | path parse | get stem
     }
-  )
+  
 
   let output = if ($output | is-empty) {$log} else {$output + ".txt"}
 

@@ -48,7 +48,7 @@ export def --env get_weather_by_interval [
         }
 
         if not $env.MY_ENV_VARS.NETWORK.status or $not_update {
-            let w = ($last_runtime_data | get weather)
+            let w = $last_runtime_data | get weather
             return (if ($w | describe) =~ "record" { $"($w.Icon) ($w.Temperature)" } else { $w })
         } 
     
@@ -60,7 +60,7 @@ export def --env get_weather_by_interval [
         let WEATHER = get_weather_for_prompt $loc
 
         if not $WEATHER.mystatus {
-            let w = ($last_runtime_data | get weather)
+            let w = $last_runtime_data | get weather
             return (if ($w | describe) =~ "record" { $"($w.Icon) ($w.Temperature)" } else { $w })
         }
         
@@ -115,13 +115,12 @@ def locations [] {
 
 def get_location [--home(-h),--ubb(-b)] {
     let wifi = wifi-info -w
-    let online = ( 
-        locations 
+    let online = locations 
         | each {|url| 
             check-link ($url | get location) 2sec
           } 
         | wrap online
-    )
+    
 
     let table = locations | merge $online | find true
 
@@ -131,7 +130,7 @@ def get_location [--home(-h),--ubb(-b)] {
     } else if $ubb or ($wifi like $env.MY_ENV_VARS.work_wifi) {
          $env.MY_ENV_VARS.work_loc 
     } else { 
-        let loc_json = (http get ($table | select 0).0.location)
+        let loc_json = http get ($table | select 0).0.location
         if ($loc_json | is-column lat) {
             $"($loc_json.lat),($loc_json.lon)"
         } else {
@@ -290,7 +289,7 @@ def get_weather [
     --forecast-today
     --forecast-week
 ] {
-    let flag_count = ([$conditions, $forecast_today, $forecast_week] | where $it == true | length)
+    let flag_count = [$conditions, $forecast_today, $forecast_week] | where $it == true | length
     if $flag_count > 1 {
         return-error "Flags --conditions, --forecast-today, and --forecast-week are mutually exclusive."
     }
@@ -305,13 +304,12 @@ def get_weather [
     }
 
     let address = get_address $loc
-    let air_cond = (
-        try {
+    let air_cond = try {
             get_airCond $loc
         } catch {
             "no data"
         }
-    )
+    
 
     ## Current conditions
     let cond = get_weather_description_from_code ($response.realtime.data.values.weatherCode | into string)
@@ -320,25 +318,23 @@ def get_weather [
     let humi = $response.realtime.data.values.humidity 
     let uvIndex = $response.realtime.data.values.uvIndex
 
-    let sunrise = (
-        $response.forecast.timelines.daily 
+    let sunrise = $response.forecast.timelines.daily 
         | get 0 
         | get values 
         | get sunriseTime 
         | into datetime
         | date to-timezone local
         | format date "%H:%M:%S"
-    )
+    
 
-    let sunset = (
-        $response.forecast.timelines.daily 
+    let sunset = $response.forecast.timelines.daily 
         | get 0 
         | get values 
         | get sunsetTime 
         | into datetime 
         | date to-timezone local
         | format date "%H:%M:%S"
-    )
+    
 
     let vientos = desc_wind $wind
     let uvClass = uv_class $uvIndex
@@ -359,8 +355,7 @@ def get_weather [
     }  
 
     ## Forecast
-    let days = (
-        $response.forecast.timelines.daily 
+    let days = $response.forecast.timelines.daily 
         | select time 
         | each {|row|
             $row.time 
@@ -368,7 +363,7 @@ def get_weather [
             | format date "%Y-%m-%d"
           }
         | wrap "date"
-    )
+    
 
     mut data = []
     
@@ -378,14 +373,13 @@ def get_weather [
 
     mut forecast = $days | polars into-df | polars append ($data | polars into-df) | polars into-nu
     
-    let windSpeedAvg = (
-        $forecast 
+    let windSpeedAvg = $forecast 
         | select windSpeedAvg 
         | update windSpeedAvg {|f| 
             $f.windSpeedAvg * 3.6
           }
         | rename windSpeed
-    )
+    
      
         # | update precipitationProbabilityAvg {|f| $f.precipitationProbabilityAvg * 100} 
     
@@ -422,7 +416,7 @@ def get_weather [
             print (($forecast | select "Precip. Prob. (%)") | plot-table --title "Prec. Prob" --width 150)
             print (echo "\n")
 
-            let temp_minmax = ($forecast | select "T° min (°C)" "T° max (°C)")
+            let temp_minmax = $forecast | select "T° min (°C)" "T° max (°C)"
             print ($temp_minmax | plot-table --title "T° min vs T° max" --width 150)
             print (echo "\n")
         } else {
@@ -452,13 +446,12 @@ def get_weather [
     print ("Forecast for today:")
     print ($forecast | get 0) 
 
-    let forecast_description = (
-        try {
+    let forecast_description = try {
             google_ai ($forecast | to json) --select_system "meteorologist" --select_preprompt "5days_forecast" -d true
         } catch {
             ""
         }
-    )
+    
     
     print ("Forecast for the next 5 days: " + $forecast_description)
     print ($forecast)
@@ -480,25 +473,23 @@ def get_weather_for_prompt [loc] {
     let temp = $response.realtime.data.values.temperature
     let temperature = $"($temp)°C"
 
-    let sunrise = (
-        $response.forecast.timelines.daily 
+    let sunrise = $response.forecast.timelines.daily 
         | get 0 
         | get values 
         | get sunriseTime 
         | into datetime
         | date to-timezone local
         | format date "%H:%M:%S"
-    )
+    
 
-    let sunset = (
-        $response.forecast.timelines.daily 
+    let sunset = $response.forecast.timelines.daily 
         | get 0 
         | get values 
         | get sunsetTime 
         | into datetime
         | date to-timezone local
         | format date "%H:%M:%S"
-    )
+    
 
     let icon_description = get_icon_description_from_code $response.realtime.data.values.weatherCode $sunrise $sunset
     let icon = get_weather_icon $icon_description

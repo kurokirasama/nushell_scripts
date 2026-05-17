@@ -54,21 +54,19 @@ export def claude_ai [
     return-error "image file not found!" 
   }
 
-  let extension = (
-    if $model == "claude-vision" {
+  let extension = if $model == "claude-vision" {
       $image | path parse | get extension
     } else {
       ""
     }
-  )
+  
 
-  let image = (
-    if $model == "claude-vision" {
+  let image = if $model == "claude-vision" {
       open ($image | path expand) | encode base64
     } else {
       ""
     }
-  )
+  
 
   #select system message from database
   let system_messages_files = ls ($env.MY_ENV_VARS.llms_configs | path join system) | sort-by name | get name
@@ -76,7 +74,7 @@ export def claude_ai [
 
   mut ssystem = ""
   if $list_system {
-    let selection = ($system_messages | input list -f (echo-g "Select system message: "))
+    let selection = $system_messages | input list -f (echo-g "Select system message: ")
     $ssystem = (open --raw ($system_messages_files | find -n ("/" + $selection + ".md") | get 0))
   } else if (not ($select_system | is-empty)) {
     try {
@@ -91,7 +89,7 @@ export def claude_ai [
 
   mut preprompt = ""
   if $pre_prompt {
-    let selection = ($pre_prompts | input list -f (echo-g "Select pre-prompt: "))
+    let selection = $pre_prompts | input list -f (echo-g "Select pre-prompt: ")
     $preprompt = (open --raw ($pre_prompt_files | find -n ("/" + $selection + ".md") | get 0))
   } else if (not ($select_preprompt | is-empty)) {
     try {
@@ -100,8 +98,7 @@ export def claude_ai [
   }
 
   #build prompt
-  let prompt = (
-    if ($document | is-not-empty) {
+  let prompt = if ($document | is-not-empty) {
       $preprompt + "\n# DOCUMENT\n\n" + (open --raw $document) + "\n\n# INPUT\n\n'''\n" + $query + "\n'''" 
     } else if ($preprompt | is-empty) and $delim_with_backquotes {
       "'''" + "\n" + $query + "\n" + "'''"
@@ -112,7 +109,7 @@ export def claude_ai [
     } else {
       $preprompt + $query
     } 
-  )
+  
 
   #search prompts
   let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
@@ -127,13 +124,12 @@ export def claude_ai [
       ai google_search-summary $prompt $web_content -m -M "gemini"
   } else {$web_content}
   
-  let prompt = (
-    if $web_search {
+  let prompt = if $web_search {
       $prompt + "\n\n You can complement your answer with the following up to date information about my question I obtained from a google search, in markdown format:\n" + $web_content
     } else {
       $prompt
     }
-  )
+  
 
   # default models
   let input_model = $model
@@ -148,8 +144,7 @@ export def claude_ai [
   let header = {x-api-key: (get-api-key "anthropic.api_key"), anthropic-version: $anthropic_version}
   let site = "https://api.anthropic.com/v1/messages"
   
-  let request = (
-    if $input_model == "claude-vision" {
+  let request = if $input_model == "claude-vision" {
       {
         model: $model,
         messages: [
@@ -189,7 +184,7 @@ export def claude_ai [
         temperature: $temp
       }
     }
-  )
+  
 
   try {
     let answer = http post -t application/json -H $header $site $request

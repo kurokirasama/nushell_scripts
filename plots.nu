@@ -23,8 +23,8 @@ export def gnu-plot [
   --title:string  #title
 ] {
   let x = get-input $in $data
-  let n_cols = ($x | transpose | length)
-  let name_cols = ($x | transpose | column2 0)
+  let n_cols = $x | transpose | length
+  let name_cols = $x | transpose | column2 0
 
   let ylabel = if $n_cols == 1 {$name_cols | get 0} else {$name_cols | get 1}
   let xlabel = if $n_cols == 1 {""} else {$name_cols | get 0}

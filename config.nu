@@ -82,7 +82,7 @@ let hooks = {
     ]
     pre_execution: [
         {||
-            let autolister_path = ($env.MY_ENV_VARS.nushell_dir | path join "autolister.json")
+            let autolister_path = $env.MY_ENV_VARS.nushell_dir | path join "autolister.json"
             #checking existence of data file
             if not ($autolister_path | path exists) {
                 cp ($env.MY_ENV_VARS.linux_backup | path join autolister.json) $autolister_path
@@ -91,7 +91,7 @@ let hooks = {
             #checking conditions
             let interval = 12hr 
             let now = date now
-            let autolister_content = (open $autolister_path | default {})
+            let autolister_content = open $autolister_path | default {}
             let update = ($autolister_content | get updated | into datetime) + $interval < $now
             
             if $update and ((sys host | get hostname) != "rayen") {
@@ -152,7 +152,7 @@ let hooks = {
     env_change: {
       PWD: [
         {|before, after|
-            let pwd_sizes_path = ($env.MY_ENV_VARS.nushell_dir | path join "pwd_sizes.json")
+            let pwd_sizes_path = $env.MY_ENV_VARS.nushell_dir | path join "pwd_sizes.json"
             #checking existence of data file
             if not ($pwd_sizes_path | path exists) {
                 cp ($env.MY_ENV_VARS.linux_backup | path join pwd_sizes.json) $pwd_sizes_path
@@ -162,18 +162,16 @@ let hooks = {
             let interval = 12hr 
             let last_record = (open $pwd_sizes_path | default []) | where directory == $env.PWD
             let now = date now
-            let not_update = (
-                if ($last_record | length) == 0 {
+            let not_update = if ($last_record | length) == 0 {
                     false
                 } else {
                     (($last_record | get updated | get 0 | into datetime) + $interval > $now)
                 }
-            )
+            
             let not_gdrive = not ($env.PWD like rclone)
             
             #calculating pwd_size
-            let pwd_size = (
-                if ($last_record | length) == 0 and $not_gdrive {
+            let pwd_size = if ($last_record | length) == 0 and $not_gdrive {
                     du $env.PWD --exclude *rclone*
                     | get apparent 
                     | get 0 
@@ -192,7 +190,7 @@ let hooks = {
                 } else {
                     ""
                 }    
-            )
+            
             
             #seting up env var
             $env.PWD_SIZE = $pwd_size

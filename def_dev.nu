@@ -1,7 +1,6 @@
 #nushell source files info
 export def nu-sloc [] {
-  let stats = (
-    ls **/*.nu
+  let stats = ls **/*.nu
     | select name
     | insert lines { |item|
         open $item.name
@@ -18,13 +17,13 @@ export def nu-sloc [] {
         | length
       }
     | sort-by lines -r
-  )
+  
 
-  let lines = ($stats | reduce -f 0 {|it, acc| $it.lines + $acc })
-  let blank = ($stats | reduce -f 0 {|it, acc| $it.blank + $acc })
-  let comments = ($stats | reduce -f 0 {|it, acc| $it.comments + $acc })
-  let total = ($stats | length)
-  let avg = ($lines / $total | math round)
+  let lines = $stats | reduce -f 0 {|it, acc| $it.lines + $acc }
+  let blank = $stats | reduce -f 0 {|it, acc| $it.blank + $acc }
+  let comments = $stats | reduce -f 0 {|it, acc| $it.comments + $acc }
+  let total = $stats | length
+  let avg = $lines / $total | math round
 
   $'(char nl)(ansi pr) SLOC Summary for Nushell (ansi reset)(char nl)'
   print { 'Total Lines': $lines, 'Blank Lines': $blank, Comments: $comments, 'Total Nu Scripts': $total, 'Avg Lines/Script': $avg }

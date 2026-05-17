@@ -4,35 +4,32 @@ export def network-switcher [] {
 
   try {nmcli -t -f ssid,signal,rate,in-use dev wifi rescan}
 
-  let known_networks_info = (
-    nmcli -m tabular -f name connection show 
+  let known_networks_info = nmcli -m tabular -f name connection show 
     | lines 
     | str trim 
     | find -v NAME 
     | wrap known_networks
-  )
+  
 
   let current_network_name = wifi-info -w
-  let current_network_strength = (
-    nmcli -t -f ssid,signal,rate,in-use dev wifi list 
+  let current_network_strength = nmcli -t -f ssid,signal,rate,in-use dev wifi list 
     | lines 
     | find "*" 
     | get 0 
     | split row : 
     | get 1
     | into int
-  )
+  
 
   print (echo-g $"current net: ($current_network_name), strength: ($current_network_strength)")
 
-  let network_list = (
-    nmcli -t -f ssid,signal,rate,in-use dev wifi list 
+  let network_list = nmcli -t -f ssid,signal,rate,in-use dev wifi list 
     | lines 
     | find -v $"($current_network_name):" 
     | parse "{name}:{signal}:{speed}" 
     | sort-by -r signal
     | str trim
-  )
+  
 
   let number_nets = $network_list | length
 
@@ -62,8 +59,7 @@ export def network-switcher [] {
 export def wifi-info [
   --wifi_id(-w)
 ] {
-  let info = (
-    nmcli -t dev wifi 
+  let info = nmcli -t dev wifi 
     | lines 
     | str replace -a '\:' '|' 
     | str replace -a ':' '#' 
@@ -72,7 +68,7 @@ export def wifi-info [
     | split column '#' 
     | rename in-use mac ssid mode channel rate signal bars security
     | indexify
-  )
+  
 
   if ($info | is-empty) {
     return "no wifi connected!"
@@ -94,15 +90,14 @@ export def wifi-info [
 export def ls-ports [] {
   let input = ^lsof +c 0xFFFF -i -n -P
   
-  let header = (
-    $input 
+  let header = $input 
     | lines
     | take 1
     | each {||
         str downcase 
         | str replace ' name$' ' name state'
       }
-  )
+  
 
   let body = (
     $input 
@@ -145,7 +140,7 @@ export def get-ips [
       $device
     }
 
-  let internal = (ip -json add 
+  let internal = ip -json add 
     | from json 
     | where ifname like $device 
     | select addr_info 
@@ -153,7 +148,7 @@ export def get-ips [
     | flatten 
     | get local 
     | get 0
-  )
+  
 
   let external = dig +short myip.opendns.com @resolver1.opendns.com
   
@@ -186,22 +181,21 @@ export def get-devices [] {
 
   let this_ip = $nmap_output | last | get addr
 
-  let ips = ($nmap_output 
+  let ips = $nmap_output 
     | drop 1 
     | flatten 
     | where addrtype like ipv4 
     | select addr 
     | rename ip
-  )
   
-  let macs_n_names = (
-    $nmap_output 
+  
+  let macs_n_names = $nmap_output 
     | flatten 
     | where addrtype like mac  
     | reject addrtype 
     | rename mac name 
     | default null name
-  )
+  
 
   let devices = $ips | merge $macs_n_names
 
@@ -212,8 +206,7 @@ export def get-devices [] {
 
   let devices = $devices | merge $known
 
-  let aliases = (
-    $devices 
+  let aliases = $devices 
     | each {|row| 
         if $row.known {
           $known_devices | find $row.mac | get alias
@@ -223,7 +216,7 @@ export def get-devices [] {
       } 
     | flatten 
     | wrap alias
-  )
+  
    
   rm nmap.xml | ignore 
 

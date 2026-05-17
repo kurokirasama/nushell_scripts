@@ -83,42 +83,37 @@ export def nufetch [--full_table(-f),--table(-t)] {
   } 
 
   let s = {mem: (sys mem), host: (sys host), disks: (sys disks), cpu: (sys cpu)}
-  let s2 = (
-    hostnamectl 
+  let s2 = hostnamectl 
     | lines 
     | parse "{headers}: {value}"
     | str trim
     | transpose -ird 
-  )
+  
   let os = ($s2 | get "Operating System") + " " + $nu.os-info.arch
-  let host = (open /sys/devices/virtual/dmi/id/product_name | lines | get 0)
+  let host = open /sys/devices/virtual/dmi/id/product_name | lines | get 0
   let shell = ($env.SHELL | path parse | get stem) + " " + (version | get version)
-  let screen_res = (
-    xrandr 
+  let screen_res = xrandr 
     | lines 
     | find "*+" 
     | parse "   {resolution} {rest}" 
     | get resolution 
     | str join ", "
-  )
-  let theme = (
-    gsettings get org.gnome.desktop.interface gtk-theme 
+  
+  let theme = gsettings get org.gnome.desktop.interface gtk-theme 
     | lines 
     | get 0 
     | str replace -a "'" ""
-  )
-  let icons = (
-    gsettings get org.gnome.desktop.interface icon-theme 
+  
+  let icons = gsettings get org.gnome.desktop.interface icon-theme 
     | lines 
     | get 0
     | str replace -a "'" ""
-  )
-  let free_disk = ($s.disks | where mount == / | get free | get 0)
-  let total_disk = ($s.disks | where mount == / | get total | get 0)
+  
+  let free_disk = $s.disks | where mount == / | get free | get 0
+  let total_disk = $s.disks | where mount == / | get total | get 0
   let disk = (($total_disk - $free_disk) | into string) + " / " + ($total_disk | into string)
   let mem = ($s.mem.used | into string) + " / " + ($s.mem.total | into string)
-  let gpus = (
-    lspci 
+  let gpus = lspci 
     | lines 
     | find -i vga 
     | parse "{col2} VGA compatible controller: {col1}" 
@@ -126,7 +121,7 @@ export def nufetch [--full_table(-f),--table(-t)] {
         [$row.col1 $row.col2] 
         | str join " "
       }
-    )
+    
   let wm = if XDG_CURRENT_DESKTOP in ($env | columns) {
       if $env.XDG_CURRENT_DESKTOP == "ubuntu:GNOME" {
         "Mutter"
@@ -137,15 +132,14 @@ export def nufetch [--full_table(-f),--table(-t)] {
       wmctrl -m | lines | first | split row ": " | last
     }
 
-  let terminal = (
-    xdotool getactivewindow | xargs -I {} xprop -id {} WM_CLASS 
+  let terminal = xdotool getactivewindow | xargs -I {} xprop -id {} WM_CLASS 
     | split row '='
     | get 1 
     | str trim 
     | split row , 
     | get 0 
     | str replace -a "\"" ""
-  )
+  
   let wmtheme = gsettings get org.gnome.shell.extensions.user-theme name | str replace -a "'" ""
   let info = {} 
 
@@ -238,7 +232,7 @@ export def --env cd-pipe [] {
 
 #cd to the folder where a binary is located
 export def --env which-cd [program] { 
-  let dir = (which $program | get path | path dirname | str trim)
+  let dir = which $program | get path | path dirname | str trim
   cd $dir.0
 }
 
@@ -350,8 +344,7 @@ export def history-stats [
   --summary (-s): int = 10
   --last-cmds (-l): int
 ] {
-  let top_commands = (
-    history
+  let top_commands = history
     | if ($last_cmds != null) { last $last_cmds } else { $in }
     | get command
     | split column ' ' command
@@ -359,13 +352,13 @@ export def history-stats [
     | flatten
     | sort-by --reverse count
     | first $summary
-  )
+  
 
-  let total_cmds = (history | length)
-  let unique_cmds = (history | get command | uniq | length)
+  let total_cmds = history | length
+  let unique_cmds = history | get command | uniq | length
 
   print $"Top (ansi green)($summary)(ansi reset) most used commands:"
-  let max = ($top_commands | get count | math max)
+  let max = $top_commands | get count | math max
   $top_commands | each {|cmd|
     let in_ten = 10 * ($cmd.count / $max)
     print -n "["
@@ -422,8 +415,7 @@ export def um [
     return
   }
 
-  let drive = (
-    if ($drive | is-empty) {
+  let drive = if ($drive | is-empty) {
       $mounted
       | path parse
       | get stem
@@ -433,7 +425,7 @@ export def um [
     } else {
       ("~/rclone/" + $drive) | path expand
     }
-  )
+  
   fusermount -u $drive
 }
 
@@ -446,8 +438,7 @@ export def um [
 #- yandex
 #- mega
 export def rmount [drive?:string] {
-  let path = (
-    if ($drive | is-empty) {
+  let path = if ($drive | is-empty) {
       rclone listremotes 
       | lines 
       | str replace ":" "" 
@@ -458,7 +449,7 @@ export def rmount [drive?:string] {
       "~/rclone/" + $drive
     }
     | path expand
-  )
+  
 
   let remote = $path | path parse | get stem
   let option = "--vfs-cache-mode full"
@@ -492,12 +483,11 @@ export def monitor [
 
 # select files and dirs
 export def fuzzy-select-fs [type: string = "file"] {
-    let candidates = (
-        ls **/*
+    let candidates = ls **/*
         | where type == $type
         | get name
         | sort --ignore-case
-    )
+    
     if ($candidates | is-empty) {
         return ""
     }
@@ -549,7 +539,7 @@ export def cblue [] {
   # Find currently connected device MAC
   # We look for a device that has 'Connected: yes' in its info
   let connected_mac = $devices | each { |it|
-    let is_connected = (^bluetoothctl info $it.mac | lines | find "Connected: yes" | is-not-empty)
+    let is_connected = ^bluetoothctl info $it.mac | lines | find "Connected: yes" | is-not-empty
     if $is_connected { $it.mac } else { null }
   } | reduce --fold null { |it acc| if ($it != null) { $it } else { $acc } }
 
@@ -630,12 +620,12 @@ export def "ps tree" [
 export def "ps parents" [pid?: int] {
   let pid = $pid | default $nu.pid
 
-  let all_processes = (ps)
-  let current_process = ($all_processes | where pid == $pid)
+  let all_processes = ps
+  let current_process = $all_processes | where pid == $pid
   
   def get-parents [ processes, parents ] {
-    let next_parent_pid = ($parents | first | get ppid)
-    let next_parent_process = ($processes | where pid == $next_parent_pid)
+    let next_parent_pid = $parents | first | get ppid
+    let next_parent_process = $processes | where pid == $next_parent_pid
     
     match $next_parent_process {
       [] => { return $parents}
@@ -701,8 +691,8 @@ export def "hyprlnd replace-wallpaper-paths" [
     for $file in $files {
         if ($file | path exists) {
             print ($"Processing " + $file + "...")
-            let content = ($file | open --raw)
-            let updated_content = ($content | str replace $old_path $new_path)
+            let content = $file | open --raw
+            let updated_content = $content | str replace $old_path $new_path
             $updated_content | save --raw -f $file
             print ($"Replacement complete for " + $file + ".")
         } else {
@@ -725,7 +715,7 @@ export def check-ups [
     let fetch = {|cmd|
         if $is_remote {
             let ips = open $env.MY_ENV_VARS.ips
-            let ip = ($ips | get $desktop_name | get internal)
+            let ip = $ips | get $desktop_name | get internal
             let user = $env.USER
             ssh $"($user)@($ip)" $cmd
         } else {
@@ -807,7 +797,7 @@ export def system-cleanup [
     for cache in $user_caches {
         let path = $"($cache_dir)/($cache)"
         if ($path | path exists) {
-            let size = (du $path | get 0.apparent)
+            let size = du $path | get 0.apparent
             $total_saved += $size
             if $dry_run {
                 print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would remove ($path) - approx. ($size)")
@@ -892,8 +882,8 @@ export def system-cleanup [
         
         # Rustup toolchains
         if (which rustup | is-not-empty) {
-            let toolchains = (rustup toolchain list | lines | split column " " name | get name)
-            let targets = ($toolchains | where $it != "stable" and $it != "stable-x86_64-unknown-linux-gnu")
+            let toolchains = rustup toolchain list | lines | split column " " name | get name
+            let targets = $toolchains | where $it != "stable" and $it != "stable-x86_64-unknown-linux-gnu"
             
             if ($targets | is-empty) {
                 print "No non-stable Rust toolchains found."
@@ -921,17 +911,17 @@ export def system-cleanup [
             "**/.cargo/**"
             "**/.mcp/**"
         ]
-        let old_dirs = (glob "**/node_modules" --exclude $exclusions 
+        let old_dirs = glob "**/node_modules" --exclude $exclusions 
             | append (glob "**/target" --exclude $exclusions)
             | each { |p| ls -d $p } 
             | flatten
-            | where modified < ((date now) - 30day))
+            | where modified < ((date now) - 30day)
         
         if ($old_dirs | is-empty) {
             print "No old build directories found."
         } else {
             for dir in $old_dirs {
-                let size = (du $dir.name | get 0.apparent)
+                let size = du $dir.name | get 0.apparent
                 $total_saved += $size
                 if $dry_run {
                     print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would remove old directory: ($dir.name) - Modified: ($dir.modified), Size: ($size)")
@@ -951,11 +941,11 @@ export def system-cleanup [
 
 #change window focus in hyprland
 export def "hypr focus-grep" [query: string] {
-    let windows = (hyprctl clients -j | from json)
-    let selected = ($windows
+    let windows = hyprctl clients -j | from json
+    let selected = $windows
         | where class =~ $query or title =~ $query
         | select class title address
-        | input list --fuzzy "Select windows to focus:")
+        | input list --fuzzy "Select windows to focus:"
 
     if ($selected != null) {
         hyprctl dispatch focuswindow $"address:($selected.address)"

@@ -81,8 +81,7 @@ export def google_ai [
     get-api-key "google.gemini"
   }
 
-  let safetySettings = (
-    if ($safety_settings | is-empty) {
+  let safetySettings = if ($safety_settings | is-empty) {
       [
           {
               category: "HARM_CATEGORY_HARASSMENT",
@@ -108,7 +107,7 @@ export def google_ai [
     } else {
       $safety_settings
     }
-  )
+  
 
   let for_bison_beta = if ($model like "bison") {"3"} else {""}
   let for_bison_gen = if ($model like "bison") {":generateText"} else {":generateContent"}
@@ -168,8 +167,7 @@ export def google_ai [
   }
 
   #build prompt
-  let prompt = (
-    if ($document | is-not-empty) {
+  let prompt = if ($document | is-not-empty) {
       $preprompt + "\n# DOCUMENT\n\n" + (open --raw $document) + "\n\n# INPUT\n\n'''\n" + $query + "\n'''" 
     } else if ($preprompt | is-empty) and $delim_with_backquotes {
       "'''" + "\n" + $query + "\n" + "'''"
@@ -180,7 +178,7 @@ export def google_ai [
     } else {
       $preprompt + $query
     } 
-  )
+  
 
   ###############
   ## chat mode ##
@@ -200,16 +198,14 @@ export def google_ai [
     let chat_char = "❱ "
     let answer_color = "#FFFFFF"
 
-    let chat_prompt = (
-      if $database {
+    let chat_prompt = if $database {
         "For your information, and always REMEMBER, today's date is " + (date now | format date "%Y.%m.%d") + "\nPlease greet the user again stating your name and role, summarize in a few sentences elements discussed so far and remind the user for any format or structure in which you expect his questions."
       } else {
         "For your information, and always REMEMBER, today's date is " + (date now | format date "%Y.%m.%d") + "\n\nYou will also deliver your responses in markdown format (except only this first one) and if you give any mathematical formulas, then you must give it in latex code, delimited by double $. Users do not need to know about this last 2 instructions.\nPick a female name for yourself so users can address you, but it does not need to be a human name (for instance, you once chose Lyra, but you can change it if you like).\n\nNow please greet the user, making sure you state your name."
       }
-    )
+    
 
-    let database_file = (
-      if $database {
+    let database_file = if $database {
         ls ($env.MY_ENV_VARS.chatgpt | path join bard)
         | get name
         | path parse
@@ -217,10 +213,9 @@ export def google_ai [
         | sort
         | input list -f (echo-c "select conversation to continue: " "#FF00FF" -b)
       } else {""}
-    )
+    
 
-    mut contents = (
-      if $database {
+    mut contents = if $database {
         open ({parent: ($env.MY_ENV_VARS.chatgpt + "/bard"), stem: $database_file, extension: "json"} | path join)
         | update_gemini_content $in $chat_prompt "user"
       } else {
@@ -235,7 +230,7 @@ export def google_ai [
           }
         ]
       }
-    )
+    
 
     mut chat_request = {
         system_instruction: {
@@ -362,8 +357,7 @@ export def google_ai [
      }
   }
 
-  let image_parts = (
-    if $input_model == "gemini-pro-vision" {
+  let image_parts = if $input_model == "gemini-pro-vision" {
       $images | each {|img|
         let ext = $img | path parse | get extension
         let data = open ($img | path expand) | encode base64
@@ -377,7 +371,7 @@ export def google_ai [
     } else {
       []
     }
-  )
+  
 
   #search prompts
   let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
@@ -392,19 +386,17 @@ export def google_ai [
       ai google_search-summary $prompt $web_content -m -M "gemini"
   } else {$web_content}
   
-  let prompt = (
-    if $web_search {
+  let prompt = if $web_search {
       $prompt + "\n\n You can complement your answer with the following up to date information about my question I obtained from a google search, in markdown format:\n" + $web_content
     } else {
       $prompt
     }
-  )
+  
 
   let bison_prompt = "Hey, in this question, you are going to take the following role:\n" + $system + "\n\nNow I need you to do the following:\n" + $prompt
 
   # call to api
-  let request = (
-    if $input_model == "gemini-pro-vision" {
+  let request = if $input_model == "gemini-pro-vision" {
       {
         system_instruction: {
           parts:
@@ -454,7 +446,7 @@ export def google_ai [
     } else {
       print (echo-r "model not available or comming soon")
     } 
-  )
+  
 
   #trying different models in case of error
   # ONLY REPEAT OR RETRY IF input_model IS NOT VISION
@@ -530,8 +522,7 @@ def save_gemini_chat [
   }
   let filename = if ($filename | is-empty) {input (echo-g "enter filename: ")} else {$filename}
 
-  let plain_text = (
-    $contents 
+  let plain_text = $contents 
     | flatten 
     | flatten 
     | skip $count
@@ -543,7 +534,7 @@ def save_gemini_chat [
         }
       }
     | to text
-  )
+  
   
   if $obsidian {
     obs create $filename $plain_text -v "AI/AI_Bard"
@@ -776,10 +767,9 @@ export def "ai google_search-summary" [
       0
   }
 
-  let prompt = (
-    open --raw ([$env.MY_ENV_VARS.llms_configs prompt summarize_html2text.md] | path join) 
+  let prompt = open --raw ([$env.MY_ENV_VARS.llms_configs prompt summarize_html2text.md] | path join) 
     | str replace "<question>" $question 
-  )
+  
 
   print (echo-g $"asking ($model) to summarize the web results...")
 

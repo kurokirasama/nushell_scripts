@@ -20,9 +20,8 @@ export def scompact [
 # flatten-keys $env.config '$env.config'
 def flatten-keys [rec: record, root: string] {
   $rec | columns | each {|key|
-    let is_record = (
-      $rec | get $key | describe --detailed | get type | $in == record
-    )
+    let is_record = $rec | get $key | describe --detailed | get type | $in == record
+    
 
     # Recusively return each key plus its subkeys
     [$'($root).($key)'] ++  match $is_record {

@@ -25,10 +25,10 @@ export def get-api-key [path: string] {
 #
 # Usage: toggle-gemini-key
 export def --env toggle-gemini-key [] {
-    let paid_key = (get-api-key "google.gemini_paid")
-    let free_key = (get-api-key "google.gemini")
+    let paid_key = get-api-key "google.gemini_paid"
+    let free_key = get-api-key "google.gemini"
     
-    let current_key = ($env | get -o GEMINI_API_KEY)
+    let current_key = $env | get -o GEMINI_API_KEY
     
     if $current_key == $paid_key {
         $env.GEMINI_API_KEY = $free_key
@@ -185,8 +185,7 @@ export def "maps eta" [
 ] {
   let apikey = get-api-key "google.general"
 
-  let origin_address = (
-    if $origin like '^(-?\d+\.\d+),(-?\d+\.\d+)$' {
+  let origin_address = if $origin like '^(-?\d+\.\d+),(-?\d+\.\d+)$' {
       {
         scheme: "https",
         host: "maps.googleapis.com",
@@ -203,10 +202,9 @@ export def "maps eta" [
     } else {
       $origin
     } 
-  )
   
-  let destination_address = (
-    if $destination like '^(-?\d+\.\d+),(-?\d+\.\d+)$' {
+  
+  let destination_address = if $destination like '^(-?\d+\.\d+),(-?\d+\.\d+)$' {
        {
         scheme: "https",
         host: "maps.googleapis.com",
@@ -223,7 +221,7 @@ export def "maps eta" [
     } else {
       $destination
     }
-  )
+  
 
   let avoid_option = if $avoid {"&avoid=highways"} else {""} 
 
@@ -248,15 +246,14 @@ export def "maps eta" [
   let steps = $response.routes.legs.0.steps
   let duration = $response.routes.legs.0.duration.text.0
 
-  let directions_steps = (
-      $steps.0.html_instructions 
+  let directions_steps = $steps.0.html_instructions 
       | each {|g| $g | html2text} 
       | str trim
       | wrap directions 
       | polars into-df 
       | polars append ($steps.0.duration.text | wrap duration | polars into-df) 
       | polars into-nu
-  )
+  
 
   let info = { 
     origin: $origin_address,
@@ -332,30 +329,28 @@ export def exchange_rates [
 
   if $symbols {
     let url_symbols = $"http://data.fixer.io/api/symbols?access_key=($api_key)"
-    let symbols = (http get $url_symbols)
+    let symbols = http get $url_symbols
     return $symbols.symbols
   }
 
-  let url = (
-    if ($new_currency | is-empty) {
+  let url = if ($new_currency | is-empty) {
       $"http://data.fixer.io/api/latest?access_key=($api_key)&symbols=CLP,CLF,USD,BTC"
     } else {
       $"http://data.fixer.io/api/latest?access_key=($api_key)&symbols=CLP,CLF,USD,BTC,($new_currency)"
     }
-  )
+  
   let response = http get $url
   
   if not $response.success {
     return-error $response.error
   }
   
-  let eur_usd = (1 / $response.rates.USD)
-  let eur_btc = (1 / $response.rates.BTC)
-  let eur_clf = (1 / $response.rates.CLF)
+  let eur_usd = 1 / $response.rates.USD
+  let eur_btc = 1 / $response.rates.BTC
+  let eur_clf = 1 / $response.rates.CLF
   let eur_new = if ($new_currency | is-empty) {0} else {1 / ($response.rates | get $new_currency)}
 
-  let output = (
-    if ($new_currency | is-empty) {
+  let output = if ($new_currency | is-empty) {
       {
         UF:  ($eur_clf * $response.rates.CLP)
         USD: ($eur_usd * $response.rates.CLP),
@@ -371,14 +366,13 @@ export def exchange_rates [
         $"($new_currency)": ($eur_new * $response.rates.CLP)
       }
     }
-  )
+  
 
   if $update_dataset {
-    let to_save = (
-      $output 
+    let to_save = $output 
       | rename -c {UF: date}
       | upsert date (date now | format date "%Y.%m.%d %H:%M:%S")
-    )
+    
     
     open ([$env.MY_ENV_VARS.datasets exchange_rates.csv] | path join) 
     | append $to_save 
@@ -401,11 +395,10 @@ export def gg-trans [
 
   if $list {
     let languages = open ([$env.MY_ENV_VARS.credentials google_translate_languages.json] | path join)
-    let selection = (
-      $languages
+    let selection = $languages
       | columns
       | input list -f (echo-g "Select destination language:")
-    )
+    
 
     $dest = $languages | get $selection
 
@@ -466,12 +459,11 @@ export def google_search [
       return-error "empty search result!"
     }
 
-    let search_result = (
-      $response
+    let search_result = $response
       | get items 
       | first $max_results
       | select title link displayLink
-    )
+    
 
   let n_result = $search_result | length
 
@@ -483,8 +475,7 @@ export def google_search [
       
     let raw_content = try {http get $web.link} catch {""}
 
-    let processed_content = (
-      try {
+    let processed_content = try {
         $raw_content
         | html2text --ignore-links --ignore-images --dash-unordered-list
         | lines 
@@ -493,7 +484,7 @@ export def google_search [
       } catch {
         $raw_content
       }
-    )
+    
 
     $content = $content ++ [$processed_content]
   }

@@ -17,8 +17,8 @@ export def "chatpdf add" [
 
   let url = "https://api.chatpdf.com/v1/sources/add-file"
 
-  let filename = ($file | path parse | get stem | str downcase | str replace -a " " "_")
-  let filepath = ($file | path expand)
+  let filename = $file | path parse | get stem | str downcase | str replace -a " " "_"
+  let filepath = $file | path expand
 
   if ($filename in ($database | columns)) {
     return-error "there is already a file with the same name already uploaded!"
@@ -42,7 +42,7 @@ export def "chatpdf add" [
     return-error $response.message
   }
 
-  let id = ($response | get sourceId)
+  let id = $response | get sourceId
 
   $database | upsert $filename $id | save -f $database_file
   if $notify {"upload finished!" | tasker send-notification}
@@ -82,8 +82,7 @@ export def "chatpdf ask" [
   let database_file = $env.MY_ENV_VARS.llms_configs  | path join chatpdf_ids.json
   let database = open $database_file
 
-  let selection = (
-    if ($select_pdf | is-empty) {
+  let selection = if ($select_pdf | is-empty) {
       $database 
       | columns 
       | sort 
@@ -93,7 +92,7 @@ export def "chatpdf ask" [
       | str downcase 
       | str replace -a " " "_"
     }
-  )
+  
 
   if ($selection not-in ($database | columns)) {
     return-error "pdf not found in server!"
@@ -133,14 +132,13 @@ export def askpdf [
     get-input $in $prompt
   }
 
-  let answer = (
-    match [$rubb,$btx] {
+  let answer = match [$rubb,$btx] {
       [true,true] => {return-error "only one of these flags allowed!"},
       [true,false] => {chatpdf ask $prompt -s rubb},
       [false,true] => {chatpdf ask ((open --raw ([$env.MY_ENV_VARS.llms_configs prompt chatpdf_btx.md] | path join)) + "\n"  + $prompt) -s btx},
       [false,false] => {chatpdf ask $prompt}
     }
-  )
+  
 
   if $fast {
     $answer | save -f ($env.MY_ENV_VARS.chatgpt | path join answer.md)

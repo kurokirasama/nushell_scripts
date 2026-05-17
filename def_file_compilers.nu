@@ -43,13 +43,12 @@ export def xls2csv [
   inputFile:string
   --outputFile:string
 ] {
-  let output = (
-    if ($outputFile | is-empty) or (not $outputFile) {
+  let output = if ($outputFile | is-empty) or (not $outputFile) {
       $"($inputFile | path parse | get stem).csv"
     } else {
       $outputFile
     }
-  )
+  
   libreoffice --headless --convert-to csv $inputFile
   #add in2csv
 }

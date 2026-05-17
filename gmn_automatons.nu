@@ -62,18 +62,18 @@ export def "gmn cron" [
 # Helper to extract final report from gemini output
 def _clean-output [stdout: string] {
     # 1. Parse the top-level JSON from gemini --output-format json
-    let outer_data = (try { $stdout | from json } catch { { "response": $stdout } })
+    let outer_data = try { $stdout | from json } catch { { "response": $stdout } }
 
-    let model_response = (if ($outer_data | describe | str contains "record") and "response" in ($outer_data | columns) {
+    let model_response = if ($outer_data | describe | str contains "record") and "response" in ($outer_data | columns) {
         $outer_data.response
     } else {
         $stdout
-    })
+    }
 
     # 2. Search for JSON inside the model's response (which might be wrapped in code blocks)
     # 2a. Look for ```json ... ``` blocks
-    let markdown_json_parsed = ($model_response | parse -r '(?s).*```json\s*(.*?)\s*```')
-    let markdown_json = (if ($markdown_json_parsed | is-not-empty) { $markdown_json_parsed | get 0.capture0 } else { "" })
+    let markdown_json_parsed = $model_response | parse -r '(?s).*```json\s*(.*?)\s*```'
+    let markdown_json = if ($markdown_json_parsed | is-not-empty) { $markdown_json_parsed | get 0.capture0 } else { "" }
     
     if ($markdown_json | is-not-empty) {
         try {
@@ -82,8 +82,8 @@ def _clean-output [stdout: string] {
     }
 
     # 2b. Look for raw {...} block
-    let raw_json_parsed = ($model_response | parse -r '(?s).*?(\{.*\})')
-    let raw_json = (if ($raw_json_parsed | is-not-empty) { $raw_json_parsed | get 0.capture0 } else { "" })
+    let raw_json_parsed = $model_response | parse -r '(?s).*?(\{.*\})'
+    let raw_json = if ($raw_json_parsed | is-not-empty) { $raw_json_parsed | get 0.capture0 } else { "" }
     
     if ($raw_json | is-not-empty) {
         try {

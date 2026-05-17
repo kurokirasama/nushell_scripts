@@ -6,7 +6,7 @@ use files.nu *
 
 # Internal helper to load tokens
 def load-ghome-tokens [] {
-    let token_file = ($env.HOME | path join ".ghome_oauth_token.json")
+    let token_file = $env.HOME | path join ".ghome_oauth_token.json"
     if ($token_file | path exists) {
         open $token_file
     } else {
@@ -16,7 +16,7 @@ def load-ghome-tokens [] {
 
 # Internal helper to save tokens
 def save-ghome-tokens [tokens: record] {
-    let token_file = ($env.HOME | path join ".ghome_oauth_token.json")
+    let token_file = $env.HOME | path join ".ghome_oauth_token.json"
     $tokens | to json | save -f $token_file
 }
 
@@ -63,7 +63,7 @@ export def get-ghome-token [] {
         return-error "No Google Home tokens found. Please run 'ghome auth' first."
     }
 
-    let expires_at = ($tokens.expires_at | into datetime)
+    let expires_at = $tokens.expires_at | into datetime
     if (date now) > ($expires_at - 5min) {
         return (ghome-oauth-refresh-token $tokens.refresh_token)
     }
@@ -88,7 +88,7 @@ export def "ghome auth" [] {
     print $"Please visit this URL to authorize: ($auth_url)"
     print "After authorizing, your browser will redirect to a broken page (127.0.0.1)."
     print "Copy and paste the FULL URL from your address bar below:"
-    let input_val = (input "Enter the code or full URL: ")
+    let input_val = input "Enter the code or full URL: "
 
     # Extract code if a full URL was pasted
     let code = if ($input_val | str starts-with "http") {
@@ -132,7 +132,7 @@ export def "ghome auth" [] {
 export def "ghome list-devices" [] {
     print "Scanning local network for Google Home/Cast devices (mDNS)..."
     
-    let raw_output = (avahi-browse -r -p _googlecast._tcp -t)
+    let raw_output = avahi-browse -r -p _googlecast._tcp -t
     
     if ($raw_output | is-empty) {
         return-error "No devices found. Ensure you are on the same network as your devices."
@@ -150,7 +150,7 @@ export def "ghome list-devices" [] {
 # Send a text command to Google Assistant via the Python Bridge
 export def "ghome command" [query: string, --lang: string = "es-ES"] {
     # Ensure token is fresh before calling the bridge
-    let _ = (get-ghome-token)
+    let _ = get-ghome-token
     
     print $"Sending command to Google Assistant: ($query)..."
     
@@ -159,23 +159,23 @@ export def "ghome command" [query: string, --lang: string = "es-ES"] {
     let client_secret = get-api-key "google.ghome.client_secret"
     
     # Path to the python bridge and the venv python
-    let python_script = ($env.MY_ENV_VARS.python_scripts | path join "assistant_bridge.py")
-    let venv_python = ($env.HOME | path join "Yandex.Disk/my_scripts/python/venv/bin/python")
+    let python_script = $env.MY_ENV_VARS.python_scripts | path join "assistant_bridge.py"
+    let venv_python = $env.HOME | path join "Yandex.Disk/my_scripts/python/venv/bin/python"
     
     # Pass credentials and protobuf workaround as environment variables
-    let raw_res = (with-env { 
+    let raw_res = with-env { 
         GOOGLE_CLIENT_ID: $client_id, 
         GOOGLE_CLIENT_SECRET: $client_secret,
         PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: "python"
     } {
         run-external $venv_python $python_script $query $lang | complete
-    })
+    }
     
     if ($raw_res.stdout | is-empty) {
         return-error $"Python Bridge failed with no output: ($raw_res.stderr)"
     }
 
-    let result = ($raw_res.stdout | from json)
+    let result = $raw_res.stdout | from json
     
     if ($result.status == "success") {
         print (echo-g $result.message)

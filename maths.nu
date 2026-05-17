@@ -234,15 +234,15 @@ export def "math qroots" [
 ] {
 	let d = $b ** 2 - 4 * $a * $c
 	if $d >= 0 {
-		let s = ($d | math sqrt)
-		let r1 = (($s - $b) / (2 * $a))
-		let r2 = (0 - (($s + $b) / (2 * $a)))
+		let s = $d | math sqrt
+		let r1 = ($s - $b) / (2 * $a)
+		let r2 = 0 - (($s + $b) / (2 * $a))
 		
 		return {root_1: $r1, root_2: $r2}
 	} else {
-		let s = ((0 - $d) | math sqrt)
-		let r = ((0 - $b) / (2 * $a))
-		let i = ($s / (2 * $a))
+		let s = (0 - $d) | math sqrt
+		let r = (0 - $b) / (2 * $a)
+		let i = $s / (2 * $a)
 
 		return {root_1: $"($r) + ($i)*i", root_2: $"($r) - ($i)*i"}
 	}
@@ -272,13 +272,13 @@ export def "math isprime" [n: int] {
 export def "math prime-list" [n: int] {
 	let primes = [2 3]
 
-	let primes2 = (seq 5 2 $n 
+	let primes2 = seq 5 2 $n 
 					| each {|item| 
 						if (math isprime $item) {
 							$item
 						}
 					}
-				)
+				
 
 	return ($primes ++ $primes2)
 }
@@ -365,15 +365,14 @@ export def base2dec [
 	let s = $s | split chars
 
 	for i in 0..$length {
-		let digit = (
-			if ($s | get $i) like '[0-9]' {
+		let digit = if ($s | get $i) like '[0-9]' {
 				$s | get $i | into int
 			} else if ($s | get $i) like '[a-f]' {
 				($s | get $i | into int) + 10
 			} else {
 				return-error "wrong character found!"
 			}
-		)
+		
 		$decimal = $decimal + $digit * $b ** ($length - $i)
 	}
 	return $decimal
@@ -523,16 +522,15 @@ export def "math fibonacci" [n:int] {
 #skewness of a list of numbers
 export def "math skew" [x?:number] {
 	let list = if ($x | is-empty) {$in | into float} else {$x | into float}
-	let n = ($list | length)
-	let mean = ($list | math avg)
-	let std = ($list | math stddev)
+	let n = $list | length
+	let mean = $list | math avg
+	let std = $list | math stddev
 
 	if $std == 0 {
 		return-error "skewness undefined due to std been 0"
 	}
 
-	let sum = (
-		if ($list | typeof) == table {
+	let sum = if ($list | typeof) == table {
 			$list | rename data
 		} else {
 			$list | wrap data
@@ -542,7 +540,7 @@ export def "math skew" [x?:number] {
 	  	  } 
 		| math sum 
 		| get data
-	)
+	
 
 	return ($sum / ($n * $std ** 3))
 }
@@ -550,16 +548,15 @@ export def "math skew" [x?:number] {
 #kurtosis of a list of numbers
 export def "math kurt" [x?:number] {
 	let list = if ($x | is-empty) {$in | into float} else {$x | into float}
-	let n = ($list | length)
-	let mean = ($list | math avg)
-	let std = ($list | math stddev)
+	let n = $list | length
+	let mean = $list | math avg
+	let std = $list | math stddev
 
 	if $std == 0 {
 		return-error "kurtosis undefined due to std been 0"
 	}
 
-	let sum = (
-		if ($list | typeof) == table {
+	let sum = if ($list | typeof) == table {
 			$list | rename data
 		} else {
 			$list | wrap data
@@ -569,7 +566,7 @@ export def "math kurt" [x?:number] {
 	  	  } 
 		| math sum 
 		| get data
-	)
+	
 
 	return ($sum / ($n * $std ** 4))
 }
@@ -666,13 +663,13 @@ export def "math permutations" [
     let sub_perms = $remaining | iter permutations --optional=($optional)
 
     # 2. For each of those permutations, insert the current element at every possible position.
-    let with_element = ($sub_perms | each {|item|
+    let with_element = $sub_perms | each {|item|
       # Generate a range of indices from 0 to the length of the permutation
-      let indices = (0..($item | length))
+      let indices = 0..($item | length)
 
       # For each index, insert the current element at that position in the permutation
       $indices | each {|i| $item | insert $i $element } 
-    } | flatten) # Flatten the nested list of permutations
+    } | flatten # Flatten the nested list of permutations
 
     # 3. If optional is true, also add each permutation without the current element.
     if $optional {
@@ -697,7 +694,7 @@ export def "random table" [
 
     for $i in 1..$sample_size {
         let value = random int $min..$max 
-        let selection = ($r | rand-select -i) 
+        let selection = $r | rand-select -i
         let index = $selection.index 
         let column = $selection.column
 
@@ -869,14 +866,13 @@ export def "math solve-linear-system" [
 
     # --- Create Augmented Matrix [A|b] ---
     # Convert all elements to float for calculations
-    mut aug = (
-        $A | enumerate | each {|item|
+    mut aug = $A | enumerate | each {|item|
             let row_idx = $item.index
             let row_a = $item.item
             let val_b = $b | get $row_idx
             $row_a | append $val_b | each {|val| $val | into float}
         }
-    )
+    
     let num_cols = $n + 1
     let epsilon = 1e-15 # Small number for float comparison
 

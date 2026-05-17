@@ -22,14 +22,14 @@ def main [user:string = "kira"] {
 
 #list all files and save it to json in Dropbox/Directorios
 export def lister [file:string] {
-  let file = (["~/Dropbox/Directorios" $"($file).json"] | path join | path expand)
+  let file = ["~/Dropbox/Directorios" $"($file).json"] | path join | path expand
 
-  let df = (try {
+  let df = try {
       get-files -f -F 
     } catch {
       []
     }
-  )
+  
 
   if ($df | length) == 0 {
     if $file like "Downloads" and ($file | path expand | path exists) { 
@@ -40,20 +40,18 @@ export def lister [file:string] {
 
   let last = $df | reject name | update size {into int} | polars into-df
 
-  let df = (
-    $df
+  let df = $df
     | each {|file| 
       $file
       | get name 
       | parse $"{origin}/($env.USER)/{location}/{rest}"
       }
     | flatten
-  ) 
+   
 
   let first = $df | select origin location | polars into-df
 
-  let second = (
-    $df 
+  let second = $df 
     | select rest 
     | each {|file| 
       $file 
@@ -63,7 +61,7 @@ export def lister [file:string] {
     | polars into-df 
     | polars drop extension 
     | polars rename [parent stem] [path file]
-  )
+  
 
   $first 
   | polars append $second 

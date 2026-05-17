@@ -96,12 +96,11 @@ export def timg [
       $file | each {|f| $f | timg}
     },
     _ => {
-      let file = (
-        match $type {
+      let file = match $type {
           "record" => {$file | get name | ansi strip},
           "string" => {$file | ansi strip}
         }
-      )
+      
 
       ^timg $file
     }

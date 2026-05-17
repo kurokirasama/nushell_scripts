@@ -1,12 +1,11 @@
 #copy private nushell script dir to public repo and commit
 export def copy-scripts-and-commit [--gemini(-G) = false] {
   print (echo-g "updating public repository...")
-  let files = (
-    ls $env.MY_ENV_VARS.nu_scripts
+  let files = ls $env.MY_ENV_VARS.nu_scripts
     | find -v private & signature & env_vars & aliases & before & send_not & deprecated & Gemini & conductor & tests & plan & docs
     | append (ls $env.MY_ENV_VARS.linux_backup | find -n append)
     | append (ls $env.MY_ENV_VARS.credentials | find -v .asc | find -v credential)
-  )
+  
 
   $files | cp-pipe $env.MY_ENV_VARS.nu_scripts_public
 
@@ -55,7 +54,7 @@ export alias quantum = quick-ubuntu-and-tools-update-module -G
 
 #upload deb files to gdrive
 export def upload-debs-to-gdrive [] {
-  let mounted = ($env.MY_ENV_VARS.gdrive_debs | path expand | path exists)
+  let mounted = $env.MY_ENV_VARS.gdrive_debs | path expand | path exists
   if not $mounted {
     print (echo-g "mounting gdrive...")
     rmount $env.MY_ENV_VARS.gdrive_mount_point

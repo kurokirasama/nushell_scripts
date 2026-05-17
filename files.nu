@@ -104,8 +104,7 @@ export def op [
 export def --env openf [file?] {
   let file = get-input $in $file
   
-  let file = (
-    match ($file | typeof) {
+  let file = match ($file | typeof) {
       "record" => {
         $file
         | get name
@@ -119,7 +118,7 @@ export def --env openf [file?] {
       },
       _ => {$file}
     }
-  )
+  
   
   if "GDK_PIXBUF_MODULE_FILE" in $env {
       hide-env GDK_PIXBUF_MODULE_FILE 
@@ -481,14 +480,14 @@ export def autolister [user?] {
 
 #list all files and save it to json in Dropbox/Directorios
 export def lister [file:string] {
-  let file = (["~/Dropbox/Directorios" $"($file).json"] | path join | path expand)
+  let file = ["~/Dropbox/Directorios" $"($file).json"] | path join | path expand
 
-  let df = (try {
+  let df = try {
       get-files -f -F 
     } catch {
       []
     }
-  )
+  
 
   if ($df | length) == 0 {
     if $file like "Downloads" and ($file | path expand | path exists) { 
@@ -499,20 +498,18 @@ export def lister [file:string] {
 
   let last = $df | reject name | update size {into int} | polars into-df
 
-  let df = (
-    $df
+  let df = $df
     | each {|file| 
       $file
       | get name 
       | parse $"{origin}/($env.USER)/{location}/{rest}"
       }
     | flatten
-  ) 
+   
 
   let first = $df | select origin location | polars into-df
 
-  let second = (
-    $df 
+  let second = $df 
     | select rest 
     | each {|file| 
       $file 
@@ -522,7 +519,7 @@ export def lister [file:string] {
     | polars into-df 
     | polars drop extension 
     | polars rename [parent stem] [path file]
-  )
+  
 
   $first 
   | polars append $second 
@@ -641,7 +638,7 @@ export def rm-empty-dirs [] {
 export def replicate-tree [to:string] {
   get-dirs -f
   | each {|dir|
-      let new_dir = ($dir | get name | str prepend $"($to | path expand)/")
+      let new_dir = $dir | get name | str prepend $"($to | path expand)/"
       if not ($new_dir | path exists) {
         print (echo-g $"creating ($new_dir)...")
         mkdir $new_dir | ignore
@@ -660,8 +657,8 @@ export def re-enamerate [prefix] {
   mut new_name = ""
 
   for i in 0..($n_files - 1) {
-    let name = ($files | get $i | get name)
-    let info = ($name | path parse)
+    let name = $files | get $i | get name
+    let info = $name | path parse
     
     $new_name = [$prefix "_" ($index | into string | fill -a r -c "0" -w $n_digits) "." ($info | get extension)] | str join
 
