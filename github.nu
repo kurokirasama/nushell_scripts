@@ -10,7 +10,11 @@ export def copy-scripts-and-commit [--gemini(-G) = false] {
   $files | cp-pipe $env.MY_ENV_VARS.nu_scripts_public
 
   cd $env.MY_ENV_VARS.nu_scripts_public
-  sed -i 's/\/home\/kira\/Yandex.Disk\/Backups\/linux\/my_scripts\/nushell/\/path\/to\/nushell_scripts/g' append_to_config.nu
+  let linux_scripts = $env.MY_ENV_VARS.nu_scripts
+
+  if ("append_to_config.nu" | path exists) {
+    (open append_to_config.nu | str replace -a $linux_scripts "/path/to/scripts") | save -f append_to_config.nu
+  }
 
   if $gemini {
     ai git-push -G
