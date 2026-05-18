@@ -181,6 +181,9 @@ export def supgrade [--old(-o),--apps(-a),--cargo_aps(-c)] {
   print (echo-g "updating snap packages...")
   sudo snap refresh
 
+  print (echo-g "updating stack...")
+  stack upgrade
+
   if $cargo_aps {
     print (echo-g "updating cargo apps...")
     cargo install-update -a

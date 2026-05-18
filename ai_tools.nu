@@ -1,4 +1,4 @@
-const gemini_model_to_use = "gemini-3.1-pro-preview"
+const gemini_model_to_use = "gemini-3.1-pro"
 
 #ai tools
 export def "ai help" [] {

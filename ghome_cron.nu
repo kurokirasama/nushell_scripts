@@ -43,7 +43,7 @@ export def "ghome cron-ac-on-sunrise" [--dry-run] {
         } else {
             print $"Executing: Turning ON AC at sunrise \(temp ($temp) <= ($config.sunrise_on)\)"
             ghome device "aire acondicionado" on
-            send-gmail $env.MY_ENV_VARS.mail "Log: ac on" --body "ac on"
+            #send-gmail $env.MY_ENV_VARS.mail "Log: ac on" --body "ac on"
         }
     }
 }
@@ -75,7 +75,7 @@ export def "ghome cron-ac-on-hourly" [
         } else {
             print $"Executing: Turning ON AC \(Condition A, temp ($temperature) <= ($config.hourly_on_winter)\)"
             ghome device "aire acondicionado" on
-            send-gmail $env.MY_ENV_VARS.mail "Log: ac on" --body "ac on"
+            #send-gmail $env.MY_ENV_VARS.mail "Log: ac on" --body "ac on"
         }
         return true
     }
@@ -95,12 +95,12 @@ export def "ghome cron-ac-on-hourly" [
         } else {
             print $"Executing: Turning ON AC (Condition B, temp ($temperature) >= ($config.hourly_on_summer))"
             ghome device "aire acondicionado" on
-            send-gmail $env.MY_ENV_VARS.mail "Log: ac on" --body "ac on"
+            #send-gmail $env.MY_ENV_VARS.mail "Log: ac on" --body "ac on"
         }
         return true
     }
 
-    send-gmail $env.MY_ENV_VARS.mail "Log: ac on conditions not met" --body "ac on"
+    #send-gmail $env.MY_ENV_VARS.mail "Log: ac on conditions not met" --body "ac on"
     return false
 }
 
@@ -125,7 +125,7 @@ export def "ghome cron-ac-off-hourly" [
         } else {
             print $"Executing: Turning OFF AC \(Condition A, temp ($temperature) >= ($config.hourly_off_winter)\)"
             ghome device "aire acondicionado" off
-            send-gmail $env.MY_ENV_VARS.mail "Log: ac off" --body "ac off"
+            #send-gmail $env.MY_ENV_VARS.mail "Log: ac off" --body "ac off"
         }
         return true
     }
@@ -136,12 +136,12 @@ export def "ghome cron-ac-off-hourly" [
         } else {
             print $"Executing: Turning OFF AC \(Condition B, temp ($temperature) <= ($config.hourly_off_summer)\)"
             ghome device "aire acondicionado" off
-            send-gmail $env.MY_ENV_VARS.mail "Log: ac off" --body "ac off"
+            #send-gmail $env.MY_ENV_VARS.mail "Log: ac off" --body "ac off"
         }
         return true
     }
 
-    send-gmail $env.MY_ENV_VARS.mail "Log: ac off conditions not met" --body "ac off"
+    #send-gmail $env.MY_ENV_VARS.mail "Log: ac off conditions not met" --body "ac off"
     return false
 }
 

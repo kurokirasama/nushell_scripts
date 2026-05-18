@@ -2,7 +2,7 @@
 export def update-all-likes [] {
 	let prompt = $"convert ($env.MY_ENV_VARS.linux_backup | path join youtube_music_playlists | path join all_likes.json) into a m3u file using the m3u-converter skill. Save the output file in the same directory, overwrite any existing file"
 	
-	gmn --profile no-mcp --model gemini-3.1-flash-lite-preview --prompt $prompt
+	gmn --profile no-mcp --model gemini-3.1-flash-lite --prompt $prompt
 	sleep 2sec
 	killnode
 }
@@ -19,13 +19,13 @@ const skills = [
 	"cron-research-linkedin-post"
 	"cron-skills-expert"
 ]
-const gmn_models = ["gemini-3.1-flash-lite-preview" "gemini-3-flash-preview" "gemini-2.5-flash" "gemini-2.5-flash-lite"]
+const gmn_models = ["gemini-3.1-flash-lite" "gemini-3-flash-preview" "gemini-2.5-flash" "gemini-2.5-flash-lite"]
 const profiles = ["no-mcp", "minimal", "standard", "webui", "research", "googlesuit", "imagen", "full"]
 
 #run cron gemini skills
 export def "gmn cron" [
 	skill:string@$skills 
-	--model(-m):string = "gemini-3-flash-preview" #gemini-3.1-flash-lite-preview in free tier
+	--model(-m):string = "gemini-3.1-flash-lite" #gemini-3.1-flash-lite in free tier
 	--profile(-p):string@$profiles = "minimal"
 	--dont-kill(-d) #dont kill gemini mcp servers
 ] {
@@ -36,7 +36,7 @@ export def "gmn cron" [
 
 	#retry with gemini-3-flash
 	if $output.exit_code != 0 {
-		let output =  gmn --profile $profile --model gemini-3-flash-preview --output-format json --prompt $prompt | complete
+		let output =  gmn --profile $profile --model gemini-3.1-flash-lite --output-format json --prompt $prompt | complete
 		gmn-cron-email $"Retry of ($skill)" $output
 
 		let cleaned_stdout_retry = _clean-output $output.stdout

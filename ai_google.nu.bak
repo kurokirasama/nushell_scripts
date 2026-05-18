@@ -1,7 +1,7 @@
-const last_gemini_model = "gemini-3.1-pro"
+const last_gemini_model = "gemini-3.1-pro-preview"
 const gemini_models = [
-  "gemini-3.1-pro"
-  "gemini-3.1-flash-lite"
+  "gemini-3.1-pro-preview"
+  "gemini-3.1-flash-lite-preview"
   "gemini-3-flash-preview"
   "gemini-2.5-pro"
   "gemini-2.5-flash"
@@ -14,8 +14,8 @@ const gemini_models = [
 #single call to google ai LLM api wrapper and chat mode
 #
 #Available models at https://ai.google.dev/models:
-# - gemini-3.1-pro: High-capability, complex reasoning, agentic coding, 1M context
-# - gemini-3.1-flash-lite: Fast, cost-efficient model for high-volume tasks
+# - gemini-3.1-pro-preview: High-capability, complex reasoning, agentic coding, 1M context
+# - gemini-3.1-flash-lite-preview: Fast, cost-efficient model for high-volume tasks
 # - gemini-3-flash-preview: Built for speed, visual & spatial reasoning
 # - gemini-2.5-pro: High-capability, complex reasoning, multimodal (Stable until June 2026)
 # - gemini-2.5-flash: Fast, capable, balances intelligence and latency (Stable until June 2026)
@@ -54,7 +54,7 @@ const gemini_models = [
 @search-terms gemini
 export def google_ai [
     query?: string                          # the query to Gemini
-    --model(-m):string@$gemini_models = "gemini-3.1-flash-lite" # the model gemini-3.1-flash-lite, gemini-3.1-pro, etc
+    --model(-m):string@$gemini_models = "gemini-3-flash-preview" # the model gemini-3-flash-preview, gemini-pro-vision, gemini-2.0, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9             # the temperature of the model
     --image(-i):any                     # filepath of image file (or list of files) for gemini-pro-vision
@@ -63,7 +63,7 @@ export def google_ai [
     --delim_with_backquotes(-d) = false # to delimit prompt (not pre-prompt) with triple backquotes (')
     --select_system: string             # directly select system message    
     --select_preprompt: string          # directly select pre_prompt
-    --safety_settings:table  #table with safety setting configuration (Currently ignored in Interactions API)
+    --safety_settings:table  #table with safety setting configuration (default all:BLOCK_NONE)
     --chat(-c)     #starts chat mode (text only, gemini only)
     --database(-D) = false   #continue a chat mode conversation from database
     --web_search(-w) = false #include $web_results web search results in the prompt
@@ -83,15 +83,34 @@ export def google_ai [
 
   let safetySettings = if ($safety_settings | is-empty) {
       [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_CIVIC_INTEGRITY", threshold: "BLOCK_NONE" }
+          {
+              category: "HARM_CATEGORY_HARASSMENT",
+              threshold: "BLOCK_NONE",
+          },
+          {
+              category: "HARM_CATEGORY_HATE_SPEECH",
+              threshold: "BLOCK_NONE"
+          },
+          {
+              category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+              threshold: "BLOCK_NONE",
+          },
+          {
+              category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+              threshold: "BLOCK_NONE",
+          },
+          {
+              category: "HARM_CATEGORY_CIVIC_INTEGRITY",
+              threshold: "BLOCK_NONE",
+          }
       ]
     } else {
       $safety_settings
     }
+  
+
+  let for_bison_beta = if ($model like "bison") {"3"} else {""}
+  let for_bison_gen = if ($model like "bison") {":generateText"} else {":generateContent"}
 
   let max_output_tokens = match $model {
     $m if ($m =~ "gemini-3.1") => 64000
@@ -112,8 +131,10 @@ export def google_ai [
   let url_request = {
       scheme: "https",
       host: "generativelanguage.googleapis.com",
-      path: "/v1beta/interactions",
-      params: { key: $apikey }
+      path: ("/v1beta" + $for_bison_beta +  "/models/" + $model + $for_bison_gen),
+      params: {
+          key: $apikey,
+      }
     } | url join
 
   #select system message from database
@@ -157,24 +178,26 @@ export def google_ai [
     } else {
       $preprompt + $query
     } 
-
-  # helper to convert contents to interaction steps
-  let to_steps = { |c| 
-      $c | each { |it|
-          let type = if $it.role == "user" { "user_input" } else { "model_output" }
-          let content = ($it.parts | each { |p| { type: "text", text: $p.text } })
-          { type: $type, content: $content }
-      }
-  }
+  
 
   ###############
   ## chat mode ##
   ###############
   if $chat {
+    if $model like "bison" {
+      return-error "only gemini model allowed in chat mode!"
+    }
+
+    if $database and (ls ($env.MY_ENV_VARS.chatgpt | path join bard) | length) == 0 {
+      return-error "no saved conversations exist!"
+    }
+
     print (echo-c "starting chat with gemini..." "green" -b)
     print (echo-c "enter empty prompt to exit" "green")
 
     let chat_char = "❱ "
+    let answer_color = "#FFFFFF"
+
     let chat_prompt = if $database {
         "For your information, and always REMEMBER, today's date is " + (date now | format date "%Y.%m.%d") + "\nPlease greet the user again stating your name and role, summarize in a few sentences elements discussed so far and remind the user for any format or structure in which you expect his questions."
       } else {
@@ -196,25 +219,40 @@ export def google_ai [
         open ({parent: ($env.MY_ENV_VARS.chatgpt + "/bard"), stem: $database_file, extension: "json"} | path join)
         | update_gemini_content $in $chat_prompt "user"
       } else {
-        [ { role: "user", parts: [[text]; [$chat_prompt]] } ]
+        [
+          {
+            role: "user",
+            parts: [
+              {
+                "text": $chat_prompt
+              }
+            ]
+          }
+        ]
       }
     
+
     mut chat_request = {
-        model: ("models/" + $model),
-        system_instruction: $system,
-        input: (do $to_steps $contents),
-        generation_config: { temperature: $temp }
-    }
+        system_instruction: {
+          parts:
+            { text: $system}
+        },
+        contents: $contents,
+        generationConfig: {
+            temperature: $temp,
+        },
+        safetySettings: $safetySettings
+      }
 
-    let answer_resp = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $chat_request
-    let steps = ($answer_resp | get -o steps)
-    if ($steps | is-empty) { return-error "No steps in chat response" }
-    mut answer = ($steps | where type == "model_output" | first | get content | first | get text)
+    mut answer = http post -t application/json $url_request $chat_request | get candidates.content.parts.0.text.0 
 
+    # print (echo-c ("\n" + $answer + "\n") $answer_color -b)
     $answer | glow
 
+    #update request
     $contents = update_gemini_content $contents $answer "model"
 
+    #first question
     if not ($prompt | is-empty) {
       print (echo-c ($chat_char + $prompt + "\n") "white")
     }
@@ -225,8 +263,14 @@ export def google_ai [
       let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriate for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $chat_prompt + "\n'''"
 
       let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
-      let web_content = if $web_search { web_search $search -n $web_results -m -v -e $web_engine } else {""}
-      let web_content = if $web_search and $web_engine == "google" { ai google_search-summary $chat_prompt $web_content -m -M "gemini" } else {$web_content}
+      
+      let web_content = if $web_search {
+          web_search $search -n $web_results -m -v -e $web_engine
+      } else {""}
+      
+      let web_content = if $web_search and $web_engine == "google" {
+          ai google_search-summary $chat_prompt $web_content -m -M "gemini"
+      } else {$web_content}
 
       $chat_prompt = (
         if $web_search {
@@ -237,17 +281,18 @@ export def google_ai [
       )
 
       $contents = update_gemini_content $contents $chat_prompt "user"
-      $chat_request.input = (do $to_steps $contents)
 
-      let answer_resp = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $chat_request
-      let steps = ($answer_resp | get -o steps)
-      if ($steps | is-empty) { return-error "No steps in chat response" }
-      $answer = ($steps | where type == "model_output" | first | get content | first | get text)
+      $chat_request.contents = $contents
 
+      $answer = http post -t application/json $url_request $chat_request | get candidates.content.parts.0.text.0
+
+      # print (echo-c ("\n" + $answer + "\n") $answer_color -b)
       $answer | glow
 
       $contents = update_gemini_content $contents $answer "model"
+
       $count = $count + 1
+
       $chat_prompt = (input --reedline $chat_char)
     }
 
@@ -263,7 +308,9 @@ export def google_ai [
     let sav = input (echo-c "would you like to save the conversation in obsidian? (y/n): " "green")
     if $sav == "y" {
       mut filename = input (echo-g "enter note title: ")
-      while ($filename | is-empty) { $filename = (input (echo-g "enter note title: ")) }
+      while ($filename | is-empty) {
+        $filename = (input (echo-g "enter note title: "))
+      }
       save_gemini_chat $contents $filename $count -o
     }
 
@@ -271,13 +318,11 @@ export def google_ai [
     if $sav == "y" {
       print (echo-g "summarizing conversation...")
       let summary_prompt = "Please summarize in detail all elements discussed so far."
-      $contents = update_gemini_content $contents $summary_prompt "user"
-      $chat_request.input = (do $to_steps $contents)
 
-      let answer_resp = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $chat_request
-      let steps = ($answer_resp | get -o steps)
-      if ($steps | is-empty) { return-error "No steps in chat response" }
-      $answer = ($steps | where type == "model_output" | first | get content | first | get text)
+      $contents = update_gemini_content $contents $summary_prompt "user"
+      $chat_request.contents = $contents
+
+      $answer = http post -t application/json $url_request $chat_request | get candidates.content.parts.0.text.0
 
       $contents = update_gemini_content $contents $answer "model"
       let summary_contents = ($contents | first 2) ++ ($contents | last 2)
@@ -292,62 +337,143 @@ export def google_ai [
   ## prompt mode ##
   #################
   let prompt = if ($prompt | is-empty) {$in} else {$prompt}
-  if ($prompt | is-empty) { return-error "Empty prompt!!!" }
+  if ($prompt | is-empty) {
+    return-error "Empty prompt!!!"
+  }
   
   # Handle multiple images
   let images = if ($image | is-empty) { [] } else {
     if ($image | describe) == "string" { [$image] } else { $image }
   }
 
+  if ($input_model == "gemini-pro-vision") {
+     if ($images | is-empty) { 
+     	return-error "gemini-pro-vision needs at least one image file!" 
+     }
+     for img in $images {
+       if not ($img | path expand | path exists) { 
+       	return-error "image file not found"
+       }
+     }
+  }
+
   let image_parts = if $input_model == "gemini-pro-vision" {
       $images | each {|img|
         let ext = $img | path parse | get extension
         let data = open ($img | path expand) | encode base64
-        { type: "image", mime_type: ("image/" + $ext), data: $data }
+        {
+          inline_data: {
+            mime_type: ("image/" + $ext),
+            data: $data
+          }
+        }
       }
-    } else { [] }
+    } else {
+      []
+    }
+  
 
   #search prompts
   let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
+  
   let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
-  let web_content = if $web_search { web_search $search -n $web_results -mv -e $web_engine } else {""}
-  let web_content = if $web_search and $web_engine == "google" { ai google_search-summary $prompt $web_content -m -M "gemini" } else {$web_content}
+  
+  let web_content = if $web_search {
+      web_search $search -n $web_results -mv -e $web_engine
+  } else {""}
+  
+  let web_content = if $web_search and $web_engine == "google" {
+      ai google_search-summary $prompt $web_content -m -M "gemini"
+  } else {$web_content}
   
   let prompt = if $web_search {
       $prompt + "\n\n You can complement your answer with the following up to date information about my question I obtained from a google search, in markdown format:\n" + $web_content
-    } else { $prompt }
+    } else {
+      $prompt
+    }
+  
+
+  let bison_prompt = "Hey, in this question, you are going to take the following role:\n" + $system + "\n\nNow I need you to do the following:\n" + $prompt
 
   # call to api
-  mut request = {
-    model: ("models/" + $model),
-    system_instruction: $system,
-    input: [
+  let request = if $input_model == "gemini-pro-vision" {
       {
-        type: "user_input",
-        content: ([{ type: "text", text: $prompt }] ++ $image_parts)
+        system_instruction: {
+          parts:
+            { text: $system}
+        },
+        contents: [
+          {
+            role: "user",
+            parts: (
+              [{text: $prompt}] ++ $image_parts
+            )
+          }
+        ],
+        generationConfig: {
+            temperature: $temp,
+        },
+        safetySettings: $safetySettings
       }
-    ],
-    generation_config: {
-        temperature: $temp,
-        max_output_tokens: $max_output_tokens
-    }
-  }
+    } else if ($model like "gemini") {
+      {
+        system_instruction: {
+          parts:
+            { text: $system}
+        },
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                "text": $prompt
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+            temperature: $temp,
+            maxOutputTokens: $max_output_tokens
+        },
+        safetySettings: $safetySettings
+      }
+    } else if ($model like "bison") {
+      {
+        prompt: { 
+          text: $bison_prompt
+        }
+      }
+    } else {
+      print (echo-r "model not available or comming soon")
+    } 
+  
 
   #trying different models in case of error
-  mut answer = null
+  # ONLY REPEAT OR RETRY IF input_model IS NOT VISION
+  mut answer = []
   mut index_model = 0
   let models = $gemini_models | find -v vision
+  
   let n_models = $models | length 
   
   if $verbose {print ("retrieving from gemini models...")}
 
-  $answer = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $request -e
+  $answer = http post -t application/json $url_request $request -e
   
   while (not $no_retry_models) and (($answer | is-empty) or ($answer == null) or ($answer | get error? | is-not-empty) or ($answer | describe) == nothing) and ($index_model < $n_models) {
-    let next_model = $models | get $index_model
-    $request.model = ("models/" + $next_model)
+    let model = $models | get $index_model
 
-    $answer = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $request -e
+    let url_request = {
+      scheme: "https",
+      host: "generativelanguage.googleapis.com",
+      path: ("/v1beta" + $for_bison_beta +  "/models/" + $model + $for_bison_gen),
+      params: {
+          key: $apikey,
+      }
+    } | url join
+
+    $answer = http post -t application/json $url_request $request -e
+
     $index_model += 1
   }
 
@@ -359,21 +485,16 @@ export def google_ai [
     return-error $answer.error.message
   }
   
-  let final_answer = $answer
-  try {
-    let steps = ($final_answer | get -o steps)
-    if ($steps | is-empty) {
-        $final_answer | to json | save -f gemini_no_steps.json
-        return-error "No steps found in API response! Raw response saved to gemini_no_steps.json"
+  let answer = $answer
+  if ($model like "gemini") {
+    try {
+      return $answer.candidates.content.parts.0.text.0
+    } catch {|e|
+      $answer | to json | save -f gemini_error.json
+      return-error $"something went wrong with the api! error saved in gemini_error.json\n($e.msg)"
     }
-    let output_step = ($steps | where type == "model_output" | first)
-    if ($output_step | is-empty) {
-        return-error "No model_output step found in API response!"
-    }
-    return ($output_step.content | first | get text)
-  } catch {|e|
-    $final_answer | to json | save -f gemini_error.json
-    return-error $"something went wrong with the api! error saved in gemini_error.json\n($e.msg)"
+  } else if ($model like "bison") {
+    return $answer.candidates.output.0
   }
 }
 
@@ -383,7 +504,7 @@ def update_gemini_content [
   new:string    #message to add
   role:string   #role of the message: user or model
 ] {
-  let contents = if ($contents | is-empty) { [] } else { $contents }
+  let contents = if ($contents | is-empty) {$in} else {$contents}
   let parts = [[text];[$new]]
   return ($contents ++ [{role: $role, parts: $parts}])
 }
@@ -396,7 +517,9 @@ def save_gemini_chat [
   --obsidian(-o)  #save note to obsidian
   --database(-d)  #save to local database
 ] {
-  if $obsidian and $database { return-error "only one of these flags allowed" }
+  if $obsidian and $database {
+    return-error "only one of these flags allowed"
+  }
   let filename = if ($filename | is-empty) {input (echo-g "enter filename: ")} else {$filename}
 
   let plain_text = $contents 
@@ -412,6 +535,7 @@ def save_gemini_chat [
       }
     | to text
   
+  
   if $obsidian {
     obs create $filename $plain_text -v "AI/AI_Bard"
     return 
@@ -419,14 +543,41 @@ def save_gemini_chat [
 
   if $database {    
     $contents | save -f ([$env.MY_ENV_VARS.chatgpt bard $"($filename).json"] | path join)
+
     return
   }
 
-  let full_path = ([$env.MY_ENV_VARS.download_dir $"($filename).md"] | path join)
-  $plain_text | save -f $full_path
+  $plain_text | save -f ([$env.MY_ENV_VARS.download_dir $"($filename).txt"] | path join)
+  
+  mv -f ([$env.MY_ENV_VARS.download_dir $"($filename).txt"] | path join) ([$env.MY_ENV_VARS.download_dir $"($filename).md"] | path join)
 }
 
 #single call to google ai LLM image generations api wrapper
+#
+#Available models at https://ai.google.dev/models:
+# - imagen-4.0-generate-preview-06-06: text -> image
+# - imagen-4.0-ultra-generate-preview-06-06: text -> image
+# - gemini-2.0-flash-exp-image-generation: images and text -> image and text
+# - imagen-3.0-generate-002: text -> image (paid)
+#
+#- Gemini 2.0 excels in contextual image blending.
+#- Imagen 3 prioritizes top-tier image quality and specialized editing capabilities. 
+#- Imagen 4 is capable of generating highly detailed images with rich lighting, significantly better text rendering, and higher resolution output than previous models.
+#
+#You can adjust the following safety settings categories:
+# - HARM_CATEGORY_HARASSMENT
+# - HARM_CATEGORY_HATE_SPEECH
+# - HARM_CATEGORY_SEXUALLY_EXPLICIT
+# - HARM_CATEGORY_DANGEROUS_CONTENT
+#
+#The possible thresholds are:
+# - BLOCK_NONE
+# - BLOCK_ONLY_HIGH
+# - BLOCK_MEDIUM_AND_ABOVE  
+# - BLOCK_LOW_AND_ABOVE
+#
+#You must use the flag --safety_settings and provide a table with two columns:
+# - category and threshold
 @category ai
 @search-terms google gemini imagen
 export def google_aimage [
@@ -438,7 +589,6 @@ export def google_aimage [
     --aspect-ratio(-a):string = "16:9" #aspect ratio: 1:1, 3:4, 4:3, 9:16 or 16:9 (for imagen only)
     --person-generation(-p):string = "ALLOW_ADULT" #ALLOW_ADULT or DONT_ALLOW (imagen only)
     --output(-o):string                #output filename
-    --safety_settings:table            #table with safety settings
     --paid(-P) = false	           #use paid gemini
 ] {
   let prompt = get-input $in $query
@@ -449,17 +599,6 @@ export def google_aimage [
   } else {
     get-api-key "google.gemini"
   }
-  let safetySettings = if ($safety_settings | is-empty) {
-      [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_CIVIC_INTEGRITY", threshold: "BLOCK_NONE" }
-      ]
-    } else {
-      $safety_settings
-    }
 
   if ($number_of_images > 4) and ($model like "imagen") {
     return-error "Max. number of requested images is 4!!!"
@@ -470,26 +609,43 @@ export def google_aimage [
   }
 
   let safetySettings = [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_CIVIC_INTEGRITY", threshold: "BLOCK_NONE" }
+          {
+              category: "HARM_CATEGORY_HARASSMENT",
+              threshold: "BLOCK_NONE",
+          },
+          {
+              category: "HARM_CATEGORY_HATE_SPEECH",
+              threshold: "BLOCK_NONE"
+          },
+          {
+              category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+              threshold: "BLOCK_NONE",
+          },
+          {
+              category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+              threshold: "BLOCK_NONE",
+          },
+          {
+              category: "HARM_CATEGORY_CIVIC_INTEGRITY",
+              threshold: "BLOCK_NONE",
+          }
       ]
 
   let gen = if ($model like "imagen") {":predict"} else {":generateContent"}
 
   let input_model = $model
-  let model = if $model == "gemini" {"gemini-2.5-flash-image"} else {$model}
+  let model = if $model == "gemini" {"gemini-2.0-flash-exp-image-generation"} else {$model}
   let model = if $model == "imagen3" {"imagen-3.0-generate-002"} else {$model}
-  let model = if $model == "imagen4" {"imagen-4.0-generate-001"} else {$model}
-  let model = if $model == "imagen4ultra" {"imagen-4.0-generate-001"} else {$model}
+  let model = if $model == "imagen4" {"imagen-4.0-generate-preview-06-06"} else {$model}
+  let model = if $model == "imagen4ultra" {"imagen-4.0-ultra-generate-preview-06-06"} else {$model}
 
   let url_request = {
       scheme: "https",
       host: "generativelanguage.googleapis.com",
       path: ("/v1beta/models/" + $model + $gen),
-      params: { key: $apikey }
+      params: {
+          key: $apikey,
+      }
     } | url join
 
   let output = if ($output | is-empty) {
@@ -514,7 +670,11 @@ export def google_aimage [
     "generation" => {
         let request = if ($model like "imagen") {
           {
-            instances: [ { prompt: $prompt } ],
+            instances: [
+              {
+                prompt: $prompt
+              }
+            ],
             parameters: {
               sampleCount: $number_of_images,
               aspect_ratio: $aspect_ratio,
@@ -523,8 +683,16 @@ export def google_aimage [
           }
         } else {
           {
-            contents: [{ parts: [ { text: $prompt } ] }],
-            generationConfig:{ responseModalities:["Text","Image"] },
+            contents: [{
+              parts: [
+                {
+                  text: $prompt
+                }
+              ]
+            }],
+            generationConfig:{
+              responseModalities:["Text","Image"]
+            },
             safetySettings: $safetySettings
           }
         }
@@ -551,7 +719,9 @@ export def google_aimage [
         let request = {
             contents: [{
               parts: [
-                { text: $prompt },
+                {
+                  text: $prompt
+                },
                 {
                   inline_data: {
                     mime_type: "image/jpeg",
@@ -560,7 +730,9 @@ export def google_aimage [
                 }
               ]
             }],
-            generationConfig:{ responseModalities:["Text","Image"] },
+            generationConfig:{
+              responseModalities:["Text","Image"]
+            },
             safetySettings: $safetySettings
           }
 
@@ -571,7 +743,7 @@ export def google_aimage [
         | save -f ($output + ".png")
       },
     
-    _ => {return-error $"($task) not available!!!"}
+    _ => {return-error $"$(task) not available!!!"}
   }
 }
 
