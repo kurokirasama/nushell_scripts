@@ -211,11 +211,6 @@ export def apps-update [] {
     print (echo-r "Something went wrong with ttyplot instalation!")
   }
   try {
-    apps-update nyxt
-  } catch {
-    print (echo-r "Something went wrong with nyxt instalation!")
-  }
-  try {
     apps-update pandoc
   } catch {
     print (echo-r "Something went wrong with pandoc instalation!")
@@ -423,10 +418,7 @@ export def github-app-update [
   }
 }
 
-#update nyxt deb
-export def "apps-update nyxt" [] {
-  github-app-update atlas-engineer nyxt -f flatpak
-}
+
 
 #update pandoc deb
 export def "apps-update pandoc" [] {
@@ -451,16 +443,6 @@ export def "apps-update pandoc-cross-ref" [] {
 #update tasker helper deb
 export def "apps-update taskerpermissions" [] {
   github-app-update joaomgcd Tasker-Permissions -a taskerpermissions
-}
-
-#update join deb
-export def "apps-update join" [] {
-  github-app-update joaomgcd JoinDesktop -a join
-}
-  
-#update lutris deb
-export def "apps-update lutris" [] {
-  github-app-update lutris lutris
 }
 
 #update mpris (for mpv)
@@ -494,43 +476,6 @@ export def "apps-update monocraft" [
     print (echo-g $"New version of Monocraft downloaded, now installing ($font | path parse | get stem)...")
     install-font $font
   }
-}
-
-#update zoom
-export def "apps-update zoom" [] {
-  cd $env.MY_ENV_VARS.debs
-  
-  let current_version = open zoom.json | get version
-
-  print ("current version: " + $current_version)
-
-  print (echo-g "go to https://us05web.zoom.us/support/down4j")
-
-  let release_url = input (echo-g "paste deb url here: ")
-
-  if ($release_url | is-empty) {
-    return
-  }
-
-  let last_version = $release_url
-    | split row "/" 
-    | get 4
-  
-
-  if $current_version == $last_version {
-    print (echo-g "zoom is already in its latest version!")
-    return
-  }
-
-  ls | find zoom | find deb | rm-pipe | ignore
-
-  print (echo-g "\ndownloading zoom...")
-  aria2c --download-result=hide $release_url
-  sudo gdebi -n (ls *.deb | find -n zoom | get 0 | get name)
-
-  open ([$env.MY_ENV_VARS.debs zoom.json] | path join) 
-  | upsert version $last_version 
-  | save -f ([$env.MY_ENV_VARS.debs zoom.json] | path join) 
 }
 
 #update chrome deb
@@ -664,65 +609,6 @@ export def "apps-update sejda" [] {
   }
 }
 
-#update nmap
-export def "apps-update nmap" [] {
-  cd $env.MY_ENV_VARS.debs
-
-  let new_file = http get https://nmap.org/dist 
-    | lines 
-    | find "href=\"nmap"  
-    | find rpm 
-    | find x86_64 
-    | get 0 
-    | split row "href=" 
-    | get 1 
-    | split row > 
-    | get 0 
-    | str replace -a "\"" "" 
-  
-
-  let url = $"https://nmap.org/dist/($new_file)"
-
-  let new_version = $new_file  | split row .x | get 0 | str replace nmap- ""
-
-  let nmap_list = (ls *.deb | find nmap | length) > 0
-
-  if $nmap_list {
-    let current_version = ls *.deb 
-      | find nmap 
-      | get 0 
-      | get name 
-      | split row _ 
-      | get 1
-    
-
-    if $current_version == $new_version {
-      print (echo-g "nmap is already in its latest version!")
-      return
-    }
-    
-    print (echo-g "\nupdating nmap...")
-    rm nmap*.deb | ignore
-
-    aria2c --download-result=hide $url
-    sudo alien -v -k $new_file
-
-    let new_deb = ls *.deb | find -n nmap | get 0 | get name
-
-    sudo gdebi -n $new_deb
-    ls $new_file | rm-pipe | ignore
-  } else {
-    print (echo-g "\ndownloading nmap...")
-    aria2c --download-result=hide $url
-    sudo alien -v -k $new_file
-
-    let new_deb = ls *.deb | find -n nmap | get 0 | get name
-
-    sudo gdebi -n $new_deb
-    ls $new_file | rm-pipe | ignore
-  }
-}
-
 #update ttyplot
 export def "apps-update ttyplot" [] {
   cd $env.MY_ENV_VARS.debs
@@ -809,7 +695,7 @@ export def "apps-update vivaldi" [] {
 }
 
 #update cmdg
-export def "apps-update gmail" [] {
+export def "apps-update cmdg" [] {
   cd ~/software/cmdg
   git pull
   go build ./cmd/cmdg
@@ -836,11 +722,6 @@ export def install-font [file] {
 #update maestral
 export def "apps-update maestral" [] {
   pipx upgrade maestral
-}
-
-#update guake
-export def "apps-update guake" [] {
-  pipx upgrade guake
 }
 
 #update whisper
@@ -900,29 +781,6 @@ export def "apps-update myffmpeg" [--force(-f)] {
   ./configure --enable-nonfree --enable-cuda-nvcc --enable-libnpp --enable-gpl --enable-libx264 --enable-libx265 --extra-cflags=-I/usr/local/cuda/include --extra-ldflags=-L/usr/local/cuda/lib64
   bash -c "make -j $(nproc)"
   ./ffmpeg -h
-}
-
-#update evernote-backuo tool
-export def "apps-update evernote-backup" [] {
-  pip install --user --upgrade evernote-backup
-}
-
-#update joplin
-export def "apps-update joplin" [] {
-  print (echo-g "updating joplin ui...")
-  wget -O - https://raw.githubusercontent.com/laurent22/joplin/dev/Joplin_install_and_update.sh | bash
-
-  print (echo-g "updating jopling cli...")
-  bash -c "NPM_CONFIG_PREFIXlike/.joplin-bin npm install -g joplin"
-  sudo rm -f /usr/bin/joplin
-  bash -c "sudo ln -s ~/.joplin-bin/bin/joplin /usr/bin/joplin"
-}
-
-#update tiv
-export def "apps-update tiv" [] {
-  cd ~/software/TerminalImageViewer/
-  git pull; cd src/
-  make; sudo make install
 }
 
 #update claude cli
@@ -1010,18 +868,6 @@ export def "apps-update ollama" [] {
   curl -fsSL https://ollama.com/install.sh | sh
 }
 
-#update atuin
-export def "apps-update atuin" [] {
-  curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
-}
-
-#update ghostty built from source
-export def "apps-update ghostty" [] {
-  cd ~/software/ghostty/
-  git pull
-  zig build -p ~/.local -Doptimize=ReleaseFast
-}
-
 #update reader
 export def "apps-update reader" [] {
   go install github.com/mrusme/reader@latest
@@ -1099,11 +945,6 @@ export def "apps-update gemini-cli" [] {
     npm install --engine-strict -g @google/gemini-cli@latest
 }
 
-#update mcp-server-nu
-export def "apps-update mcp-server-nu" [] {
-    cargo install mcp-server-nu --locked
-}
-
 #update cariddi
 export def "apps-update cariddi" [] {
     go install github.com/edoardottt/cariddi/cmd/cariddi@latest
@@ -1126,18 +967,13 @@ export def "apps-update zed-windows" [] {
     if not $mounted {
       print (echo-g "mounting gdrive...")
       rmount $env.MY_ENV_VARS.gdrive_mount_point
+      sleep 2sec
     }
     
     cd ~/Downloads/
     aria2c https://zed.dev/api/releases/stable/latest/Zed-x86_64.exe
     cp -pf Zed-x86_64.exe $path
     rm Zed-x86_64.exe
-}
-
-#update matlab-mcp-server
-export def "apps-update matlab-mcp-server" [] {
-  github-app-update matlab matlab-mcp-core-server -p glnx -a matlab-mcp-core-server-glnxa64 -j
-  chmod +x ($env.MY_ENV_VARS.debs | path join "matlab-mcp-core-server-glnxa64")
 }
 
 #update cliamp
@@ -1174,4 +1010,15 @@ export def "apps-update matlab-agentic-toolkit" [] {
 	print ("Set up the MATLAB Agentic Toolkit according to @AGENTS.md, and this args for the mcp:\n")
 	print ($"($args)")
 	print ($"also update the mcp configuration, if necessary, in this file: ($env.MY_ENV_VARS.linux_backup | path join settings_gemini.json)")
+}
+
+# show this help message
+export def "apps-update help" [] {
+    scope commands 
+    | where name starts-with "apps-update "
+    | select name description 
+    | update name {|c| $c.name | split row " " | last} 
+    | where name != "help" and name != "apps-update"
+    | sort-by name
+    | rename subcommand
 }

@@ -804,11 +804,7 @@ export def subtitle-renamer [] {
                 let subtitle_ext = $subtitle | path parse | get extension
                 
                 # Check if movie name contains the season/episode pattern (case insensitive)
-                let is_match = (
-                    ($movie_name | str downcase | find -r $"($season)($episode)" | is-not-empty ) or
-                    ($movie_name | str downcase | find -r $"s0?($season)e($episode)" | is-not-empty ) or
-                    ($movie_name | str downcase | find -r $"($season)x($episode)" | is-not-empty )
-                )
+                let is_match = ($movie_name | str downcase | find -r $"($season)($episode)" | is-not-empty ) or ($movie_name | str downcase | find -r $"s0?($season)e($episode)" | is-not-empty ) or ($movie_name | str downcase | find -r $"($season)x($episode)" | is-not-empty )
                 
                 if $is_match {
                     let new_name = $"($movie_base).($subtitle_ext)"
