@@ -1,28 +1,18 @@
-const last_gemini_model = "gemini-3.1-pro"
+const last_gemini_model = "gemini-3.5-flash"
 const gemini_models = [
+  "gemini-3.5-flash"
   "gemini-3.1-pro"
   "gemini-3.1-flash-lite"
-  "gemini-3-flash-preview"
-  "gemini-2.5-pro"
-  "gemini-2.5-flash"
-  "gemini-2.5-flash-lite"
-  "gemini-2.0-flash"
-  "gemini-2.0-flash-lite"
   "gemini-pro-vision"
 ]	
 
 #single call to google ai LLM api wrapper and chat mode
 #
 #Available models at https://ai.google.dev/models:
+# - gemini-3.5-flash: Optimized for speed, agentic workflows, and coding (GA May 2026)
 # - gemini-3.1-pro: High-capability, complex reasoning, agentic coding, 1M context
 # - gemini-3.1-flash-lite: Fast, cost-efficient model for high-volume tasks
-# - gemini-3-flash-preview: Built for speed, visual & spatial reasoning
-# - gemini-2.5-pro: High-capability, complex reasoning, multimodal (Stable until June 2026)
-# - gemini-2.5-flash: Fast, capable, balances intelligence and latency (Stable until June 2026)
-# - gemini-2.5-flash-lite: Optimized for efficiency and cost-performance (Stable until June 2026)
-# - gemini-2.0-flash: Multimodal, general-purpose (Stable until June 2026)
-# - gemini-2.0-flash-lite: Streamlined, ultra-efficient (Stable until June 2026)
-# - gemini-pro-vision: Placeholder for image input, uses gemini-3-flash-preview
+# - gemini-pro-vision: Placeholder for image input, uses gemini-3.5-flash
 # - text-embedding-004: Text embedding model
 # - aqa: Retrieval
 #
@@ -54,7 +44,7 @@ const gemini_models = [
 @search-terms gemini
 export def google_ai [
     query?: string                          # the query to Gemini
-    --model(-m):string@$gemini_models = "gemini-3.1-flash-lite" # the model gemini-3.1-flash-lite, gemini-3.1-pro, etc
+    --model(-m):string@$gemini_models = "gemini-3.5-flash" # the model gemini-3.5-flash, gemini-3.1-pro, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9             # the temperature of the model
     --image(-i):any                     # filepath of image file (or list of files) for gemini-pro-vision
@@ -94,17 +84,17 @@ export def google_ai [
     }
 
   let max_output_tokens = match $model {
+    $m if ($m =~ "gemini-3.5") => 64000
     $m if ($m =~ "gemini-3.1") => 64000
     $m if ($m =~ "gemini-3") => 64000
-    $m if ($m =~ "gemini-2.5") => 65536
     _ => 8192
   }
 
   let input_model = $model
   let model = match $model {
-    "gemini-pro-vision" => "gemini-3-flash-preview"
-    "gemini-2.0" => "gemini-2.0-flash"
-    "gemini-2.5" => "gemini-2.5-flash"
+    "gemini-pro-vision" => "gemini-3.5-flash"
+    "gemini-3.5" => "gemini-3.5-flash"
+    "gemini-3.1" => "gemini-3.1-pro"
     "gemini-3.0" | "gemini-3" => $last_gemini_model
     _ => $model
   }  

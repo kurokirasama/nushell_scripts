@@ -167,7 +167,7 @@ const profiles = ["no-mcp", "minimal", "standard", "webdev", "research", "google
 # - full: all mcp + all extensions
 export def "gmn profile" [
 	profile:string@$profiles = "standard"
-	--matlab-mcp(-l) = false #add the matlab mcp server
+	--matlab-mcp(-M) = false #add the matlab mcp server
 	--list-mcp-servers-and-extensions(-l)
 ] {
   let settings = open ($env.MY_ENV_VARS.linux_backup | path join "settings_gemini.json")
@@ -210,20 +210,21 @@ export def "gmn profile" [
 export def --wrapped gmn [
   ...rest
   --profile(-p):string@$profiles = "standard"
-  --matlab-mcp(-m) #use the matlab mcp server
+  --matlab-mcp(-M) #use the matlab mcp server
+  --model(-m):string = "gemini-3-flash-preview"
 ] {
   gmn profile $profile --matlab-mcp $matlab_mcp
   
   match $profile { 
-    "standard" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
-    "webdev" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,gemini-cli-security,gemini-docs-ext" ...$rest},
-    "research" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,datacommons,gemini-deep-research" ...$rest},
-    "googlesuit" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,datacommons,gemini-docs-ext" ...$rest},
-    "imagen" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,nanobanana" ...$rest},
-    "no-mcp" => {gemini --approval-mode=yolo --extensions "conductor" ...$rest},
-    "minimal" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
-    "websearch" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
-    "full" => {gemini --approval-mode=yolo ...$rest},
+    "standard" => {gemini --model $model --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
+    "webdev" => {gemini --model $model --approval-mode=yolo --extensions "conductor,google-workspace,gemini-cli-security,gemini-docs-ext" ...$rest},
+    "research" => {gemini --model $model --approval-mode=yolo --extensions "conductor,google-workspace,datacommons,gemini-deep-research" ...$rest},
+    "googlesuit" => {gemini --model $model --approval-mode=yolo --extensions "conductor,google-workspace,datacommons,gemini-docs-ext" ...$rest},
+    "imagen" => {gemini --model $model --approval-mode=yolo --extensions "conductor,google-workspace,nanobanana" ...$rest},
+    "no-mcp" => {gemini --model $model --approval-mode=yolo --extensions "conductor" ...$rest},
+    "minimal" => {gemini --model $model --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
+    "websearch" => {gemini --model $model --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
+    "full" => {gemini --model $model --approval-mode=yolo ...$rest},
     _ => {return-error "Invalid profile"}
   }
 }

@@ -3,11 +3,11 @@
 # Centralized configuration for AC temperature thresholds
 export def "ghome cron-ac-config" [] {
     {
-        sunrise_on: 12.0,      # Turn on if <= this at sunrise
-        hourly_on_winter: 18.0, # Turn on if <= this (winter/season)
-        hourly_on_summer: 22.0, # Turn on if >= this (summer/off-season)
-        hourly_off_winter: 20.0, # Turn off if >= this (winter/season)
-        hourly_off_summer: 20.0  # Turn off if <= this (summer/off-season)
+        sunrise_on: 14.0,      # Turn on if <= this at sunrise
+        hourly_on_winter: 16.0, # Turn on if <= this (winter/season)
+        hourly_on_summer: 20.0, # Turn on if >= this (summer/off-season)
+        hourly_off_winter: 18.0, # Turn off if >= this (winter/season)
+        hourly_off_summer: 18.0  # Turn off if <= this (summer/off-season)
     }
 }
 
@@ -65,7 +65,7 @@ export def "ghome cron-ac-on-hourly" [
     let sept_21 = $"($year)-09-21" | into datetime
     let range_a = ($date_time >= $march_21) and ($date_time <= $sept_21)
     
-    let sunrise_plus_4 = $sunrise + 4hr
+    let sunrise_plus_4 = $sunrise + 3hr
     let sunset_plus_2 = $sunset + 4hr
     let time_range_a = ($date_time >= $sunrise_plus_4) and ($date_time <= $sunset_plus_2)
     
