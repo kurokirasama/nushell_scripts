@@ -1022,3 +1022,20 @@ export def "apps-update help" [] {
     | sort-by name
     | rename subcommand
 }
+
+#update fzf
+export def "apps-update fzf" [] {
+  let fzf_dir = ("~/.fzf" | path expand)
+  if not ($fzf_dir | path exists) {
+    print (echo-g "cloning fzf...")
+    git clone --depth 1 https://github.com/junegunn/fzf.git $fzf_dir
+  } else {
+    print (echo-g "updating fzf...")
+    cd $fzf_dir
+    git pull
+  }
+  
+  print (echo-g "installing fzf...")
+  cd $fzf_dir
+  ./install --all
+}

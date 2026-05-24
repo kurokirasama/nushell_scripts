@@ -269,10 +269,8 @@ let new_keybinds_names = ["alias_menu"
     "insert_last_argument" 
     "insert_sudo" 
     "completion_menu" 
-    "ide_completion_menu" 
+    "ide_completion_menu"
     "copy_command"
-    "change_dir_with_fzf"
-    "select_file_fzf"
     "delete_one_word_backward"
     "insert_view_code"
     "insert_let"
@@ -376,28 +374,6 @@ let new_keybinds = [
             send: executehostcommand
             cmd: "commandline | copy; commandline edit --append ' # copied'"
         }
-    },
-    {
-        name: change_dir_with_fzf
-        modifier: alt
-        keycode: char_c
-        mode: emacs
-        event: {
-          send: executehostcommand,
-          cmd: "cd (ls | where type == dir | each { |item| $item.name | str prepend (ansi -e { fg: '#5555FF' attr: b})} | input list -f (echo-g 'Select dir:'))"
-        }
-    },
-    {
-        name: select_file_fzf
-        modifier: alt
-        keycode: char_f
-        mode: emacs
-        event: [
-          {
-            send: executehostcommand
-            cmd: "let file = ls | where type == file | sort-by name | get name | input list -f (echo-g 'Select file:');commandline edit --append $'\'($file)\'';commandline set-cursor --end"
-          }
-        ]
     },
     {
         name: delete_one_word_backward
