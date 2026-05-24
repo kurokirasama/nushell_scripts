@@ -309,20 +309,20 @@ export def lg [
     true => {
       match $reverse {
         true => {
-          ls | sort-by -r modified | grid -ci
+          ls | sort-by -r modified | grid -ci name
         },
         false => {
-          ls | sort-by modified | grid -ci
+          ls | sort-by modified | grid -ci name
         }
       }
     },
     false => {
       match $reverse {
         true => {
-          ls | sort-by -i -r type name | grid -ci
+          ls | sort-by -i -r type name | grid -ci name
         },
         false => {
-          ls | sort-by -i type name | grid -ci
+          ls | sort-by -i type name | grid -ci name
         }
       }
     }
@@ -343,7 +343,7 @@ export def l [--du(-d),--sort_by_size(-s)] {
 }
 
 export def lc [] {
-  l | grid -ci
+  l | grid -ci name
 }
 
 #ls only name
@@ -388,10 +388,24 @@ export def get-files [
 #find file in dir recursively
 export def find-file [search,--directory(-d):string] {
   if ($directory | is-empty) {
-    get-files -f | find -n $search
+    let status = idx status
+    if not $status.initialized or ($env.PWD | path expand) != ($status.base_path | path expand) {
+      idx-update
+    }
+    
+    try {
+      idx find --files $search | get path | ls ...$in
+    } catch {
+      get-files -f | find -n $search
+    }
   } else {
     get-files $directory -f | find -n $search
   }
+}
+
+#update file index
+export def idx-update [dir? = "."] {
+  idx init $dir --wait
 }
 
 #get list of directories in current path

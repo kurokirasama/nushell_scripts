@@ -1,7 +1,3 @@
-use apis.nu *
-use string_manipulation.nu *
-use files.nu *
-
 # Google Home API Wrappers
 
 # Internal helper to load tokens
@@ -197,7 +193,7 @@ export def "ghome local-info" [ip: string] {
 }
 
 # Known devices for completions
-const ghome_devices = [ "puerta", "comedor", "escalera", "dormitorio", "elu", "aire acondicionado" ]
+const ghome_devices = [ "puerta", "comedor", "escalera", "dormitorio", "elu", "ac" ]
 
 # Known states for completions
 const ghome_states = [ "on", "off" ]
@@ -265,7 +261,7 @@ export def "ghome speaker pause" [name: string] {
     ghome command $"Para ($name)"
 }
 
-const thermostat = ["aire acondicionado"]
+const thermostat = ["ac"]
 
 # Set thermostat temperature
 export def "ghome thermostat set" [name: string, temp: int] {

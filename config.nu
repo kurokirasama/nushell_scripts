@@ -209,7 +209,7 @@ let hooks = {
             }
         },
         {|before, after| 
-            try {print (ls | sort-by -i type name | grid -ci)}           
+            try {print (ls | sort-by -i type name | grid -ci name)}           
         },
         {|_, after|
             zoxide add -- $after
