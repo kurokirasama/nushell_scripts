@@ -25,10 +25,12 @@ const profiles = ["no-mcp", "minimal", "standard", "webui", "research", "googles
 #run cron gemini skills
 export def "gmn cron" [
 	skill:string@$skills 
-	--model(-m):string = "gemini-3.1-flash-lite" #gemini-3.1-flash-lite in free tier
+	--model(-m):string = "gemini-3.1-flash-lite-preview" #gemini-3.1-flash-lite in free tier
 	--profile(-p):string@$profiles = "minimal"
 	--dont-kill(-d) #dont kill gemini mcp servers
 ] {
+	cd $env.MY_ENV_VARS.llms_configs
+	
 	let prompt = $"run ($skill) skill"
 	let output =  gmn --profile $profile --model $model --output-format json --prompt $prompt | complete
 
