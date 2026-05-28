@@ -124,3 +124,62 @@ export def verify [
 
   $not xor $res
 }
+
+#link skills from yandex disk to ~/.agents/skills
+export def link-skills [] {
+    let source = ($env.MY_ENV_VARS.llms_configs | path join "skills")
+    let dest1 = "~/.agents/skills" | path expand
+    let dest2 = "~/.gemini/antigravity-cli/skills" | path expand
+    
+    if not ($source | path exists) {
+        error make {msg: $"Source skills directory not found: ($source)"}
+    }
+    
+    # Ensure physical destination directories exist so we can link inside them
+    mkdir $dest1 $dest2
+    
+    # Clean up any broken symlinks in the destinations
+    for dest in [$dest1, $dest2] {
+        let items = glob ($dest | path join "*")
+        for item in $items {
+            if ($item | path type) == "symlink" and (not ($item | path exists)) {
+                rm $item
+            }
+        }
+    }
+    
+    # Get all individual skills in the source directory
+    let skills = glob ($source | path join "*")
+    
+    for skill in $skills {
+        let name = $skill | path basename
+        let target1 = $dest1 | path join $name
+        let target2 = $dest2 | path join $name
+        
+        # Link to dest1 safely
+        if ($target1 | path type) == "symlink" {
+            rm $target1
+        } else if ($target1 | path exists) {
+            print $"Warning: A physical item already exists at ($target1). Skipping link to avoid overwriting."
+            continue
+        }
+        ^ln -s $skill $target1
+        
+        # Link to dest2 safely
+        if ($target2 | path type) == "symlink" {
+            rm $target2
+        } else if ($target2 | path exists) {
+            print $"Warning: A physical item already exists at ($target2). Skipping link to avoid overwriting."
+            continue
+        }
+        ^ln -s $skill $target2
+    }
+    print (echo-g "Skills linked successfully!")
+}
+
+#update global GEMINI.md
+export def "update-gemini-md" [] {
+    let source = $env.MY_ENV_VARS.llms_configs | path join "gemini-bak.md"
+    cp $source ~/.gemini/GEMINI.md -f
+    cp $source ~/.config/zed/AGENTS.md -f
+}

@@ -695,12 +695,58 @@ export def "apps-update vivaldi" [] {
 }
 
 #update cmdg
-export def "apps-update cmdg" [] {
-  cd ~/software/cmdg
+export def "apps-update cmdg" [
+  --official # Clone the official repository
+  --mine # Clone the personal fork
+] {
+  if ($official and $mine) or (not $official and not $mine) {
+    error make {msg: "Error: You must specify either --official or --mine."}
+  }
+
+  let base_dir = ($env.APPS_UPDATE_SOFTWARE_DIR? | default "~/software" | path expand)
+  let target_dir = ($base_dir | path join "cmdg")
+  let target_render_dir = ($base_dir | path join "cmdg-image-render")
+  let repo_url = if $mine { "https://github.com/kurokirasama/cmdg" } else { "https://github.com/ThomasHabets/cmdg.git" }
+  let target_sub = if $mine { "kurokirasama/cmdg" } else { "ThomasHabets/cmdg" }
+
+  # 1. Install or Update cmdg
+  if ($target_dir | path exists) {
+    let current_url = (do {
+      cd $target_dir
+      git remote get-url origin
+    } | complete | get stdout | str trim)
+
+    if ($current_url | str contains $target_sub) {
+      cd $target_dir
+      git pull
+    } else {
+      print (echo-g $"Repository mismatch in ($target_dir). Deleting and re-cloning...")
+      rm -rf $target_dir
+      cd $base_dir
+      git clone $repo_url
+    }
+  } else {
+    print (echo-g "cmdg not found, cloning and installing...")
+    cd $base_dir
+    git clone $repo_url
+  }
+
+  cd $target_dir
+  go install ./cmd/cmdg
+  print (echo-g "cmdg updated.")
+
+  # 2. Install or Update cmdg-image-render
+  if (not ($target_render_dir | path exists)) {
+    print (echo-g "cmdg-image-render not found, cloning and installing...")
+    cd $base_dir
+    git clone git@github.com:kurokirasama/cmdg-image-render.git
+  }
+  cd $target_render_dir
   git pull
-  go build ./cmd/cmdg
-  sudo cp cmdg /usr/local/bin
+  go install ./cmd/cmdg-image-render
+  print (echo-g "cmdg-image-render updated.")
 }
+
 
 #upgrade pip3 packages
 export def pip3-upgrade [] {
@@ -942,7 +988,7 @@ export def "apps-update scrcpy" [] {
 
 #update gemini-cli filter
 export def "apps-update gemini-cli" [] {
-    npm install --engine-strict -g @google/gemini-cli@latest
+    curl -fsSL https://antigravity.google/cli/install.sh | bash
 }
 
 #update cariddi

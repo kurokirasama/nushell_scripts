@@ -19,37 +19,26 @@ const skills = [
 	"cron-research-linkedin-post"
 	"cron-skills-expert"
 ]
-const gmn_models = ["gemini-3.5-flash" "gemini-3.1-flash-lite" "gemini-3-flash-preview" "gemini-2.5-flash" "gemini-2.5-flash-lite"]
+const gmn_models = ["gemini-3.5-flash", "gemini-3.1-pro", "gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.0-flash"]
 const profiles = ["no-mcp", "minimal", "standard", "webui", "research", "googlesuit", "imagen", "full"]
 
 #run cron gemini skills
 export def "gmn cron" [
 	skill:string@$skills 
-	--model(-m):string = "gemini-3.1-flash-lite-preview" #gemini-3.1-flash-lite in free tier
+	--model(-m):string@$gmn_models
 	--profile(-p):string@$profiles = "minimal"
 	--dont-kill(-d) #dont kill gemini mcp servers
 ] {
 	cd $env.MY_ENV_VARS.llms_configs
 	
 	let prompt = $"run ($skill) skill"
-	let output =  gmn --profile $profile --model $model --output-format json --prompt $prompt | complete
+	let output =  if ($model | is-not-empty) {
+		gmn --profile $profile --model $model --output-format json --prompt $prompt | complete
+	} else {
+		gmn --profile $profile --output-format json --prompt $prompt | complete
+	}
 
 	gmn-cron-email $skill $output
-
-	#retry with gemini-3-flash
-	if $output.exit_code != 0 {
-		let output =  gmn --profile $profile --model gemini-3.1-flash-lite --output-format json --prompt $prompt | complete
-		gmn-cron-email $"Retry of ($skill)" $output
-
-		let cleaned_stdout_retry = _clean-output $output.stdout
-		$cleaned_stdout_retry | to-discord -p --process -c gemini_cli_cron
-
-		if not $dont_kill {
-			sleep 2sec
-			killnode
-		}
-		return
-	}
 
 	# Clean up output: extract only the JSON part
 	let cleaned_stdout = _clean-output $output.stdout
@@ -63,7 +52,7 @@ export def "gmn cron" [
 
 # Helper to extract final report from gemini output
 def _clean-output [stdout: string] {
-    # 1. Parse the top-level JSON from gemini --output-format json
+    # 1. Parse the top-level JSON from agy --output-format json
     let outer_data = try { $stdout | from json } catch { { "response": $stdout } }
 
     let model_response = if ($outer_data | describe | str contains "record") and "response" in ($outer_data | columns) {
@@ -108,9 +97,9 @@ def gmn-cron-email [
 	output:record
 ] {
 	let subject = if $output.exit_code == 0 {
-		$"Log gemini-cli: ($skill)"
+		$"Log antigravity-cli (agy): ($skill)"
 	} else {
-		$"Log gemini-cli: Error when executing ($skill)"
+		$"Log antigravity-cli (agy): Error when executing ($skill)"
 	}
 	
 	let body = $"# Exit code\n\n($output.exit_code)\n\n# stdout\n\n($output.stdout)\n\n# stderr\n\n($output.stderr)"

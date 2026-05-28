@@ -66,7 +66,11 @@ export def adbtasker [] {
 #open gmail client (cmdg)
 export def --env gmail [] {
   cd $env.MY_ENV_VARS.download_dir
-  cmdg -shell ($env.HOME | path join ".cargo" "bin" "nu")
+  try {
+    cmdg -image_protocol auto -shell ($env.HOME | path join ".cargo" "bin" "nu")
+  } catch {
+    cmdg -shell ($env.HOME | path join ".cargo" "bin" "nu")
+  }
 }
 
 #wrapper for mermaid diagrams
@@ -154,10 +158,22 @@ let host = sys host | get hostname
 
 const profiles = ["no-mcp", "minimal", "standard", "webdev", "research", "googlesuit", "imagen", "websearch", "full"]
 
-#change gemini profile settings
+const profile_plugins = {
+    "standard": ["conductor", "google-workspace"],
+    "webdev": ["conductor", "google-workspace", "gemini-cli-security", "gemini-docs-ext"],
+    "research": ["conductor", "google-workspace", "datacommons", "gemini-deep-research"],
+    "googlesuit": ["conductor", "google-workspace", "datacommons", "gemini-docs-ext"],
+    "imagen": ["conductor", "google-workspace", "nanobanana"],
+    "no-mcp": ["conductor"],
+    "minimal": ["conductor", "google-workspace"],
+    "websearch": ["conductor", "google-workspace"],
+    "full": ["conductor", "google-workspace", "datacommons", "gemini-deep-research", "gemini-cli-security", "gemini-docs-ext", "nanobanana"]
+}
+
+#change antigravity-cli profile settings
 #profiles:
 # - no-mcp: no mcp + conductor extension
-# - minimal: nushell + context-mode mcp, conductor, google-workspace extensions
+# - minimal: nushell + context-mode mcp, conductor, google-wgeminiorkspace extensions
 # - standard: deepwiki, context7, grep, Ref, nushell, ollama-search, exa, bravesearch, firecrawl, sequentialthinking, markdonify mcp servers + conductor, google-workspace extensions
 # - webdev: standard + magicui and crome-dev-tools mcp servers + gemini-cli-security, gemini-docs-ext extensions
 # - research: standard + research-semantic-paper, research-paper mcp servers + datacommons, gemini-deep-research extensions
@@ -166,20 +182,20 @@ const profiles = ["no-mcp", "minimal", "standard", "webdev", "research", "google
 # - websearch: minimal + ollama-search, exa, bravesearch, firecrawl, sequentialthinking, markdonify mcp servers
 # - full: all mcp + all extensions
 export def "gmn profile" [
-	profile:string@$profiles = "standard"
-	--matlab-mcp(-M) = false #add the matlab mcp server
-	--list-mcp-servers-and-extensions(-l)
+        profile:string@$profiles = "standard"
+        --matlab-mcp(-M) = false #add the matlab mcp server
+        --list-mcp-servers-and-extensions(-l)
 ] {
-  let settings = open ($env.MY_ENV_VARS.linux_backup | path join "settings_gemini.json")
+  let settings = open ($env.MY_ENV_VARS.linux_backup | path join "settings_antigravity.json")
   let mcp_servers = $settings | get mcpServers
   let mcp_names = $mcp_servers | columns | sort
   
   if $list_mcp_servers_and_extensions {
-  	print (echo-g "mcp servers:")
-   	print ($mcp_names)
-    print (echo-g "extensions:")
-    gemini -l
-  	return
+    print (echo-g "mcp servers:")
+    print ($mcp_names)
+    print (echo-g "plugins:")
+    agy plugin list
+    return
   }
   
   let servers = match $profile {
@@ -196,24 +212,39 @@ export def "gmn profile" [
   }
 
   let servers = if $matlab_mcp {
-  	$servers ++ ($mcp_names | find -n matlab)
+    $servers ++ ($mcp_names | find -n matlab)
   } else {
-  	$servers
+    $servers
   }
   
   let filtered_servers = if ($servers | is-empty) { {} } else { $mcp_servers | select ...$servers }
   
-  $settings | upsert mcpServers $filtered_servers | save -f ~/.gemini/settings.json
+  # Update mcp_config.json
+  { mcpServers: $filtered_servers } | save -f ~/.gemini/config/mcp_config.json
+
+  # Handle plugins (extensions)
+  let plugins_to_enable = $profile_plugins | get $profile
+  let all_plugins = $profile_plugins | get full
+
+  for p in $all_plugins {
+    if ($p in $plugins_to_enable) {
+      try { agy plugin enable $p }
+    } else {
+      try { agy plugin disable $p }
+    }
+  }
 }
 
 const gemini_models = [
   "gemini-3.5-flash"
   "gemini-3.1-pro"
   "gemini-3.1-flash-lite"
-  "gemini-pro-vision"
+  "gemini-3-flash-preview"
+  "gemini-2.5-flash"
+  "gemini-2.0-flash"
 ]
 
-#wrapper for gemini cli
+#wrapper for antigravity cli
 export def --wrapped gmn [
   ...rest
   --profile(-p):string@$profiles = "standard"
@@ -222,34 +253,13 @@ export def --wrapped gmn [
 ] {
   gmn profile $profile --matlab-mcp $matlab_mcp
 
-  if ($model | is-not-empty) {
-  	match $profile { 
-    	"standard" => {gemini --model $model --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
-    	"webdev" => {gemini --model $model --approval-mode=yolo --extensions "conductor,google-workspace,gemini-cli-security,gemini-docs-ext" ...$rest},
-    	"research" => {gemini --model $model --approval-mode=yolo --extensions "conductor,google-workspace,datacommons,gemini-deep-research" ...$rest},
-    	"googlesuit" => {gemini --model $model --approval-mode=yolo --extensions "conductor,google-workspace,datacommons,gemini-docs-ext" ...$rest},
-    	"imagen" => {gemini --model $model --approval-mode=yolo --extensions "conductor,google-workspace,nanobanana" ...$rest},
-    	"no-mcp" => {gemini --model $model --approval-mode=yolo --extensions "conductor" ...$rest},
-    	"minimal" => {gemini --model $model --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
-    	"websearch" => {gemini --model $model --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
-    	"full" => {gemini --model $model --approval-mode=yolo ...$rest},
-    	_ => {return-error "Invalid profile"}
-  	}
-   return
+  let agy_cmd = if ($model | is-not-empty) {
+    [agy --model $model --dangerously-skip-permissions]
+  } else {
+    [agy --dangerously-skip-permissions]
   }
 
-  match $profile { 
-    "standard" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
-    "webdev" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,gemini-cli-security,gemini-docs-ext" ...$rest},
-    "research" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,datacommons,gemini-deep-research" ...$rest},
-    "googlesuit" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,datacommons,gemini-docs-ext" ...$rest},
-    "imagen" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace,nanobanana" ...$rest},
-    "no-mcp" => {gemini --approval-mode=yolo --extensions "conductor" ...$rest},
-    "minimal" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
-    "websearch" => {gemini --approval-mode=yolo --extensions "conductor,google-workspace" ...$rest},
-    "full" => {gemini --approval-mode=yolo ...$rest},
-    _ => {return-error "Invalid profile"}
-  }
+  ^$agy_cmd.0 ...($agy_cmd | skip 1) ...$rest
 }
 
 #wrapper for claude code
