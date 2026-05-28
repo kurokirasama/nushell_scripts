@@ -183,18 +183,25 @@ const profile_plugins = {
 # - full: all mcp + all extensions
 export def "gmn profile" [
         profile:string@$profiles = "standard"
-        --matlab-mcp(-M) = false #add the matlab mcp server
+        --matlab-mcp(-M) #add the matlab mcp server
         --list-mcp-servers-and-extensions(-l)
+        --gemini-cli(-g) #use the legacy gemini-cli instead of antigravity-cli
 ] {
-  let settings = open ($env.MY_ENV_VARS.linux_backup | path join "settings_antigravity.json")
+  let settings_file = if $gemini_cli { "settings_gemini.json" } else { "settings_antigravity.json" }
+  let settings = open ($env.MY_ENV_VARS.linux_backup | path join $settings_file)
   let mcp_servers = $settings | get mcpServers
   let mcp_names = $mcp_servers | columns | sort
   
   if $list_mcp_servers_and_extensions {
     print (echo-g "mcp servers:")
     print ($mcp_names)
-    print (echo-g "plugins:")
-    agy plugin list
+    if $gemini_cli {
+      print (echo-g "extensions:")
+      gemini -l
+    } else {
+      print (echo-g "plugins:")
+      agy plugin list
+    }
     return
   }
   
@@ -219,18 +226,23 @@ export def "gmn profile" [
   
   let filtered_servers = if ($servers | is-empty) { {} } else { $mcp_servers | select ...$servers }
   
-  # Update mcp_config.json
-  { mcpServers: $filtered_servers } | save -f ~/.gemini/config/mcp_config.json
+  if $gemini_cli {
+    # Update legacy settings.json
+    $settings | upsert mcpServers $filtered_servers | save -f ~/.gemini/settings.json
+  } else {
+    # Update mcp_config.json
+    { mcpServers: $filtered_servers } | save -f ~/.gemini/config/mcp_config.json
 
-  # Handle plugins (extensions)
-  let plugins_to_enable = $profile_plugins | get $profile
-  let all_plugins = $profile_plugins | get full
+    # Handle plugins (extensions)
+    let plugins_to_enable = $profile_plugins | get $profile
+    let all_plugins = $profile_plugins | get full
 
-  for p in $all_plugins {
-    if ($p in $plugins_to_enable) {
-      try { agy plugin enable $p }
-    } else {
-      try { agy plugin disable $p }
+    for p in $all_plugins {
+      if ($p in $plugins_to_enable) {
+        try { agy plugin enable $p }
+      } else {
+        try { agy plugin disable $p }
+      }
     }
   }
 }
@@ -250,8 +262,38 @@ export def --wrapped gmn [
   --profile(-p):string@$profiles = "standard"
   --matlab-mcp(-M) #use the matlab mcp server
   --model(-m):string@$gemini_models #choose model
+  --gemini-cli(-g) #use the legacy gemini-cli instead of antigravity-cli
 ] {
-  gmn profile $profile --matlab-mcp $matlab_mcp
+  if $matlab_mcp and $gemini_cli {
+    gmn profile $profile --matlab-mcp --gemini-cli
+  } else if $matlab_mcp {
+    gmn profile $profile --matlab-mcp
+  } else if $gemini_cli {
+    gmn profile $profile --gemini-cli
+  } else {
+    gmn profile $profile
+  }
+
+  if $gemini_cli {
+    let extensions = if $profile == "full" { [] } else { $profile_plugins | get $profile }
+
+    let gemini_cmd = if ($model | is-not-empty) {
+      if ($extensions | is-empty) {
+        [gemini --model $model --approval-mode=yolo]
+      } else {
+        [gemini --model $model --approval-mode=yolo --extensions ($extensions | str join ",")]
+      }
+    } else {
+      if ($extensions | is-empty) {
+        [gemini --approval-mode=yolo]
+      } else {
+        [gemini --approval-mode=yolo --extensions ($extensions | str join ",")]
+      }
+    }
+
+    ^$gemini_cmd.0 ...($gemini_cmd | skip 1) ...$rest
+    return
+  }
 
   let agy_cmd = if ($model | is-not-empty) {
     [agy --model $model --dangerously-skip-permissions]

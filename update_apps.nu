@@ -250,6 +250,11 @@ export def apps-update [] {
   } catch {
    print (echo-r "Something went wrong with chrome instalation!")
   }
+  try {
+   apps-update gemini
+  } catch {
+   print (echo-r "Something went wrong with gemini instalation!")
+  }
   # try {
   #   apps-update nmap
   # } catch {
@@ -987,8 +992,14 @@ export def "apps-update scrcpy" [] {
 }
 
 #update gemini-cli filter
-export def "apps-update gemini-cli" [] {
+export def "apps-update gemini" [
+  --gemini-cli(-g) #use the legacy gemini-cli instead of antigravity-cli
+] {
+  if $gemini_cli {
+    npm install --engine-strict -g @google/gemini-cli@latest
+  } else {
     curl -fsSL https://antigravity.google/cli/install.sh | bash
+  }
 }
 
 #update cariddi
@@ -1084,4 +1095,9 @@ export def "apps-update fzf" [] {
   print (echo-g "installing fzf...")
   cd $fzf_dir
   ./install --all
+}
+
+#update oxicord
+export def "apps-update oxicord" [] {
+	cargo install oxicord --git https://github.com/linuxmobile/oxicord.git
 }
