@@ -1017,3 +1017,12 @@ export def "math to-decimal" [
 
     return $decimal
 }
+
+
+#random a-z char
+export def "random char" [] {
+  random chars --length 11 
+  | str replace --regex [0-9] "" --all 
+  | split chars 
+  | rand-select 
+}
