@@ -24,21 +24,40 @@ const profiles = ["no-mcp", "minimal", "standard", "webui", "research", "googles
 
 #run cron gemini skills
 export def "gmn cron" [
-	skill:string@$skills 
-	--model(-m):string@$gmn_models
-	--profile(-p):string@$profiles = "minimal"
-	--dont-kill(-d) #dont kill gemini mcp servers
+	skill: string@$skills
+	--model(-m): string@$gmn_models  # only used with --gemini-cli; agy model is set via gmn profile
+	--profile(-p): string@$profiles = "minimal"
+	--dont-kill(-d)             #dont kill gemini mcp servers
+	--gemini-cli(-g)            #use the legacy gemini-cli instead of agy (antigravity-cli)
 ] {
-	cd $env.MY_ENV_VARS.llms_configs
-	
-	let prompt = $"run ($skill) skill"
-	let output =  if ($model | is-not-empty) {
-		gmn --profile $profile --model $model --output-format json --prompt $prompt | complete
-	} else {
-		gmn --profile $profile --output-format json --prompt $prompt | complete
+	if ($model | is-not-empty) and (not $gemini_cli) {
+		print $"(ansi yellow)Warning: --model is ignored for the agy path. Use --gemini-cli to pass a model.(ansi reset)"
 	}
 
-	gmn-cron-email $skill $output
+	cd $env.MY_ENV_VARS.llms_configs
+
+	let prompt = if $gemini_cli {
+		$"run ($skill) skill"
+	} else {
+		$"/($skill)"
+	}
+
+	let output = if $gemini_cli {
+		gmn profile $profile --gemini-cli
+		let gemini_cmd = if ($model | is-not-empty) {
+			[gemini --model $model --approval-mode=yolo --output-format json --prompt $prompt]
+		} else {
+			[gemini --approval-mode=yolo --output-format json --prompt $prompt]
+		}
+		^$gemini_cmd.0 ...($gemini_cmd | skip 1) | complete
+	} else {
+		# agy does not support --model; model is set via settings through gmn profile
+		gmn profile $profile
+		^agy --dangerously-skip-permissions --print $prompt | complete
+	}
+
+	let tool = if $gemini_cli { "gemini-cli" } else { "agy" }
+	gmn-cron-email $skill $output $tool
 
 	# Clean up output: extract only the JSON part
 	let cleaned_stdout = _clean-output $output.stdout
@@ -52,37 +71,37 @@ export def "gmn cron" [
 
 # Helper to extract final report from gemini output
 def _clean-output [stdout: string] {
-    # 1. Parse the top-level JSON from agy --output-format json
-    let outer_data = try { $stdout | from json } catch { { "response": $stdout } }
+	# 1. Try to parse stdout as JSON (legacy gemini-cli path returns JSON; agy --print path returns plain text)
+	let outer_data = try { $stdout | from json } catch { { "response": $stdout } }
 
-    let model_response = if ($outer_data | describe | str contains "record") and "response" in ($outer_data | columns) {
-        $outer_data.response
-    } else {
-        $stdout
-    }
+	let model_response = if ($outer_data | describe | str contains "record") and "response" in ($outer_data | columns) {
+		$outer_data.response
+	} else {
+		$stdout
+	}
 
-    # 2. Search for JSON inside the model's response (which might be wrapped in code blocks)
-    # 2a. Look for ```json ... ``` blocks
-    let markdown_json_parsed = $model_response | parse -r '(?s).*```json\s*(.*?)\s*```'
-    let markdown_json = if ($markdown_json_parsed | is-not-empty) { $markdown_json_parsed | get 0.capture0 } else { "" }
-    
-    if ($markdown_json | is-not-empty) {
-        try {
-            return ($markdown_json | from json)
-        } catch { }
-    }
+	# 2. Search for JSON inside the model's response (which might be wrapped in code blocks)
+	# 2a. Look for ```json ... ``` blocks
+	let markdown_json_parsed = $model_response | parse -r '(?s).*```json\s*(.*?)\s*```'
+	let markdown_json = if ($markdown_json_parsed | is-not-empty) { $markdown_json_parsed | get 0.capture0 } else { "" }
+	
+	if ($markdown_json | is-not-empty) {
+		try {
+			return ($markdown_json | from json)
+		} catch { }
+	}
 
-    # 2b. Look for raw {...} block
-    let raw_json_parsed = $model_response | parse -r '(?s).*?(\{.*\})'
-    let raw_json = if ($raw_json_parsed | is-not-empty) { $raw_json_parsed | get 0.capture0 } else { "" }
-    
-    if ($raw_json | is-not-empty) {
-        try {
-            return ($raw_json | from json)
-        } catch { }
-    }
+	# 2b. Look for raw {...} block
+	let raw_json_parsed = $model_response | parse -r '(?s).*?(\{.*\})'
+	let raw_json = if ($raw_json_parsed | is-not-empty) { $raw_json_parsed | get 0.capture0 } else { "" }
+	
+	if ($raw_json | is-not-empty) {
+		try {
+			return ($raw_json | from json)
+		} catch { }
+	}
 
-    # 3. Fallback: return the response as a simple record with report key if it's just text
+	# 3. Fallback: return the response as a simple record with report key if it's just text
 	if ($model_response | str contains "---") {
 		{ "report": ($model_response | split row "---" | last | str trim) }
 	} else {
@@ -93,16 +112,17 @@ def _clean-output [stdout: string] {
 
 #send cron outputs emails
 def gmn-cron-email [
-	skill:string
-	output:record
+	skill: string
+	output: record
+	tool: string = "agy"
 ] {
 	let subject = if $output.exit_code == 0 {
-		$"Log antigravity-cli (agy): ($skill)"
+		$"Log ($tool): ($skill)"
 	} else {
-		$"Log antigravity-cli (agy): Error when executing ($skill)"
+		$"Log ($tool): Error when executing ($skill)"
 	}
-	
+
 	let body = $"# Exit code\n\n($output.exit_code)\n\n# stdout\n\n($output.stdout)\n\n# stderr\n\n($output.stderr)"
-		
+
 	send-gmail $env.MY_ENV_VARS.mail $subject --body $body
 }
