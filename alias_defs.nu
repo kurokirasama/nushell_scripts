@@ -170,10 +170,11 @@ const profile_plugins = {
     "full": ["conductor", "google-workspace", "datacommons", "gemini-deep-research", "gemini-cli-security", "gemini-docs-ext", "nanobanana"]
 }
 
-#change antigravity-cli profile settings
-#profiles:
+# Change gemini profiles settings.
+#
+# Profiles:
 # - no-mcp: no mcp + conductor extension
-# - minimal: nushell + context-mode mcp, conductor, google-wgeminiorkspace extensions
+# - minimal: nushell + context-mode mcp, conductor, google-workspace extensions
 # - standard: deepwiki, context7, grep, Ref, nushell, ollama-search, exa, bravesearch, firecrawl, sequentialthinking, markdonify mcp servers + conductor, google-workspace extensions
 # - webdev: standard + magicui and crome-dev-tools mcp servers + gemini-cli-security, gemini-docs-ext extensions
 # - research: standard + research-semantic-paper, research-paper mcp servers + datacommons, gemini-deep-research extensions
@@ -181,6 +182,9 @@ const profile_plugins = {
 # - imagen: standard + imagen mcp server + nanobanana extension
 # - websearch: minimal + ollama-search, exa, bravesearch, firecrawl, sequentialthinking, markdonify mcp servers
 # - full: all mcp + all extensions
+#
+# Example:
+#   gmn profile standard
 export def "gmn profile" [
         profile:string@$profiles = "standard"
         --matlab-mcp(-M) #add the matlab mcp server
@@ -228,10 +232,19 @@ export def "gmn profile" [
   
   if $gemini_cli {
     # Update legacy settings.json
-    $settings | upsert mcpServers $filtered_servers | save -f ~/.gemini/settings.json
+    let target = $env.HOME | path join .gemini settings.json
+    mkdir ($target | path dirname)
+    $settings | upsert mcpServers $filtered_servers | save -f $target
   } else {
     # Update mcp_config.json
-    { mcpServers: $filtered_servers } | save -f ~/.gemini/config/mcp_config.json
+    let mcp_config_path = $env.HOME | path join .gemini config mcp_config.json
+    mkdir ($mcp_config_path | path dirname)
+    { mcpServers: $filtered_servers } | save -f $mcp_config_path
+
+    # Update antigravity-cli settings.json
+    let settings_path = $env.HOME | path join .gemini antigravity-cli settings.json
+    mkdir ($settings_path | path dirname)
+    $settings | upsert mcpServers $filtered_servers | save -f $settings_path
 
     # Handle plugins (extensions)
     let plugins_to_enable = $profile_plugins | get $profile
