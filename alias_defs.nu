@@ -246,6 +246,14 @@ export def "gmn profile" [
     mkdir ($settings_path | path dirname)
     $settings | upsert mcpServers $filtered_servers | save -f $settings_path
 
+    # Copy hooks_agy.json from backup dir to config dir
+    let hooks_src = $env.MY_ENV_VARS.linux_backup | path join "hooks_agy.json"
+    let hooks_target = $env.HOME | path join .gemini config hooks.json
+    if ($hooks_src | path exists) {
+        mkdir ($hooks_target | path dirname)
+        cp -f $hooks_src $hooks_target
+    }
+
     # Handle plugins (extensions)
     let plugins_to_enable = $profile_plugins | get $profile
     let all_plugins = $profile_plugins | get full
