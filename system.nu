@@ -951,3 +951,57 @@ export def "hypr focus-grep" [query: string] {
         hyprctl dispatch focuswindow $"address:($selected.address)"
     }
 }
+# update trusted folders in agy settings by discovering conductor projects
+export def update-agy-trusted-folders [
+    --roots: list<string> # optional roots to search, defaults to Dropbox and Yandex.Disk
+    --settings-file: string # optional override for the settings file path
+] {
+    let search_roots = $roots | default [
+        ($env.HOME | path join "Dropbox")
+        ($env.HOME | path join "Yandex.Disk")
+    ]
+
+    print (echo-g "Discovering Conductor projects...")
+    
+    # Use bash find for performance
+    let discovered = $search_roots 
+        | each { |root|
+            if ($root | path exists) {
+                do { ^find $root -maxdepth 8 -type d -name conductor } | complete | get stdout | lines
+            } else {
+                []
+            }
+        } 
+        | flatten
+        | path dirname
+        | uniq
+    
+    let count = $discovered | length
+    print (echo-g $"Found ($count) project\(s\). Updating settings...")
+
+    let settings_file = $settings_file | default ($env.MY_ENV_VARS.linux_backup | path join "settings_antigravity.json")
+    if not ($settings_file | path exists) {
+        return-error $"Settings file not found: ($settings_file)"
+    }
+
+    mut settings = open $settings_file
+    let current_trusted = $settings.trustedWorkspaces? | default []
+    
+    # Clean up old entries: keep if it has a conductor folder, OR if it is outside our search roots (manual additions)
+    let cleaned_trusted = $current_trusted | where { |p| 
+        let has_conductor = ($p | path join "conductor" | path exists)
+        let in_search_roots = ($search_roots | any { |root| $p | str starts-with $root })
+        
+        $has_conductor or (not $in_search_roots)
+    }
+
+    let new_trusted = $cleaned_trusted 
+        | append $discovered 
+        | uniq 
+        | sort
+    
+    $settings = ($settings | upsert trustedWorkspaces $new_trusted)
+    $settings | save -f $settings_file
+    
+    print (echo-g "Successfully updated trustedWorkspaces in settings_antigravity.json")
+}

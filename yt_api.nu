@@ -1,6 +1,3 @@
-use apis.nu *
-use string_manipulation.nu *
-
 #help info for yt-api
 export def "yt-api help" [] {
   print ([

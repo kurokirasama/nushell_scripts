@@ -1,7 +1,3 @@
-use string_manipulation.nu *
-use files.nu *
-use table_manipulation.nu *
-
 export def "media help" [] {
   print ([
     "media manipulation and visualization tools: ffmpeg, sox, subsync and mpv required."

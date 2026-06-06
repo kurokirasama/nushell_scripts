@@ -1,5 +1,3 @@
-use string_manipulation.nu *
-
 ######################################################
 # here because they are needed in this file
 ######################################################

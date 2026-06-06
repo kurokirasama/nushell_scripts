@@ -250,11 +250,6 @@ export def apps-update [] {
   } catch {
    print (echo-r "Something went wrong with chrome instalation!")
   }
-  try {
-   apps-update gemini
-  } catch {
-   print (echo-r "Something went wrong with gemini instalation!")
-  }
   # try {
   #   apps-update nmap
   # } catch {
@@ -991,14 +986,14 @@ export def "apps-update scrcpy" [] {
   }
 }
 
-#update gemini-cli filter
+#update gemini-cli
 export def "apps-update gemini" [
   --gemini-cli(-g) #use the legacy gemini-cli instead of antigravity-cli
 ] {
   if $gemini_cli {
     npm install --engine-strict -g @google/gemini-cli@latest
   } else {
-    curl -fsSL https://antigravity.google/cli/install.sh | bash
+  agy update
   }
 }
 
@@ -1100,4 +1095,20 @@ export def "apps-update fzf" [] {
 #update oxicord
 export def "apps-update oxicord" [] {
 	cargo install oxicord --git https://github.com/linuxmobile/oxicord.git
+}
+
+#update science-skills repo and link skills
+export def "apps-update science-skills" [] {
+    let repo = $env.MY_ENV_VARS.llms_configs | path join skills science-skills
+    cd $repo
+    ^git pull
+    link-skills
+}
+
+#update gemini-skills repo and link skills
+export def "apps-update gemini-skills" [] {
+    let repo = $env.MY_ENV_VARS.llms_configs | path join skills gemini-api-skills gemini-skills
+    cd $repo
+    ^git pull
+    link-skills
 }

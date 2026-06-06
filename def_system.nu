@@ -148,10 +148,17 @@ export def link-skills [] {
         }
     }
     
-    # Get all individual skills in the source directory
-    let skills = glob ($source | path join "*")
+    # Get all individual skills in the source directory (recursive to find nested repo skills)
+    let base_skills = glob ($source | path join "*")
+    let science_skills = glob ($source | path join "science-skills" "skills" "*")
+    let gemini_skills = glob ($source | path join "gemini-api-skills" "gemini-skills" "skills" "*")
+    let all_skills = ($base_skills | append $science_skills | append $gemini_skills)
     
-    for skill in $skills {
+    let repos_to_ignore = ["science-skills", "gemini-api-skills"]
+    for skill in $all_skills {
+        let name = $skill | path basename
+        if ($name in $repos_to_ignore) { continue }
+        
         let name = $skill | path basename
         let target1 = $dest1 | path join $name
         let target2 = $dest2 | path join $name
@@ -160,7 +167,7 @@ export def link-skills [] {
         if ($target1 | path type) == "symlink" {
             rm $target1
         } else if ($target1 | path exists) {
-            print $"Warning: A physical item already exists at ($target1). Skipping link to avoid overwriting."
+            # print $"Warning: A physical item already exists at ($target1). Skipping link to avoid overwriting."
             continue
         }
         ^ln -s $skill $target1
@@ -169,7 +176,7 @@ export def link-skills [] {
         if ($target2 | path type) == "symlink" {
             rm $target2
         } else if ($target2 | path exists) {
-            print $"Warning: A physical item already exists at ($target2). Skipping link to avoid overwriting."
+            # print $"Warning: A physical item already exists at ($target2). Skipping link to avoid overwriting."
             continue
         }
         ^ln -s $skill $target2

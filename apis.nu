@@ -1,6 +1,3 @@
-use files.nu *
-use table_manipulation.nu *
-
 # Standardized API key retrieval with robust error handling
 #
 # Usage: get-api-key google.gemini_paid
