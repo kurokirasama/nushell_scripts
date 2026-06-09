@@ -325,11 +325,63 @@ export def --wrapped gmn [
   ^$agy_cmd.0 ...($agy_cmd | skip 1) ...$rest
 }
 
+# Change claude profiles settings.
+#
+# Profiles:
+# - no-mcp: no mcp
+# - minimal: nushell + context-mode mcp
+# - standard: deepwiki, context7, grep, Ref, nushell, ollama-search, exa, bravesearch, firecrawl, sequentialthinking, markdonify mcp servers
+# - webdev: standard + magicui and crome-dev-tools mcp servers
+# - research: standard + research-semantic-paper, research-paper mcp servers
+# - googlesuit: standard + google-forms, youtube mcp servers
+# - imagen: standard + dalle
+# - full: all mcp servers
+#
+# Example:
+#   cld profile standard
+export def "cld profile" [
+        profile:string@$profiles = "standard"
+] {
+  let settings = open ($env.MY_ENV_VARS.linux_backup | path join "settings_claude.json")
+  let gen_settings = $settings.general
+  let mcp_servers = $settings.mcpServers
+  let mcp_names = $mcp_servers | columns | sort
+  
+  let servers = match $profile {
+    "standard" => {$mcp_names | find standard & context-mode & ext-google-workspace -n},
+    "webdev" => {$mcp_names | find standard & webdev & ext-security & ext-docs & ext-google-workspace & context-mode -n},
+    "research" => {$mcp_names | find standard & smithery-research & ext-deep-research & ext-datacommons & ext-google-workspace & context-mode -n},
+    "googlesuit" => {$mcp_names | find standard & googlesuit & ext-datacommons & ext-docs & ext-google-workspace & context-mode -n},
+    "imagen" => {$mcp_names | find standard & imagen & ext-nanobanana & ext-google-workspace & context-mode -n},
+    "no-mcp" => {[]},
+    "minimal" => {$mcp_names | find nushell & context-mode -n},
+    "websearch" => {$mcp_names | find nushell & context-mode & ollama-search & exa & bravesearch & firecrawl & sequentialthinking & markdonify -n},
+    "full" => {$mcp_names},
+    _ => {return-error "Invalid profile"}
+  }
+
+  let filtered_mcp = if ($servers | is-empty) { {} } else { $mcp_servers | select ...$servers }
+  
+  # Update Claude general settings
+  let settings_path = $env.HOME | path join .claude settings.json
+  mkdir ($settings_path | path dirname)
+  $gen_settings | save -f $settings_path
+
+  # Update Claude MCP servers (preserving other keys like userID, OAuth)
+  let mcp_config_path = $env.HOME | path join .claude.json
+  let current_mcp_config = if ($mcp_config_path | path exists) { open $mcp_config_path } else { {} }
+  $current_mcp_config | upsert mcpServers $filtered_mcp | save -f $mcp_config_path
+  
+  print (echo-g $"Claude profile '($profile)' applied successfully.")
+}
+
 #wrapper for claude code
 export def --wrapped cld [
   ...rest
+  --profile(-p):string@$profiles = "standard"
 ] {
-	^claude --dangerously-skip-permissions
+  cld profile $profile
+  ^claude --dangerously-skip-permissions ...$rest
 }
 
 export alias gtes = gtypist --colors 7,0 esp.typ
