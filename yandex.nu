@@ -218,3 +218,8 @@ def _ydx-resolve-path [path: string] {
     # print (echo-y $"[ydx] Resolved '($path)' to cloud path '($resolved)'")
     $resolved
 }
+
+#resume yandex service
+export def "ydx resume" [] {
+    systemctl --user restart yandex-disk
+}
