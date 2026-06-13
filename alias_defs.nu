@@ -156,7 +156,7 @@ let host = sys host | get hostname
     nload -u H -U H $device
 }
 
-const profiles = ["no-mcp", "minimal", "standard", "webdev", "research", "googlesuit", "imagen", "websearch", "full"]
+const profiles = ["no-mcp", "minimal", "standard", "webdev", "research", "googlesuit", "imagen", "websearch", "ollama", "full"]
 
 const profile_plugins = {
     "standard": ["conductor", "google-workspace"],
@@ -167,6 +167,7 @@ const profile_plugins = {
     "no-mcp": ["conductor"],
     "minimal": ["conductor", "google-workspace"],
     "websearch": ["conductor", "google-workspace"],
+    "ollama": ["conductor", "google-workspace"],
     "full": ["conductor", "google-workspace", "datacommons", "gemini-deep-research", "gemini-cli-security", "gemini-docs-ext", "nanobanana"]
 }
 
@@ -185,7 +186,7 @@ const profile_plugins = {
 #
 # Example:
 #   gmn profile standard
-export def "gmn profile" [
+export def --env "gmn profile" [
         profile:string@$profiles = "standard"
         --matlab-mcp(-M) #add the matlab mcp server
         --list-mcp-servers-and-extensions(-l)
@@ -217,6 +218,7 @@ export def "gmn profile" [
     "imagen" => {$mcp_names | find standard & imagen & context-mode -n},
     "no-mcp" => {[]},
     "minimal" => {$mcp_names | find nushell & context-mode -n},
+    "ollama" => {$mcp_names | find standard & context-mode -n},
     "websearch" => {$mcp_names | find nushell & context-mode & ollama-search & exa & bravesearch & firecrawl & sequentialthinking & markdonify & context-mode -n},
     "full" => {$mcp_names},
     _ => {return-error "Invalid profile"}
@@ -266,7 +268,14 @@ export def "gmn profile" [
       }
     }
   }
+
+  if $profile == "ollama" {
+    $env.OPENAI_BASE_URL = "http://localhost:11434/v1"
+    $env.OPENAI_API_KEY = "ollama"
+  }
 }
+
+
 
 const gemini_models = [
   "gemini-3.5-flash"
@@ -275,10 +284,14 @@ const gemini_models = [
   "gemini-3-flash-preview"
   "gemini-2.5-flash"
   "gemini-2.0-flash"
+  "qwen2.5-coder:7b"
+  "qwen2.5-coder:32b"
+  "codestral"
+  "llama3.1"
 ]
 
 #wrapper for antigravity cli
-export def --wrapped gmn [
+export def --env --wrapped gmn [
   ...rest
   --profile(-p):string@$profiles = "standard"
   --matlab-mcp(-M) #use the matlab mcp server
@@ -417,4 +430,79 @@ export def ytm2 [
         }
 
         if $is_work { ^cliamp-wrapper $playlist ...$common } else { ^cliamp $playlist ...$common }
+}
+
+# Switch to ollama profile for agents
+export def "ollama profile" [] {
+  gmn profile ollama
+}
+
+# Get installed ollama models
+export def get-ollama-models [] {
+  try {
+    ollama list | tail -n +2 | awk "{print \$1}" | lines | where ($it | is-not-empty)
+  } catch {
+    []
+  }
+}
+
+# Get info for a specific ollama model
+export def get-ollama-model-info [model: string] {
+  try {
+    let raw = ollama show $model
+    let context_len = $raw 
+      | lines 
+      | where $it =~ "context length" 
+      | first 
+      | str trim
+      | split row -r "\\s+" 
+      | last 
+      | into int
+    
+    { context: $context_len }
+  } catch {
+    { context: 32000 } # default safe fallback
+  }
+}
+
+# wrapper for ollama models using claude code integration
+export def --env --wrapped olm [
+  ...rest
+  --model(-m): string # choose model
+  --list(-l)         # list and select model from input list
+] {
+  let available_models = get-ollama-models
+  
+  let model = if $list {
+    $available_models | input list -fd (echo-g "Select Ollama Model:")
+  } else if ($model | is-not-empty) {
+    $model
+  } else {
+    # Choose best available
+    let priorities = ["qwen3-coder:latest", "qwen2.5-coder:32b", "qwen2.5-coder:7b", "codestral", "llama3.2", "llama3.1", "qwen3:4b", "gemma4:12b", "gemma4:e4b", "gemma4:e2b"]
+    let best = $priorities | where { |p| ($available_models | find $p | is-not-empty) } | first
+    if ($best | is-not-empty) { $best } else { $available_models | first }
+  }
+
+  if ($model | is-empty) {
+    print (echo-r "No Ollama models found.")
+    return
+  }
+
+  let info = get-ollama-model-info $model
+  let ctx = $info.context
+  # Set output tokens to max possible (capped at 32k or context/2)
+  let out_val = [($ctx / 4), 4096] | math max | into int
+  let out = $out_val | into string
+
+  let msg = ["Launching local agent with model: ", $model, " (Context: ", ($ctx | into string), ", Max Output: ", $out, ")"] | str join
+  print (echo-g $msg)
+  
+  with-env {
+    CLAUDE_CODE_MAX_OUTPUT_TOKENS: $out,
+    CLAUDE_CODE_MAX_CONTEXT_TOKENS: ($ctx | into string)
+  } {
+    # Use ollama launch to bridge claude to the local model
+    ollama launch claude --model $model -- ...$rest
+  }
 }

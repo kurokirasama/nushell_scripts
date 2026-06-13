@@ -19,20 +19,17 @@ const skills = [
 	"cron-research-linkedin-post"
 	"cron-skills-expert"
 ]
-const gmn_models = ["gemini-3.5-flash", "gemini-3.1-pro", "gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.0-flash"]
-const profiles = ["no-mcp", "minimal", "standard", "webui", "research", "googlesuit", "imagen", "full"]
+const gmn_models = ["gemini-3.5-flash", "gemini-3.1-pro", "gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.0-flash", "qwen2.5-coder:7b", "qwen2.5-coder:32b", "codestral", "llama3.1"]
+const profiles = ["no-mcp", "minimal", "standard", "webdev", "research", "googlesuit", "imagen", "websearch", "ollama", "full"]
 
 #run cron gemini skills
-export def "gmn cron" [
+export def --env "gmn cron" [
 	skill: string@$skills
 	--model(-m): string@$gmn_models  # only used with --gemini-cli; agy model is set via gmn profile
 	--profile(-p): string@$profiles = "minimal"
 	--dont-kill(-d)             #dont kill gemini mcp servers
 	--gemini-cli(-g)            #use the legacy gemini-cli instead of agy (antigravity-cli)
 ] {
-	if ($model | is-not-empty) and (not $gemini_cli) {
-		print $"(ansi yellow)Warning: --model is ignored for the agy path. Use --gemini-cli to pass a model.(ansi reset)"
-	}
 
 	cd $env.MY_ENV_VARS.llms_configs
 
@@ -51,9 +48,14 @@ export def "gmn cron" [
 		}
 		^$gemini_cmd.0 ...($gemini_cmd | skip 1) | complete
 	} else {
-		# agy does not support --model; model is set via settings through gmn profile
-		gmn profile $profile
-		^agy --dangerously-skip-permissions --print $prompt | complete
+                # agy model can be passed via --model
+                gmn profile $profile
+                let agy_cmd = if ($model | is-not-empty) {
+                        [agy --model $model --dangerously-skip-permissions --print $prompt]
+                } else {
+                        [agy --dangerously-skip-permissions --print $prompt]
+                }
+                ^$agy_cmd.0 ...($agy_cmd | skip 1) | complete
 	}
 
 	let tool = if $gemini_cli { "gemini-cli" } else { "agy" }

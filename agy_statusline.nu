@@ -7,6 +7,7 @@ def main [] {
     let raw = (open --raw /dev/stdin)
     if ($raw | is-empty) { return $"(ansi red)agy | no input(ansi reset)" }
     let input = ($raw | from json)
+    $raw | save -f /tmp/agy_status_input.json
     
     let width = ($input.terminal_width? | default 100)
     

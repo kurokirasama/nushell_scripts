@@ -222,5 +222,4 @@ export def "update-gemini-md" [] {
     cp $source ~/.gemini/GEMINI.md -f
     cp $source ~/.config/zed/AGENTS.md -f
     cp $source ~/.claude/CLAUDE.md -f
-    cp $source CLAUDE.md -f
 }

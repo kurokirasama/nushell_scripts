@@ -656,3 +656,337 @@ export def "ai google_search-summary" [
     return $updated_content
   }
 }
+
+# Start a Gemini Deep Research session
+@category ai
+@search-terms gemini deep-research
+export def "ai deep-research start" [
+    prompt: string                          # the research prompt
+    --max(-M)                               # use deep-research-max-preview-04-2026
+    --no-thinking(-T)                       # disable thinking summaries
+    --no-visual(-V)                         # disable visualizations
+    --planning(-p)                          # enable collaborative planning
+    --paid(-P)                              # use paid API key
+] {
+    let apikey = if $paid {
+        get-api-key "google.gemini_paid"
+    } else {
+        get-api-key "google.gemini"
+    }
+
+    let agent = if $max {
+        "deep-research-max-preview-04-2026"
+    } else {
+        "deep-research-preview-04-2026"
+    }
+
+    let agent_config = {
+        type: "deep-research",
+        thinking_summaries: (if $no_thinking { "none" } else { "auto" }),
+        visualization: (if $no_visual { "off" } else { "auto" }),
+        collaborative_planning: $planning
+    }
+
+    let url_request = {
+        scheme: "https",
+        host: "generativelanguage.googleapis.com",
+        path: "/v1beta/interactions",
+        params: { key: $apikey }
+    } | url join
+
+    let request = {
+        agent: $agent,
+        input: $prompt,
+        background: true,
+        store: true,
+        agent_config: $agent_config
+    }
+
+    print (echo-g $"Starting deep research with agent: ($agent)...")
+    
+    let response = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $request -e
+    
+    if ($response | get error? | is-not-empty) {
+        return-error $response.error.message
+    }
+
+    # Save planning response to JSON if planning is enabled
+    if $planning {
+        let plan_file = $"plan-($response.id).json"
+        $response | save -f $plan_file
+        print (echo-g $"Collaborative plan saved to ($plan_file)")
+    }
+    
+    # Save ID to local config for convenience
+    { interaction_id: $response.id } | save -f .gemini-research.json
+    
+    # Log to global history in Yandex.Disk
+    let history_file = ("~/Yandex.Disk/.gemini-deep-research-history.json" | path expand)
+    let history_entry = {
+        id: $response.id,
+        prompt: $prompt,
+        agent: $agent,
+        created_at: (date now | format date "%Y-%m-%dT%H:%M:%SZ"),
+        status: "in_progress",
+        planning: $planning
+    }
+
+    mut history = if ($history_file | path exists) { open $history_file } else { [] }
+    $history = ($history | append $history_entry)
+    $history | save -f $history_file
+
+    return $response
+}
+
+# Check the status of Gemini Deep Research sessions
+@category ai
+@search-terms gemini deep-research
+export def "ai deep-research status" [
+    --id: string                            # interaction ID (optional)
+    --all(-a)                               # refresh status of ALL jobs (including completed)
+    --paid(-P)                              # use paid API key
+] {
+    let history_file = ("~/Yandex.Disk/.gemini-deep-research-history.json" | path expand)
+    
+    if ($id | is-not-empty) {
+        # Single ID check logic
+        let apikey = if $paid { get-api-key "google.gemini_paid" } else { get-api-key "google.gemini" }
+        let url_request = {
+            scheme: "https",
+            host: "generativelanguage.googleapis.com",
+            path: ("/v1beta/interactions/" + $id),
+            params: { key: $apikey }
+        } | url join
+
+        let response = http get -H ["Api-Revision", "2026-05-20"] $url_request -e
+        if ($response | get error? | is-not-empty) { return-error $response.error.message }
+        
+        # Update history if ID exists there
+        if ($history_file | path exists) {
+            mut history = open $history_file
+            if ($history | where id == $id | is-not-empty) {
+                $history = ($history | each {|job| if $job.id == $id { $job | merge { status: $response.status } } else { $job } })
+                $history | save -f $history_file
+            }
+        }
+        return $response
+    } else {
+        # History list and refresh logic
+        if not ($history_file | path exists) {
+            # Fallback to local config for a single check if no history exists
+            if (".gemini-research.json" | path exists) {
+                let local_id = open .gemini-research.json | get interaction_id
+                return (if $paid { ai deep-research status --id $local_id -P } else { ai deep-research status --id $local_id })
+            }
+            print (echo-y "No history or local job found.")
+            return []
+        }
+
+        mut history = open $history_file
+        print (echo-g "Checking for updates on incomplete jobs...")
+        
+        $history = ($history | enumerate | each {|row|
+            let job = $row.item
+            if $all or ($job.status != "completed" and $job.status != "failed") {
+                try {
+                    # Call self with ID to perform API check and history update logic
+                    let updated = (if $paid { ai deep-research status --id $job.id -P } else { ai deep-research status --id $job.id })
+                    $job | merge { status: $updated.status }
+                } catch {
+                    $job
+                }
+            } else {
+                $job
+            }
+        })
+        
+        $history | save -f $history_file
+        return ($history | sort-by created_at -r)
+    }
+}
+
+# Retrieve results from a completed Gemini Deep Research session
+@category ai
+@search-terms gemini deep-research
+export def "ai deep-research retrieve" [
+    --id: string                            # specific interaction ID
+    --output(-o): string                    # output filename (default: report-<id>.md)
+    --paid(-P)                              # use paid API key
+] {
+    let interaction_id = if ($id | is-not-empty) {
+        $id
+    } else {
+        let history_file = ("~/Yandex.Disk/.gemini-deep-research-history.json" | path expand)
+        if not ($history_file | path exists) {
+            # Fallback to local config if history doesn't exist yet
+            if (".gemini-research.json" | path exists) {
+                open .gemini-research.json | get interaction_id
+            } else {
+                return-error "No ID provided and no history/local config found!"
+            }
+        } else {
+            let selection = (open $history_file 
+                | sort-by created_at -r 
+                | each {|row| { display: $"($row.created_at) - ($row.status): ($row.prompt | str substring 0..60)...", id: $row.id } }
+                | input list -d display "Select a research job to retrieve:")
+            
+            if ($selection | is-empty) { return }
+            $selection.id
+        }
+    }
+
+    let response = (if $paid { ai deep-research status --id $interaction_id -P } else { ai deep-research status --id $interaction_id })
+    
+    if $response.status != "completed" {
+        print (echo-y $"Research session ($interaction_id) is still ($response.status).")
+        return $response
+    }
+
+    # Robustly extract report text from response
+    mut report = ""
+    if ($response | get -o outputs | is-not-empty) {
+        # Handle 'outputs' field (used by some SDKs/Extensions)
+        $report = ($response.outputs | where type == "text" | each {|o| $o.text} | str join "\n\n")
+    } else if ($response | get -o steps | is-not-empty) {
+        # Handle 'steps' field (standard Interactions API structure)
+        $report = ($response.steps 
+            | where type == "model_output" 
+            | each {|s| $s.content | where type == "text" | each {|c| $c.text} } 
+            | flatten 
+            | str join "\n\n")
+    }
+
+    if ($report | is-empty) {
+        print (echo-r "Error: Could not find report content in the interaction response.")
+        print "Raw response structure:"
+        print ($response | columns)
+        return $response
+    }
+
+    let filename = if ($output | is-empty) { $"report-($interaction_id).md" } else { $output }
+
+    $report | save -f $filename
+    print (echo-g $"Research report saved to ($filename)")
+    
+    return {
+        id: $interaction_id,
+        status: $response.status,
+        filename: $filename,
+        report_preview: ($report | str substring 0..200)
+    }
+}
+
+# Respond to a research plan (Approve or give feedback)
+@category ai
+@search-terms gemini deep-research planning
+export def "ai deep-research plan-respond" [
+    feedback: string                        # your approval (e.g., "Approve") or feedback
+    --id: string                            # interaction ID (optional)
+    --paid(-P)                              # use paid API key
+] {
+    let interaction_id = if ($id | is-not-empty) {
+        $id
+    } else {
+        let history_file = ("~/Yandex.Disk/.gemini-deep-research-history.json" | path expand)
+        if not ($history_file | path exists) {
+            if (".gemini-research.json" | path exists) {
+                open .gemini-research.json | get interaction_id
+            } else {
+                return-error "No ID provided and no history/local config found!"
+            }
+        } else {
+            let history = open $history_file | where planning == true and status != "continued"
+            if ($history | is-empty) {
+                if (".gemini-research.json" | path exists) {
+                    open .gemini-research.json | get interaction_id
+                } else {
+                    return-error "No jobs with planning found in history!"
+                }
+            } else {
+                let selection = ($history 
+                    | sort-by created_at -r 
+                    | each {|row| { display: $"($row.created_at) - ($row.status): ($row.prompt | str substring 0..60)...", id: $row.id } }
+                    | input list -d display "Select a planning job to respond to:")
+                
+                if ($selection | is-empty) { return }
+                $selection.id
+            }
+        }
+    }
+
+    let apikey = if $paid {
+        get-api-key "google.gemini_paid"
+    } else {
+        get-api-key "google.gemini"
+    }
+
+    # Retrieve job details from history to get the agent/model
+    let history_file = ("~/Yandex.Disk/.gemini-deep-research-history.json" | path expand)
+    let job = if ($history_file | path exists) {
+        open $history_file | where id == $interaction_id | first
+    } else {
+        { agent: "deep-research-preview-04-2026" } # Fallback
+    }
+
+    let url_request = {
+        scheme: "https",
+        host: "generativelanguage.googleapis.com",
+        path: "/v1beta/interactions", # Correct endpoint: base /interactions
+        params: { key: $apikey }
+    } | url join
+
+    let request = {
+        input: $feedback,
+        agent: $job.agent,
+        previous_interaction_id: $interaction_id,
+        agent_config: {
+            type: "deep-research",
+            collaborative_planning: false
+        },
+        background: true,
+        store: true
+    }
+
+    print (echo-g $"Sending plan response for interaction: ($interaction_id)...")
+    
+    let response = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $request -e
+
+    if ($response | describe | str starts-with "string") {
+        return-error ("API returned a non-JSON response: " + $response)
+    }
+
+    if ($response | get -o error | is-not-empty) {
+        return-error $response.error.message
+    }
+
+    # Update local config with the NEW continuation ID
+    { interaction_id: $response.id } | save -f .gemini-research.json
+    
+    # Update global history: Mark the OLD job as 'continued' and log the NEW job ID
+    if ($history_file | path exists) {
+        mut history = open $history_file
+        
+        # 1. Update the original plan job
+        $history = ($history | each {|job| 
+            if $job.id == $interaction_id { 
+                $job | merge { status: "continued" } 
+            } else { 
+                $job 
+            } 
+        })
+
+        # 2. Add the new execution job
+        let history_entry = {
+            id: $response.id,
+            prompt: $job.prompt,
+            agent: $job.agent,
+            created_at: (date now | format date "%Y-%m-%dT%H:%M:%SZ"),
+            status: "in_progress",
+            planning: false
+        }
+        $history = ($history | append $history_entry)
+        $history | save -f $history_file
+    }
+    
+    return $response
+}
