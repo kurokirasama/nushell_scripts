@@ -215,7 +215,14 @@ export def google_ai [
       let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriate for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $chat_prompt + "\n'''"
 
       let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
-      let web_content = if $web_search { web_search $search -n $web_results -m -v -e $web_engine } else {""}
+      let web_content = if $web_search { 
+          try {
+              web_search $search -n $web_results -m -v -e $web_engine 
+          } catch {|e|
+              print (echo-r $"Web search failed: ($e.msg)")
+              "" # Just continue without web content in chat mode
+          }
+      } else {""}
       let web_content = if $web_search and $web_engine == "google" { ai google_search-summary $chat_prompt $web_content -m -M "gemini" } else {$web_content}
 
       $chat_prompt = (
@@ -300,7 +307,13 @@ export def google_ai [
   #search prompts
   let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
   let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
-  let web_content = if $web_search { web_search $search -n $web_results -mv -e $web_engine } else {""}
+  let web_content = if $web_search { 
+      try {
+          web_search $search -n $web_results -mv -e $web_engine 
+      } catch {|e|
+          return (echo-r $"Web search failed: ($e.msg)")
+      }
+  } else {""}
   let web_content = if $web_search and $web_engine == "google" { ai google_search-summary $prompt $web_content -m -M "gemini" } else {$web_content}
   
   let prompt = if $web_search {

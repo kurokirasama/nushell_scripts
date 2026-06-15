@@ -118,7 +118,11 @@ export def chat_gpt [
   let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
   
   let web_content = if $web_search {
-      web_search $search -n $web_results -m -v -e $web_engine
+      try {
+          web_search $search -n $web_results -m -v -e $web_engine
+      } catch {|e|
+          return (echo-r $"Web search failed: ($e.msg)")
+      }
   } else {""}
   
   let web_content = if $web_search and $web_engine == "google" {

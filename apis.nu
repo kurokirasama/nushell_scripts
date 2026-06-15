@@ -452,8 +452,12 @@ export def google_search [
     | url join
     | http get $in -e
 
+    if ($response | get -o error | is-not-empty) {
+      return-error $"Google API Error: ($response.error.message)"
+    }
+
     if "items" not-in ($response | columns) {
-      return-error "empty search result!"
+      return-error "No results found for your query. Please try a different search or check your connection."
     }
 
     let search_result = $response
@@ -723,28 +727,36 @@ export def ollama_search [
   --verbose(-v) = false
 ] {
   let url = "https://ollama.com/api/web_search"
-  let data = {query: $query, max_results: $max_results} | to json
+  let body = {query: $query, max_results: $max_results}
 
   if $verbose {print (echo-g $"searching the web: ($query)")}
 
   let ollama_key = get-api-key "ollama"
-  let response = http post $url -H { Authorization: $"Bearer ($ollama_key)" } $data -e
-    
-  if ($response | get error? | is-not-empty) {
-    return-error $"Error: ($response.error)"
+  mut response = try {
+    http post -t application/json $url -H { Authorization: $"Bearer ($ollama_key)" } $body -e
+  } catch {|e|
+    return-error $"Ollama search connection failed: ($e.msg)"
+  }
+
+  if ($response | describe) == "string" {
+    $response = ($response | from json)
+  }
+
+  if ($response | get -o error | is-not-empty) {
+    return-error $"Ollama API Error: ($response.error)"
   } 
-  
+
   if $md {
     mut md_output = ""
-  
+
     for i in 0..(($response.results | length) - 1) {
       let web = $response.results | get $i
-          
+
       $md_output = $md_output + "# " + $web.title + "\n"
       $md_output = $md_output + "link: " + $web.url + "\n\n"
       $md_output = $md_output + $web.content + "\n\n"
     }
-  
+
     return $md_output
 } 
 
@@ -763,16 +775,25 @@ export def web_search [
     if $engine not-in ["ollama", "google"] {
         return-error $"Invalid engine: ($engine)"
     }
-    
+
     if $engine == "google" {
-        return (google_search $query --max-results $max_results --md $md --verbose $verbose)
-        
+        try {
+            return (google_search $query --max-results $max_results --md $md --verbose $verbose)
+        } catch {|e|
+            return-error $"Google search failed: ($e.msg)"
+        }
     }
-    
     try {
         ollama_search $query --max-results $max_results --md $md --verbose $verbose
     } catch {|e|
-        print (echo-c $"ollama web search failed: ($e.msg)" "orange")
-        google_search $query --max-results $max_results --md $md --verbose $verbose
+        if $verbose { print "CAUGHT OLLAMA ERROR" }
+        try {
+            google_search $query --max-results $max_results --md $md --verbose $verbose
+        } catch {|ge|
+            if $verbose { print "CAUGHT GOOGLE ERROR" }
+            let o_err = (try { $e.msg } catch { $e | to json })
+            let g_err = (try { $ge.msg } catch { $ge | to json })
+            return-error $"Web search failed. Ollama: ($o_err). Google: ($g_err)"
+        }
     }
 }
