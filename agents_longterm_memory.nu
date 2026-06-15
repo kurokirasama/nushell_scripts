@@ -293,11 +293,7 @@ export def agent-self-improve [] {
         $"Project: ($m.project_name)\nDate: ($m.last_updated)\nSlug: ($m.slug)\nSummary:\n($m.recent_body)\n---"
     } | str join "\n"
     
-    let prompt = [
-        "You are an expert Semantic Memory Curator."
-        "Below is the current global semantic memory (BRAIN.md), agent identity (SOUL.md), and the recent unconsolidated episodic memories."
-        "Your task is to consolidate the new information, deduplicate entries, clean up formatting, and output the new BRAIN.md, SOUL.md, and a very condensed log message summarizing what changed."
-        ""
+    let context = [
         "=== CURRENT BRAIN ==="
         $brain_content
         ""
@@ -306,19 +302,10 @@ export def agent-self-improve [] {
         ""
         "=== UNCONSOLIDATED MEMORIES ==="
         $memories_text
-        ""
-        "Please output the result using these exact markers:"
-        "=== NEW BRAIN ==="
-        "[new BRAIN.md content following its schema]"
-        "=== NEW SOUL ==="
-        "[new SOUL.md content following its schema]"
-        "=== LOG ==="
-        "[condensed log summary, max 100 chars, e.g. Updated active projects; added behavioral rule for MATLAB]"
     ] | str join "\n"
     
-    # Refactored: Use native askai -G command instead of external gemini CLI
-    print $"Calling askai -G to consolidate memories..."
-    let output = $prompt | askai -G
+    print $"Calling google_ai to consolidate memories..."
+    let output = $context | google_ai --select_system semantic_memory_curator --select_preprompt semantic_memory_curator
     if ($output | is-empty) {
         print "Error: AI command returned empty output."
         exit 1
@@ -435,38 +422,28 @@ export def agent-skill-developer [] {
     let draft_file = [$draft_dir $"($today).md"] | path join
     
     if not ($draft_file | path exists) {
-        let prompt = [
-            "You are an expert Agent Skill Developer."
-            "Analyze the aggregated CLI history below from multiple AI assistants (Antigravity, Gemini CLI, Claude Code)."
-            "Detect useful patterns or repetitive tasks across these tools, and create a detailed plan for new skills."
-            "The plan must be a markdown file with Name, Purpose, Origin, and Detailed Implementation Plan (including SKILL.md template, prompts, scripts, tools, and folder structure) for each proposed skill."
-            ""
+        let context = [
             "=== AGGREGATED HISTORY ==="
             $history_text
             ""
-            "Please output the plan in markdown format. It MUST start with this exact frontmatter block:"
-            "---"
-            $"date: ($today)"
-            "summary: \"Brief paragraph summarizing what tasks/patterns were detected across sources and why these skills are proposed.\""
-            "status: \"Pending Approval\""
-            "implemented: false"
-            "---"
-            ""
-            "In the content, create 1 section for each proposed skill. Design the skills following the standards (hyphen-case, YAML frontmatter, etc.)."
-            "At the end, include this exact section for user sign-off:"
-            "## Approval"
-            "- [ ] Approved"
-            "- [ ] Not Approved"
-            "- [ ] Partially approved"
-            ""
-            "## Observations"
+            "=== METADATA ==="
+            $"Today: ($today)"
         ] | str join "\n"
         
-        print "Calling askai -G to generate skill proposal..."
-        let proposal = $prompt | askai -G
+        print "Calling google_ai to generate skill proposal..."
+        let proposal = $context | google_ai --select_system agent_skill_developer --select_preprompt agent_skill_developer_draft
         if ($proposal | is-not-empty) {
             $proposal | save -f $draft_file
             print $"Created skill plan at ($draft_file)"
+            
+            # Habitica Integration: Draft Notification
+            try {
+                let summary = $proposal | parse --regex 'summary: "(?P<text>.*?)"' | get 0.text? | default "New skill ideas detected"
+                let todo_title = $"new skill draft: ($summary | str substring 0..50)..."
+                habitica todos add $todo_title
+            } catch {
+                print "Warning: Failed to add Habitica todo for skill draft."
+            }
         }
     } else {
         print $"Skill plan for ($today) already exists. Skipping drafting."
@@ -490,19 +467,13 @@ export def agent-skill-developer [] {
         if $is_approved and not $implemented {
             print $"Found approved plan: ($draft). Implementing..."
             
-            let prompt = [
-                "You are an expert Agent Skill Developer."
-                "Below is an approved skill development plan. Your task is to generate the complete codebase for all approved skills in the plan."
-                "For each file that needs to be created, output it using this exact marker format:"
-                "=== FILE: skills/[skill-name]/[filename] ==="
-                "[complete file contents]"
-                ""
-                "=== PLAN ==="
+            let context = [
+                "=== APPROVED PLAN ==="
                 $content
             ] | str join "\n"
             
-            print "Calling askai -G to scaffold files..."
-            let scaffold_out = $prompt | askai -G
+            print "Calling google_ai to scaffold files..."
+            let scaffold_out = $context | google_ai --select_system agent_skill_developer --select_preprompt agent_skill_developer_implement
             if ($scaffold_out | is-empty) {
                 print "Error: Scaffold output was empty."
                 continue
@@ -534,9 +505,39 @@ export def agent-skill-developer [] {
             $created_skills = ($created_skills | uniq)
             
             print "Linking new skills to Gemini CLI..."
-            let skill_dir = [$repo_root "skills"] | path join
-            let link_res = (do -i { gemini skills link $skill_dir --consent } | complete)
-            print $link_res.stdout
+            # Updated: Use link-skills (Nushell command) instead of gemini skills link
+            try {
+                link-skills
+            } catch {
+                print "Warning: link-skills command failed or not found."
+            }
+            
+            # Habitica Integration: Skill Created Notification
+            for skill in $created_skills {
+                try {
+                    # Try to find description and type in the plan
+                    let pattern = ('(?s)## .*?' + $skill + '.*?\n(?P<section>.*?)(?:\n##|$)')
+                    let matches = ($content | parse --regex $pattern)
+                    let skill_section = if ($matches | is-not-empty) { $matches | get 0.section } else { "" }
+                    let is_cron = ($skill | str starts-with "cron-")
+                    let type_str = if $is_cron { "Cron" } else { "On-Demand" }
+                    let regularity = if $is_cron { $skill_section | parse --regex 'Frequency: (?P<freq>.*)' | get 0.freq? | default "Not specified" } else { "N/A" }
+                    let description = $skill_section | parse --regex 'Purpose: (?P<desc>.*)' | get 0.desc? | default "No description provided"
+                    
+                    let todo_title = $"new skill created: ($skill), use link-skills in deathnote and lenovo"
+                    let todo_note = [
+                        $"Type: ($type_str)"
+                        $"Regularity: ($regularity)"
+                        ""
+                        "Description:"
+                        $description
+                    ] | str join "\n"
+                    
+                    habitica todos add $todo_title --notes $todo_note
+                } catch {
+                    print $"Warning: Failed to add Habitica todo for skill: ($skill)"
+                }
+            }
             
             let updated_content = $content
                 | str replace --regex 'implemented:\s*false' 'implemented: true'
