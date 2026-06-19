@@ -834,10 +834,12 @@ export def system-cleanup [
 
     # Language Specific
     let lang_tools = [
-        { name: "uv", cmd: "uv cache clean", path: $"($cache_dir)/uv" }
-        { name: "pip", cmd: "rm -rf ~/.cache/pip/*", path: $"($cache_dir)/pip" }
-        { name: "npm", cmd: "npm cache clean --force", path: $"($cache_dir)/npm" }
-        { name: "stack", cmd: "stack purge", path: $"($cache_dir)/stack" }
+        { name: "uv", cmd: "uv cache prune", msg: "uv cache prune" }
+        { name: "uv", cmd: "uv cache clean", msg: "uv cache clean" }
+        { name: "pip", cmd: "pip cache purge", msg: "pip cache purge" }
+        { name: "pip", cmd: "rm -rf ~/.cache/pip/*", msg: "pip manual cache removal" }
+        { name: "npm", cmd: "npm cache clean --force", msg: "npm cache clean" }
+        { name: "stack", cmd: "stack purge", msg: "stack purge" }
     ]
 
     for tool in $lang_tools {
@@ -845,8 +847,16 @@ export def system-cleanup [
             if $dry_run {
                 print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would run '($tool.cmd)'")
             } else {
-                print ((echo-r 'Running:') + $" ($tool.cmd)")
-                ^bash -c $tool.cmd
+                print ((echo-r 'Running:') + $" ($tool.msg)...")
+                let res = (do { ^bash -c $tool.cmd } | complete)
+                if $res.exit_code == 0 {
+                    print (echo-g $"($tool.msg) successfully")
+                } else {
+                    print (echo-y $"($tool.msg) failed")
+                    if ($res.stderr | is-not-empty) {
+                        print $res.stderr
+                    }
+                }
             }
         }
     }

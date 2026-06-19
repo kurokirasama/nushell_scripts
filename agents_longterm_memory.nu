@@ -176,6 +176,114 @@ def get-init-metadata [path: path, vault: path]: nothing -> any {
     { project_name: $project_name, absolute_path: ($project_dir | into string), description: $description, uses_conductor: $uses_conductor, uses_git: $uses_git, slug: $slug }
 }
 
+# Audition a skill by running audit and iteratively fixing issues via AI.
+def audition-skill [skill_path: path, draft_file: path] {
+    let skill_path = $skill_path | path expand
+    let draft_file = $draft_file | path expand
+    let audit_script = "/home/kira/Yandex.Disk/llms_configs/scripts/audit-skill.nu"
+    
+    mut iterations = 0
+    mut history = []
+    
+    loop {
+        if $iterations >= 5 {
+            print (echo-y $"Max iterations (5) reached for skill: ($skill_path). Persisting history to draft.")
+            let audit_history_text = $history | each { |h|
+                $"Iteration ($h.iter):\nAudit: ($h.audit)\nPlan: ($h.plan)\n---"
+            } | str join "\n"
+            
+            let draft_content = open --raw $draft_file
+            let updated_draft = $"($draft_content)\n\n### Audition Failure History\nSkill: ($skill_path)\n($audit_history_text)"
+            $updated_draft | save -f $draft_file
+            break
+        }
+        
+        $iterations = $iterations + 1
+        print (echo-g $"Audition Iteration ($iterations) for ($skill_path | path basename)...")
+        
+        # 1. Run Static Audit
+        let audit_res = try {
+            # Use nu command to get JSON output reliably
+            nu --config /home/kira/.config/nushell/config.nu --env-config /home/kira/.config/nushell/env.nu -c $"source ($audit_script); audit ($skill_path) | to json" | from json
+        } catch {
+            { pass: false, errors: ["Failed to execute audit-skill.nu script"] }
+        }
+        
+        if $audit_res.pass {
+            print (echo-g "Skill passed audit!")
+            break
+        }
+        
+        # 2. AI Analysis & Fix Plan
+        let skill_content = glob ([$skill_path "**" "*"] | path join)
+            | each { |f| 
+                if ($f | path type) == "file" {
+                    let rel = $f | path relative-to $skill_path
+                    $"=== FILE: ($rel) ===\n(open --raw $f)"
+                } else { null }
+            } | compact | str join "\n\n"
+            
+        let iter_history_text = $history | each { |h| $"Iter ($h.iter) Plan: ($h.plan)" } | str join "\n"
+        
+        let analysis_context = [
+            $"[AUDIT_OUTPUT]\n($audit_res | to yaml)"
+            $"[SKILL_CONTENT]\n($skill_content)"
+            $"[ITERATION_HISTORY]\n($iter_history_text)"
+        ] | str join "\n"
+        
+        print (echo-c "Analyzing audit failures..." "cyan")
+        let fix_plan = try {
+            google_ai $analysis_context --select_system agent_skill_developer --select_preprompt audition_analysis
+        } catch { "" }
+        
+        if ($fix_plan | is-empty) or ($fix_plan | str contains "NO ERRORS DETECTED") {
+            print (echo-y "AI determined no further errors or failed to respond.")
+            break
+        }
+        
+        # 3. AI Implementation
+        let fix_context = [
+            $"[FIX_PLAN]\n($fix_plan)"
+            $"[SKILL_CONTENT]\n($skill_content)"
+        ] | str join "\n"
+        
+        print (echo-c "Applying fixes..." "cyan")
+        let updated_scaffold = try {
+            google_ai $fix_context --select_system agent_skill_developer --select_preprompt audition_fix
+        } catch { "" }
+        
+        if ($updated_scaffold | is-empty) {
+            print (echo-r "Error: AI returned empty fix scaffold. Breaking loop.")
+            break
+        }
+        
+        # Parse and save updated files
+        let files_data = $updated_scaffold | parse --regex '(?s)=== FILE:\s*skills/(?P<skill_name>.*?)/(?P<filename>.*?)\s*===\s*\n(?P<filecontent>.*?)(?:\n=== FILE:|$)'
+        
+        if ($files_data | is-empty) {
+            print (echo-r "Error: No files parsed from fix scaffold. Breaking loop.")
+            break
+        }
+        
+        for file in $files_data {
+            let full_path = [$skill_path $file.filename] | path join
+            try {
+                $file.filecontent | str trim | save -f $full_path
+                print (echo-g $"Updated: ($file.filename)")
+            } catch {
+                print (echo-r $"Failed to save updated file: ($file.filename)")
+            }
+        }
+        
+        # Track history
+        $history = ($history | append {
+            iter: $iterations,
+            audit: ($audit_res | to yaml),
+            plan: $fix_plan
+        })
+    }
+}
+
 # Helper to clean markdown blocks wrapped by LLMs (e.g. ```markdown)
 def clean-markdown-block []: string -> string {
     let content = $in | str trim
@@ -304,53 +412,22 @@ export def agent-self-improve [] {
         $memories_text
     ] | str join "\n"
     
+    if ($context | is-empty) {
+        print "Error: Context is empty. Aborting memory consolidation."
+        exit 1
+    }
+
     print $"Calling google_ai to consolidate memories..."
-    let output = $context | google_ai --select_system semantic_memory_curator --select_preprompt semantic_memory_curator
+    let output = google_ai $context --select_system memory_log_summarizer --select_preprompt memory_log_summarizer
     if ($output | is-empty) {
         print "Error: AI command returned empty output."
         exit 1
     }
     
     # Parse the output
-    let brain_match = $output | parse --regex '(?s)=== NEW BRAIN ===\s*\n(?P<content>.*?)(?:\n===|$)'
-    let soul_match = $output | parse --regex '(?s)=== NEW SOUL ===\s*\n(?P<content>.*?)(?:\n===|$)'
-    let log_match = $output | parse --regex '(?s)=== LOG ===\s*\n(?P<content>.*?)(?:\n===|$)'
+    let log_msg = $output | str trim
     
-    if ($brain_match | is-empty) or ($soul_match | is-empty) {
-        print "Error: Failed to parse BRAIN or SOUL updates from response."
-        print $"Raw Output:\n($output)"
-        exit 1
-    }
-    
-    let new_brain = $brain_match | get 0.content | clean-markdown-block
-    let new_soul = $soul_match | get 0.content | clean-markdown-block
-    let log_msg = if ($log_match | is-empty) { "Consolidated global memories" } else { $log_match | get 0.content | str trim }
-    
-    # Create backups
-    let brain_bak = $"($brain_path).bak"
-    let soul_bak = $"($soul_path).bak"
 
-    try {
-        cp $brain_path $brain_bak
-        cp $soul_path $soul_bak
-
-        # Write files
-        $new_brain | save -f $brain_path
-        $new_soul | save -f $soul_path
-        
-        # Remove backups on success
-        rm $brain_bak
-        rm $soul_bak
-    } catch { |err|
-        # Restore backups on failure
-        if ($brain_bak | path exists) {
-            mv -f $brain_bak $brain_path
-        }
-        if ($soul_bak | path exists) {
-            mv -f $soul_bak $soul_path
-        }
-        error make { msg: $"Failed to save BRAIN/SOUL updates: ($err.msg)" }
-    }
     
     # Write to log.log
     let timestamp = date now | format date "%Y-%m-%d %H:%M:%S"
@@ -404,23 +481,227 @@ export def agent-self-improve [] {
     print "Memory self-improvement completed successfully!"
 }
 
+# Helper to update processed_drafts.md with rejected skills
+def update-rejected-registry [rejected_skills: list<record>, processed_dir: path] {
+    let registry_file = [$processed_dir "processed_drafts.md"] | path join
+    mut md_content = if ($registry_file | path exists) { open --raw $registry_file } else { "# Processed (Rejected) Skills\n\n" }
+    
+    for skill in $rejected_skills {
+        if not ($md_content =~ $"### `($skill.name)`") {
+            let desc_match = $skill.section | parse --regex '(?i)\*?\*?Purpose\*?\*?:\s*(?P<desc>.*)'
+            let desc = if ($desc_match | is-not-empty) { $desc_match.0.desc | str trim } else { "No description provided" }
+            $md_content = ($md_content + $"### `($skill.name)`\n($desc)\n\n")
+        }
+    }
+    $md_content | save -f $registry_file
+}
+
 export def agent-skill-developer [] {
     let vault = (get-vault)
-    let draft_dir = [$vault "_draft_skills"] | path join
+    let draft_dir = [$vault "AGENTS_MEMORY" "_draft_skills"] | path join
     if not ($draft_dir | path exists) { mkdir $draft_dir }
     
-    # --- PHASE 1: ANALYZE AND CREATE DRAFT PLANS ---
-    print "Running Phase 1: Analyzing aggregated CLI history..."
-    let history_text = aggregate-history 100
+    let processed_dir = [$draft_dir "processed_drafts"] | path join
+    if not ($processed_dir | path exists) { mkdir $processed_dir }
+
+    # --- PHASE 1: IMPLEMENT APPROVED PLANS (Now Step 1) ---
+    print "Running Phase 1: Scanning for approved skill plans..."
+    let drafts = glob ([$draft_dir "*.md"] | path join) | each { |f| $f | into string }
     
+    for draft in $drafts {
+        let content = open --raw $draft
+        let fm = parse-frontmatter $content
+        if $fm == null { continue }
+
+        let implemented = try { $fm.implemented } catch { false }
+        if $implemented {
+            mv $draft $processed_dir
+            continue
+        }
+
+        # Extract individual skill sections
+        let skill_sections = $content | parse --regex '(?s)### \d+\. `(?P<name>.*?)`\n(?P<section>.*?)(?=\n### \d+\. `|\n## Observations|$)'
+        
+        mut approved_skills_in_draft = []
+        mut rejected_skills_in_draft = []
+        
+        for skill in $skill_sections {
+            let is_approved = ($skill.section =~ '-\s*\[x\]\s*Approved')
+            let is_rejected = ($skill.section =~ '-\s*\[x\]\s*Not Approved')
+            
+            if $is_approved {
+                $approved_skills_in_draft = ($approved_skills_in_draft | append { name: $skill.name, section: $skill.section })
+            } else if $is_rejected {
+                $rejected_skills_in_draft = ($rejected_skills_in_draft | append { name: $skill.name, section: $skill.section })
+            }
+        }
+
+        # Check if all skills in the draft have been handled
+        let all_processed = ($skill_sections | is-not-empty) and (($approved_skills_in_draft | length) + ($rejected_skills_in_draft | length) == ($skill_sections | length))
+
+        # 1. Handle rejected skills (Update registry)
+        if ($rejected_skills_in_draft | is-not-empty) {
+            update-rejected-registry $rejected_skills_in_draft $processed_dir
+        }
+
+        # 2. Handle approved skills (Implement)
+        if ($approved_skills_in_draft | is-not-empty) {
+            print $"Found approved skills in draft: ($draft). Implementing..."
+
+            let context = [
+                "=== APPROVED PLAN ==="
+                $"Date: ($fm.date? | default "Unknown")"
+                "## Approved Skills"
+            ] | append ($approved_skills_in_draft | each { |s| $"### `($s.name)`\n($s.section)" }) | str join "\n"
+
+            print "Calling google_ai to scaffold files..."
+            let scaffold_out = $context | google_ai --select_system agent_skill_developer --select_preprompt agent_skill_developer_implement
+            
+            if ($scaffold_out | is-not-empty) {
+                let files_data = $scaffold_out | parse --regex '(?s)=== FILE:\s*(?P<filepath>skills/.*?)\s*===\s*\n(?P<filecontent>.*?)(?:\n=== FILE:|$)'
+
+                if ($files_data | is-not-empty) {
+                    mut created_skills = []
+                    let repo_root = try { $env.MY_ENV_VARS.llms_configs } catch { "~/Yandex.Disk/llms_configs" } | path expand
+                    for file in $files_data {
+                        let rel_path = $file.filepath | str trim
+                        let full_path = [$repo_root $rel_path] | path join
+                        let dir = $full_path | path dirname
+                        if not ($dir | path exists) { mkdir $dir }
+
+                        let file_content = $file.filecontent | str trim
+                        $file_content | save -f $full_path
+                        print $"Created file: ($rel_path)"
+
+                        let skill_name = $rel_path | split row "/" | get 1
+                        $created_skills = ($created_skills | append $skill_name)
+                    }
+                    $created_skills = ($created_skills | uniq)
+
+                    for skill in $created_skills {
+                        let skill_path = [$repo_root "skills" $skill] | path join
+                        if ($skill_path | path exists) {
+                            audition-skill $skill_path $draft
+                        }
+                    }
+
+                    print "Linking new skills to Gemini CLI..."
+                    try { link-skills } catch { print "Warning: link-skills failed." }
+
+                    # Habitica Integration: Skill Created Notification
+                    let today = date now | format date "%Y-%m-%d"
+                    for skill in $created_skills {
+                        try {
+                            let pattern = ('(?s)## .*?' + $skill + '.*?\n(?P<section>.*?)(?:\n##|$)')
+                            let matches = ($content | parse --regex $pattern)
+                            let skill_section = if ($matches | is-not-empty) { $matches | get 0.section } else { "" }
+                            let is_cron = ($skill | str starts-with "cron-")
+                            let type_str = if $is_cron { "Cron" } else { "On-Demand" }
+                            
+                            let regularity_match = $skill_section | parse --regex '(?i)\*?\*?Frequency\*?\*?:\s*(?P<freq>.*)'
+                            let regularity = if $is_cron and ($regularity_match | is-not-empty) { $regularity_match.0.freq | str trim } else { "N/A" }
+                            
+                            let purpose_match = $skill_section | parse --regex '(?i)\*?\*?Purpose\*?\*?:\s*(?P<desc>.*)'
+                            let description = if ($purpose_match | is-not-empty) { $purpose_match.0.desc | str trim } else { "No description provided" }
+
+                            let todo_title = $"new skill created: ($skill), use link-skills in deathnote and lenovo"
+                            let todo_note = [
+                                $"Type: ($type_str)"
+                                $"Regularity: ($regularity)"
+                                ""
+                                "Description:"
+                                $description
+                            ] | str join "\n"
+
+                            h add todos --text $todo_title --notes $todo_note --priority 1.0 --due "" --checklist []
+                        } catch {
+                            print $"Warning: Failed to add Habitica todo for skill: ($skill)"
+                        }
+                    }
+                    
+                    let updated_content = $content
+                        | str replace --regex 'implemented:\s*false' 'implemented: true'
+                        | str replace --regex 'status:\s*".*?"' 'status: "Approved"'
+                    $updated_content | save -f $draft
+                    
+                    # Log and library update logic...
+                    let log_path = [$vault "AGENTS_MEMORY" "log.log"] | path join
+                    let current_log_content = if ($log_path | path exists) { open --raw $log_path | lines | take 50 | str join "\n" } else { "" }
+
+                    let ai_context_for_summary = [
+                        "=== EXISTING LOG SNIPPET ==="
+                        $current_log_content
+                        ""
+                        "=== CREATED SKILLS ==="
+                        ($created_skills | to json) # Pass as JSON for structured input
+                        ""
+                        "=== SCAFFOLDING OUTPUT ==="
+                        $scaffold_out # The raw output of scaffolding
+                    ] | str join "\n"
+
+                    let skill_list = $created_skills | str join ", " # NEW LOCATION
+                    mut log_msg = google_ai $ai_context_for_summary --select_system memory_log_summarizer --select_preprompt memory_log_summarizer | str trim
+                    if ($log_msg | is-empty) {
+                        print "Warning: AI command for skill log summary returned empty output. Using default message."
+                        $log_msg = $"Implemented approved skills from plan: ($skill_list)"
+                    }
+                    
+                    let timestamp = date now | format date "%Y-%m-%d %H:%M:%S"
+
+                    let log_entry = $"[($timestamp)] [SKILLS] ($log_msg)\n"
+                    if ($log_path | path exists) {
+                        let current_log = open --raw $log_path
+                        $"($log_entry)($current_log)" | save -f $log_path
+                    } else {
+                        $log_entry | save -f $log_path
+                    }
+                    
+                    let project_dir = [$vault "AGENTS_MEMORY" "gemini_cli_expert_skill_library"] | path join
+                    if not ($project_dir | path exists) { mkdir $project_dir }
+                    let today_file = [$project_dir $"($today).md"] | path join
+                    let daily_entry = [
+                        "### Skill Implementation"
+                        $"Implemented and linked approved skills: ($skill_list)"
+                        ("- Plan file: [" + ($draft | path basename) + "](file://" + ($draft | into string) + ")")
+                    ] | str join "\n"
+                    if ($today_file | path exists) {
+                        let current_daily = open --raw $today_file
+                        $"($current_daily)\n\n($daily_entry)" | save -f $today_file
+                    } else {
+                        $daily_entry | save -f $today_file
+                    }
+                    
+                    let index_file = [$project_dir "gemini_cli_expert_skill_library.md"] | path join
+                    if ($index_file | path exists) {
+                        let index_content = open --raw $index_file
+                        let updated_content_idx = $index_content | str replace --regex 'last_updated:\s*["'']?\d{4}-\d{2}-\d{2}["'']?' $"last_updated: ($today)"
+                        $updated_content_idx | save -f $index_file
+                    }
+                    
+                    print $"Plan ($draft) successfully implemented!"
+                }
+            }
+        }
+
+        # 3. Final Archiving
+        if $all_processed {
+            print $"All skills in ($draft) have been handled. Archiving..."
+            mv $draft $processed_dir
+        }
+    }
+
+    # --- PHASE 2: ANALYZE AND CREATE DRAFT PLANS (Now Step 2) ---
+    print "Running Phase 2: Analyzing aggregated CLI history..."
+    let history_text = aggregate-history 100
+
     if ($history_text | is-empty) {
         print "No CLI history found across sources."
         return
     }
-    
+
     let today = date now | format date "%Y-%m-%d"
     let draft_file = [$draft_dir $"($today).md"] | path join
-    
+
     if not ($draft_file | path exists) {
         let context = [
             "=== AGGREGATED HISTORY ==="
@@ -429,156 +710,53 @@ export def agent-skill-developer [] {
             "=== METADATA ==="
             $"Today: ($today)"
         ] | str join "\n"
-        
+
         print "Calling google_ai to generate skill proposal..."
-        let proposal = $context | google_ai --select_system agent_skill_developer --select_preprompt agent_skill_developer_draft
+        let proposal = google_ai $context --select_system agent_skill_developer --select_preprompt agent_skill_developer_draft
+        
         if ($proposal | is-not-empty) {
-            $proposal | save -f $draft_file
-            print $"Created skill plan at ($draft_file)"
+            # --- FILTERING STEP ---
+            print "Filtering proposal against active and rejected skills..."
+            let available_file = [$vault "AGENTS_MEMORY" "available_skills.md"] | path join
+            let available_list = if ($available_file | path exists) { open --raw $available_file } else { "No available skills file found." }
             
-            # Habitica Integration: Draft Notification
-            try {
-                let summary = $proposal | parse --regex 'summary: "(?P<text>.*?)"' | get 0.text? | default "New skill ideas detected"
-                let todo_title = $"new skill draft: ($summary | str substring 0..50)..."
-                habitica todos add $todo_title
-            } catch {
-                print "Warning: Failed to add Habitica todo for skill draft."
+            let rejected_file = [$processed_dir "processed_drafts.md"] | path join
+            let rejected_list = if ($rejected_file | path exists) { open --raw $rejected_file } else { "No rejected skills file found." }
+            
+            let filter_context = [
+                "You are a skill filter expert. Below is a new skill proposal draft. Compare it against the list of 'Available Skills' (already active) and 'Processed/Rejected Skills' (previously discarded)."
+                "Remove any skills from the proposal that are already active or were rejected. Keep only truly novel ideas."
+                "Return the final filtered proposal in the same markdown format. If no new skills remain, return only the string: NO_NEW_SKILLS"
+                ""
+                "=== NEW PROPOSAL ==="
+                $proposal
+                ""
+                "=== AVAILABLE SKILLS ==="
+                $available_list
+                ""
+                "=== REJECTED SKILLS ==="
+                $rejected_list
+            ] | str join "\n"
+            
+            let filtered_proposal = google_ai $filter_context --select_system agent_skill_developer
+            
+            if ($filtered_proposal | is-not-empty) and ($filtered_proposal | str trim) != "NO_NEW_SKILLS" {
+                $filtered_proposal | save -f $draft_file
+                print $"Created filtered skill plan at ($draft_file)"
+
+                # Habitica Integration: Draft Notification
+                try {
+                    let summary = $filtered_proposal | parse --regex 'summary: "(?P<text>.*?)"' | get 0.text? | default "New skill ideas detected"
+                    let todo_title = $"new skill draft: ($summary | str substring 0..50)..."
+                    h add todos --text $todo_title --priority 1.0 --notes "" --due "" --checklist []
+                } catch {
+                    print "Warning: Failed to add Habitica todo for skill draft."
+                }
+            } else {
+                print "No novel skill ideas remaining after filtering."
             }
         }
     } else {
         print $"Skill plan for ($today) already exists. Skipping drafting."
-    }
-    
-    # --- PHASE 2: IMPLEMENT APPROVED PLANS ---
-    print "Running Phase 2: Scanning for approved skill plans..."
-    let drafts = glob ([$draft_dir "*.md"] | path join)
-        | each { |f| $f | into string }
-    
-    for draft in $drafts {
-        let content = open --raw $draft
-        let fm = parse-frontmatter $content
-        if $fm == null { continue }
-        
-        let status = try { $fm.status | str downcase } catch { "" }
-        let implemented = try { $fm.implemented } catch { false }
-        
-        let is_approved = ($status == "approved" or $status == "partially approved" or ($content =~ '-\s*\[x\]\s*Approved' or $content =~ '-\s*\[x\]\s*Partially approved'))
-        
-        if $is_approved and not $implemented {
-            print $"Found approved plan: ($draft). Implementing..."
-            
-            let context = [
-                "=== APPROVED PLAN ==="
-                $content
-            ] | str join "\n"
-            
-            print "Calling google_ai to scaffold files..."
-            let scaffold_out = $context | google_ai --select_system agent_skill_developer --select_preprompt agent_skill_developer_implement
-            if ($scaffold_out | is-empty) {
-                print "Error: Scaffold output was empty."
-                continue
-            }
-            
-            let files_data = $scaffold_out | parse --regex '(?s)=== FILE:\s*(?P<filepath>skills/.*?)\s*===\s*\n(?P<filecontent>.*?)(?:\n=== FILE:|$)'
-            
-            if ($files_data | is-empty) {
-                print "Error: No files parsed from scaffold output."
-                print $"Raw Output:\n($scaffold_out)"
-                continue
-            }
-            
-            mut created_skills = []
-            let repo_root = try { $env.MY_ENV_VARS.llms_configs } catch { "~/Yandex.Disk/llms_configs" } | path expand
-            for file in $files_data {
-                let rel_path = $file.filepath | str trim
-                let full_path = [$repo_root $rel_path] | path join
-                let dir = $full_path | path dirname
-                if not ($dir | path exists) { mkdir $dir }
-                
-                let file_content = $file.filecontent | str trim
-                $file_content | save -f $full_path
-                print $"Created file: ($rel_path)"
-                
-                let skill_name = $rel_path | split row "/" | get 1
-                $created_skills = ($created_skills | append $skill_name)
-            }
-            $created_skills = ($created_skills | uniq)
-            
-            print "Linking new skills to Gemini CLI..."
-            # Updated: Use link-skills (Nushell command) instead of gemini skills link
-            try {
-                link-skills
-            } catch {
-                print "Warning: link-skills command failed or not found."
-            }
-            
-            # Habitica Integration: Skill Created Notification
-            for skill in $created_skills {
-                try {
-                    # Try to find description and type in the plan
-                    let pattern = ('(?s)## .*?' + $skill + '.*?\n(?P<section>.*?)(?:\n##|$)')
-                    let matches = ($content | parse --regex $pattern)
-                    let skill_section = if ($matches | is-not-empty) { $matches | get 0.section } else { "" }
-                    let is_cron = ($skill | str starts-with "cron-")
-                    let type_str = if $is_cron { "Cron" } else { "On-Demand" }
-                    let regularity = if $is_cron { $skill_section | parse --regex 'Frequency: (?P<freq>.*)' | get 0.freq? | default "Not specified" } else { "N/A" }
-                    let description = $skill_section | parse --regex 'Purpose: (?P<desc>.*)' | get 0.desc? | default "No description provided"
-                    
-                    let todo_title = $"new skill created: ($skill), use link-skills in deathnote and lenovo"
-                    let todo_note = [
-                        $"Type: ($type_str)"
-                        $"Regularity: ($regularity)"
-                        ""
-                        "Description:"
-                        $description
-                    ] | str join "\n"
-                    
-                    habitica todos add $todo_title --notes $todo_note
-                } catch {
-                    print $"Warning: Failed to add Habitica todo for skill: ($skill)"
-                }
-            }
-            
-            let updated_content = $content
-                | str replace --regex 'implemented:\s*false' 'implemented: true'
-                | str replace --regex 'status:\s*".*?"' 'status: "Approved"'
-            $updated_content | save -f $draft
-            
-            let log_path = [$vault "AGENTS_MEMORY" "log.log"] | path join
-            let timestamp = date now | format date "%Y-%m-%d %H:%M:%S"
-            let skill_list = $created_skills | str join ", "
-            let log_msg = $"Implemented approved skills from plan: ($skill_list)"
-            let log_entry = $"[($timestamp)] [SKILLS] ($log_msg)\n"
-            if ($log_path | path exists) {
-                let current_log = open --raw $log_path
-                $"($log_entry)($current_log)" | save -f $log_path
-            } else {
-                $log_entry | save -f $log_path
-            }
-            
-            let project_dir = [$vault "AGENTS_MEMORY" "gemini_cli_expert_skill_library"] | path join
-            if not ($project_dir | path exists) { mkdir $project_dir }
-            let today_file = [$project_dir $"($today).md"] | path join
-            let daily_entry = [
-                "### Skill Implementation"
-                $"Implemented and linked approved skills: ($skill_list)"
-                ("- Plan file: [" + ($draft | path basename) + "](file://" + ($draft | into string) + ")")
-            ] | str join "\n"
-            if ($today_file | path exists) {
-                let current_daily = open --raw $today_file
-                $"($current_daily)\n\n($daily_entry)" | save -f $today_file
-            } else {
-                $daily_entry | save -f $today_file
-            }
-            
-            let index_file = [$project_dir "gemini_cli_expert_skill_library.md"] | path join
-            if ($index_file | path exists) {
-                let index_content = open --raw $index_file
-                let updated_content_idx = $index_content | str replace --regex "last_updated:\\s*[\"']?\\d{4}-\\d{2}-\\d{2}[\"']?" $"last_updated: ($today)"
-                $updated_content_idx | save -f $index_file
-            }
-            
-            print $"Plan ($draft) successfully implemented!"
-        }
     }
 }

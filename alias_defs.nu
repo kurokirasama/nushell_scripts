@@ -161,14 +161,14 @@ const profiles = ["no-mcp", "minimal", "standard", "webdev", "research", "google
 const profile_plugins = {
     "standard": ["conductor", "google-workspace"],
     "webdev": ["conductor", "google-workspace", "gemini-cli-security", "gemini-docs-ext"],
-    "research": ["conductor", "google-workspace", "datacommons", "gemini-deep-research"],
-    "googlesuit": ["conductor", "google-workspace", "datacommons", "gemini-docs-ext"],
+    "research": ["conductor", "google-workspace"],
+    "googlesuit": ["conductor", "google-workspace", "gemini-docs-ext"],
     "imagen": ["conductor", "google-workspace", "nanobanana"],
     "no-mcp": ["conductor"],
     "minimal": ["conductor", "google-workspace"],
     "websearch": ["conductor", "google-workspace"],
     "ollama": ["conductor", "google-workspace"],
-    "full": ["conductor", "google-workspace", "datacommons", "gemini-deep-research", "gemini-cli-security", "gemini-docs-ext", "nanobanana"]
+    "full": ["conductor", "google-workspace", "gemini-cli-security", "gemini-docs-ext", "nanobanana"]
 }
 
 # Change gemini profiles settings.
@@ -178,8 +178,8 @@ const profile_plugins = {
 # - minimal: nushell + context-mode mcp, conductor, google-workspace extensions
 # - standard: deepwiki, context7, grep, Ref, nushell, ollama-search, exa, bravesearch, firecrawl, sequentialthinking, markdonify mcp servers + conductor, google-workspace extensions
 # - webdev: standard + magicui and crome-dev-tools mcp servers + gemini-cli-security, gemini-docs-ext extensions
-# - research: standard + research-semantic-paper, research-paper mcp servers + datacommons, gemini-deep-research extensions
-# - googlesuit: standard + google-forms, youtube mcp servers + datacommons, gemini-docs-ext extensions
+# - research: standard + research-semantic-paper, research-paper mcp servers, extensions
+# - googlesuit: standard + google-forms, youtube mcp servers, gemini-docs-ext extensions
 # - imagen: standard + imagen mcp server + nanobanana extension
 # - websearch: minimal + ollama-search, exa, bravesearch, firecrawl, sequentialthinking, markdonify mcp servers
 # - full: all mcp + all extensions
@@ -211,15 +211,15 @@ export def --env "gmn profile" [
   }
   
   let servers = match $profile {
-    "standard" => {$mcp_names | find standard & context-mode -n},
-    "webdev" => {$mcp_names | find standard & webdev & context-mode -n},
-    "research" => {$mcp_names | find standard & research & context-mode -n},
-    "googlesuit" => {$mcp_names | find standard & googlesuit & context-mode -n},
-    "imagen" => {$mcp_names | find standard & imagen & context-mode -n},
+    "standard" => {$mcp_names | find standard & context-mode & google-workspace -n},
+    "webdev" => {$mcp_names | find standard & webdev & context-mode & google-workspace -n},
+    "research" => {$mcp_names | find standard & research & context-mode & google-workspace -n},
+    "googlesuit" => {$mcp_names | find standard & googlesuit & context-mode & google-workspace -n},
+    "imagen" => {$mcp_names | find standard & imagen & context-mode & google-workspace -n},
     "no-mcp" => {[]},
-    "minimal" => {$mcp_names | find nushell & context-mode -n},
-    "ollama" => {$mcp_names | find standard & context-mode -n},
-    "websearch" => {$mcp_names | find nushell & context-mode & ollama-search & exa & bravesearch & firecrawl & sequentialthinking & markdonify & context-mode -n},
+    "minimal" => {$mcp_names | find nushell & context-mode & google-workspace -n},
+    "ollama" => {$mcp_names | find standard & context-mode & google-workspace -n},
+    "websearch" => {$mcp_names | find nushell & context-mode & ollama-search & exa & bravesearch & firecrawl & sequentialthinking & markdonify & context-mode & google-workspace -n},
     "full" => {$mcp_names},
     _ => {return-error "Invalid profile"}
   }
@@ -362,10 +362,10 @@ export def "cld profile" [
   
   let servers = match $profile {
     "standard" => {$mcp_names | find standard & context-mode & ext-google-workspace -n},
-    "webdev" => {$mcp_names | find standard & webdev & ext-security & ext-docs & ext-google-workspace & context-mode -n},
-    "research" => {$mcp_names | find standard & smithery-research & ext-deep-research & ext-datacommons & ext-google-workspace & context-mode -n},
-    "googlesuit" => {$mcp_names | find standard & googlesuit & ext-datacommons & ext-docs & ext-google-workspace & context-mode -n},
-    "imagen" => {$mcp_names | find standard & imagen & ext-nanobanana & ext-google-workspace & context-mode -n},
+    "webdev" => {$mcp_names | find standard & webdev & security & docs & google-workspace & context-mode -n},
+    "research" => {$mcp_names | find standard & research & google-workspace & context-mode -n},
+    "googlesuit" => {$mcp_names | find standard & googlesuit & docs & google-workspace & context-mode -n},
+    "imagen" => {$mcp_names | find standard & imagen & nanobanana & google-workspace & context-mode -n},
     "no-mcp" => {[]},
     "minimal" => {$mcp_names | find nushell & context-mode -n},
     "websearch" => {$mcp_names | find nushell & context-mode & ollama-search & exa & bravesearch & firecrawl & sequentialthinking & markdonify -n},

@@ -64,6 +64,8 @@ export def google_ai [
     --document:string         #uses provided document to retrieve the answer
     --paid(-P) = false	  	  #use the billing api for greater limits
 ] {
+  let query = get-input $in $query
+
   #api parameters
   let apikey = if $paid {
     get-api-key "google.gemini_paid"
@@ -133,6 +135,14 @@ export def google_ai [
     try {
       $preprompt = (open --raw ($pre_prompt_files | find -n ("/" + $select_preprompt + ".md") | get 0))
     }
+  }
+
+  if $verbose {
+      if ($preprompt | is-empty) {
+          print (echo-y "Resolved Pre-prompt: [EMPTY]")
+      } else {
+          print (echo-g $"Resolved Pre-prompt length: ($preprompt | str length) characters")
+      }
   }
 
   #build prompt
@@ -366,9 +376,13 @@ export def google_ai [
   try {
     let steps = ($final_answer | get -o steps)
     if ($steps | is-empty) {
+        if ($final_answer | get status) == "completed" {
+            return ""
+        }
         $final_answer | to json | save -f gemini_no_steps.json
         return-error "No steps found in API response! Raw response saved to gemini_no_steps.json"
     }
+
     let output_step = ($steps | where type == "model_output" | first)
     if ($output_step | is-empty) {
         return-error "No model_output step found in API response!"
