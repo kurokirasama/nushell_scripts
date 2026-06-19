@@ -268,11 +268,6 @@ export def --env "gmn profile" [
       }
     }
   }
-
-  if $profile == "ollama" {
-    $env.OPENAI_BASE_URL = "http://localhost:11434/v1"
-    $env.OPENAI_API_KEY = "ollama"
-  }
 }
 
 
@@ -352,25 +347,33 @@ export def --env --wrapped gmn [
 #
 # Example:
 #   cld profile standard
-export def "cld profile" [
+export def --env "cld profile" [
         profile:string@$profiles = "standard"
+        --matlab-mcp(-M) #add the matlab mcp server
 ] {
   let settings = open ($env.MY_ENV_VARS.linux_backup | path join "settings_claude.json")
-  let gen_settings = $settings.general
+  let gen_settings = $settings | reject mcpServers
   let mcp_servers = $settings.mcpServers
   let mcp_names = $mcp_servers | columns | sort
   
   let servers = match $profile {
-    "standard" => {$mcp_names | find standard & context-mode & ext-google-workspace -n},
-    "webdev" => {$mcp_names | find standard & webdev & security & docs & google-workspace & context-mode -n},
-    "research" => {$mcp_names | find standard & research & google-workspace & context-mode -n},
-    "googlesuit" => {$mcp_names | find standard & googlesuit & docs & google-workspace & context-mode -n},
-    "imagen" => {$mcp_names | find standard & imagen & nanobanana & google-workspace & context-mode -n},
+    "standard" => {$mcp_names | find standard & context-mode & google-workspace -n},
+    "webdev" => {$mcp_names | find standard & webdev & context-mode & google-workspace -n},
+    "research" => {$mcp_names | find standard & research & context-mode & google-workspace -n},
+    "googlesuit" => {$mcp_names | find standard & googlesuit & context-mode & google-workspace -n},
+    "imagen" => {$mcp_names | find standard & imagen & context-mode & google-workspace -n},
     "no-mcp" => {[]},
-    "minimal" => {$mcp_names | find nushell & context-mode -n},
-    "websearch" => {$mcp_names | find nushell & context-mode & ollama-search & exa & bravesearch & firecrawl & sequentialthinking & markdonify -n},
+    "minimal" => {$mcp_names | find nushell & context-mode & google-workspace -n},
+    "ollama" => {$mcp_names | find standard & context-mode & google-workspace -n},
+    "websearch" => {$mcp_names | find nushell & context-mode & ollama-search & exa & bravesearch & firecrawl & sequentialthinking & markdonify & context-mode & google-workspace -n},
     "full" => {$mcp_names},
     _ => {return-error "Invalid profile"}
+  }
+
+  let servers = if $matlab_mcp {
+    $servers ++ ($mcp_names | find -n matlab)
+  } else {
+    $servers
   }
 
   let filtered_mcp = if ($servers | is-empty) { {} } else { $mcp_servers | select ...$servers }
@@ -385,15 +388,25 @@ export def "cld profile" [
   let current_mcp_config = if ($mcp_config_path | path exists) { open $mcp_config_path } else { {} }
   $current_mcp_config | upsert mcpServers $filtered_mcp | save -f $mcp_config_path
   
+  if $profile == "ollama" {
+    $env.OPENAI_BASE_URL = "http://localhost:11434/v1"
+    $env.OPENAI_API_KEY = "ollama"
+  }
+
   print (echo-g $"Claude profile '($profile)' applied successfully.")
 }
 
 #wrapper for claude code
-export def --wrapped cld [
+export def --env --wrapped cld [
   ...rest
   --profile(-p):string@$profiles = "standard"
+  --matlab-mcp(-M) #use the matlab mcp server
 ] {
-  cld profile $profile
+  if $matlab_mcp {
+    cld profile $profile --matlab-mcp
+  } else {
+    cld profile $profile
+  }
   ^claude --dangerously-skip-permissions ...$rest
 }
 
@@ -468,9 +481,17 @@ export def get-ollama-model-info [model: string] {
 # wrapper for ollama models using claude code integration
 export def --env --wrapped olm [
   ...rest
+  --profile(-p):string@$profiles = "standard"
+  --matlab-mcp(-M) #use the matlab mcp server
   --model(-m): string # choose model
   --list(-l)         # list and select model from input list
 ] {
+  if $matlab_mcp {
+    cld profile $profile --matlab-mcp
+  } else {
+    cld profile $profile
+  }
+
   let available_models = get-ollama-models
   
   let model = if $list {
