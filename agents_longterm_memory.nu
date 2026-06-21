@@ -118,10 +118,21 @@ def gather-unconsolidated-memories [vault: path]: nothing -> list<record> {
         let start = if $len > 2000 { $len - 2000 } else { 0 }
         let recent_body = $body | str substring $start..$len
         let date = $f | path basename | str replace ".md" ""
+        
+        let log_file = [$project_dir $"($date)-log.md"] | path join
+        let recent_logs = if ($log_file | path exists) {
+            let log_content = open --raw $log_file
+            let log_body = get-body $log_content
+            let log_len = $log_body | str length
+            let log_start = if $log_len > 2000 { $log_len - 2000 } else { 0 }
+            $log_body | str substring $log_start..$log_len
+        } else { "" }
+        
         {
             project_name: $project_name,
             last_updated: $date,
             recent_body: $recent_body,
+            recent_logs: $recent_logs,
             slug: $slug
         }
     } | compact
@@ -356,13 +367,53 @@ def load-gemini-history []: nothing -> list<record> {
     } | flatten
 }
 
+# Load trajectory logs from AGENTS_MEMORY and format as history entries
+def load-trajectory-history [vault: path, limit: int = 50]: nothing -> list<record> {
+    let agents_memory = $"($vault)/AGENTS_MEMORY"
+    if not ($agents_memory | path exists) { return [] }
+    
+    let files = glob ([$agents_memory "*" "*-log.md"] | path join)
+        | each { |f| ls $f }
+        | flatten
+        | sort-by name
+        | last $limit
+        | get name
+        
+    $files | each { |f|
+        let content = open --raw $f
+        let project_dir = $f | path dirname
+        let slug = $project_dir | path basename
+        let date = $f | path basename | str replace "-log.md" ""
+        let body = get-body $content
+        
+        let lines = $body | lines | where { |l| ($l =~ '- \*\*Command:\*\*') or ($l =~ '- \*\*Tool:\*\*') or ($l =~ 'Failure') or ($l =~ 'Error') }
+        
+        if ($lines | is-empty) {
+            return [{
+                text: $"Project ($slug) ran successfully with skills.",
+                timestamp: (try { $date | into datetime } catch { (ls $f | get 0.modified) }),
+                source: "Trajectory Log"
+            }]
+        }
+        
+        $lines | each { |l|
+            {
+                text: $"[($slug)] ($l)",
+                timestamp: (try { $date | into datetime } catch { (ls $f | get 0.modified) }),
+                source: "Trajectory Log"
+            }
+        }
+    } | flatten
+}
+
 # Aggregate and sort history from all sources
-def aggregate-history [limit: int = 50]: nothing -> string {
+def aggregate-history [vault: path, limit: int = 50]: nothing -> string {
     let agy = load-agy-history
     let claude = load-claude-history
     let gemini = load-gemini-history
+    let trajectory = load-trajectory-history $vault $limit
     
-    let all = [$agy $claude $gemini] 
+    let all = [$agy $claude $gemini $trajectory] 
         | flatten 
         | sort-by timestamp 
         | last $limit
@@ -398,7 +449,11 @@ export def agent-self-improve [] {
     }
     
     let memories_text = $memories | each { |m|
-        $"Project: ($m.project_name)\nDate: ($m.last_updated)\nSlug: ($m.slug)\nSummary:\n($m.recent_body)\n---"
+        mut msg = $"Project: ($m.project_name)\nDate: ($m.last_updated)\nSlug: ($m.slug)\nSummary:\n($m.recent_body)"
+        if not ($m.recent_logs | is-empty) {
+            $msg = $"($msg)\nExecution Trajectory Log:\n($m.recent_logs)"
+        }
+        $"($msg)\n---"
     } | str join "\n"
     
     let context = [
@@ -692,7 +747,7 @@ export def agent-skill-developer [] {
 
     # --- PHASE 2: ANALYZE AND CREATE DRAFT PLANS (Now Step 2) ---
     print "Running Phase 2: Analyzing aggregated CLI history..."
-    let history_text = aggregate-history 100
+    let history_text = aggregate-history $vault 100
 
     if ($history_text | is-empty) {
         print "No CLI history found across sources."

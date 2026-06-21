@@ -352,7 +352,6 @@ export def --env "cld profile" [
         --matlab-mcp(-M) #add the matlab mcp server
 ] {
   let settings = open ($env.MY_ENV_VARS.linux_backup | path join "settings_claude.json")
-  let gen_settings = $settings | reject mcpServers
   let mcp_servers = $settings.mcpServers
   let mcp_names = $mcp_servers | columns | sort
   
@@ -381,12 +380,15 @@ export def --env "cld profile" [
   # Update Claude general settings
   let settings_path = $env.HOME | path join .claude settings.json
   mkdir ($settings_path | path dirname)
-  $gen_settings | save -f $settings_path
+  $settings.claude_json_settings | save -f $settings_path
 
-  # Update Claude MCP servers (preserving other keys like userID, OAuth)
+  # Update Claude MCP servers (preserving other keys like userID, OAuth, projects)
   let mcp_config_path = $env.HOME | path join .claude.json
   let current_mcp_config = if ($mcp_config_path | path exists) { open $mcp_config_path } else { {} }
-  $current_mcp_config | upsert mcpServers $filtered_mcp | save -f $mcp_config_path
+  $current_mcp_config 
+    | merge $settings.claude_json_settings 
+    | upsert mcpServers $filtered_mcp 
+    | save -f $mcp_config_path
   
   if $profile == "ollama" {
     $env.OPENAI_BASE_URL = "http://localhost:11434/v1"
