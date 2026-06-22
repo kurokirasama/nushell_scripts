@@ -1036,6 +1036,70 @@ export def "apps-update cliamp" [] {
 #update context-mode mcp server
 export def "apps-update context-mode" [] {
   npm update -g context-mode
+
+  let npm_root = npm root -g | str trim | path expand
+  let agy_rules_path = $npm_root | path join "context-mode" "configs" "antigravity" "GEMINI.md"
+  let gemini_rules_path = $npm_root | path join "context-mode" "configs" "gemini-cli" "GEMINI.md"
+
+  if not ($agy_rules_path | path exists) or not ($gemini_rules_path | path exists) {
+    error make {msg: $"context-mode config templates not found in ($npm_root)"}
+  }
+
+  let agy_rules = open --raw $agy_rules_path
+  let gemini_rules = open --raw $gemini_rules_path
+
+  let start_marker = "## Session Continuity"
+  let end_marker = "## ctx commands"
+  
+  let start_idx = $gemini_rules | str index-of $start_marker
+  let end_idx = $gemini_rules | str index-of $end_marker
+  
+  if $start_idx == -1 or $end_idx == -1 {
+    error make {msg: "Could not find expected markers in gemini-cli/GEMINI.md"}
+  }
+  
+  let memory_rules = $gemini_rules | str substring $start_idx..$end_idx
+
+  let insert_marker = "## Output constraints"
+  let insert_idx = $agy_rules | str index-of $insert_marker
+  
+  let unified_rules = if $insert_idx == -1 {
+    let alt_marker = "## ctx commands"
+    let alt_idx = $agy_rules | str index-of $alt_marker
+    if $alt_idx == -1 {
+      $agy_rules + "\n\n" + $memory_rules
+    } else {
+      let first_part = $agy_rules | str substring 0..$alt_idx
+      let second_part = $agy_rules | str substring $alt_idx..
+      $first_part + "\n" + $memory_rules + "\n" + $second_part
+    }
+  } else {
+    let first_part = $agy_rules | str substring 0..$insert_idx
+    let second_part = $agy_rules | str substring $insert_idx..
+    $first_part + "\n" + $memory_rules + "\n" + $second_part
+  }
+
+  let bak_path = ("/home/kira/Yandex.Disk/llms_configs/gemini-bak.md" | path expand)
+  let bak_content = open --raw $bak_path
+  
+  let rule_marker = "# context-mode — MANDATORY routing rules"
+  let rule_idx = $bak_content | str index-of $rule_marker
+  if $rule_idx == -1 {
+    error make {msg: $"Could not find rules heading '($rule_marker)' in ($bak_path)"}
+  }
+  
+  let first_part = $bak_content | str substring 0..$rule_idx
+  let new_bak_content = $first_part + $unified_rules
+  
+  $new_bak_content | save -f $bak_path
+  print "gemini-bak.md updated with unified context-mode routing rules."
+
+  # Sync the files
+  update-gemini-md
+  print "Global GEMINI.md, AGENTS.md, and CLAUDE.md files synchronized."
+
+  # Add Habitica todo
+  h add todos --checklist [] --priority 1 --text 'Update gemini-bak.md (run update-gemini-md) in desktop and lenovo machines' --due '' --notes ''
 }
 
 #update markdonify-mcp
