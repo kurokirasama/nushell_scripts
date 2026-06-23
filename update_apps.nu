@@ -1097,9 +1097,6 @@ export def "apps-update context-mode" [] {
   # Sync the files
   update-gemini-md
   print "Global GEMINI.md, AGENTS.md, and CLAUDE.md files synchronized."
-
-  # Add Habitica todo
-  h add todos --checklist [] --priority 1 --text 'Update gemini-bak.md (run update-gemini-md) in desktop and lenovo machines' --due '' --notes ''
 }
 
 #update markdonify-mcp

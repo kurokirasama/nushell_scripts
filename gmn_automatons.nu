@@ -25,8 +25,8 @@ const profiles = ["no-mcp", "minimal", "standard", "webdev", "research", "google
 #run cron gemini skills
 export def --env "gmn cron" [
 	skill: string@$skills
-	--model(-m): string@$gmn_models  # only used with --gemini-cli; agy model is set via gmn profile
-	--profile(-p): string@$profiles = "minimal"
+	--model(-m): string@$gmn_models  # model to use
+	--profile(-p): string@$profiles = "minimal" #profile to use (use tab to see options)
 	--dont-kill(-d)             #dont kill gemini mcp servers
 	--gemini-cli(-g)            #use the legacy gemini-cli instead of agy (antigravity-cli)
 ] {
@@ -48,14 +48,13 @@ export def --env "gmn cron" [
 		}
 		^$gemini_cmd.0 ...($gemini_cmd | skip 1) | complete
 	} else {
-                # agy model can be passed via --model
-                gmn profile $profile
-                let agy_cmd = if ($model | is-not-empty) {
-                        [agy --model $model --dangerously-skip-permissions --print $prompt]
-                } else {
-                        [agy --dangerously-skip-permissions --print $prompt]
-                }
-                ^$agy_cmd.0 ...($agy_cmd | skip 1) | complete
+		gmn profile $profile
+		let agy_cmd = if ($model | is-not-empty) {
+			[agy --model $model --dangerously-skip-permissions --print $prompt]
+		} else {
+			[agy --dangerously-skip-permissions --print $prompt]
+		}
+		^$agy_cmd.0 ...($agy_cmd | skip 1) | complete
 	}
 
 	let tool = if $gemini_cli { "gemini-cli" } else { "agy" }

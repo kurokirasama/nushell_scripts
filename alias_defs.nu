@@ -502,7 +502,7 @@ export def --env --wrapped olm [
     $model
   } else {
     # Choose best available
-    let priorities = ["qwen3-coder:latest", "qwen2.5-coder:32b", "qwen2.5-coder:7b", "codestral", "llama3.2", "llama3.1", "qwen3:4b", "gemma4:12b", "gemma4:e4b", "gemma4:e2b"]
+    let priorities = ["rafw007/qwen35-claude-coder:9b","qwen3-coder:latest", "gemma4:12b", "gemma4:e4b", "gemma4:e2b"]
     let best = $priorities | where { |p| ($available_models | find $p | is-not-empty) } | first
     if ($best | is-not-empty) { $best } else { $available_models | first }
   }
@@ -523,7 +523,9 @@ export def --env --wrapped olm [
   
   with-env {
     CLAUDE_CODE_MAX_OUTPUT_TOKENS: $out,
-    CLAUDE_CODE_MAX_CONTEXT_TOKENS: ($ctx | into string)
+    CLAUDE_CODE_MAX_CONTEXT_TOKENS: ($ctx | into string),
+    CLAUDE_CODE_DISABLE_THINKING: "1",
+    MAX_THINKING_TOKENS: "0"
   } {
     # Use ollama launch to bridge claude to the local model
     ollama launch claude --model $model -- ...$rest
