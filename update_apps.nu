@@ -914,6 +914,18 @@ export def "apps-update ollama" [] {
   curl -fsSL https://ollama.com/install.sh | sh
 }
 
+#update open-code
+export def "apps-update open-code" [] {
+  let old_version = try { (^opencode --version | str trim) } catch { "not installed" }
+  print $"Current OpenCode version: ($old_version)"
+  
+  print "Updating OpenCode..."
+  bash -c "curl -fsSL https://opencode.ai/install | bash"
+  
+  let new_version = try { (^opencode --version | str trim) } catch { "install failed" }
+  print $"New OpenCode version: ($new_version)"
+}
+
 #update reader
 export def "apps-update reader" [] {
   go install github.com/mrusme/reader@latest
