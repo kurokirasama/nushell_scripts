@@ -6,6 +6,7 @@ export def ydx [] {
       "- ydx status"
       "- ydx start"
       "- ydx stop"
+      "- ydx restart"
       "- ydx help"
       "- ydx last"
       "- ydx trash list"
@@ -20,22 +21,54 @@ export def ydx [] {
 
 #yandex-disk status
 export def "ydx status" [] {
-	yandex-disk status 
-	| grep -E "Sync|Total|Used|Trash" 
-	| lines 
-	| split column ':' 
-	| str trim 
-	| rename item status
+    let result = yandex-disk status | complete
+    
+    if $result.exit_code != 0 {
+        # Daemon is not running or unreachable
+        let clean_stderr = $result.stderr | str trim
+        return [[item status]; ["Daemon status" $clean_stderr]]
+    }
+    
+    $result.stdout
+        | lines
+        | where ($it | str contains "Sync") or ($it | str contains "Total") or ($it | str contains "Used") or ($it | str contains "Trash")
+        | split column ':'
+        | str trim
+        | rename item status
 }
 
-#yandex-disk start
+#yandex-disk start with OOM protection
 export def "ydx start" [] {
-	yandex-disk start
+    let result = ^~/Yandex.Disk/my_scripts/bash_for_nushell/start-yandex-disk | complete
+
+    if $result.exit_code != 0 {
+        return-error $"ydx start failed: ($result.stderr | str trim)"
+    }
+
+    if "Already running" in $result.stdout {
+        return $result.stdout | str trim
+    }
+
+    $result.stdout
+        | lines
+        | skip while {|x| not ($x | str contains "─── Status")}
+        | skip 1
+        | take while {|x| not ($x | str contains "───")}
+        | each {|x| $x | str replace -r '^\[start-yandex-disk\]\s+' '' | str trim}
+        | parse "{item} : {status}"
 }
 
 #yandex-disk stop
 export def "ydx stop" [] {
 	yandex-disk stop
+}
+
+#yandex-disk restart (stop, wait 1s, then start with OOM protection)
+export def "ydx restart" [] {
+    # Attempt to stop, ignore errors and suppress output
+    ydx stop o+e>| ignore
+    sleep 1sec
+    ydx start
 }
 
 #yandex-disk help
