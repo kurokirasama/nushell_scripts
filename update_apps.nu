@@ -250,6 +250,11 @@ export def apps-update [] {
   } catch {
    print (echo-r "Something went wrong with chrome instalation!")
   }
+  try {
+    apps-update rtk
+  } catch {
+    print (echo-r "RTK update failed!")
+  }
   # try {
   #   apps-update nmap
   # } catch {
@@ -924,6 +929,115 @@ export def "apps-update open-code" [] {
   
   let new_version = try { (^opencode --version | str trim) } catch { "install failed" }
   print $"New OpenCode version: ($new_version)"
+}
+#update rtk (AI orchestrator)
+export def "apps-update rtk" [
+  --force(-f)   #force reinstall even if same version
+  --skip-init   #skip agent re-initialization after update
+] {
+  let arch = (^uname -m | str trim)
+  let target = if $arch == "x86_64" {
+    "x86_64-unknown-linux-musl"
+  } else if $arch == "aarch64" {
+    "aarch64-unknown-linux-gnu"
+  } else {
+    error make {msg: $"Unsupported architecture: ($arch)"}
+  }
+
+  let current_version = try {
+    (^rtk --version | str trim | split row " " | last)
+  } catch {
+    error make {msg: "RTK is not installed. Run the install script first."}
+  }
+
+  print $"Current RTK version: ($current_version)"
+
+  let latest_info = try {
+    http get https://api.github.com/repos/rtk-ai/rtk/releases/latest -H [Accept, application/vnd.github+json]
+  } catch { |err|
+    error make {msg: $"Failed to fetch latest version: ($err.msg)"}
+  }
+
+  let latest_version = ($latest_info | get tag_name | str trim -c "v")
+  print $"Latest RTK version: ($latest_version)"
+
+  if not $force {
+    let cp = ($current_version | split row "." | into int)
+    let lp = ($latest_version | split row "." | into int)
+    if $cp == $lp {
+      print (echo-g "RTK is already at the latest version!")
+      return
+    }
+  }
+
+  print (echo-g $"Updating RTK to v($latest_version)...")
+  let temp_dir = (^mktemp -d | str trim)
+
+  let archive_url = $"https://github.com/rtk-ai/rtk/releases/download/v($latest_version)/rtk-($target).tar.gz"
+  let checksums_url = $"https://github.com/rtk-ai/rtk/releases/download/v($latest_version)/checksums.txt"
+  let archive_path = ($temp_dir | path join "rtk.tar.gz")
+  let checksums_path = ($temp_dir | path join "checksums.txt")
+
+  print (echo-g "Downloading binary...")
+  aria2c --download-result=hide --dir $temp_dir --out "rtk.tar.gz" $archive_url
+  aria2c --download-result=hide --dir $temp_dir --out "checksums.txt" $checksums_url
+
+  print (echo-g "Verifying SHA-256 checksum...")
+  let asset_name = $"rtk-($target).tar.gz"
+  let expected_hash = (open --raw $checksums_path
+    | lines
+    | find -n $asset_name
+    | first
+    | split row "  "
+    | first
+    | str trim)
+  let actual_hash = (^sha256sum $archive_path | split row " " | first)
+
+  if $expected_hash != $actual_hash {
+    rm -rf $temp_dir
+    error make {msg: $"Checksum mismatch! Expected ($expected_hash)"}
+  }
+
+  print (echo-g "Checksum verified. Extracting...")
+  tar -xzf $archive_path -C $temp_dir
+
+  let install_dir = ("~/.local/bin" | path expand)
+  ^mkdir -p $install_dir
+  mv -f ($temp_dir | path join "rtk") ($install_dir | path join "rtk")
+  chmod +x ($install_dir | path join "rtk")
+
+  rm -rf $temp_dir
+
+  print (echo-g $"RTK updated to v($latest_version)!")
+
+  # Phase 3: Agent re-initialization
+  if not $skip_init {
+    print (echo-g "Re-initializing RTK agents...")
+    let init_commands = [
+      {cmd: "rtk init -g", label: "global initialization"},
+      {cmd: "rtk init -g --gemini", label: "Gemini CLI configuration"},
+      {cmd: "rtk init -g --opencode", label: "OpenCode configuration"},
+      {cmd: "rtk init --agent antigravity", label: "Antigravity CLI configuration"},
+    ]
+    let results = ($init_commands | each { |init|
+      try {
+        ^nu -c $init.cmd o+e>| null
+        {label: $init.label, ok: true}
+      } catch {
+        {label: $init.label, ok: false}
+      }
+    })
+    let init_ok = ($results | where ok == true | length)
+    let init_fail = ($results | where ok == false | length)
+    for r in $results {
+      if $r.ok {
+        print (echo-g $"  - ($r.label): OK")
+      } else {
+        print (echo-y $"  - ($r.label): FAILED")
+      }
+    }
+    print (echo-g $"Init complete: ($init_ok) succeeded, ($init_fail) failed")
+  }
 }
 
 #update reader
