@@ -70,6 +70,46 @@ export def --env "gmn cron" [
 	}
 }
 
+# Run cron opencode skills
+export def --env "opn cron" [
+    skill: string@$skills
+    --model(-m): string            # model to use
+    --profile(-p): string@$profiles = "minimal" #profile to use
+    --dont-kill(-d)             #dont kill mcp servers
+    --normal(-n)                #use normal/free remote models
+] {
+  cd $env.MY_ENV_VARS.llms_configs
+
+  let prompt = $"/($skill)"
+
+  if $normal {
+    opn profile $profile --normal
+  } else {
+    opn profile $profile
+  }
+
+  let opn_bin = $env.HOME | path join .opencode bin opencode
+  let opn_cmd = if ($model | is-not-empty) {
+    [$opn_bin run --model $model --dangerously-skip-permissions $prompt]
+  } else {
+    [$opn_bin run --dangerously-skip-permissions $prompt]
+  }
+
+  let output = ^$opn_cmd.0 ...($opn_cmd | skip 1) | complete
+
+  # Reuse gmn-cron-email with "opencode" tool name
+  gmn-cron-email $skill $output "opencode"
+
+  # Clean up and post stdout to Discord
+  let cleaned_stdout = _clean-output $output.stdout
+  $cleaned_stdout | to-discord -p --process -c opencode_cron
+
+  if not $dont_kill {
+    sleep 2sec
+    killnode
+  }
+}
+
 # Helper to extract final report from gemini output
 def _clean-output [stdout: string] {
 	# 1. Try to parse stdout as JSON (legacy gemini-cli path returns JSON; agy --print path returns plain text)

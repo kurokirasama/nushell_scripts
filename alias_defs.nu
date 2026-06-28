@@ -159,16 +159,16 @@ let host = sys host | get hostname
 const profiles = ["no-mcp", "minimal", "standard", "webdev", "research", "googlesuit", "imagen", "websearch", "ollama", "full"]
 
 const profile_plugins = {
-    "standard": ["conductor", "google-workspace"],
-    "webdev": ["conductor", "google-workspace", "gemini-cli-security", "gemini-docs-ext"],
-    "research": ["conductor", "google-workspace"],
-    "googlesuit": ["conductor", "google-workspace", "gemini-docs-ext"],
-    "imagen": ["conductor", "google-workspace", "nanobanana"],
+    "standard": ["conductor", "google-workspace", "context-mode"],
+    "webdev": ["conductor", "google-workspace", "gemini-cli-security", "gemini-docs-ext", "context-mode"],
+    "research": ["conductor", "google-workspace", "context-mode"],
+    "googlesuit": ["conductor", "google-workspace", "gemini-docs-ext", "context-mode"],
+    "imagen": ["conductor", "google-workspace", "nanobanana", "context-mode"],
     "no-mcp": ["conductor"],
-    "minimal": ["conductor", "google-workspace"],
-    "websearch": ["conductor", "google-workspace"],
-    "ollama": ["conductor", "google-workspace"],
-    "full": ["conductor", "google-workspace", "gemini-cli-security", "gemini-docs-ext", "nanobanana"]
+    "minimal": ["conductor", "google-workspace", "context-mode"],
+    "websearch": ["conductor", "google-workspace", "context-mode"],
+    "ollama": ["conductor", "google-workspace", "context-mode"],
+    "full": ["conductor", "google-workspace", "gemini-cli-security", "gemini-docs-ext", "nanobanana", "context-mode"]
 }
 
 # Change gemini profiles settings.
@@ -263,14 +263,143 @@ export def --env "gmn profile" [
     for p in $all_plugins {
       if ($p in $plugins_to_enable) {
         try { agy plugin enable $p }
+        let agy_plugin_json_disabled = $env.HOME | path join .gemini antigravity-cli plugins $p plugin.json.disabled
+        let agy_plugin_json = $env.HOME | path join .gemini antigravity-cli plugins $p plugin.json
+        if ($agy_plugin_json_disabled | path exists) {
+            try { mv $agy_plugin_json_disabled $agy_plugin_json }
+        }
       } else {
         try { agy plugin disable $p }
+        let agy_plugin_json = $env.HOME | path join .gemini antigravity-cli plugins $p plugin.json
+        let agy_plugin_json_disabled = $env.HOME | path join .gemini antigravity-cli plugins $p plugin.json.disabled
+        if ($agy_plugin_json | path exists) {
+            try { mv $agy_plugin_json $agy_plugin_json_disabled }
+        }
       }
     }
   }
 }
 
+# Switch opencode profile settings
+export def --env "opn profile" [
+    profile: string@$profiles = "standard"
+    --matlab-mcp(-M) #add the matlab mcp server
+    --list-mcp-servers-and-extensions(-l)
+    --normal(-n) #use normal/free remote models instead of local ollama
+] {
+  let settings_file = "settings_opencode.json"
+  let settings = open ($env.MY_ENV_VARS.linux_backup | path join $settings_file)
+  let mcp_servers = $settings | get mcp
+  let mcp_names = $mcp_servers | columns | sort
+  
+  if $list_mcp_servers_and_extensions {
+    print (echo-g "opencode mcp servers:")
+    print ($mcp_names)
+    return
+  }
+  
+  let servers = match $profile {
+    "standard" => {$mcp_names | find standard & context-mode & google-workspace -n},
+    "webdev" => {$mcp_names | find standard & webdev & context-mode & google-workspace -n},
+    "research" => {$mcp_names | find standard & research & context-mode & google-workspace -n},
+    "googlesuit" => {$mcp_names | find standard & googlesuit & context-mode & google-workspace -n},
+    "imagen" => {$mcp_names | find standard & imagen & context-mode & google-workspace -n},
+    "no-mcp" => {[]},
+    "minimal" => {$mcp_names | find nushell & context-mode & google-workspace -n},
+    "ollama" => {$mcp_names | find standard & context-mode & google-workspace -n},
+    "websearch" => {$mcp_names | find nushell & context-mode & ollama-search & exa & bravesearch & firecrawl & sequentialthinking & markdonify & context-mode & google-workspace -n},
+    "full" => {$mcp_names},
+    _ => {return-error "Invalid profile"}
+  }
 
+  let servers = if $matlab_mcp {
+    $servers ++ ($mcp_names | find -n matlab)
+  } else {
+    $servers
+  }
+  
+  let filtered_mcp = if ($servers | is-empty) { {} } else { $mcp_servers | select ...$servers }
+
+  # Host and Model Resolution
+  let host_0 = $env.MY_ENV_VARS.hosts.0
+  let host_1 = $env.MY_ENV_VARS.hosts.1
+
+  let model_setup = if $normal {
+    {
+      model: "opencode/nemotron-3-ultra-free",
+      small_model: "opencode/big-pickle"
+    }
+  } else if $env.HOST == $host_1 {
+    {
+      model: $settings.model,
+      small_model: $settings.small_model
+    }
+  } else if $env.HOST == $host_0 {
+    {
+      model: "ollama/qwen3.5:4b",
+      small_model: "ollama/qwen3.5:0.8b"
+    }
+  } else {
+    print (echo-r "device with no opencode config")
+    return-error "device with no opencode config"
+  }
+
+  # Build target configuration record
+  # Ensure the selected model and small_model are populated under provider.ollama.models with 32k context overrides
+  let config_base = $settings 
+    | upsert mcp $filtered_mcp
+    | upsert model $model_setup.model
+    | upsert small_model $model_setup.small_model
+
+  # Dynamically ensure qwen3.5:0.8b is defined if on host_0
+  let final_config = if (not $normal) and ($env.HOST == $host_0) {
+    let qwen_small = {
+      id: "qwen3.5:0.8b"
+      name: "qwen3.5:0.8b"
+      limit: { context: 32768, output: 4096 }
+      options: {
+        extraBody: { num_ctx: 32768, options: { num_ctx: 32768 } }
+      }
+    }
+    let models = $config_base | get provider.ollama.models | upsert "qwen3.5:0.8b" $qwen_small
+    $config_base | upsert provider.ollama.models $models
+  } else {
+    $config_base
+  }
+
+  let opencode_config_path = $env.HOME | path join .config opencode opencode.json
+  mkdir ($opencode_config_path | path dirname)
+  $final_config | save -f $opencode_config_path
+}
+
+# Wrapper for opencode CLI
+export def --env --wrapped opn [
+  ...rest
+  --profile(-p): string@$profiles = "standard"
+  --matlab-mcp(-M) #use the matlab mcp server
+  --model(-m): string #choose model
+  --normal(-n) #use normal/free remote models instead of local ollama
+] {
+  if $normal and $matlab_mcp {
+    opn profile $profile --normal --matlab-mcp
+  } else if $normal {
+    opn profile $profile --normal
+  } else if $matlab_mcp {
+    opn profile $profile --matlab-mcp
+  } else {
+    opn profile $profile
+  }
+
+  let opn_bin = $env.HOME | path join .opencode bin opencode
+  
+  let opn_cmd = if ($model | is-not-empty) {
+    [$opn_bin --model $model --dangerously-skip-permissions]
+  } else {
+    [$opn_bin --dangerously-skip-permissions]
+  }
+
+  ^$opn_cmd.0 ...($opn_cmd | skip 1) ...$rest
+}
 
 const gemini_models = [
   "gemini-3.5-flash"

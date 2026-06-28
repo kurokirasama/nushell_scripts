@@ -1045,9 +1045,94 @@ export def "apps-update cliamp" [] {
         sudo cliamp upgrade
 }
 
-#update context-mode mcp server
+# Check if context-mode plugin is installed in Claude Code.
+# Returns `true` if installed, `false` otherwise.
+export def check-context-mode-plugin []: nothing -> bool {
+  let list_output = try {
+    claude plugin list
+  } catch {
+    return false
+  }
+  let list_str = $list_output | into string
+  ($list_str =~ "context-mode")
+}
+
+# Install context-mode plugin in Claude Code via marketplace.
+# Returns `true` if installation succeeded, `false` if it failed.
+export def install-context-mode-plugin []: nothing -> bool {
+  print (echo-g "Installing context-mode plugin for Claude Code...")
+  let add_result = try {
+    claude plugin marketplace add mksglu/context-mode
+    true
+  } catch { |err|
+    print $"Warning: Failed to add context-mode from marketplace: ($err.msg)"
+    false
+  }
+  if not $add_result {
+    return false
+  }
+  let install_result = try {
+    claude plugin install context-mode@context-mode
+    true
+  } catch { |err|
+    print $"Warning: Failed to install context-mode plugin: ($err.msg)"
+    false
+  }
+  $install_result
+}
+
+# Update context-mode MCP server: check/install Claude Code plugin, sync configs.
+#First checks if the `context-mode` plugin is installed in Claude Code via `claude plugin list`.
+#If missing, installs from marketplace: `claude plugin marketplace add mksglu/context-mode`.
+#Then updates npm, runs context-mode upgrade for OpenCode, and synchronizes GEMINI.md rules.
 export def "apps-update context-mode" [] {
+  print (echo-g "Checking context-mode plugin for Claude Code...")
+  let plugin_installed = check-context-mode-plugin
+  if not $plugin_installed {
+    print (echo-y "context-mode not found in Claude Code plugins. Attempting installation...")
+    let install_ok = install-context-mode-plugin
+    if $install_ok {
+      print (echo-g "context-mode plugin installed successfully for Claude Code.")
+    } else {
+      print (echo-y "Warning: Could not install context-mode plugin. Continuing with config sync...")
+    }
+  } else {
+    print (echo-g "context-mode plugin is already installed in Claude Code.")
+  }
+
   npm update -g context-mode
+
+  # Update/Reinstall context-mode plugin for agy (Antigravity CLI)
+  if (which agy | is-not-empty) {
+    print (echo-g "Updating context-mode plugin for agy...")
+    try {
+      ^agy plugin install https://github.com/mksglu/context-mode/tree/main/configs/antigravity-cli
+      print (echo-g "context-mode plugin for agy updated successfully.")
+    } catch { |err|
+      print $"Warning: Could not update context-mode plugin for agy: ($err.msg)"
+    }
+  }
+
+  # Upgrade OpenCode to remove legacy MCP config and set hooks
+  try {
+    with-env { CONTEXT_MODE_PLATFORM: "opencode" } {
+      context-mode upgrade
+    }
+  } catch { |err|
+    print $"Warning: Failed to run context-mode upgrade: ($err.msg)"
+  }
+
+  # Ensure context-mode is registered in the OpenCode plugin array
+  let opencode_config = "~/.config/opencode/opencode.json" | path expand
+  if ($opencode_config | path exists) {
+    let config = open $opencode_config
+    let plugins = $config | get -o plugin | default []
+    if not ("context-mode" in $plugins) {
+      let updated_plugins = $plugins | append "context-mode"
+      $config | upsert plugin $updated_plugins | save -f $opencode_config
+      print "context-mode plugin registered in ~/.config/opencode/opencode.json"
+    }
+  }
 
   let npm_root = npm root -g | str trim | path expand
   let agy_rules_path = $npm_root | path join "context-mode" "configs" "antigravity" "GEMINI.md"
@@ -1184,4 +1269,58 @@ export def "apps-update gemini-skills" [] {
     cd $repo
     ^git pull
     link-skills
+}
+
+#update ponytail extension across AI tools
+export def "apps-update ponytail" [] {
+  print (echo-g "Checking and updating Ponytail ruleset extension...")
+
+  # 1. Gemini / Antigravity (agy)
+  if (which gemini | is-not-empty) {
+    print (echo-g "Updating Ponytail for Gemini CLI / agy...")
+    try {
+      ^gemini extensions install https://github.com/DietrichGebert/ponytail
+      print (echo-g "Gemini/agy Ponytail update complete.")
+    } catch { |err|
+      print (echo-r $"Failed to update Ponytail for Gemini/agy: ($err.msg)")
+    }
+  } else {
+    print (echo-y "Gemini CLI not found, skipping.")
+  }
+
+  # 2. Claude Code
+  if (which claude | is-not-empty) {
+    print (echo-g "Updating Ponytail for Claude Code...")
+    try {
+      ^claude plugin marketplace add DietrichGebert/ponytail
+      ^claude plugin install ponytail@ponytail
+      print (echo-g "Claude Code Ponytail update complete.")
+    } catch { |err|
+      print (echo-r $"Failed to update Ponytail for Claude Code: ($err.msg)")
+    }
+  } else {
+    print (echo-y "Claude Code not found, skipping.")
+  }
+
+  # 3. OpenCode
+  let opencode_config = "~/.config/opencode/opencode.json" | path expand
+  if ($opencode_config | path exists) {
+    print (echo-g "Registering Ponytail in OpenCode config...")
+    try {
+      let config = open $opencode_config
+      let plugins = $config | get -o plugin | default []
+      if not ("@dietrichgebert/ponytail" in $plugins) {
+        let updated_plugins = $plugins | append "@dietrichgebert/ponytail"
+        $config | upsert plugin $updated_plugins | save -f $opencode_config
+        print (echo-g "Ponytail registered in ~/.config/opencode/opencode.json")
+      } else {
+        print (echo-g "Ponytail already registered in OpenCode config.")
+      }
+    } catch { |err|
+      print (echo-r $"Failed to update OpenCode config for Ponytail: ($err.msg)")
+    }
+  } else {
+    print (echo-y "OpenCode config not found, skipping.")
+  }
+
 }

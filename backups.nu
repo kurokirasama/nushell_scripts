@@ -193,7 +193,7 @@ export def "zoxide backup" [] {
 @category backup
 @search-terms zed backup
 export def "zed-backup" [] {
-  cd $env.MY_ENV_VARS.linux_backup
+  cd $env.MY_ENV_VARS.debs
   7z max zed_config ("~/.config/zed" | path expand)
 }
 
@@ -201,7 +201,7 @@ export def "zed-backup" [] {
 @category backup
 @search-terms zed restore
 export def "zed-restore" [] {
-  cd $env.MY_ENV_VARS.linux_backup
+  cd $env.MY_ENV_VARS.debs
   7z x zed_config.7z -o/home/kira/.config/ -y
 }
 
