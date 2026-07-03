@@ -286,6 +286,7 @@ export def --env "opn profile" [
     --matlab-mcp(-M) #add the matlab mcp server
     --list-mcp-servers-and-extensions(-l)
     --normal(-n) #use normal/free remote models instead of local ollama
+    --build(-b) #starts in build mode instead of normal mode
 ] {
   let settings_file = "settings_opencode.json"
   let settings = open ($env.MY_ENV_VARS.linux_backup | path join $settings_file)
@@ -321,23 +322,23 @@ export def --env "opn profile" [
   let filtered_mcp = if ($servers | is-empty) { {} } else { $mcp_servers | select ...$servers }
 
   # Host and Model Resolution
-  let host_0 = $env.MY_ENV_VARS.hosts.0
-  let host_1 = $env.MY_ENV_VARS.hosts.1
+  let host_0 = $env.MY_ENV_VARS.hosts.0   # deathnote
+  let host_2 = $env.MY_ENV_VARS.hosts.2   # lgomez-desktop
 
   let model_setup = if $normal {
     {
       model: "opencode/nemotron-3-ultra-free",
       small_model: "opencode/big-pickle"
     }
-  } else if $env.HOST == $host_1 {
-    {
-      model: $settings.model,
-      small_model: $settings.small_model
-    }
   } else if $env.HOST == $host_0 {
     {
       model: "ollama/qwen3.5:4b",
       small_model: "ollama/qwen3.5:0.8b"
+    }
+  } else if $env.HOST == $host_2 {
+    {
+      model: "ollama/qwen3.6:27b",
+      small_model: "ollama/qwen3.5:4b"
     }
   } else {
     print (echo-r "device with no opencode config")
@@ -346,23 +347,48 @@ export def --env "opn profile" [
 
   # Build target configuration record
   # Ensure the selected model and small_model are populated under provider.ollama.models with 32k context overrides
+  let mode = if $build { "build" } else { "plan" }
   let config_base = $settings 
     | upsert mcp $filtered_mcp
     | upsert model $model_setup.model
     | upsert small_model $model_setup.small_model
+    | upsert default_agent $mode
 
-  # Dynamically ensure qwen3.5:0.8b is defined if on host_0
-  let final_config = if (not $normal) and ($env.HOST == $host_0) {
-    let qwen_small = {
-      id: "qwen3.5:0.8b"
-      name: "qwen3.5:0.8b"
-      limit: { context: 32768, output: 4096 }
-      options: {
-        extraBody: { num_ctx: 32768, options: { num_ctx: 32768 } }
-      }
+  # Dynamically register local Ollama models with context limits via get-ollama-model-info
+  let final_config = if (not $normal) and ($env.HOST == $host_0 or $env.HOST == $host_2) {
+    let main_model_name = if ($model_setup.model | str starts-with "ollama/") {
+      $model_setup.model | str replace "ollama/" ""
+    } else {
+      null
     }
-    let models = $config_base | get provider.ollama.models | upsert "qwen3.5:0.8b" $qwen_small
-    $config_base | upsert provider.ollama.models $models
+    let small_model_name = if ($model_setup.small_model | str starts-with "ollama/") {
+      $model_setup.small_model | str replace "ollama/" ""
+    } else {
+      null
+    }
+
+    let current_models = $config_base | get -o provider.ollama.models | default {}
+    # Use host-specific context cap: lgomez-desktop (16GB VRAM) can handle 65k,
+    # deathnote (3GB VRAM) is limited to 32k. The MCP tool descriptions alone can
+    # consume ~65k tokens, so the remote machine needs a larger window.
+    let ctx_cap = if $env.HOST == $host_2 { 65536 } else { 32768 }
+    let updated_models = [$main_model_name, $small_model_name]
+      | compact
+      | reduce --fold $current_models { |m, acc|
+          let info = get-ollama-model-info $m
+          let ctx_val = [$info.context, $ctx_cap] | math min | into int
+          let model_record = {
+            id: $m
+            name: $m
+            limit: { context: $ctx_val, output: 4096 }
+            options: {
+              extraBody: { num_ctx: $ctx_val, options: { num_ctx: $ctx_val } }
+            }
+          }
+          $acc | upsert $m $model_record
+        }
+
+    $config_base | upsert provider.ollama.models $updated_models
   } else {
     $config_base
   }
@@ -372,13 +398,45 @@ export def --env "opn profile" [
   $final_config | save -f $opencode_config_path
 }
 
-# Wrapper for opencode CLI
+# Configure Ollama systemd service with the correct OLLAMA_CONTEXT_LENGTH for this machine.
+# Run once after installing Ollama, or whenever VRAM changes. Requires sudo.
+# VRAM tiers: >=12GB → 131072, >=6GB → 65536, <6GB → 32768 (CPU fallback: 32768).
+# This is required for OpenCode to work with local Ollama models — the MCP tool
+# descriptions alone consume ~65-75k tokens, so the context window must be large enough
+# to leave room for actual model output.
+export def opn-setup-ollama [] {
+  let vram_mb_str = (do { ^nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits } | complete | get stdout | str trim | lines | first | str trim)
+  let vram_mb = try { $vram_mb_str | into int } catch { 0 }
+  let ctx_len = if $vram_mb >= 12000 {
+    131072
+  } else if $vram_mb >= 6000 {
+    65536
+  } else {
+    32768
+  }
+
+  print (echo-g $"Detected VRAM: ($vram_mb) MB → setting OLLAMA_CONTEXT_LENGTH=($ctx_len)")
+
+  let override_dir = "/etc/systemd/system/ollama.service.d"
+  let override_file = $"($override_dir)/override.conf"
+  let override_content = $"[Service]\nEnvironment=\"OLLAMA_CONTEXT_LENGTH=($ctx_len)\"\n"
+
+  sudo mkdir -p $override_dir
+  $override_content | sudo tee $override_file | ignore
+  sudo systemctl daemon-reload
+  sudo systemctl restart ollama
+
+  print (echo-g $"Ollama restarted with OLLAMA_CONTEXT_LENGTH=($ctx_len). Run `opn profile standard` to regenerate opencode.json.")
+}
+
+
 export def --env --wrapped opn [
-  ...rest
   --profile(-p): string@$profiles = "standard"
   --matlab-mcp(-M) #use the matlab mcp server
   --model(-m): string #choose model
   --normal(-n) #use normal/free remote models instead of local ollama
+  --manual #disable auto-approve mode (prompt for permissions)
+  ...rest
 ] {
   if $normal and $matlab_mcp {
     opn profile $profile --normal --matlab-mcp
@@ -393,12 +451,20 @@ export def --env --wrapped opn [
   let opn_bin = $env.HOME | path join .opencode bin opencode
   
   let opn_cmd = if ($model | is-not-empty) {
-    [$opn_bin --model $model --dangerously-skip-permissions]
+    [$opn_bin --model $model]
   } else {
-    [$opn_bin --dangerously-skip-permissions]
+    [$opn_bin]
   }
 
-  ^$opn_cmd.0 ...($opn_cmd | skip 1) ...$rest
+  # Default to current directory if no positional args given
+  # --auto is prepended by default (yolo mode). Use --manual to opt out.
+  let rest_args = if ($rest | is-empty) {
+    if $manual { ["."] } else { ["--auto", "."] }
+  } else {
+    if $manual { $rest } else { ["--auto"] ++ $rest }
+  }
+
+  ^$opn_cmd.0 ...($opn_cmd | skip 1) ...$rest_args
 }
 
 const gemini_models = [

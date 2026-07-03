@@ -30,6 +30,7 @@ $env.config.table.trim = {
   }
 
 #miscelaneous
+$env.config.history.sync_on_enter = true
 $env.config.history.file_format = "sqlite"
 $env.config.history.ignore_space_prefixed = true
 $env.config.auto_cd_implicit = false
@@ -319,12 +320,15 @@ let new_keybinds = [
         name: insert_last_argument
         modifier: alt
         keycode: char_i
-        mode: emacs
-        event: [{  
-                    edit: InsertString,
-                    value: "!$"
-               },
-               { send: Enter }]
+        mode: [emacs vi_insert vi_normal]
+        event: {
+            send: ExecuteHostCommand,
+            cmd: r##'
+                let cmd = history | last | get command
+                let arg = ast --flatten $cmd | last | get content
+                commandline edit --insert $arg
+            '##
+        }
     },
     {
         name: insert_sudo
