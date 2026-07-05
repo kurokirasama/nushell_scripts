@@ -117,7 +117,7 @@ export def update-nu-config [] {
   
   cp -f $default $nu.config-path
 
-  let append_file = if (sys host | get name | str downcase) == "windows" { "append_to_config_win.nu" } else { "append_to_config.nu" }
+  let append_file = if (sys host | get name | str lowercase) == "windows" { "append_to_config_win.nu" } else { "append_to_config.nu" }
   open ([$env.MY_ENV_VARS.linux_backup $append_file] | path join)
   | str replace kira $env.USER -a
   | save --append $nu.config-path
@@ -962,9 +962,8 @@ export def "apps-update rtk" [
   print $"Latest RTK version: ($latest_version)"
 
   if not $force {
-    let cp = ($current_version | split row "." | into int)
-    let lp = ($latest_version | split row "." | into int)
-    if $cp == $lp {
+    let sorted = [($current_version | into semver), ($latest_version | into semver)] | sort | each { into string }
+    if $sorted.1 == $current_version {
       print (echo-g "RTK is already at the latest version!")
       return
     }
@@ -1088,7 +1087,7 @@ export def "apps-update scrcpy" [] {
   git pull
 
   # scrcpy 4.0+ requires SDL3, which is not in Ubuntu 24.04 repos
-  if ((sys host | get name | str downcase) in ["linux" "ubuntu"]) and (lsb_release -rs | str trim) == "24.04" {
+  if ((sys host | get name | str lowercase) in ["linux" "ubuntu"]) and (lsb_release -rs | str trim) == "24.04" {
     let sdl3_path = $env.HOME | path join "software/scrcpy/app/deps/work/install/linux-native-shared/lib/pkgconfig"
     
     let sdl3_exists = with-env { PKG_CONFIG_PATH: $sdl3_path } { 

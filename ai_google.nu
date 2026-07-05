@@ -315,18 +315,32 @@ export def google_ai [
     } else { [] }
 
   #search prompts
-  let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
-  let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
-  let web_content = if $web_search { 
-      try {
-          web_search $search -n $web_results -mv -e $web_engine 
-      } catch {|e|
-          return (echo-r $"Web search failed: ($e.msg)")
-      }
-  } else {""}
-  let web_content = if $web_search and $web_engine == "google" { ai google_search-summary $prompt $web_content -m -M "gemini" } else {$web_content}
+  let web_content = if $web_search {
+    let search_prompt = "From the next question delimited by triple single quotes ('''), please generate a JSON list of search queries that would be useful to gather all necessary information to answer it completely. Ensure that the queries are not redundant, each query searches for different information, and the list is minimal (a single query is allowed and preferred if sufficient). Return at most 10 queries. Deliver your response in a raw JSON array of strings, without markdown formatting or code blocks. If no search is needed, return an empty array []. The question:\n'''" + $prompt + "\n'''"
+    let search_json = try { google_ai $search_prompt -t 0.2 } catch { "[]" }
+    
+    let queries = try {
+      $search_json 
+      | str replace -r "(?s).*?\\[" "[" 
+      | str replace -r "(?s)\\].*" "]" 
+      | from json
+    } catch {
+      # Fallback: single query extraction
+      let fallback_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
+      let fallback_search = try { google_ai $fallback_prompt -t 0.2 | lines | first } catch { "" }
+      if ($fallback_search | is-empty) { [] } else { [$fallback_search] }
+    }
+
+    if ($queries | is-empty) {
+      ""
+    } else {
+      ai web_search-multi $queries -n $web_results --web_engine $web_engine --verbose $verbose
+    }
+  } else {
+    ""
+  }
   
-  let prompt = if $web_search {
+  let prompt = if $web_search and not ($web_content | is-empty) {
       $prompt + "\n\n You can complement your answer with the following up to date information about my question I obtained from a google search, in markdown format:\n" + $web_content
     } else { $prompt }
 
@@ -374,7 +388,7 @@ export def google_ai [
   
   let final_answer = $answer
   try {
-    let steps = ($final_answer | get -o steps)
+    let steps = ($final_answer | get -o steps | default [])
     if ($steps | is-empty) {
         if ($final_answer | get status) == "completed" {
             return ""
@@ -1016,4 +1030,46 @@ export def "ai deep-research plan-respond" [
     }
     
     return $response
+}
+
+# Helper to execute multiple web searches in parallel and consolidate results.
+export def "ai web_search-multi" [
+  queries: list<string>                   # The list of search queries to execute
+  --web_results(-n): int = 5              # Number of web results per query
+  --web_engine: string = "google"         # Search engine to use ('google' or 'ollama')
+  --verbose(-v): any = false              # Verbose flag to output progress
+] {
+  if ($queries | is-empty) {
+    return ""
+  }
+
+  let web_content_list = $queries | par-each {|q|
+    if $verbose { print (echo-g $"Searching: ($q)") }
+    let raw_res = try {
+      web_search $q -n $web_results -m -v -e $web_engine
+    } catch {|e|
+      if $verbose { print (echo-r $"Search failed for '($q)': ($e.msg)") }
+      ""
+    }
+
+    if ($raw_res | is-empty) {
+      ""
+    } else {
+      # If the engine is google, summarize the results for this query
+      let summarized = if $web_engine == "google" {
+        try {
+          ai google_search-summary $q $raw_res -m -M "gemini"
+        } catch {|e|
+          if $verbose { print (echo-y $"Summarization failed for '($q)', using raw results") }
+          $raw_res
+        }
+      } else {
+        $raw_res
+      }
+      
+      $"### Search Query: ($q)\n\n($summarized)\n"
+    }
+  }
+
+  return ($web_content_list | where {|c| not ($c | is-empty)} | str join "\n")
 }

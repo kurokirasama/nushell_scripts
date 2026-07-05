@@ -15,6 +15,7 @@ export def "ai help" [] {
     { name: "google_ai", description: "Single call to google ai LLM api wrapper and chat mode" },
     { name: "google_aimage", description: "Single call to google ai LLM image generations api wrapper" },
     { name: "ai google_search-summary", description: "Summarize the output of google_search via ai" },
+    { name: "ai web_search-multi", description: "Execute multiple web searches in parallel and consolidate results" },
     { name: "o_llama", description: "Single call ollama wrapper" },
     { name: "chat_gpt", description: "Single call chatgpt wrapper" },
     { name: "dall_e", description: "Single call to openai dall-e models" },
@@ -1640,7 +1641,7 @@ export def "ai batch-paper-analyser" [
 
   # 9. Compile and save the final document
   print (echo-g "compiling the final document...")
-  let final_filename = ($title | str replace " " "_" | str downcase) + ".md"
+  let final_filename = ($title | str replace " " "_" | str lowercase) + ".md"
   let final_content = $"($title)\n\n($introduction_with_title)\n\n($public_review_with_title)\n\n($expert_output)\n\n($conclusion_with_title)"
   
   $final_content | save -f $final_filename

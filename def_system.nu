@@ -175,7 +175,7 @@ export def link-skills [] {
         let parts = $skill | path split
         let plugin_name = $parts | get (($parts | length) - 4)
         let skill_name  = $parts | get (($parts | length) - 2)
-        $"($plugin_name)-($skill_name | str downcase)"
+        $"($plugin_name)-($skill_name | str lowercase)"
     }
 
     let all_expected_names = ($standard_skill_names | append $plugin_skill_names)
@@ -240,7 +240,7 @@ export def link-skills [] {
 
         # Lowercase the skill name so the folder and SKILL.md `name:` field both satisfy Zed's
         # validation (only lowercase letters, numbers, and hyphens allowed).
-        let target_name = $"($plugin_name)-($skill_name | str downcase)"
+        let target_name = $"($plugin_name)-($skill_name | str lowercase)"
 
         # Copy to Zed ($dest1) — we copy (not symlink) so we can patch the SKILL.md name field
         # without modifying the source plugin files.

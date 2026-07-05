@@ -83,9 +83,9 @@ export def --env "opn cron" [
   let prompt = $"/($skill)"
 
   if $normal {
-    opn profile $profile --normal
+    opn profile $profile --normal --build
   } else {
-    opn profile $profile
+    opn profile $profile --build
   }
 
   let opn_bin = $env.HOME | path join .opencode bin opencode

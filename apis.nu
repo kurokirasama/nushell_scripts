@@ -662,7 +662,7 @@ export def nutts [
     } 
   
   # route based on service
-  match ($service | str downcase) {
+  match ($service | str lowercase) {
       audiourl => { audiourl $voice $detext },
       tiktok => { weilnet $voice $detext },
       uberduck => { uberduck $voice $detext },

@@ -94,7 +94,7 @@ export def ls-ports [] {
     | lines
     | take 1
     | each {||
-        str downcase 
+        str lowercase 
         | str replace ' name$' ' name state'
       }
   
@@ -200,7 +200,7 @@ export def get-devices [] {
   let devices = $ips | merge $macs_n_names
 
   let known_devices = open ($env.MY_ENV_VARS.linux_backup | path join known_devices.csv)
-  let known_macs = $known_devices | get mac | str upcase
+  let known_macs = $known_devices | get mac | str uppercase
 
   let known = $devices | each {|item| $item.mac in $known_macs} | wrap known
 

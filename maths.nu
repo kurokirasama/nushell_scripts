@@ -348,7 +348,7 @@ export def base2dec [
 	s:string	#string
 	b:int 		#base
 ] {
-	let s = $s | str downcase
+	let s = $s | str lowercase
 
 	if $b < 1 or $b > 16 {
 		return-error "wrong base provided!"

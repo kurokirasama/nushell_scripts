@@ -89,7 +89,7 @@ export def country-flag [
   let base_offset = 127397
 
   $country_code
-  | str upcase
+  | str uppercase
   | split chars
   | each {|c|
     ($c | into binary | into int) + $base_offset

@@ -7,7 +7,7 @@ export def "chatpdf add" [
   --notify(-n)  #notify to android via join/tasker
 ] {
   let file = get-input $in $file -n
-  if ($file | path parse | get extension | str downcase) != pdf {
+  if ($file | path parse | get extension | str lowercase) != pdf {
     return-error "wrong file type, it must be a pdf!"
   }
 
@@ -17,7 +17,7 @@ export def "chatpdf add" [
 
   let url = "https://api.chatpdf.com/v1/sources/add-file"
 
-  let filename = $file | path parse | get stem | str downcase | str replace -a " " "_"
+  let filename = $file | path parse | get stem | str lowercase | str replace -a " " "_"
   let filepath = $file | path expand
 
   if ($filename in ($database | columns)) {
@@ -89,7 +89,7 @@ export def "chatpdf ask" [
       | input list -f (echo-g "Select pdf to ask a question:")
     } else {
       $select_pdf
-      | str downcase 
+      | str lowercase 
       | str replace -a " " "_"
     }
   

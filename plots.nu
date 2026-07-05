@@ -31,7 +31,7 @@ export def gnu-plot [
 
   let title = if ($title | is-empty) {
     if $n_cols == 1 {
-      $ylabel | str upcase
+      $ylabel | str uppercase
     } else {
       $"($ylabel) vs ($xlabel)"
     }

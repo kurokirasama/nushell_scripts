@@ -162,7 +162,7 @@ export def "media repeat" [
 
 #cuda ffmpeg
 export def --wrapped my-ffmpeg [...rest] {
-  let ffmpeg = if (sys host | get name | str downcase) == "windows" { "ffmpeg.exe" } else { ($env.HOME | path join "software" "nvidia" "ffmpeg" "ffmpeg") }
+  let ffmpeg = if (sys host | get name | str lowercase) == "windows" { "ffmpeg.exe" } else { ($env.HOME | path join "software" "nvidia" "ffmpeg" "ffmpeg") }
   ^$ffmpeg -hwaccel cuda ...$rest
 }
 
@@ -481,13 +481,13 @@ export def "media split-video" [
     let segment_end = ($seg_end + ($it - 1) * $seg_duration + $delta) | into hhmmss
 
     print (echo-g $"generating part ($it): ($segment_start) - ($segment_end)...")
-    media cut-video $file $segment_start $segment_end -a $it
+    media cut-video $file $segment_start $segment_end -a ($it | into string)
   }
 
   let segment_start = (($n_segments - 1) * $seg_duration) | into hhmmss
 
   print (echo-g $"generating part ($n_segments): ($segment_start) - ($full_hhmmss)...")
-  media cut-video $file $segment_start $full_hhmmss -a $n_segments
+  media cut-video $file $segment_start $full_hhmmss -a ($n_segments | into string)
   if $notify {"video split finished!" | tasker send-notification}
 }
 
@@ -1329,7 +1329,7 @@ export def "media trim-end" [
     --output(-o): string           # Optional output file name
     --notify(-n)                   # Notify to android via join/tasker
 ] {
-    let ext = $file | path parse | get extension | str downcase
+    let ext = $file | path parse | get extension | str lowercase
     let name = $file | path parse | get stem
     let is_video = $ext in ["mp4", "mkv", "avi", "webm", "h264"]
     
@@ -1386,7 +1386,7 @@ export def "media auto-remove-logo" [
     --return-info(-i),             # Return detection info (start, end, coordinates)
     --notify(-n)                   # Notify to android via join/tasker
 ] {
-    let ext = $file | path parse | get extension | str downcase
+    let ext = $file | path parse | get extension | str lowercase
     let name = $file | path parse | get stem
     let is_video = $ext in ["mp4", "mkv", "avi", "webm", "h264"]
     let is_image = $ext in ["jpg", "jpeg", "png", "webp"]
@@ -1536,7 +1536,7 @@ export def "media add-logo" [
     --fit(-f),             # Reposition logos for best fit within frame
     --output(-o): string   # Optional output file name
 ] {
-    let ext = $file | path parse | get extension | str downcase
+    let ext = $file | path parse | get extension | str lowercase
     let name = $file | path parse | get stem
     let is_video = $ext in ["mp4", "mkv", "avi", "webm", "h264"]
 
@@ -1546,7 +1546,7 @@ export def "media add-logo" [
 
     let data = if ($logo_data | describe) == "string" {
         if ($logo_data | path exists) {
-            let config_ext = $logo_data | path parse | get extension | str downcase
+            let config_ext = $logo_data | path parse | get extension | str lowercase
             match $config_ext {
                 "json" => (open $logo_data),
                 "yaml" | "yml" => (open $logo_data),
@@ -1754,7 +1754,7 @@ export def "media replace-logo" [
     --fit(-f),                     # Reposition logo for best fit without scaling
     --clean(-c)                    # Delete intermediate logo-free video
 ] {
-    let ext = $file | path parse | get extension | str downcase
+    let ext = $file | path parse | get extension | str lowercase
     let name = $file | path parse | get stem
     let is_video = $ext in ["mp4", "mkv", "avi", "webm", "h264"]
 

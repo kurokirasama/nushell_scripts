@@ -454,10 +454,11 @@ export def rename [
 
 #save as excel/ods format
 export def "to ods" [filename]: [table -> binary] {
+    let input = $in
     let tmp_csvfile = mktemp --suffix .csv --tmpdir
     let csvfile = $tmp_csvfile | path parse | get parent | path join $"($filename).csv"
     let odsfile = $tmp_csvfile | path parse | update extension ods | path join 
-    $in | to csv | save -f $tmp_csvfile 
+    $input | to csv | save -f $tmp_csvfile 
     mv $tmp_csvfile $csvfile  -f
     libreoffice --headless --convert-to ods $csvfile
 }

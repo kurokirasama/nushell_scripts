@@ -56,8 +56,8 @@ export def ytm [
 
   let songs = if not ($artist | is-empty) {
       $songs 
-      | str downcase "artist"
-      | where "artist" like ($artist | str downcase)
+      | str lowercase "artist"
+      | where "artist" like ($artist | str lowercase)
     } else {
       $songs 
     }
@@ -118,8 +118,8 @@ export def "ytm online" [
 
       let songs = if not ($artist | is-empty) {
           $songs 
-          | str downcase "artist"
-          | where "artist" like ($artist | str downcase)
+          | str lowercase "artist"
+          | where "artist" like ($artist | str lowercase)
         } else {
           $songs
         }

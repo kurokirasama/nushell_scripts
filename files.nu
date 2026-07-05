@@ -775,27 +775,27 @@ export def subtitle-renamer [] {
         # Try to match season and episode patterns (case insensitive)
         let season_episode = match $subtitle_name {
             # s01e02 pattern
-            $s if ($s | str downcase | find -r "s([0-9]+)e([0-9]+)" | is-not-empty) => {
+            $s if ($s | str lowercase | find -r "s([0-9]+)e([0-9]+)" | is-not-empty) => {
                 $subtitle_name 
-                | str downcase 
+                | str lowercase 
                 | parse --regex '^(?P<title>.+?)\s+s(?P<season>[0-9]+)e(?P<episode>[0-9]+)\.\w+$'
                 | update season { into int } 
                 | get 0 
                 | reject title
             },
             # 1x02 pattern
-            $s if ($s | str downcase | find -r "([0-9]+)x([0-9]+)" | is-not-empty) => {
+            $s if ($s | str lowercase | find -r "([0-9]+)x([0-9]+)" | is-not-empty) => {
                 $subtitle_name 
-                | str downcase 
+                | str lowercase 
                 | parse --regex '^(?P<title>.*?) (?P<season>\d+)x(?P<episode>\d+)\.\w+$' 
                 | update season { into int } 
                 | get 0 
                 | reject title
             },
             # 102 pattern (1=season, 02=episode)
-            $s if ($s | str downcase | find -r "([0-9]+)([0-9][0-9])" | is-not-empty) => {
+            $s if ($s | str lowercase | find -r "([0-9]+)([0-9][0-9])" | is-not-empty) => {
                 $subtitle_name 
-                | str downcase 
+                | str lowercase 
                 | parse --regex '^(?P<title>.+?)\s+(?P<season>\d+)(?P<episode>\d{2})\.\w+$'
                 | update season { into int } 
                 | get 0 
@@ -816,7 +816,7 @@ export def subtitle-renamer [] {
                 let subtitle_ext = $subtitle | path parse | get extension
                 
                 # Check if movie name contains the season/episode pattern (case insensitive)
-                let is_match = ($movie_name | str downcase | find -r $"($season)($episode)" | is-not-empty ) or ($movie_name | str downcase | find -r $"s0?($season)e($episode)" | is-not-empty ) or ($movie_name | str downcase | find -r $"($season)x($episode)" | is-not-empty )
+                let is_match = ($movie_name | str lowercase | find -r $"($season)($episode)" | is-not-empty ) or ($movie_name | str lowercase | find -r $"s0?($season)e($episode)" | is-not-empty ) or ($movie_name | str lowercase | find -r $"($season)x($episode)" | is-not-empty )
                 
                 if $is_match {
                     let new_name = $"($movie_base).($subtitle_ext)"

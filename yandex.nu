@@ -224,7 +224,7 @@ def _ydx-api-request [
         Accept: "application/json"
     }
     
-    match ($method | str upcase) {
+    match ($method | str uppercase) {
         "GET" => { http get $url -H $headers }
         "POST" => { http post $url "{}" -H $headers }
         "DELETE" => { http delete $url -H $headers }

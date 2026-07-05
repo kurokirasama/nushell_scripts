@@ -239,23 +239,32 @@ export def o_llama [
   }
 
   #search prompts
-  let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
-  
-  let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
-  
   let web_content = if $web_search {
-      try {
-          web_search $search -n $web_results -mv -e $web_engine
-      } catch {|e|
-          return (echo-r $"Web search failed: ($e.msg)")
-      }
-  } else {""}
+    let search_prompt = "From the next question delimited by triple single quotes ('''), please generate a JSON list of search queries that would be useful to gather all necessary information to answer it completely. Ensure that the queries are not redundant, each query searches for different information, and the list is minimal (a single query is allowed and preferred if sufficient). Return at most 10 queries. Deliver your response in a raw JSON array of strings, without markdown formatting or code blocks. If no search is needed, return an empty array []. The question:\n'''" + $prompt + "\n'''"
+    let search_json = try { google_ai $search_prompt -t 0.2 } catch { "[]" }
+    
+    let queries = try {
+      $search_json 
+      | str replace -r "(?s).*?\\[" "[" 
+      | str replace -r "(?s)\\].*" "]" 
+      | from json
+    } catch {
+      # Fallback: single query extraction
+      let fallback_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
+      let fallback_search = try { google_ai $fallback_prompt -t 0.2 | lines | first } catch { "" }
+      if ($fallback_search | is-empty) { [] } else { [$fallback_search] }
+    }
+
+    if ($queries | is-empty) {
+      ""
+    } else {
+      ai web_search-multi $queries -n $web_results --web_engine $web_engine --verbose $verbose
+    }
+  } else {
+    ""
+  }
   
-  let web_content = if $web_search and $web_engine == "google" {
-      ai google_search-summary $prompt $web_content -m -M "gemini"
-  } else {$web_content}
-  
-  let prompt = if $web_search {
+  let prompt = if $web_search and not ($web_content | is-empty) {
       $prompt + "\n\n You can complement your answer with the following up to date information about my question I obtained from a google search, in markdown format:\n" + $web_content
     } else {
       $prompt
