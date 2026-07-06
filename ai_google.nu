@@ -193,8 +193,8 @@ export def google_ai [
     
 
     mut contents = if $database {
-        open ({parent: ($env.MY_ENV_VARS.chatgpt + "/bard"), stem: $database_file, extension: "json"} | path join)
-        | update_gemini_content $in $chat_prompt "user"
+        let db_content = open ({parent: ($env.MY_ENV_VARS.chatgpt + "/bard"), stem: $database_file, extension: "json"} | path join)
+        update_gemini_content $db_content $chat_prompt "user"
       } else {
         [ { role: "user", parts: [[text]; [$chat_prompt]] } ]
       }
@@ -361,7 +361,7 @@ export def google_ai [
   }
 
   #trying different models in case of error
-  mut answer = null
+  mut answer: any = null
   mut index_model = 0
   let models = $gemini_models | find -v vision
   let n_models = $models | length 

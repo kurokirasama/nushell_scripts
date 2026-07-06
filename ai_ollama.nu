@@ -106,8 +106,8 @@ export def o_llama [
     
 
     mut contents = if $database {
-        open ({parent: ($env.MY_ENV_VARS.chatgpt + "/ollama"), stem: $database_file, extension: "json"} | path join)
-        | update_ollama_content $in $chat_prompt "user"
+        let db_content = open ({parent: ($env.MY_ENV_VARS.chatgpt + "/ollama"), stem: $database_file, extension: "json"} | path join)
+        update_ollama_content $db_content $chat_prompt "user"
       } else {
         [
           {

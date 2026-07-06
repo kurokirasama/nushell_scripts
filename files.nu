@@ -392,8 +392,10 @@ export def find-file [search,--directory(-d):string] {
     }
     
     try {
-      idx find --files $search | get path | ls ...$in
+      print (echo-g "trying idx approach...")
+      idx find --files $search | get relative_path | ls ...$in
     } catch {
+      print (echo-r "falling back to get-files...")
       get-files -f | find -n $search
     }
   } else {

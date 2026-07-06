@@ -420,7 +420,7 @@ export def "ai git-push" [
         }
       }
     } catch {
-      input (echo-g $"Something happened with ($model). Enter your commit message or leave empty to stop: ")
+      null | input (echo-g $"Something happened with ($model). Enter your commit message or leave empty to stop: ")
     }
   
 
