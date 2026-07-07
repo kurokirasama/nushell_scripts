@@ -316,7 +316,7 @@ export def google_ai [
 
   #search prompts
   let web_content = if $web_search {
-    let search_prompt = "From the next question delimited by triple single quotes ('''), please generate a JSON list of search queries that would be useful to gather all necessary information to answer it completely. Ensure that the queries are not redundant, each query searches for different information, and the list is minimal (a single query is allowed and preferred if sufficient). Return at most 10 queries. Deliver your response in a raw JSON array of strings, without markdown formatting or code blocks. If no search is needed, return an empty array []. The question:\n'''" + $prompt + "\n'''"
+    let search_prompt = "From the next question delimited by triple single quotes ('''), please generate a JSON list of search queries that would be useful to gather all necessary information to answer it completely. Ensure that the queries are not redundant, each query searches for different information, and the list is minimal (a single query is allowed and preferred if sufficient). Deliver your response in a raw JSON array of strings, without markdown formatting or code blocks. If no search is needed, return an empty array []. The question:\n'''" + $prompt + "\n'''"
     let search_json = try { google_ai $search_prompt -t 0.2 } catch { "[]" }
     
     let queries = try {
