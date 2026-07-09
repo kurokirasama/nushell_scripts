@@ -4,10 +4,32 @@ export def get-input [
   var #input variable
   --name(-n) #get name of $inp
 ] {
+  let extract_name = {|val|
+    if ($val | describe | str starts-with "record") {
+      if "path" in ($val | columns) {
+        $val.path
+      } else if "name" in ($val | columns) {
+        $val.name
+      } else {
+        $val
+      }
+    } else {
+      $val
+    }
+  }
+
   if $name {
-    if ($var | is-empty) {$inp | get name} else {$var}
+    if ($var | is-empty) {
+      do $extract_name $inp
+    } else {
+      do $extract_name $var
+    }
   } else {
-    if ($var | is-empty) {$inp} else {$var}
+    if ($var | is-empty) {
+      $inp
+    } else {
+      $var
+    }
   }
 }
 

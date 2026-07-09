@@ -70,27 +70,46 @@ export def --env "gmn cron" [
 	}
 }
 
+# Free OpenCode Zen model names for --model completions
+const opn_normal_models = [
+  "opencode/deepseek-v4-flash-free"
+  "opencode/nemotron-3-ultra-free"
+  "opencode/big-pickle"
+  "opencode/claude-3-5-haiku"
+  "opencode/claude-3-5-sonnet"
+]
+
 # Run cron opencode skills
 export def --env "opn cron" [
     skill: string@$skills
-    --model(-m): string            # model to use
+    --model(-m): string@$opn_normal_models            # model to use
     --profile(-p): string@$profiles = "minimal" #profile to use
     --dont-kill(-d)             #dont kill mcp servers
     --normal(-n)                #use normal/free remote models
+    --build(-b)                 #start in build mode instead of plan mode
 ] {
   cd $env.MY_ENV_VARS.llms_configs
 
   let prompt = $"/($skill)"
 
+  let use_build = $build or $normal
+
   if $normal {
-    opn profile $profile --normal --build
+    if $use_build { opn profile $profile --normal --build } else { opn profile $profile --normal }
   } else {
-    opn profile $profile --build
+    if $use_build { opn profile $profile --build } else { opn profile $profile }
+  }
+
+  # Default model for --normal in cron is nemotron 3 ultra free
+  let actual_model = if $normal and ($model | is-empty) {
+    "opencode/nemotron-3-ultra-free"
+  } else {
+    $model
   }
 
   let opn_bin = $env.HOME | path join .opencode bin opencode
-  let opn_cmd = if ($model | is-not-empty) {
-    [$opn_bin run --model $model --dangerously-skip-permissions $prompt]
+  let opn_cmd = if ($actual_model | is-not-empty) {
+    [$opn_bin run --model $actual_model --dangerously-skip-permissions $prompt]
   } else {
     [$opn_bin run --dangerously-skip-permissions $prompt]
   }

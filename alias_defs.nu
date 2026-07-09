@@ -327,7 +327,7 @@ export def --env "opn profile" [
 
   let model_setup = if $normal {
     {
-      model: "opencode/nemotron-3-ultra-free",
+      model: "opencode/deepseek-v4-flash-free",
       small_model: "opencode/big-pickle"
     }
   } else if $env.HOST == $host_0 {
@@ -430,22 +430,34 @@ export def opn-setup-ollama [] {
 }
 
 
+const opn_normal_models = [
+  "opencode/deepseek-v4-flash-free"
+  "opencode/nemotron-3-ultra-free"
+  "opencode/big-pickle"
+  "opencode/claude-3-5-haiku"
+  "opencode/claude-3-5-sonnet"
+]
+
 export def --env --wrapped opn [
   --profile(-p): string@$profiles = "standard"
   --matlab-mcp(-M) #use the matlab mcp server
-  --model(-m): string #choose model
+  --model(-m): string@$opn_normal_models #choose model
   --normal(-n) #use normal/free remote models instead of local ollama
+  --build(-b) #start in build mode instead of plan mode
   --manual #disable auto-approve mode (prompt for permissions)
   ...rest
 ] {
+  # When --normal is used, default to build mode unless explicitly overridden
+  let use_build = $build or $normal
+  
   if $normal and $matlab_mcp {
-    opn profile $profile --normal --matlab-mcp
+    if $use_build { opn profile $profile --normal --matlab-mcp --build } else { opn profile $profile --normal --matlab-mcp }
   } else if $normal {
-    opn profile $profile --normal
+    if $use_build { opn profile $profile --normal --build } else { opn profile $profile --normal }
   } else if $matlab_mcp {
-    opn profile $profile --matlab-mcp
+    if $use_build { opn profile $profile --matlab-mcp --build } else { opn profile $profile --matlab-mcp }
   } else {
-    opn profile $profile
+    if $use_build { opn profile $profile --build } else { opn profile $profile }
   }
 
   let opn_bin = $env.HOME | path join .opencode bin opencode

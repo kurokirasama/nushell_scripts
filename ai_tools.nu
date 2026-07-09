@@ -477,13 +477,15 @@ const output_formats = ["txt", "vtt", "srt", "tsv", "json", "all"]
 @category ai
 @search-terms audio text transcription whisper
 export def "ai audio2text" [
-  filename                    #audio file input
+  filename?:any                    #audio file input
   --language(-l) = "Spanish"  #language of audio file
   --output_format(-o):string@$output_formats = "txt" #output format: txt, vtt, srt, tsv, json, all
   --translate(-t)             #translate audio to english
   --filter_noise(-f) = false  #filter noise
   --notify(-n)                #notify to android via join/tasker
 ] {
+  let filename = get-input $in $filename -n
+  if ($filename | is-empty) { return-error "no input provided!" }
   let file = $filename | path parse | get stem
 
   mut start = ""
@@ -519,12 +521,12 @@ export def "ai audio2text" [
 @category ai
 @search-terms video text transcription whisper
 export def "ai video2text" [
-  file?:string                #video file name with extension
+  file?:any                #video file name with extension
   --language(-l):string = "Spanish"  #language of audio file
   --filter_noise(-f) = false  #filter audio noise
   --notify(-n)                #notify to android via join/tasker
 ] {
-  let file = get-input $in $file
+  let file = get-input $in $file -n
 
   media extract-audio $file
 
@@ -538,7 +540,7 @@ const types = ["meeting", "youtube", "class", "instructions"]
 @category ai
 @search-terms media summary chatgpt gemini claude ollama
 export def "ai media-summary" [
-  file:string            # video, audio or subtitle file (vtt, srt, txt, url) file name with extension
+  file:any            # video, audio or subtitle file (vtt, srt, txt, url) file name with extension
   --lang(-l):string = "Spanish" # language of the summary
   --gpt(-g)             # to use gpt-5 instead of gpt-5-mini
   --gemini(-G)           # use google gemini instead of gpt
@@ -829,12 +831,14 @@ export def "ai yt-get-transcription" [
 @category ai
 @search-terms subtitles whisper
 export def "ai generate-subtitles" [
-  file                             #input video file
+  file?:any                             #input video file
   --language(-l) = "en-US/English" #language of input video file, mymmemory/whisper
   --translate(-t) = false          #to translate to spanish
   --notify(-n)                     #notify to android via join/tasker
   --paid(-P) = false               #use paid gemini
 ] {
+  let file = get-input $in $file -n
+  if ($file | is-empty) { return-error "no input provided!" }
   let filename = $file | path parse | get stem
 
   media extract-audio $file 
