@@ -434,8 +434,10 @@ const opn_normal_models = [
   "opencode/deepseek-v4-flash-free"
   "opencode/nemotron-3-ultra-free"
   "opencode/big-pickle"
-  "opencode/claude-3-5-haiku"
-  "opencode/claude-3-5-sonnet"
+  "opencode/deepseek-v4-flash"
+  "opencode/deepseek-v4-pro"
+  "opencode/qwen3.7-plus"
+  "opencode/qwen3.7-max"
 ]
 
 export def --env --wrapped opn [

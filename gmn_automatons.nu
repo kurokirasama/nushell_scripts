@@ -75,8 +75,11 @@ const opn_normal_models = [
   "opencode/deepseek-v4-flash-free"
   "opencode/nemotron-3-ultra-free"
   "opencode/big-pickle"
-  "opencode/claude-3-5-haiku"
-  "opencode/claude-3-5-sonnet"
+  "opencode/deepseek-v4-flash"
+  "opencode/deepseek-v4-pro"
+  "opencode/qwen3.7-plus"
+  "opencode/qwen3.7-max"
+  "opencode/glm-5.2"
 ]
 
 # Run cron opencode skills
@@ -121,7 +124,7 @@ export def --env "opn cron" [
 
   # Clean up and post stdout to Discord
   let cleaned_stdout = _clean-output $output.stdout
-  $cleaned_stdout | to-discord -p --process -c opencode_cron
+  $cleaned_stdout | to-discord -p --process -c gemini_cli_cron
 
   if not $dont_kill {
     sleep 2sec
