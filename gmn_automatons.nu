@@ -77,9 +77,8 @@ const opn_normal_models = [
   "opencode/big-pickle"
   "opencode/deepseek-v4-flash"
   "opencode/deepseek-v4-pro"
-  "opencode/qwen3.7-plus"
   "opencode/qwen3.7-max"
-  "opencode/glm-5.2"
+  "opencode/qwen3.7-plus"
 ]
 
 # Run cron opencode skills
@@ -97,17 +96,21 @@ export def --env "opn cron" [
 
   let use_build = $build or $normal
 
-  if $normal {
-    if $use_build { opn profile $profile --normal --build } else { opn profile $profile --normal }
-  } else {
-    if $use_build { opn profile $profile --build } else { opn profile $profile }
-  }
-
-  # Default model for --normal in cron is nemotron 3 ultra free
+  # Resolve model before profile call so it can be forwarded
   let actual_model = if $normal and ($model | is-empty) {
     "opencode/nemotron-3-ultra-free"
-  } else {
+  } else if ($model | is-not-empty) {
     $model
+  } else {
+    ""
+  }
+
+  let model_value = if $normal and ($actual_model | is-not-empty) { $actual_model } else { "" }
+
+  if $normal {
+    if $use_build { opn profile $profile --normal --build --model $model_value } else { opn profile $profile --normal --model $model_value }
+  } else {
+    if $use_build { opn profile $profile --build } else { opn profile $profile }
   }
 
   let opn_bin = $env.HOME | path join .opencode bin opencode

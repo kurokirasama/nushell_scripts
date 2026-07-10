@@ -287,6 +287,7 @@ export def --env "opn profile" [
     --list-mcp-servers-and-extensions(-l)
     --normal(-n) #use normal/free remote models instead of local ollama
     --build(-b) #starts in build mode instead of normal mode
+    --model(-m): string   #override the default model (only for --normal mode)
 ] {
   let settings_file = "settings_opencode.json"
   let settings = open ($env.MY_ENV_VARS.linux_backup | path join $settings_file)
@@ -326,8 +327,9 @@ export def --env "opn profile" [
   let host_2 = $env.MY_ENV_VARS.hosts.2   # lgomez-desktop
 
   let model_setup = if $normal {
+    let resolved_model = if ($model | is-not-empty) { $model } else { "opencode/deepseek-v4-flash-free" }
     {
-      model: "opencode/deepseek-v4-flash-free",
+      model: $resolved_model,
       small_model: "opencode/big-pickle"
     }
   } else if $env.HOST == $host_0 {
@@ -436,8 +438,8 @@ const opn_normal_models = [
   "opencode/big-pickle"
   "opencode/deepseek-v4-flash"
   "opencode/deepseek-v4-pro"
-  "opencode/qwen3.7-plus"
   "opencode/qwen3.7-max"
+  "opencode/qwen3.7-plus"
 ]
 
 export def --env --wrapped opn [
@@ -451,11 +453,13 @@ export def --env --wrapped opn [
 ] {
   # When --normal is used, default to build mode unless explicitly overridden
   let use_build = $build or $normal
+
+  let model_value = if $normal and ($model | is-not-empty) { $model } else { "" }
   
   if $normal and $matlab_mcp {
-    if $use_build { opn profile $profile --normal --matlab-mcp --build } else { opn profile $profile --normal --matlab-mcp }
+    if $use_build { opn profile $profile --normal --matlab-mcp --build --model $model_value } else { opn profile $profile --normal --matlab-mcp --model $model_value }
   } else if $normal {
-    if $use_build { opn profile $profile --normal --build } else { opn profile $profile --normal }
+    if $use_build { opn profile $profile --normal --build --model $model_value } else { opn profile $profile --normal --model $model_value }
   } else if $matlab_mcp {
     if $use_build { opn profile $profile --matlab-mcp --build } else { opn profile $profile --matlab-mcp }
   } else {
