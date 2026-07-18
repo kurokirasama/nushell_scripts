@@ -1398,7 +1398,7 @@ export def "apps-update matlab-agentic-toolkit" [] {
 	let action = if $is_installed { "update" } else { "install" }
 
 	# On fresh install: run setupAgenticToolkit interactively.
-	# -nodesktop -r mode inherits the TTY so MATLAB input() works fine.
+	# -nodisplay -r mode inherits the TTY so MATLAB input() works fine.
 	# Only -batch disables interaction — we avoid it here.
 	if not $is_installed {
 		let shebang = "setenv('SHELL','/bin/bash'); "
@@ -1414,7 +1414,7 @@ export def "apps-update matlab-agentic-toolkit" [] {
 		print (echo-c "\n🔧  Running setupAgenticToolkit('install') interactively..." "cyan")
 		print (echo-c "    Select skill groups when prompted (Enter = all)." "yellow")
 
-		run-external "matlab" "-nosplash" "-nodesktop" "-r" $setup_cmd
+		run-external "matlab" "-nosplash" "-nodisplay" "-r" $setup_cmd
 
 		try { rm $installer_tmp } catch {}
 		try { rm $mcp_toolbox_tmp } catch {}
@@ -1434,7 +1434,7 @@ export def "apps-update matlab-agentic-toolkit" [] {
 		print (echo-c "\n🔧  Running setupAgenticToolkit('update') to refresh skills..." "cyan")
 		print (echo-c "    Select skill groups when prompted (Enter = all)." "yellow")
 
-		run-external "matlab" "-nosplash" "-nodesktop" "-r" $setup_cmd
+		run-external "matlab" "-nosplash" "-nodisplay" "-r" $setup_cmd
 
 		try { rm $installer_tmp } catch {}
 		try { rm $mcp_toolbox_tmp } catch {}
@@ -1608,7 +1608,7 @@ export def "apps-update matlab-agentic-toolkit" [] {
 }
 
 #configure MATLAB Agentic Toolkit skill groups and agent platforms interactively
-#runs setupAgenticToolkit('configure') in -nodesktop mode to select agents and skill groups
+#runs setupAgenticToolkit('configure') in -nodisplay mode to select agents and skill groups
 #without re-downloading or re-installing the full toolkit
 export def "matlab configure-skills" [] {
 	let mcp_binary     = ("~/.matlab/agentic-toolkits/bin/matlab-mcp-server" | path expand)
@@ -1623,6 +1623,7 @@ export def "matlab configure-skills" [] {
 
 	# Build the configure command — pass local binary/toolbox paths to avoid re-downloading
 	let configure_cmd = (
+		"setenv('SHELL', '/bin/bash'); " +
 		"setupAgenticToolkit('configure'" +
 		(if ($mcp_binary | path exists) { ", MCPServerLocation='" + $mcp_binary + "'" } else { "" }) +
 		(if ($mcp_toolbox | path exists) { ", MCPToolboxLocation='" + $mcp_toolbox + "'" } else { "" }) +
@@ -1633,7 +1634,7 @@ export def "matlab configure-skills" [] {
 	print (echo-c "    Select agent platforms and skill groups when prompted." "yellow")
 	print (echo-c "    (e.g. enter '1,5' for Claude Code + Gemini CLI)\n" "yellow")
 
-	run-external "matlab" "-nosplash" "-nodesktop" "-r" $configure_cmd
+	run-external "matlab" "-nosplash" "-nodisplay" "-r" $configure_cmd
 
 	# Re-apply --disable-telemetry to global Gemini settings (setupAgenticToolkit may reset it)
 	if ($global_gemini | path exists) {
@@ -1699,8 +1700,13 @@ export def "apps-update from-todos" [--dry-run] {
   mut results = []
   for todo in $matched {
     print $"(ansi green)Updating ($todo.update_command)...(ansi reset)"
-    let result = nu --config ~/.config/nushell/config.nu --env-config ~/.config/nushell/env.nu -c $"apps-update ($todo.update_command)" | complete
-    if $result.exit_code == 0 {
+    let temp_file = (mktemp)
+    let update_cmd = ("nu --config ~/.config/nushell/config.nu --env-config ~/.config/nushell/env.nu -c \"apps-update " + $todo.update_command + "\"; echo $? > " + $temp_file)
+    run-external "bash" "-c" $update_cmd
+    let exit_code = (try { open $temp_file | str trim | into int } catch { 1 })
+    try { rm -f $temp_file } catch {}
+
+    if $exit_code == 0 {
       h complete-todos --ids [$todo.todo_id]
       print "done"
       $results = $results | append {todo_text: $todo.todo_text, update_command: $todo.update_command, status: "completed"}
