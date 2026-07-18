@@ -60,8 +60,21 @@ export def "h ls" [
   --now(-n)   #show todays dailys only
   --no-id(-i) #hide task ids
   --tags(-t)  #show only tasks with tags
+  --label(-l): string #filter by label name
 ] {
-  let headers = h credentials    
+  let headers = h credentials
+
+  let tags_url = {
+    scheme: "https",
+    host: "habitica.com",
+    path: "/api/v3/tags"
+  } | url join
+
+  let tags_map = try {
+    http get $tags_url -H $headers
+    | get data
+    | reduce -f {} {|tag, acc| $acc | insert $tag.id $tag.name}
+  } catch { {} }
   
   let task_type = _h-input $task_type "Select task type: " --options $types
 
@@ -114,6 +127,20 @@ export def "h ls" [
       | sort-by createdAt
     }
   }
+  | insert label_name {|task|
+      $task.tags
+      | each {|tag_id| $tags_map | get -o $tag_id | default $tag_id}
+      | str join ", "
+    }
+  | if $label != null {
+      where {|t|
+        $t.tags | any {|tag_id|
+          ($tags_map | get -o $tag_id | default $tag_id | str lowercase) == ($label | str lowercase)
+        }
+      }
+    } else {
+      $in
+    }
   | if $no_id {
       reject _id    
     } else {
@@ -196,9 +223,52 @@ export def "h add" [
   --every-x(-x): int # Repeat every X days/weeks/etc.
   --days(-s): list<string> # Days of week for weekly dailys (m, t, w, th, f, s, su)
   --direction(-r): string # Direction for habits (positive, negative, both)
+  --tag-id: list<string> # Tag UUIDs to attach to task
+  --tag-name: list<string> # Tag names to attach to task (case-insensitive)
   --dry-run # Return payload without sending
 ] {
   let headers = h credentials
+
+  if ($tag_id != null) and ($tag_name != null) {
+    return-error "Cannot use both --tag-id and --tag-name. Choose one."
+  }
+
+  # Resolve tag flags: fetch /api/v3/tags, validate IDs or resolve names to UUIDs
+  let resolved_tags = if ($tag_id != null) or ($tag_name != null) {
+    let tags_url = {
+      scheme: "https",
+      host: "habitica.com",
+      path: "/api/v3/tags"
+    } | url join
+
+    let tags_data = try {
+      http get $tags_url -H $headers | get data
+    } catch {
+      return-error "Failed to fetch tags from Habitica API"
+    }
+
+    if ($tag_id != null) {
+      let valid_ids = $tags_data | get id
+      let invalid = $tag_id | where {|id| $id not-in $valid_ids}
+      if ($invalid | is-not-empty) {
+        return-error $"Invalid tag ID: ($invalid | str join ', ')"
+      }
+      $tag_id
+    } else {
+      let names_lower = $tag_name | each {|n| $n | str lowercase}
+      let invalid = $names_lower | where {|n|
+        ($tags_data | where {|t| ($t.name | str lowercase) == $n} | is-empty)
+      }
+      if ($invalid | is-not-empty) {
+        return-error $"Tag not found: ($invalid | str join ', ')"
+      }
+      $names_lower | each {|n|
+        $tags_data | where {|t| ($t.name | str lowercase) == $n} | first | get id
+      }
+    }
+  } else {
+    []
+  }
   
   let task_type = _h-input $task_type "Select task type: " --options $add_types
 
@@ -337,6 +407,10 @@ export def "h add" [
         _ => $payload
       }
     }
+  }
+
+  if ($resolved_tags | is-not-empty) {
+    $payload = ($payload | upsert tags $resolved_tags)
   }
 
   if ($dry_run) { return $payload }

@@ -77,8 +77,8 @@ const opn_normal_models = [
   "opencode/big-pickle"
   "opencode/deepseek-v4-flash"
   "opencode/deepseek-v4-pro"
-  "opencode/qwen3.7-max"
-  "opencode/qwen3.7-plus"
+  "opencode-go/qwen3.7-max"
+  "opencode-go/qwen3.7-plus"
 ]
 
 # Run cron opencode skills
@@ -87,30 +87,28 @@ export def --env "opn cron" [
     --model(-m): string@$opn_normal_models            # model to use
     --profile(-p): string@$profiles = "minimal" #profile to use
     --dont-kill(-d)             #dont kill mcp servers
-    --normal(-n)                #use normal/free remote models
+    --ollama(-o)                #use local ollama models instead of remote
     --build(-b)                 #start in build mode instead of plan mode
 ] {
   cd $env.MY_ENV_VARS.llms_configs
 
   let prompt = $"/($skill)"
 
-  let use_build = $build or $normal
-
   # Resolve model before profile call so it can be forwarded
-  let actual_model = if $normal and ($model | is-empty) {
-    "opencode/nemotron-3-ultra-free"
+  let actual_model = if (not $ollama) and ($model | is-empty) {
+    "opencode/deepseek-v4-flash-free"
   } else if ($model | is-not-empty) {
     $model
   } else {
     ""
   }
 
-  let model_value = if $normal and ($actual_model | is-not-empty) { $actual_model } else { "" }
+  let model_value = if (not $ollama) and ($actual_model | is-not-empty) { $actual_model } else { "" }
 
-  if $normal {
-    if $use_build { opn profile $profile --normal --build --model $model_value } else { opn profile $profile --normal --model $model_value }
+  if $ollama {
+    if $build { opn profile $profile --ollama --build } else { opn profile $profile --ollama }
   } else {
-    if $use_build { opn profile $profile --build } else { opn profile $profile }
+    if $build { opn profile $profile --build --model $model_value } else { opn profile $profile --model $model_value }
   }
 
   let opn_bin = $env.HOME | path join .opencode bin opencode
@@ -135,9 +133,8 @@ export def --env "opn cron" [
   }
 }
 
-# Helper to extract final report from gemini output
+# Helper to extract final report from agent output
 def _clean-output [stdout: string] {
-	# 1. Try to parse stdout as JSON (legacy gemini-cli path returns JSON; agy --print path returns plain text)
 	let outer_data = try { $stdout | from json } catch { { "response": $stdout } }
 
 	let model_response = if ($outer_data | describe | str contains "record") and "response" in ($outer_data | columns) {
@@ -146,33 +143,8 @@ def _clean-output [stdout: string] {
 		$stdout
 	}
 
-	# 2. Search for JSON inside the model's response (which might be wrapped in code blocks)
-	# 2a. Look for ```json ... ``` blocks
-	let markdown_json_parsed = $model_response | parse -r '(?s).*```json\s*(.*?)\s*```'
-	let markdown_json = if ($markdown_json_parsed | is-not-empty) { $markdown_json_parsed | get 0.capture0 } else { "" }
-	
-	if ($markdown_json | is-not-empty) {
-		try {
-			return ($markdown_json | from json)
-		} catch { }
-	}
-
-	# 2b. Look for raw {...} block
-	let raw_json_parsed = $model_response | parse -r '(?s).*?(\{.*\})'
-	let raw_json = if ($raw_json_parsed | is-not-empty) { $raw_json_parsed | get 0.capture0 } else { "" }
-	
-	if ($raw_json | is-not-empty) {
-		try {
-			return ($raw_json | from json)
-		} catch { }
-	}
-
-	# 3. Fallback: return the response as a simple record with report key if it's just text
-	if ($model_response | str contains "---") {
-		{ "report": ($model_response | split row "---" | last | str trim) }
-	} else {
-		{ "report": ($model_response | str trim) }
-	}
+	# Pass through as raw markdown — no JSON wrapping, no truncation
+	$model_response | str trim
 }
 
 

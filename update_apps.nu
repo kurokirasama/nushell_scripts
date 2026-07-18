@@ -496,6 +496,7 @@ export def "apps-update chrome" [] {
 }
 
 #update google earth deb
+@category sudo
 export def "apps-update earth" [] {
   cd $env.MY_ENV_VARS.debs
 
@@ -523,6 +524,7 @@ export def "apps-update earth" [] {
 }
 
 #update yandex deb
+@category sudo
 export def "apps-update yandex" [] {
   cd $env.MY_ENV_VARS.debs
 
@@ -568,6 +570,7 @@ export def "apps-update yandex" [] {
 }
 
 #update sejda deb
+@category sudo
 export def "apps-update sejda" [] {
   cd $env.MY_ENV_VARS.debs
 
@@ -615,6 +618,7 @@ export def "apps-update sejda" [] {
 }
 
 #update ttyplot
+@category sudo
 export def "apps-update ttyplot" [] {
   cd $env.MY_ENV_VARS.debs
 
@@ -795,6 +799,7 @@ export def "apps-update yt-dlp" [] {
 }
 
 #update nchat (wsp)
+@category sudo
 export def "apps-update nchat" [] {
   try {sudo rm (which nchat | get path | get 0)}
   cd ~/software/nchat
@@ -807,6 +812,7 @@ export def "apps-update nchat" [] {
 }
 
 #update ffmpeg with cuda
+@category sudo
 export def "apps-update myffmpeg" [--force(-f)] {
   cd ~/software/nvidia/nv-codec-headers
   let pull = git pull
@@ -870,6 +876,7 @@ export def "apps-update tldr" [] {
 }
 
 #update ddgr (gg)
+@category sudo
 export def "apps-update ddgr" [] {
   cd ~/software/ddgr
   git pull
@@ -877,6 +884,7 @@ export def "apps-update ddgr" [] {
 }
 
 #update rclone
+@category sudo
 export def "apps-update rclone" [] {
   bash -c "sudo -v ; curl -s# https://rclone.org/install.sh | sudo bash"
 }
@@ -1045,6 +1053,7 @@ export def "apps-update reader" [] {
 }
 
 #update mega-get
+@category sudo
 export def "apps-update mega-get" [] {
   cd ~/Downloads/
   if (sys host | get os_version) == "20.04" {
@@ -1061,6 +1070,7 @@ export def "apps-update mega-get" [] {
 }
 
 #update timg
+@category sudo
 export def "apps-update timg" [] {
   cd ~/software/timg
   git pull
@@ -1082,6 +1092,7 @@ export def "apps-update nvitop" [] {
 }
 
 #update scrcpy
+@category sudo
 export def "apps-update scrcpy" [] {
   cd ~/software/scrcpy
   git pull
@@ -1154,6 +1165,7 @@ export def "apps-update zed-windows" [] {
 }
 
 #update cliamp
+@category sudo
 export def "apps-update cliamp" [] {
         sudo cliamp upgrade
 }
@@ -1194,10 +1206,7 @@ export def install-context-mode-plugin []: nothing -> bool {
   $install_result
 }
 
-# Update context-mode MCP server: check/install Claude Code plugin, sync configs.
-#First checks if the `context-mode` plugin is installed in Claude Code via `claude plugin list`.
-#If missing, installs from marketplace: `claude plugin marketplace add mksglu/context-mode`.
-#Then updates npm, runs context-mode upgrade for OpenCode, and synchronizes GEMINI.md rules.
+# Update context-mode MCP server
 export def "apps-update context-mode" [] {
   print (echo-g "Checking context-mode plugin for Claude Code...")
   let plugin_installed = check-context-mode-plugin
@@ -1317,25 +1326,401 @@ export def "apps-update markdonify-mcp" [] {
   pnpm run build
 }
 
-#update/install matlab-agentic-toolkit
+#update/install matlab-agentic-toolkit (new method: agenticToolkitInstaller.mltbx)
 export def "apps-update matlab-agentic-toolkit" [] {
-	let args = open --raw ($env.MY_ENV_VARS.linux_backup | path join matlab_mcp_arguments.md)
-	cd ~/software/
-	
-	if ("~/software" | path join matlab-agentic-toolkit | path expand | path exists) {
-		cd matlab-agentic-toolkit
-		git pull
+	let linux_backup = $env.MY_ENV_VARS.linux_backup
+	let mcp_bin_dir      = ("~/.matlab/agentic-toolkits/bin" | path expand)
+	let mcp_binary       = ($mcp_bin_dir | path join "matlab-mcp-server")
+	let mcp_bin_url      = "https://github.com/matlab/matlab-mcp-server/releases/latest/download/matlab-mcp-server-linux-x64"
+	let mcp_toolbox_url  = "https://github.com/matlab/matlab-mcp-server/releases/latest/download/MATLABMCPServerToolbox.mltbx"
+	let mcp_toolbox_tmp  = "/tmp/MATLABMCPServerToolbox.mltbx"
+	let mcp_releases_api = "https://api.github.com/repos/matlab/matlab-mcp-server/releases/latest"
+	let config_json      = ("~/.matlab/agentic-toolkits/config.json" | path expand)
+	let installer_url    = "https://github.com/matlab/simulink-agentic-toolkit/releases/latest/download/agenticToolkitInstaller.mltbx"
+	let installer_tmp    = "/tmp/agenticToolkitInstaller.mltbx"
+	let old_clone        = ("~/software/matlab-agentic-toolkit" | path expand)
+
+	# Agent settings files to manage (key: file name, value: mcp key style)
+	let agent_files = [
+		{file: "settings_gemini.json",      style: "mcpServers"}
+		{file: "settings_claude.json",      style: "mcpServers"}
+		{file: "settings_antigravity.json", style: "mcpServers"}
+		{file: "settings_opencode.json",    style: "mcp"}
+	]
+
+	# --- FR1: Dynamic MATLAB root detection ---
+	print (echo-c "\n⚙  Detecting MATLAB root..." "cyan")
+	let matlab_root = try {
+		# Use `lines | last` to strip any MATLAB startup warning lines above the actual path
+		matlab -batch "setenv('SHELL','/bin/bash'); disp(matlabroot)" | complete | get stdout | str trim | lines | last
+	} catch {
+		return-error "MATLAB not found or failed! Ensure 'matlab' is in PATH."
+	}
+	if ($matlab_root | is-empty) {
+		return-error "Could not detect MATLAB root (empty output from matlabroot)."
+	}
+	print (echo-g $"   → MATLAB root: ($matlab_root)")
+
+	# --- FR2: Download installer add-on and MCP toolbox ---
+	print (echo-c "\n⬇  Downloading agenticToolkitInstaller.mltbx..." "cyan")
+	try {
+		http get $installer_url | save --force $installer_tmp
+	} catch {
+		return-error $"Failed to download installer from ($installer_url). Check your internet connection."
+	}
+
+	print (echo-c "\n⬇  Downloading MATLABMCPServerToolbox.mltbx..." "cyan")
+	try {
+		http get $mcp_toolbox_url | save --force $mcp_toolbox_tmp
+	} catch {
+		return-error $"Failed to download MCP toolbox from ($mcp_toolbox_url). Check your internet connection."
+	}
+
+	# --- FR2.1: Ensure MCP binary is present before calling setupAgenticToolkit ---
+	# (binary needed for MCPServerLocation arg — download now if missing)
+	if not ($mcp_binary | path exists) {
+		print (echo-c "\n⬇  MCP binary not found — downloading before setup..." "cyan")
+		mkdir $mcp_bin_dir
+		try {
+			http get $mcp_bin_url | save --force $mcp_binary
+			run-external "chmod" "+x" $mcp_binary
+			print (echo-g $"   → Downloaded MCP binary to ($mcp_binary)")
+		} catch {
+			return-error $"Failed to download MCP binary from ($mcp_bin_url). Check internet connection."
+		}
+	}
+
+	# --- FR3: setupAgenticToolkit — requires interactive user input ---
+	# MATLAB's input() is hardcoded and cannot be bypassed in -batch mode.
+	# Skills install to ~/.agents/skills/ system-wide — available to ALL agents.
+	# The user must choose skill groups manually (docs: install only what you need).
+	let is_installed = ($config_json | path exists)
+	let action = if $is_installed { "update" } else { "install" }
+
+	# On fresh install: run setupAgenticToolkit interactively.
+	# -nodesktop -r mode inherits the TTY so MATLAB input() works fine.
+	# Only -batch disables interaction — we avoid it here.
+	if not $is_installed {
+		let shebang = "setenv('SHELL','/bin/bash'); "
+		let setup_cmd = (
+			$shebang +
+			"matlab.addons.install('" + $installer_tmp + "', true); " +
+			"setupAgenticToolkit('install', " +
+			"MCPServerLocation='" + $mcp_binary + "', " +
+			"MCPToolboxLocation='" + $mcp_toolbox_tmp + "'); " +
+			"exit"
+		)
+
+		print (echo-c "\n🔧  Running setupAgenticToolkit('install') interactively..." "cyan")
+		print (echo-c "    Select skill groups when prompted (Enter = all)." "yellow")
+
+		run-external "matlab" "-nosplash" "-nodesktop" "-r" $setup_cmd
+
+		try { rm $installer_tmp } catch {}
+		try { rm $mcp_toolbox_tmp } catch {}
 	} else {
-		git clone https://github.com/matlab/matlab-agentic-toolkit.git
-	}	
-	
-	print (echo-c "\nNow cd into ~/software/matlab-agentic-toolkit directory, launch gemini and ask it to:\n" "orange")
-	print ("Set up the MATLAB Agentic Toolkit according to @AGENTS.md, and this args for the mcp:\n")
-	print ($"($args)")
-	print ($"also update the mcp configuration, if necessary, in this file: ($env.MY_ENV_VARS.linux_backup | path join settings_gemini.json)")
+		# Update run: skill files in skills-catalog/ are replaced on each release.
+		# Must re-run setupAgenticToolkit('update') to refresh the symlinks/files.
+		let shebang = "setenv('SHELL','/bin/bash'); "
+		let setup_cmd = (
+			$shebang +
+			"matlab.addons.install('" + $installer_tmp + "', true); " +
+			"setupAgenticToolkit('update', " +
+			"MCPServerLocation='" + $mcp_binary + "', " +
+			"MCPToolboxLocation='" + $mcp_toolbox_tmp + "'); " +
+			"exit"
+		)
+
+		print (echo-c "\n🔧  Running setupAgenticToolkit('update') to refresh skills..." "cyan")
+		print (echo-c "    Select skill groups when prompted (Enter = all)." "yellow")
+
+		run-external "matlab" "-nosplash" "-nodesktop" "-r" $setup_cmd
+
+		try { rm $installer_tmp } catch {}
+		try { rm $mcp_toolbox_tmp } catch {}
+	}
+
+
+
+	# --- FR2.5: MCP binary version check / update ---
+	# (Binary is guaranteed present at this point via FR2.1 or prior run)
+	print (echo-c "\n📦  Checking MATLAB MCP Server binary version..." "cyan")
+
+	# Fetch latest version tag from GitHub API
+	let latest_tag = try {
+		http get $mcp_releases_api | get tag_name | str trim
+	} catch {
+		print (echo-c "   ⚠ Could not fetch latest MCP server version from GitHub. Skipping version check." "yellow")
+		""
+	}
+
+	let current_ver = try {
+		run-external $mcp_binary "--version" | complete | get stdout | str trim
+	} catch { "" }
+
+	if ($latest_tag | is-not-empty) and ($current_ver | is-not-empty) {
+		# Extract version number from output (e.g. "matlab-mcp-server v0.11.2" → "v0.11.2")
+		let current_tag = ($current_ver | split row " " | last | str trim)
+		print (echo-g $"   Current: ($current_tag)  Latest: ($latest_tag)")
+
+		if $current_tag != $latest_tag {
+			print (echo-c ("   ⬆ Update available: " + $current_tag + " → " + $latest_tag + ". Updating...") "yellow")
+			try {
+				http get $mcp_bin_url | save --force $mcp_binary
+				run-external "chmod" "+x" $mcp_binary
+				print (echo-g $"   → MCP server binary updated to ($latest_tag)")
+			} catch {
+				print (echo-c $"   ⚠ Failed to download updated binary. Keeping current ($current_tag)." "yellow")
+			}
+		} else {
+			print (echo-g $"   ✓ MCP server binary is up to date ($current_tag)")
+		}
+	} else {
+		print (echo-c $"   Binary present at ($mcp_binary). Version check skipped (could not determine version)." "yellow")
+	}
+
+	# --- FR1 (post-install): Re-detect MATLAB root in case version changed ---
+	let matlab_root_final = try {
+		matlab -batch "setenv('SHELL','/bin/bash'); disp(matlabroot)" | complete | get stdout | str trim | lines | last
+	} catch {
+		$matlab_root
+	}
+	let active_root = if ($matlab_root_final | is-empty) { $matlab_root } else { $matlab_root_final }
+
+	# --- FR4: MCP configuration verification & update ---
+	print (echo-c "\n🔍  Checking MCP configuration in agent settings files..." "cyan")
+
+	mut mcp_summary = []
+
+	for row in $agent_files {
+		let file_path = ($linux_backup | path join $row.file)
+		if not ($file_path | path exists) {
+			$mcp_summary = ($mcp_summary | append {file: $row.file, status: "⚠ FILE NOT FOUND"})
+			continue
+		}
+
+		let data = open $file_path
+
+		if $row.style == "mcpServers" {
+			# Format: { mcpServers: { matlab: { command: "...", args: ["--matlab-root", "<root>", ...] } } }
+			if ($data | get -o mcpServers.matlab | is-not-empty) {
+				# Update --matlab-root value in args list
+				let old_args = ($data | get mcpServers.matlab.args)
+				let root_idx = ($old_args | enumerate | where item == "--matlab-root" | get 0?.index? | default (-1))
+				let updated_args = if $root_idx >= 0 {
+					$old_args | enumerate | each {|it|
+						if $it.index == ($root_idx + 1) { $active_root } else { $it.item }
+					}
+				} else { $old_args }
+				# Ensure --disable-telemetry=true is present (must reapply after each update)
+				let final_args = if ("--disable-telemetry=true" in $updated_args) {
+					$updated_args
+				} else {
+					$updated_args | append "--disable-telemetry=true"
+				}
+				$data | update mcpServers.matlab.args $final_args | save --force $file_path
+				let telemetry_note = if ("--disable-telemetry=true" in $updated_args) { "" } else { " + telemetry disabled" }
+				$mcp_summary = ($mcp_summary | append {file: $row.file, status: ("✓ Updated" + $telemetry_note)})
+			} else {
+				# Add fresh entry
+				let new_entry = {
+					command: $mcp_binary
+					args: [
+						"--matlab-root", $active_root,
+						"--initialize-matlab-on-startup=true",
+						"--matlab-display-mode=nodesktop",
+						"--matlab-session-mode=auto",
+						"--disable-telemetry=true",
+						"--initial-working-folder=${PWD}"
+					]
+				}
+				$data | upsert mcpServers.matlab $new_entry | save --force $file_path
+				$mcp_summary = ($mcp_summary | append {file: $row.file, status: "✓ Added matlab MCP entry"})
+			}
+		} else {
+			# opencode format: { mcp: { matlab: { type: "local", command: ["<bin>", "--matlab-root", "<root>", ...], enabled: true } } }
+			if ($data | get -o mcp.matlab | is-not-empty) {
+				# Update --matlab-root value in command array
+				let old_cmd = ($data | get mcp.matlab.command)
+				let root_idx = ($old_cmd | enumerate | where item == "--matlab-root" | get 0?.index? | default (-1))
+				let updated_cmd = if $root_idx >= 0 {
+					$old_cmd | enumerate | each {|it|
+						if $it.index == ($root_idx + 1) { $active_root } else { $it.item }
+					}
+				} else { $old_cmd }
+				# Ensure --disable-telemetry=true is present (must reapply after each update)
+				let final_cmd = if ("--disable-telemetry=true" in $updated_cmd) {
+					$updated_cmd
+				} else {
+					$updated_cmd | append "--disable-telemetry=true"
+				}
+				$data | update mcp.matlab.command $final_cmd | save --force $file_path
+				let telemetry_note = if ("--disable-telemetry=true" in $updated_cmd) { "" } else { " + telemetry disabled" }
+				$mcp_summary = ($mcp_summary | append {file: $row.file, status: ("✓ Updated" + $telemetry_note)})
+			} else {
+				# Add fresh entry
+				let new_entry = {
+					type: "local"
+					command: [
+						$mcp_binary,
+						"--matlab-root", $active_root,
+						"--initialize-matlab-on-startup=true",
+						"--matlab-display-mode=nodesktop",
+						"--matlab-session-mode=auto",
+						"--disable-telemetry=true",
+						"--initial-working-folder=${PWD}"
+					]
+					enabled: true
+				}
+				$data | upsert mcp.matlab $new_entry | save --force $file_path
+				$mcp_summary = ($mcp_summary | append {file: $row.file, status: "✓ Added matlab MCP entry"})
+			}
+		}
+	}
+
+	# --- FR4.1: Patch global ~/.gemini/settings.json written by setupAgenticToolkit ---
+	# setupAgenticToolkit overwrites this file and strips --disable-telemetry=true.
+	let global_gemini = ("~/.gemini/settings.json" | path expand)
+	if ($global_gemini | path exists) {
+		let gdata = open $global_gemini
+		if ($gdata | get -o mcpServers.matlab | is-not-empty) {
+			let gargs = ($gdata | get mcpServers.matlab.args)
+			if ("--disable-telemetry=true" not-in $gargs) {
+				$gdata | update mcpServers.matlab.args ($gargs | append "--disable-telemetry=true") | save --force $global_gemini
+				print (echo-g "   → ~/.gemini/settings.json: telemetry disabled")
+			} else {
+				print (echo-g "   → ~/.gemini/settings.json: telemetry already disabled")
+			}
+		}
+	}
+
+	# --- FR5: Final status message ---
+	print (echo-c "\n╔═══════════════════════════════════════╗" "green")
+	print (echo-c $"║  MATLAB Agentic Toolkit — ($action | str uppercase) done  " "green")
+	print (echo-c "╚═══════════════════════════════════════╝" "green")
+	print (echo-g $"\n  MATLAB root : ($active_root)")
+	print (echo-g $"  Action      : ($action)")
+	print (echo-c "\n  MCP Settings:" "cyan")
+	for s in $mcp_summary {
+		print (echo-g $"    ($s.file) → ($s.status)")
+	}
+
 }
 
-# show this help message
+#configure MATLAB Agentic Toolkit skill groups and agent platforms interactively
+#runs setupAgenticToolkit('configure') in -nodesktop mode to select agents and skill groups
+#without re-downloading or re-installing the full toolkit
+export def "matlab configure-skills" [] {
+	let mcp_binary     = ("~/.matlab/agentic-toolkits/bin/matlab-mcp-server" | path expand)
+	let mcp_toolbox    = ("~/.matlab/agentic-toolkits/toolbox/MATLABMCPServerToolbox.mltbx" | path expand)
+	let global_gemini  = ("~/.gemini/settings.json" | path expand)
+
+	# Verify setupAgenticToolkit is available (toolkit must be installed first)
+	let config_json = ("~/.matlab/agentic-toolkits/config.json" | path expand)
+	if not ($config_json | path exists) {
+		return-error "MATLAB Agentic Toolkit not installed yet. Run `apps-update matlab-agentic-toolkit` first."
+	}
+
+	# Build the configure command — pass local binary/toolbox paths to avoid re-downloading
+	let configure_cmd = (
+		"setupAgenticToolkit('configure'" +
+		(if ($mcp_binary | path exists) { ", MCPServerLocation='" + $mcp_binary + "'" } else { "" }) +
+		(if ($mcp_toolbox | path exists) { ", MCPToolboxLocation='" + $mcp_toolbox + "'" } else { "" }) +
+		"); exit"
+	)
+
+	print (echo-c "\n🔧  Running setupAgenticToolkit('configure') interactively..." "cyan")
+	print (echo-c "    Select agent platforms and skill groups when prompted." "yellow")
+	print (echo-c "    (e.g. enter '1,5' for Claude Code + Gemini CLI)\n" "yellow")
+
+	run-external "matlab" "-nosplash" "-nodesktop" "-r" $configure_cmd
+
+	# Re-apply --disable-telemetry to global Gemini settings (setupAgenticToolkit may reset it)
+	if ($global_gemini | path exists) {
+		let gdata = open $global_gemini
+		if ($gdata | get -o mcpServers.matlab | is-not-empty) {
+			let gargs = ($gdata | get mcpServers.matlab.args)
+			if ("--disable-telemetry=true" not-in $gargs) {
+				$gdata | update mcpServers.matlab.args ($gargs | append "--disable-telemetry=true") | save --force $global_gemini
+				print (echo-g "\n   → ~/.gemini/settings.json: --disable-telemetry=true re-applied")
+			}
+		}
+	}
+
+	print (echo-g "\n✓  Skill group configuration complete.")
+}
+
+
+#update apps from habitica todos
+export def "apps-update from-todos" [--dry-run] {
+  let hostname = sys host | get hostname
+  let label = $"software-updates-($hostname)"
+
+  let todos = h ls todos | select _id text tags label_name completed | flatten | where completed == false
+
+  let label_todos = $todos | where label_name =~ $label
+
+  let release_todos = $todos | where text =~ "Release" and label_name !~ $label
+
+  if ($label_todos | is-empty) and ($release_todos | is-empty) {
+    print "No pending software update todos found."
+    return
+  }
+
+  let all_todos = $label_todos | append $release_todos
+
+  let commands = help commands | find "apps-update " | get name | ansi strip
+    | where {|c| $c !~ "install" and $c != "apps-update help" and $c != "apps-update"}
+    | each {|c| $c | str replace "apps-update " ""}
+
+  let matched = $all_todos | each {|todo|
+    let text_lower = $todo.text | str lowercase
+    let found = $commands | where {|c| ($text_lower | str contains $c) or ($text_lower | str contains ($c | str replace "-" " ")) or ($text_lower | str contains ($c | str replace "-" "")) }
+      | sort-by {|c| $c | str length} --reverse
+    if ($found | is-empty) {
+      null
+    } else {
+      let cmd = $found | first
+      {todo_text: $todo.text, todo_id: $todo._id, update_command: $cmd}
+    }
+  } | compact | uniq-by update_command
+
+  if ($matched | is-empty) {
+    print "Found software update todos but no matching update commands."
+    return
+  }
+
+  if $dry_run {
+    print $"\nDry run — ($matched | length) update(s) matched:"
+    print ($matched | select todo_text update_command | table)
+    return
+  }
+
+  mut results = []
+  for todo in $matched {
+    print $"(ansi green)Updating ($todo.update_command)...(ansi reset)"
+    let result = nu --config ~/.config/nushell/config.nu --env-config ~/.config/nushell/env.nu -c $"apps-update ($todo.update_command)" | complete
+    if $result.exit_code == 0 {
+      h complete-todos --ids [$todo.todo_id]
+      print "done"
+      $results = $results | append {todo_text: $todo.todo_text, update_command: $todo.update_command, status: "completed"}
+    } else {
+      print $"(ansi red)failed(ansi reset)"
+      $results = $results | append {todo_text: $todo.todo_text, update_command: $todo.update_command, status: "failed"}
+    }
+  }
+
+  let completed = $results | where status == "completed" | length
+  let failed = $results | where status == "failed" | length
+
+  print $"\nSummary: ($completed) completed, ($failed) failed"
+  if $failed > 0 {
+    print "\nFailed updates:"
+    print ($results | where status == "failed" | select todo_text update_command | table)
+  }
+}
+
+
 export def "apps-update help" [] {
     scope commands 
     | where name starts-with "apps-update "

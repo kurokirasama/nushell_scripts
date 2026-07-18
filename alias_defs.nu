@@ -285,9 +285,9 @@ export def --env "opn profile" [
     profile: string@$profiles = "standard"
     --matlab-mcp(-M) #add the matlab mcp server
     --list-mcp-servers-and-extensions(-l)
-    --normal(-n) #use normal/free remote models instead of local ollama
-    --build(-b) #starts in build mode instead of normal mode
-    --model(-m): string   #override the default model (only for --normal mode)
+    --ollama(-o) #use local ollama models instead of remote
+    --build(-b) #starts in build mode instead of plan mode
+    --model(-m): string   #override the default model (only for remote mode)
 ] {
   let settings_file = "settings_opencode.json"
   let settings = open ($env.MY_ENV_VARS.linux_backup | path join $settings_file)
@@ -326,25 +326,27 @@ export def --env "opn profile" [
   let host_0 = $env.MY_ENV_VARS.hosts.0   # deathnote
   let host_2 = $env.MY_ENV_VARS.hosts.2   # lgomez-desktop
 
-  let model_setup = if $normal {
-    let resolved_model = if ($model | is-not-empty) { $model } else { "opencode/deepseek-v4-flash-free" }
-    {
-      model: $resolved_model,
-      small_model: "opencode/big-pickle"
-    }
-  } else if $env.HOST == $host_0 {
-    {
-      model: "ollama/qwen3.5:4b",
-      small_model: "ollama/qwen3.5:0.8b"
-    }
-  } else if $env.HOST == $host_2 {
-    {
-      model: "ollama/qwen3.6:27b",
-      small_model: "ollama/qwen3.5:4b"
+  let model_setup = if $ollama {
+    if $env.HOST == $host_0 {
+      {
+        model: "ollama/qwen3.5:4b",
+        small_model: "ollama/qwen3.5:0.8b"
+      }
+    } else if $env.HOST == $host_2 {
+      {
+        model: "ollama/qwen3.6:27b",
+        small_model: "ollama/qwen3.5:4b"
+      }
+    } else {
+      print (echo-r "device with no opencode config")
+      return-error "device with no opencode config"
     }
   } else {
-    print (echo-r "device with no opencode config")
-    return-error "device with no opencode config"
+    let resolved_model = if ($model | is-not-empty) { $model } else { "opencode-go/deepseek-v4-pro" }
+    {
+      model: $resolved_model,
+      small_model: "opencode/deepseek-v4-flash-free"
+    }
   }
 
   # Build target configuration record
@@ -357,7 +359,7 @@ export def --env "opn profile" [
     | upsert default_agent $mode
 
   # Dynamically register local Ollama models with context limits via get-ollama-model-info
-  let final_config = if (not $normal) and ($env.HOST == $host_0 or $env.HOST == $host_2) {
+  let final_config = if $ollama and ($env.HOST == $host_0 or $env.HOST == $host_2) {
     let main_model_name = if ($model_setup.model | str starts-with "ollama/") {
       $model_setup.model | str replace "ollama/" ""
     } else {
@@ -367,6 +369,15 @@ export def --env "opn profile" [
       $model_setup.small_model | str replace "ollama/" ""
     } else {
       null
+    }
+
+    let ollama_provider = {
+      npm: "@ai-sdk/openai-compatible"
+      name: "Ollama (local)"
+      options: {
+        baseURL: "http://localhost:11434/v1"
+        extraBody: { num_ctx: 16384, options: { num_ctx: 16384 } }
+      }
     }
 
     let current_models = $config_base | get -o provider.ollama.models | default {}
@@ -390,7 +401,7 @@ export def --env "opn profile" [
           $acc | upsert $m $model_record
         }
 
-    $config_base | upsert provider.ollama.models $updated_models
+    $config_base | upsert provider.ollama ($ollama_provider | merge { models: $updated_models })
   } else {
     $config_base
   }
@@ -438,32 +449,29 @@ const opn_normal_models = [
   "opencode/big-pickle"
   "opencode/deepseek-v4-flash"
   "opencode/deepseek-v4-pro"
-  "opencode/qwen3.7-max"
-  "opencode/qwen3.7-plus"
+  "opencode-go/qwen3.7-max"
+  "opencode-go/qwen3.7-plus"
 ]
 
 export def --env --wrapped opn [
   --profile(-p): string@$profiles = "standard"
   --matlab-mcp(-M) #use the matlab mcp server
   --model(-m): string@$opn_normal_models #choose model
-  --normal(-n) #use normal/free remote models instead of local ollama
+  --ollama(-o) #use local ollama models instead of remote
   --build(-b) #start in build mode instead of plan mode
   --manual #disable auto-approve mode (prompt for permissions)
   ...rest
 ] {
-  # When --normal is used, default to build mode unless explicitly overridden
-  let use_build = $build or $normal
-
-  let model_value = if $normal and ($model | is-not-empty) { $model } else { "" }
+  let model_value = if (not $ollama) and ($model | is-not-empty) { $model } else { "" }
   
-  if $normal and $matlab_mcp {
-    if $use_build { opn profile $profile --normal --matlab-mcp --build --model $model_value } else { opn profile $profile --normal --matlab-mcp --model $model_value }
-  } else if $normal {
-    if $use_build { opn profile $profile --normal --build --model $model_value } else { opn profile $profile --normal --model $model_value }
+  if $ollama and $matlab_mcp {
+    if $build { opn profile $profile --ollama --matlab-mcp --build } else { opn profile $profile --ollama --matlab-mcp }
+  } else if $ollama {
+    if $build { opn profile $profile --ollama --build } else { opn profile $profile --ollama }
   } else if $matlab_mcp {
-    if $use_build { opn profile $profile --matlab-mcp --build } else { opn profile $profile --matlab-mcp }
+    if $build { opn profile $profile --matlab-mcp --build --model $model_value } else { opn profile $profile --matlab-mcp --model $model_value }
   } else {
-    if $use_build { opn profile $profile --build } else { opn profile $profile }
+    if $build { opn profile $profile --build --model $model_value } else { opn profile $profile --model $model_value }
   }
 
   let opn_bin = $env.HOME | path join .opencode bin opencode
