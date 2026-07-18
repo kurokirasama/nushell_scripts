@@ -622,25 +622,37 @@ export def "apps-update sejda" [] {
 export def "apps-update ttyplot" [] {
   cd $env.MY_ENV_VARS.debs
 
-  let current_version = ls 
-    | find -n tty 
-    | get name 
-    | get 0
-    | split row _ 
-    | get 1
-  
-  let url = http get https://packages.debian.org/sid/amd64/ttyplot/download
-    | lines 
-    | find ".deb"
-    | find http 
-    | find ttyplot 
-    | first 
-    | split row "href=\""
-    | last 
-    | split row "\">"
-    | find ttyplot
-    | first
-    | ansi strip
+  let existing_files = ls | find -n tty | get name
+  let current_version = if ($existing_files | is-empty) {
+    ""
+  } else {
+    $existing_files | get 0 | split row _ | get 1
+  }
+
+  let scraped = try {
+    let result = http get https://packages.debian.org/sid/amd64/ttyplot/download
+      | lines
+      | find ".deb"
+      | find http
+      | find ttyplot
+      | first
+      | split row "href=\""
+      | last
+      | split row "\">"
+      | find ttyplot
+      | first
+      | ansi strip
+    { ok: true, url: $result }
+  } catch { |e|
+    { ok: false, error: $"Failed to fetch ttyplot download URL: ($e.msg)" }
+  }
+
+  if not $scraped.ok {
+    print (echo-r $scraped.error)
+    return
+  }
+
+  let url = $scraped.url
 
   let filename = $url | split row / | last
 
@@ -650,10 +662,13 @@ export def "apps-update ttyplot" [] {
     print (echo-g "ttyplot is already in the latest version!")
     return
   }
-    
+
   print (echo-g $"\nupdating ttyplot...")
 
-  ls *.deb | find ttyplot | rm-pipe
+  let old_debs = glob $"($env.MY_ENV_VARS.debs)/*ttyplot*.deb"
+  if not ($old_debs | is-empty) {
+    $old_debs | each {|f| rm $f}
+  }
   aria2c --download-result=hide $url
 
   sudo gdebi -n $filename
