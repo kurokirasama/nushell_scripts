@@ -189,6 +189,7 @@ const profile_plugins = {
 export def --env "gmn profile" [
         profile:string@$profiles = "standard"
         --matlab-mcp(-M) #add the matlab mcp server
+        --wolfram(-w) #add the wolfram mcp server
         --list-mcp-servers-and-extensions(-l)
         --gemini-cli(-g) #use the legacy gemini-cli instead of antigravity-cli
 ] {
@@ -226,6 +227,12 @@ export def --env "gmn profile" [
 
   let servers = if $matlab_mcp {
     $servers ++ ($mcp_names | find -n matlab)
+  } else {
+    $servers
+  }
+
+  let servers = if $wolfram {
+    $servers ++ ($mcp_names | find -n wolfram)
   } else {
     $servers
   }
@@ -284,6 +291,7 @@ export def --env "gmn profile" [
 export def --env "opn profile" [
     profile: string@$profiles = "standard"
     --matlab-mcp(-M) #add the matlab mcp server
+    --wolfram(-w) #add the wolfram mcp server
     --list-mcp-servers-and-extensions(-l)
     --ollama(-o) #use local ollama models instead of remote
     --build(-b) #starts in build mode instead of plan mode
@@ -316,6 +324,12 @@ export def --env "opn profile" [
 
   let servers = if $matlab_mcp {
     $servers ++ ($mcp_names | find -n matlab)
+  } else {
+    $servers
+  }
+
+  let servers = if $wolfram {
+    $servers ++ ($mcp_names | find -n wolfram)
   } else {
     $servers
   }
@@ -456,6 +470,7 @@ const opn_normal_models = [
 export def --env --wrapped opn [
   --profile(-p): string@$profiles = "standard"
   --matlab-mcp(-M) #use the matlab mcp server
+  --wolfram(-w) #use the wolfram mcp server
   --model(-m): string@$opn_normal_models #choose model
   --ollama(-o) #use local ollama models instead of remote
   --build(-b) #start in build mode instead of plan mode
@@ -463,15 +478,44 @@ export def --env --wrapped opn [
   ...rest
 ] {
   let model_value = if (not $ollama) and ($model | is-not-empty) { $model } else { "" }
+  let has_model = (not $ollama) and ($model | is-not-empty)
   
-  if $ollama and $matlab_mcp {
-    if $build { opn profile $profile --ollama --matlab-mcp --build } else { opn profile $profile --ollama --matlab-mcp }
-  } else if $ollama {
-    if $build { opn profile $profile --ollama --build } else { opn profile $profile --ollama }
-  } else if $matlab_mcp {
-    if $build { opn profile $profile --matlab-mcp --build --model $model_value } else { opn profile $profile --matlab-mcp --model $model_value }
+  if $ollama {
+    if $matlab_mcp and $wolfram {
+      if $build { opn profile $profile --ollama --matlab-mcp --wolfram --build } else { opn profile $profile --ollama --matlab-mcp --wolfram }
+    } else if $matlab_mcp {
+      if $build { opn profile $profile --ollama --matlab-mcp --build } else { opn profile $profile --ollama --matlab-mcp }
+    } else if $wolfram {
+      if $build { opn profile $profile --ollama --wolfram --build } else { opn profile $profile --ollama --wolfram }
+    } else {
+      if $build { opn profile $profile --ollama --build } else { opn profile $profile --ollama }
+    }
   } else {
-    if $build { opn profile $profile --build --model $model_value } else { opn profile $profile --model $model_value }
+    if $matlab_mcp and $wolfram {
+      if $build {
+        if $has_model { opn profile $profile --matlab-mcp --wolfram --build --model $model_value } else { opn profile $profile --matlab-mcp --wolfram --build }
+      } else {
+        if $has_model { opn profile $profile --matlab-mcp --wolfram --model $model_value } else { opn profile $profile --matlab-mcp --wolfram }
+      }
+    } else if $matlab_mcp {
+      if $build {
+        if $has_model { opn profile $profile --matlab-mcp --build --model $model_value } else { opn profile $profile --matlab-mcp --build }
+      } else {
+        if $has_model { opn profile $profile --matlab-mcp --model $model_value } else { opn profile $profile --matlab-mcp }
+      }
+    } else if $wolfram {
+      if $build {
+        if $has_model { opn profile $profile --wolfram --build --model $model_value } else { opn profile $profile --wolfram --build }
+      } else {
+        if $has_model { opn profile $profile --wolfram --model $model_value } else { opn profile $profile --wolfram }
+      }
+    } else {
+      if $build {
+        if $has_model { opn profile $profile --build --model $model_value } else { opn profile $profile --build }
+      } else {
+        if $has_model { opn profile $profile --model $model_value } else { opn profile $profile }
+      }
+    }
   }
 
   let opn_bin = $env.HOME | path join .opencode bin opencode
@@ -511,13 +555,22 @@ export def --env --wrapped gmn [
   ...rest
   --profile(-p):string@$profiles = "standard"
   --matlab-mcp(-M) #use the matlab mcp server
+  --wolfram(-w) #use the wolfram mcp server
   --model(-m):string@$gemini_models #choose model
   --gemini-cli(-g) #use the legacy gemini-cli instead of antigravity-cli
 ] {
-  if $matlab_mcp and $gemini_cli {
+  if $matlab_mcp and $wolfram and $gemini_cli {
+    gmn profile $profile --matlab-mcp --wolfram --gemini-cli
+  } else if $matlab_mcp and $wolfram {
+    gmn profile $profile --matlab-mcp --wolfram
+  } else if $matlab_mcp and $gemini_cli {
     gmn profile $profile --matlab-mcp --gemini-cli
+  } else if $wolfram and $gemini_cli {
+    gmn profile $profile --wolfram --gemini-cli
   } else if $matlab_mcp {
     gmn profile $profile --matlab-mcp
+  } else if $wolfram {
+    gmn profile $profile --wolfram
   } else if $gemini_cli {
     gmn profile $profile --gemini-cli
   } else {
@@ -571,6 +624,7 @@ export def --env --wrapped gmn [
 export def --env "cld profile" [
         profile:string@$profiles = "standard"
         --matlab-mcp(-M) #add the matlab mcp server
+        --wolfram(-w) #add the wolfram mcp server
 ] {
   let settings = open ($env.MY_ENV_VARS.linux_backup | path join "settings_claude.json")
   let mcp_servers = $settings.mcpServers
@@ -592,6 +646,12 @@ export def --env "cld profile" [
 
   let servers = if $matlab_mcp {
     $servers ++ ($mcp_names | find -n matlab)
+  } else {
+    $servers
+  }
+
+  let servers = if $wolfram {
+    $servers ++ ($mcp_names | find -n wolfram)
   } else {
     $servers
   }
@@ -624,9 +684,14 @@ export def --env --wrapped cld [
   ...rest
   --profile(-p):string@$profiles = "standard"
   --matlab-mcp(-M) #use the matlab mcp server
+  --wolfram(-w) #use the wolfram mcp server
 ] {
-  if $matlab_mcp {
+  if $matlab_mcp and $wolfram {
+    cld profile $profile --matlab-mcp --wolfram
+  } else if $matlab_mcp {
     cld profile $profile --matlab-mcp
+  } else if $wolfram {
+    cld profile $profile --wolfram
   } else {
     cld profile $profile
   }
