@@ -18,13 +18,26 @@ export def create-virtualenv [dir_name:string = "venv"] {
   # 2. Detect if the path is inside Dropbox or Yandex.Disk
   if ($venv_path | str starts-with $dropbox_root) {
     # Dropbox logic
-    let relative_path = $venv_path | path relative-to $dropbox_root
+    let relative_path = "/" + ($venv_path | path relative-to $dropbox_root)
     # Check if maestral is in PATH
     if (which maestral | is-not-empty) {
       print $"Excluding ($venv_path) from Dropbox sync using Maestral..."
       let res = maestral excluded add $relative_path | complete
       if $res.exit_code != 0 {
-        print -e $"Warning: maestral excluded add failed: ($res.stderr | str trim)"
+        let err_msg = $"($res.stderr)($res.stdout)"
+        if ($err_msg | str contains "Please try again when idle") {
+          print "Maestral is currently busy syncing. Pausing sync to apply exclusion..."
+          maestral pause | complete
+          let retry_res = maestral excluded add $relative_path | complete
+          maestral resume | complete
+          if $retry_res.exit_code != 0 {
+            print -e $"Warning: maestral excluded add failed after retry: ($retry_res.stderr | str trim)"
+          } else {
+            print "Exclusion applied successfully after pausing sync."
+          }
+        } else {
+          print -e $"Warning: maestral excluded add failed: ($res.stderr | str trim)"
+        }
       }
     } else {
       print -e $"Warning: maestral executable not found in PATH. Skipping Dropbox exclusion."
