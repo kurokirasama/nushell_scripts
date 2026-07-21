@@ -1137,15 +1137,14 @@ export def "apps-update scrcpy" [] {
   }
 }
 
-#update gemini-cli
-export def "apps-update gemini" [
-  --gemini-cli(-g) #use the legacy gemini-cli instead of antigravity-cli
-] {
-  if $gemini_cli {
-    npm install --engine-strict -g @google/gemini-cli@latest
-  } else {
+#update antigravity-cli
+export def "apps-update agy" [] {
   agy update
-  }
+}
+
+#update gemini-cli
+export def "apps-update gemini" [] {
+  npm install --engine-strict -g @google/gemini-cli@latest
 }
 
 #update cariddi
