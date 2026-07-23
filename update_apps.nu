@@ -376,7 +376,39 @@ export def github-app-update [
       print (echo-g $"($repo) is already in its latest version!")
       return
     }
+  }
 
+  # check if the new version is already downloaded locally (regardless of $exists)
+  let new_version_file = (
+    if ($pattern | is-not-empty) {
+      ls | find -n $pattern
+    } else {
+      ls ($"*.($file_type)" | into glob)
+    }
+    | find -n $app
+    | where {|f|
+      let v = $f.name
+        | path parse
+        | get stem
+        | split row (if not $find_ {"_"} else {"-"})
+        | get 1
+      $v == $new_version
+    }
+  )
+  if ($new_version_file | is-not-empty) {
+    print (echo-g $"($repo) version ($new_version) already downloaded locally, skipping download.")
+    if $file_type == "deb" {
+      let install = input (echo-g "Would you like to install it now? (y/n): ")
+      if $install == "y" {
+        sudo gdebi -n ($new_version_file.0.name | ansi strip)
+      }
+    } else {
+      print (echo-g "file already downloaded...")
+    }
+    return
+  }
+
+  if $exists {
     print (echo-g $"\nupdating ($repo)...")
     if ($pattern | is-not-empty) {
       rm $app | ignore
@@ -411,7 +443,7 @@ export def github-app-update [
     }
     return
   } 
-  
+
   print (echo-g $"\ndownloading ($repo)...")
   aria2c --download-result=hide $url
 
@@ -488,7 +520,8 @@ export def "apps-update chrome" [] {
   cd $env.MY_ENV_VARS.debs
 
   if (ls *.deb | find chrome | length) > 0 {
-    ls *.deb | find chrome | rm-pipe | ignore
+    print (echo-g "chrome deb already downloaded locally, skipping download.")
+    return
   }
   
   print (echo-g "\ndownloading chrome...")
@@ -514,7 +547,9 @@ export def "apps-update earth" [] {
   }
   
   if (ls *.deb | find earth | length) > 0 {
-    ls *.deb | find earth | rm-pipe | ignore
+    print (echo-g "google earth deb already downloaded locally, skipping download.")
+    sudo gdebi -n (ls *.deb | find earth | get 0 | get name | ansi strip)
+    return
   }
   
   print (echo-g "\ndownloading google earth...")
@@ -551,7 +586,12 @@ export def "apps-update yandex" [] {
   }
 
   if (ls *.deb | find yandex | length) > 0 {
-    ls *.deb | find yandex | rm-pipe | ignore
+    print (echo-g "yandex deb already downloaded locally, skipping download.")
+    sudo gdebi -n yandex-disk_latest_amd64.deb
+    open $file
+    | upsert date (date now | format date)
+    | save -f $file
+    return
   }
   
   if (ls *.rpm | find yandex | length) > 0 {
@@ -606,11 +646,31 @@ export def "apps-update sejda" [] {
       return
     }
     
+    # check if the new version is already downloaded
+    let existing_new = ls *.deb
+      | find -i "sejda"
+      | where {|f| ($f.name | split row _ | get 1) == $new_version }
+    if ($existing_new | is-not-empty) {
+      print (echo-g $"sejda version ($new_version) already downloaded locally, skipping download.")
+      sudo gdebi -n ($existing_new.0.name | ansi strip)
+      return
+    }
+
     print (echo-g "\nupdating sedja...")
     rm sejda*.deb | ignore
     aria2c --download-result=hide $url
     sudo gdebi -n $new_file
   } else {
+    # check if the new version is already downloaded (fresh install)
+    let existing_new = ls *.deb
+      | find -i "sejda"
+      | where {|f| ($f.name | split row _ | get 1) == $new_version }
+    if ($existing_new | is-not-empty) {
+      print (echo-g $"sejda version ($new_version) already downloaded locally, skipping download.")
+      sudo gdebi -n ($existing_new.0.name | ansi strip)
+      return
+    }
+
     print (echo-g "\ndownloading sedja...")
     aria2c --download-result=hide $url
     sudo gdebi -n $new_file
@@ -663,6 +723,14 @@ export def "apps-update ttyplot" [] {
     return
   }
 
+  # check if the new version is already downloaded
+  let existing_new = ls | find -n tty | where {|f| ($f.name | split row _ | get 1) == $new_version }
+  if ($existing_new | is-not-empty) {
+    print (echo-g $"ttyplot version ($new_version) already downloaded locally, skipping download.")
+    sudo gdebi -n ($existing_new.0.name | ansi strip)
+    return
+  }
+
   print (echo-g $"\nupdating ttyplot...")
 
   let old_debs = glob $"($env.MY_ENV_VARS.debs)/*ttyplot*.deb"
@@ -709,6 +777,13 @@ export def "apps-update vivaldi" [] {
 
   if $current_version == $last_version {
     print (echo-g "vivaldi is already in its latest version!")
+    return
+  }
+  
+  # check if the new version is already downloaded
+  let existing_new = ls | where name like vivaldi | where {|f| ($f.name | split row _ | get 1) == $last_version }
+  if ($existing_new | is-not-empty) {
+    print (echo-g $"vivaldi version ($last_version) already downloaded locally, skipping download.")
     return
   }
   
@@ -1072,14 +1147,26 @@ export def "apps-update reader" [] {
 export def "apps-update mega-get" [] {
   cd ~/Downloads/
   if (sys host | get os_version) == "20.04" {
-    aria2c https://mega.nz/linux/repo/xUbuntu_20.04/amd64/megacmd-xUbuntu_20.04_amd64.deb
+    let deb_file = "megacmd-xUbuntu_20.04_amd64.deb"
+    if ($deb_file | path exists) or ([$env.MY_ENV_VARS.debs $deb_file] | path join | path exists) {
+      print (echo-g "mega-get deb already downloaded locally, skipping download.")
+      sudo apt install ($deb_file | path expand)
+      return
+    }
+    aria2c https://mega.nz/linux/repo/xUbuntu_20.04/amd64/$deb_file
     sudo apt install ("megacmd-xUbuntu_20.04_amd64.deb" | path expand)
     mv -u megacmd-xUbuntu_20.04_amd64.deb $env.MY_ENV_VARS.debs
 
     return
   } 
   
-  aria2c https://mega.nz/linux/repo/xUbuntu_24.04/amd64/megacmd-xUbuntu_24.04_amd64.deb
+  let deb_file = "megacmd-xUbuntu_24.04_amd64.deb"
+  if ($deb_file | path exists) or ([$env.MY_ENV_VARS.debs $deb_file] | path join | path exists) {
+    print (echo-g "mega-get deb already downloaded locally, skipping download.")
+    sudo apt install ($deb_file | path expand)
+    return
+  }
+  aria2c https://mega.nz/linux/repo/xUbuntu_24.04/amd64/$deb_file
   sudo apt install ("megacmd-xUbuntu_24.04_amd64.deb" | path expand)
   mv -u megacmd-xUbuntu_24.04_amd64.deb $env.MY_ENV_VARS.debs
 }
