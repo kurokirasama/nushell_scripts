@@ -901,7 +901,7 @@ export def "apps-update nchat" [] {
   sudo rm -rf build/
 }
 
-#update ffmpeg with cuda
+#update ffmpeg with cuda and nv-codec-headers
 @category sudo
 export def "apps-update myffmpeg" [--force(-f)] {
   cd ~/software/nvidia/nv-codec-headers
@@ -1753,6 +1753,50 @@ export def "matlab configure-skills" [] {
 }
 
 
+# Extract candidate app name from todo text
+def get-app-name-from-todo [text: string] {
+  let parts = $text | str lowercase | split row -r '[\s\-_:(),\+]+'
+  let ignore_words = ["release", "releases", "released", "version", "update", "updates", "updated", "of", "new", "deb", "cli", "font", "to", "for", "and", "the", "a", "app", "software", "from", "github", "mcp", "server", "lsp", "stable", "latest", "current", "amd64"]
+  let candidates = $parts | where {|w| (($w | str trim) != "") and ($w not-in $ignore_words) and ($w !~ '^\d+(\.\d+)*$') and ($w !~ '^v\d+') }
+  $candidates
+}
+
+# Check if an app is installed on the system
+def is-app-installed [app_name: string] {
+  let mappings = {
+    chrome: ["google-chrome", "google-chrome-stable", "chrome"]
+    earth: ["google-earth-pro", "google-earth"]
+    nushell: ["nu"]
+    yandex: ["yandex-disk", "yandex-browser", "yandex"]
+    taskerpermissions: ["adb"]
+    myffmpeg: ["ffmpeg"]
+    claude: ["claude"]
+    gemini: ["gemini"]
+    agy: ["antigravity"]
+    rtk: ["rtk"]
+  }
+
+  let candidates = if ($app_name in ($mappings | columns)) {
+    $mappings | get $app_name
+  } else {
+    [$app_name]
+  }
+
+  for c in $candidates {
+    if (which $c | is-not-empty) {
+      return true
+    }
+  }
+
+  for c in $candidates {
+    if (help commands | get name | find $c | is-not-empty) {
+      return true
+    }
+  }
+
+  false
+}
+
 #update apps from habitica todos
 export def "apps-update from-todos" [--dry-run] {
   let hostname = sys host | get hostname
@@ -1771,24 +1815,82 @@ export def "apps-update from-todos" [--dry-run] {
 
   let all_todos = $label_todos | append $release_todos
 
-  let commands = help commands | find "apps-update " | get name | ansi strip
-    | where {|c| $c !~ "install" and $c != "apps-update help" and $c != "apps-update"}
-    | each {|c| $c | str replace "apps-update " ""}
+  # Get apps-update commands name and description
+  let commands_info = help commands | find -n "apps-update " | select name description
+    | where {|c| $c.name !~ "install" and $c.name != "apps-update help" and $c.name != "apps-update"}
+    | each {|c|
+        let sub_name = $c.name | ansi strip | str replace "apps-update " ""
+        let desc = $c.description | default "" | ansi strip | str lowercase
+        let clean_desc = ($desc
+          | str replace -r '^(update/install|update|install|upgrade)\s+' ''
+          | str replace -r '\s*\(.*?\)' ''
+          | str replace -r '\s+(deb|cli|font|lsp server|mcp server|server)$' ''
+          | str trim)
+        {name: $sub_name, clean_desc: $clean_desc}
+      }
 
-  let matched = $all_todos | each {|todo|
+  # Match todos against command name and description
+  mut matched = []
+  mut unmatched_installed = []
+
+  for todo in $all_todos {
     let text_lower = $todo.text | str lowercase
-    let found = $commands | where {|c| ($text_lower | str contains $c) or ($text_lower | str contains ($c | str replace "-" " ")) or ($text_lower | str contains ($c | str replace "-" "")) }
-      | sort-by {|c| $c | str length} --reverse
-    if ($found | is-empty) {
-      null
+    let found = $commands_info | where {|c|
+      let n = $c.name
+      let d = $c.clean_desc
+      (($text_lower | str contains $n) or ($text_lower | str contains ($n | str replace -a "-" " ")) or ($text_lower | str contains ($n | str replace -a "-" "")) or (($text_lower | str replace -a "-" "") | str contains $n) or (($text_lower | str replace -a "-" " ") | str contains $n) or ($d != "" and (($text_lower | str contains $d) or ($text_lower | str contains ($d | str replace -a "-" " ")) or ($text_lower | str contains ($d | str replace -a "-" "")) or (($text_lower | str replace -a "-" "") | str contains $d) or (($text_lower | str replace -a "-" " ") | str contains $d))))
+    } | sort-by {|c| $c.name | str length} --reverse
+
+    if ($found | is-not-empty) {
+      let matched_cmd = $found | first
+      let cmd_name = $matched_cmd.name
+      
+      # Check if the app is installed
+      if (is-app-installed $cmd_name) {
+        $matched = $matched | append {todo_text: $todo.text, todo_id: $todo._id, update_command: $cmd_name}
+      } else {
+        if not $dry_run {
+          print $"(ansi yellow)App '($cmd_name)' is not installed on this system. Marking todo '($todo.text)' as completed.(ansi reset)"
+          h complete-todos --ids [$todo._id]
+        } else {
+          print $"(ansi yellow)[Dry Run] App '($cmd_name)' is not installed. Would mark todo '($todo.text)' as completed.(ansi reset)"
+        }
+      }
     } else {
-      let cmd = $found | first
-      {todo_text: $todo.text, todo_id: $todo._id, update_command: $cmd}
+      # Unmatched todo: extract candidate app names
+      let candidates = get-app-name-from-todo $todo.text
+      mut app_installed = false
+      for cand in $candidates {
+        if (is-app-installed $cand) {
+          $app_installed = true
+          break
+        }
+      }
+
+      if $app_installed {
+        $unmatched_installed = $unmatched_installed | append $todo
+      } else {
+        # App is not installed on the system, mark the todo as done
+        if not $dry_run {
+          print $"(ansi yellow)App is not installed on this system. Marking todo '($todo.text)' as completed.(ansi reset)"
+          h complete-todos --ids [$todo._id]
+        } else {
+          print $"(ansi yellow)[Dry Run] App is not installed. Would mark todo '($todo.text)' as completed.(ansi reset)"
+        }
+      }
     }
-  } | compact | uniq-by update_command
+  }
+
+  $matched = $matched | uniq-by update_command
 
   if ($matched | is-empty) {
-    print "Found software update todos but no matching update commands."
+    if ($unmatched_installed | is-not-empty) {
+      print "Found software update todos but no matching update commands."
+      print "Pending updates for installed apps without a command:"
+      print ($unmatched_installed | select text | table)
+    } else {
+      print "No pending software update todos for installed apps found."
+    }
     return
   }
 
