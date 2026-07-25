@@ -1772,7 +1772,7 @@ def is-app-installed [app_name: string] {
     myffmpeg: ["ffmpeg"]
     claude: ["claude"]
     gemini: ["gemini"]
-    agy: ["antigravity"]
+    agy: ["agy", "antigravity", "antigravity-cli"]
     rtk: ["rtk"]
   }
 
