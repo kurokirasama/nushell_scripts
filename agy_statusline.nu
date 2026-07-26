@@ -67,28 +67,46 @@ def main [] {
     mut quota_parts = []
 
     if ($quota | is-not-empty) {
-        if (($quota | columns | where $it == "gemini-5h" | length) > 0) {
-            let q = $quota.gemini-5h
+        let model_id = ($input.model?.id? | default "" | str lowercase)
+        let active_group = (
+            if ($model_id | str contains "gemini") or ($model_id == "") {
+                "gemini"
+            } else {
+                "others"
+            }
+        )
+        let active_keys = (
+            if $active_group == "gemini" {
+                $quota | columns | where { |k| $k | str contains "gemini" }
+            } else {
+                $quota | columns | where { |k| not ($k | str contains "gemini") }
+            }
+        )
+        for key in $active_keys {
+            let q = ($quota | get $key)
             let pct = (($q.remaining_fraction? | default 1.0) * 100 | math round | into int)
             let reset = ($q.reset_in_seconds? | default 0)
             let reset_str = (if $reset > 0 {
-                let h = ($reset / 3600 | math floor)
-                let m = (($reset mod 3600) / 60 | math floor)
-                $"↻ ($h)h ($m)m"
+                if ($key | str ends-with "-weekly") {
+                    let d = ($reset / 86400 | math floor)
+                    $"↻ ($d)d"
+                } else {
+                    let h = ($reset / 3600 | math floor)
+                    let m = (($reset mod 3600) / 60 | math floor)
+                    $"↻ ($h)h ($m)m"
+                }
             } else { "" })
-            let color = (if $pct <= 30 { "#FF6347" } else { "#32CD32" })
-            $quota_parts = ($quota_parts | append $"(ansi $color)5h: ($pct)% ($reset_str)(ansi reset)")
-        }
-        if (($quota | columns | where $it == "gemini-weekly" | length) > 0) {
-            let q = $quota.gemini-weekly
-            let pct = (($q.remaining_fraction? | default 1.0) * 100 | math round | into int)
-            let reset = ($q.reset_in_seconds? | default 0)
-            let reset_str = (if $reset > 0 {
-                let d = ($reset / 86400 | math floor)
-                $"↻ ($d)d"
-            } else { "" })
-            let color = (if $pct <= 30 { "red" } else { "cyan" })
-            $quota_parts = ($quota_parts | append $"(ansi $color)Wk: ($pct)% ($reset_str)(ansi reset)")
+            let label = (
+                if ($key | str ends-with "-5h") { "5h:" }
+                else if ($key | str ends-with "-weekly") { "Wk:" }
+                else { $"($key):" }
+            )
+            let color = (if $pct <= 30 {
+                if ($key | str ends-with "-weekly") { "red" } else { "#FF6347" }
+            } else {
+                if ($key | str ends-with "-weekly") { "cyan" } else { "#32CD32" }
+            })
+            $quota_parts = ($quota_parts | append $"(ansi $color)($label) ($pct)% ($reset_str)(ansi reset)")
         }
     }
 
@@ -105,7 +123,7 @@ def main [] {
     # 6. Memory usage
     let ppid = (try { ps | where pid == $nu.pid | get 0.ppid } catch { 0 })
     let agy_mem = (if $ppid > 0 { try { ps | where pid == $ppid | get 0.mem | into string } catch { "" } } else { "" })
-    let mem_part = (if ($agy_mem != "") { $"(ansi white)Mem: ($agy_mem)(ansi reset)" } else { "" })
+    let mem_part = (if ($agy_mem != "") { $"(ansi white)($agy_mem)(ansi reset)" } else { "" })
 
     # 7. Counters
     let tasks_count = ($input.task_count? | default 0)

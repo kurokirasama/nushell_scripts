@@ -265,65 +265,77 @@ export def link-skills [] {
 
 #link agents from yandex disk to user CLI folders
 export def link-agents [] {
-    let source = ($env.MY_ENV_VARS.llms_configs | path join "agents")
+    let base    = ($env.MY_ENV_VARS.llms_configs | path join "agents")
+    let src_ag  = ($base | path join "antigravity")
+    let src_oc  = ($base | path join "opencode")
+    let src_cl  = ($base | path join "claude")
+
     let dest_gemini   = ($env.HOME | path join ".gemini" "agents")
     let dest_opencode = ($env.HOME | path join ".config" "opencode" "agents")
     let dest_claude   = ($env.HOME | path join ".claude" "agents")
 
-    if not ($source | path exists) {
-        error make {msg: $"Source agents directory not found: ($source)"}
+    for src in [$src_ag, $src_oc, $src_cl] {
+        if not ($src | path exists) {
+            error make {msg: $"Source agents subfolder not found: ($src). Run the migration first."}
+        }
     }
 
-    # Ensure physical destination directories exist so we can link/copy inside them
     mkdir $dest_gemini $dest_opencode $dest_claude
 
-    # Get the list of all source agents (*.md)
-    let agent_files = glob ($source | path join "*.md")
-    let agent_names = $agent_files | each { |f| $f | path basename }
-
-    # --- Clean dest_gemini and dest_opencode ---
-    # Remove any symlink that is either broken or no longer in the current agent batch.
-    for dest in [$dest_gemini, $dest_opencode] {
-        let items = glob ($dest | path join "*")
-        for item in $items {
-            if ($item | path type) == "symlink" {
-                let name      = $item | path basename
-                let is_broken = not ($item | path exists)
-                let is_stale  = $name not-in $agent_names
-                if $is_broken or $is_stale {
-                    rm $item
-                }
-            }
+    # Helper: validate OpenCode frontmatter (tools must be object, not array)
+    def validate-opencode-agent [file: string] {
+        let content = open --raw $file
+        let lines = $content | lines
+        let tools_line = $lines | enumerate | where { |r| ($r.item | str trim) == "tools:" } | first
+        if ($tools_line | is-empty) { return true }
+        let next_idx = $tools_line.index + 1
+        if $next_idx >= ($lines | length) { return true }
+        let next_line = $lines | get $next_idx
+        if ($next_line | str starts-with "  - ") or ($next_line | str starts-with "- ") {
+            return false
         }
+        return true
     }
 
-    # --- Clean dest_claude (Claude Code blocks external symlinks; always copy fresh) ---
-    let items_claude = glob ($dest_claude | path join "*")
-    for item in $items_claude {
-        rm -rf $item
+    # ── Antigravity (Gemini CLI) ── symlink
+    let ag_files = glob ($src_ag | path join "*.md")
+    let ag_names = $ag_files | each { |f| $f | path basename }
+    for item in (glob ($dest_gemini | path join "*")) {
+        if ($item | path type) == "symlink" {
+            let name = $item | path basename
+            if (not ($item | path exists)) or ($name not-in $ag_names) { rm $item }
+        }
+    }
+    for agent in $ag_files {
+        let target = $dest_gemini | path join ($agent | path basename)
+        if ($target | path type) == "symlink" { rm $target } else if ($target | path exists) { rm -rf $target }
+        ^ln -s $agent $target
     }
 
-    # --- Link/copy Agent Markdown files ---
-    for agent in $agent_files {
-        let name = $agent | path basename
-
-        # Symlink to Gemini and OpenCode directories
-        for dest in [$dest_gemini, $dest_opencode] {
-            let target = $dest | path join $name
-            if ($target | path type) == "symlink" {
-                rm $target
-            } else if ($target | path exists) {
-                rm -rf $target
-            }
-            ^ln -s $agent $target
+    # ── OpenCode ── symlink (with validation guard)
+    let oc_files = glob ($src_oc | path join "*.md")
+    let oc_names = $oc_files | each { |f| $f | path basename }
+    for item in (glob ($dest_opencode | path join "*")) {
+        if ($item | path type) == "symlink" {
+            let name = $item | path basename
+            if (not ($item | path exists)) or ($name not-in $oc_names) { rm $item }
         }
-
-        # Claude Code blocks external symlinks for security. We must copy the files.
-        let target_claude = $dest_claude | path join $name
-        if ($target_claude | path exists) {
-            rm -rf $target_claude
+    }
+    for agent in $oc_files {
+        if not (validate-opencode-agent $agent) {
+            print $"(ansi yellow)WARNING(ansi reset): Skipping ($agent | path basename) — tools: field is an array, invalid for OpenCode"
+            continue
         }
-        cp $agent $target_claude
+        let target = $dest_opencode | path join ($agent | path basename)
+        if ($target | path type) == "symlink" { rm $target } else if ($target | path exists) { rm -rf $target }
+        ^ln -s $agent $target
+    }
+
+    # ── Claude Code ── copy (blocks external symlinks)
+    for item in (glob ($dest_claude | path join "*")) { rm -rf $item }
+    for agent in (glob ($src_cl | path join "*.md")) {
+        let target = $dest_claude | path join ($agent | path basename)
+        cp $agent $target
     }
 
     print (echo-g "Agent definition files linked successfully!")
