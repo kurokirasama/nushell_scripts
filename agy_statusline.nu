@@ -31,8 +31,8 @@ def main [] {
         if ($width > 120) {
             let shortstat = (try { git diff --shortstat | str trim } catch { "" })
             if ($shortstat != "") {
-                let add = ($shortstat | parse --regex '(\d+) insertion' | get 0.capture0? | default "0")
-                let del = ($shortstat | parse --regex '(\d+) deletion' | get 0.capture0? | default "0")
+                let add = ($shortstat | parse --regex '(\d+) insertion' | get -o 0.capture0 | default "0")
+                let del = ($shortstat | parse --regex '(\d+) deletion' | get -o 0.capture0 | default "0")
                 $diff_stats = $"(ansi green)+($add)(ansi reset)/(ansi red)-($del)(ansi reset)"
             }
         }
@@ -59,7 +59,8 @@ def main [] {
     let used_pct = ($input.context_window?.used_percentage? | default 0 | math round --precision 1)
     let total_tokens = (($input.context_window?.total_input_tokens? | default 0) + ($input.context_window?.total_output_tokens? | default 0))
     let tokens_k = (if $total_tokens >= 1000 { $"($total_tokens / 1000 | math round)k" } else { $"($total_tokens)" })
-    let context_part = $"(ansi green)($used_pct)% \(($tokens_k)\)(ansi reset)"
+    let context_color = (if $used_pct >= 70.0 { "#FFA500" } else { "green" })
+    let context_part = $"(ansi $context_color)($used_pct)% \(($tokens_k)\)(ansi reset)"
 
     # 5. Enhanced Fields: Quota, Execution Mode, Sandbox
     let quota = ($input.quota? | default {})
@@ -75,7 +76,8 @@ def main [] {
                 let m = (($reset mod 3600) / 60 | math floor)
                 $"↻ ($h)h ($m)m"
             } else { "" })
-            $quota_parts = ($quota_parts | append $"(ansi cyan)5h: ($pct)% ($reset_str)(ansi reset)")
+            let color = (if $pct <= 30 { "#FF6347" } else { "#32CD32" })
+            $quota_parts = ($quota_parts | append $"(ansi $color)5h: ($pct)% ($reset_str)(ansi reset)")
         }
         if (($quota | columns | where $it == "gemini-weekly" | length) > 0) {
             let q = $quota.gemini-weekly
@@ -85,7 +87,8 @@ def main [] {
                 let d = ($reset / 86400 | math floor)
                 $"↻ ($d)d"
             } else { "" })
-            $quota_parts = ($quota_parts | append $"(ansi cyan)Wk: ($pct)% ($reset_str)(ansi reset)")
+            let color = (if $pct <= 30 { "red" } else { "cyan" })
+            $quota_parts = ($quota_parts | append $"(ansi $color)Wk: ($pct)% ($reset_str)(ansi reset)")
         }
     }
 
