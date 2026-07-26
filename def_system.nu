@@ -263,6 +263,72 @@ export def link-skills [] {
     print (echo-g "Skills and extension-based commands linked successfully!")
 }
 
+#link agents from yandex disk to user CLI folders
+export def link-agents [] {
+    let source = ($env.MY_ENV_VARS.llms_configs | path join "agents")
+    let dest_gemini   = ($env.HOME | path join ".gemini" "agents")
+    let dest_opencode = ($env.HOME | path join ".config" "opencode" "agents")
+    let dest_claude   = ($env.HOME | path join ".claude" "agents")
+
+    if not ($source | path exists) {
+        error make {msg: $"Source agents directory not found: ($source)"}
+    }
+
+    # Ensure physical destination directories exist so we can link/copy inside them
+    mkdir $dest_gemini $dest_opencode $dest_claude
+
+    # Get the list of all source agents (*.md)
+    let agent_files = glob ($source | path join "*.md")
+    let agent_names = $agent_files | each { |f| $f | path basename }
+
+    # --- Clean dest_gemini and dest_opencode ---
+    # Remove any symlink that is either broken or no longer in the current agent batch.
+    for dest in [$dest_gemini, $dest_opencode] {
+        let items = glob ($dest | path join "*")
+        for item in $items {
+            if ($item | path type) == "symlink" {
+                let name      = $item | path basename
+                let is_broken = not ($item | path exists)
+                let is_stale  = $name not-in $agent_names
+                if $is_broken or $is_stale {
+                    rm $item
+                }
+            }
+        }
+    }
+
+    # --- Clean dest_claude (Claude Code blocks external symlinks; always copy fresh) ---
+    let items_claude = glob ($dest_claude | path join "*")
+    for item in $items_claude {
+        rm -rf $item
+    }
+
+    # --- Link/copy Agent Markdown files ---
+    for agent in $agent_files {
+        let name = $agent | path basename
+
+        # Symlink to Gemini and OpenCode directories
+        for dest in [$dest_gemini, $dest_opencode] {
+            let target = $dest | path join $name
+            if ($target | path type) == "symlink" {
+                rm $target
+            } else if ($target | path exists) {
+                rm -rf $target
+            }
+            ^ln -s $agent $target
+        }
+
+        # Claude Code blocks external symlinks for security. We must copy the files.
+        let target_claude = $dest_claude | path join $name
+        if ($target_claude | path exists) {
+            rm -rf $target_claude
+        }
+        cp $agent $target_claude
+    }
+
+    print (echo-g "Agent definition files linked successfully!")
+}
+
 #update global GEMINI.md, AGENTS.md, and CLAUDE.md rules
 export def "update-gemini-md" [] {
     let llms = try { $env.MY_ENV_VARS.llms_configs } catch { "~/Yandex.Disk/llms_configs" } | path expand

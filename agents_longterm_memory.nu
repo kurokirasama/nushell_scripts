@@ -181,7 +181,7 @@ def get-init-metadata [path: path, vault: path]: nothing -> any {
     let has_git_cmd = (which git | is-not-empty)
     let uses_git = ($"($project_dir)/.git" | path exists) or ($has_git_cmd and ((try { ^git -C $project_dir rev-parse --is-inside-work-tree | complete | get exit_code } catch { 1 }) == 0))
     let uses_conductor = $"($project_dir)/conductor" | path exists
-    mut raw_slug = $project_name | str downcase | str replace --all " " "_" | str replace --all "-" "_" | str replace --regex --all "[^a-z0-9_]" ""
+    mut raw_slug = $project_name | str lowercase | str replace --all " " "_" | str replace --all "-" "_" | str replace --regex --all "[^a-z0-9_]" ""
     if ($raw_slug | is-empty) { $raw_slug = "project" }
     let slug = resolve-unique-slug $raw_slug $project_dir $vault
     { project_name: $project_name, absolute_path: ($project_dir | into string), description: $description, uses_conductor: $uses_conductor, uses_git: $uses_git, slug: $slug }
@@ -575,19 +575,23 @@ export def agent-skill-developer [] {
         }
 
         # Extract individual skill sections
-        let skill_sections = $content | parse --regex '(?s)### \d+\. `(?P<name>.*?)`\n(?P<section>.*?)(?=\n### \d+\. `|\n## Observations|$)'
+        let skill_sections = $content | parse --regex '(?s)### \d+\. (?P<header>.*?)\n(?P<section>.*?)(?=\n### \d+\. |\n## Observations|$)'
         
         mut approved_skills_in_draft = []
         mut rejected_skills_in_draft = []
         
         for skill in $skill_sections {
+            let header = $skill.header | str trim
+            let name_match = $header | parse --regex '`(?P<name>[^`]+)`'
+            let name = if ($name_match | is-not-empty) { $name_match.0.name } else { $header }
+            
             let is_approved = ($skill.section =~ '-\s*\[x\]\s*Approved')
             let is_rejected = ($skill.section =~ '-\s*\[x\]\s*Not Approved')
             
             if $is_approved {
-                $approved_skills_in_draft = ($approved_skills_in_draft | append { name: $skill.name, section: $skill.section })
+                $approved_skills_in_draft = ($approved_skills_in_draft | append { name: $name, section: $skill.section })
             } else if $is_rejected {
-                $rejected_skills_in_draft = ($rejected_skills_in_draft | append { name: $skill.name, section: $skill.section })
+                $rejected_skills_in_draft = ($rejected_skills_in_draft | append { name: $name, section: $skill.section })
             }
         }
 
