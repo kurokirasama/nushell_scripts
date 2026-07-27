@@ -221,6 +221,22 @@ export def "ghostty restore" [] {
   7z x ghostty_config.7z -o/home/kira/.config/ -y
 }
 
+#backup cliamp settings
+@category backup
+@search-terms cliamp backup
+export def "cliamp-backup" [] {
+  cd $env.MY_ENV_VARS.linux_backup
+  7z max cliamp_config.7z ("~/.config/cliamp" | path expand) -x!*.log -x!*.sock -x!*.pid
+}
+
+#restore cliamp settings
+@category backup
+@search-terms cliamp restore
+export def "cliamp-restore" [] {
+  cd $env.MY_ENV_VARS.linux_backup
+  7z x cliamp_config.7z -o/home/kira/.config/ -y
+}
+
 #backup hyprland configs
 @category backup
 @search-terms hyprland backup

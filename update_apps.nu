@@ -193,9 +193,6 @@ export def supgrade [--old(-o),--apps(-a),--cargo_aps(-c)] {
     print (echo-g "updating off apt apps...")
     apps-update
   }
-
-  # echo-g "upgrading pip3 packages..."
-  # pip3-upgrade
 }
 
 #update off-package manager apps

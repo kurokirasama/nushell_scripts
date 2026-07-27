@@ -147,6 +147,8 @@ let hooks = {
                 }
                 
                 print (h stats)
+
+                apps-update from-todos 
             }
         }
     ]
