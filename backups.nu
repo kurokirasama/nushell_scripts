@@ -260,3 +260,19 @@ export def "hyprlnd restore" [] {
     
     ls *.7z | get name | each {|f| 7z x $f -o/home/kira/.config/ -y}
 }
+
+#backup ttt settings
+@category backup
+@search-terms ttt backup
+export def "ttt-backup" [] {
+  cd $env.MY_ENV_VARS.linux_backup
+  7z max ttt_config ("~/.config/ttt" | path expand)
+}
+
+#restore ttt settings
+@category backup
+@search-terms ttt restore
+export def "ttt-restore" [] {
+  cd $env.MY_ENV_VARS.linux_backup
+  7z x ttt_config.7z -o/home/kira/.config/ -y
+}

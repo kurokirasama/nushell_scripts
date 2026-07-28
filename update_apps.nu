@@ -991,6 +991,16 @@ export def "apps-update glow" [] {
   go install github.com/charmbracelet/glow@latest
 }
 
+#update ttt (Terminal Text Tool)
+export def "apps-update ttt" [] {
+  if (which ttt | is-empty) {
+    print (echo-g "ttt is not installed. Installing...")
+  } else {
+    print (echo-g "Updating ttt...")
+  }
+  go install github.com/eugenioenko/ttt/cmd/ttt@latest
+}
+
 #update obsidian
 export def "apps-update obsidian" [] {
   github-app-update obsidianmd obsidian-releases -a obsidian
