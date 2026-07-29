@@ -41,49 +41,59 @@ export def matlab-cli [
   --log_file(-l):string = "log24" #log file in foreground mode
   --kill(-k)          #kill current matlab processes
   --login(-L)         #verify matlab license via terminal
+  --nodisplay(-n)     #manually disable DISPLAY / force headless mode
 ] {
-  if $login {
-    matlab -nodisplay -batch "opengl info"
-    return
-  }
+  let is_ssh = (($env | transpose name value | where name in ["SSH_CLIENT" "SSH_TTY" "SSH_CONNECTION"] | length) > 0)
+  let env_vars = (if ($nodisplay or $is_ssh) {
+      { DISPLAY: "" }
+  } else {
+      {}
+  })
 
-  if $kill {
-    ps -l
-    | find -i matlab
-    | find local & MATLAB
-    | find -v 'MATLAB-language-server' & 'bin/nu'  & 'yandex-disk'
-    | each {|row|
-        kill -f $row.pid
-      }
-
-    return
-  }
-
-  if not $background {
-    matlab -nosplash -nodesktop -sd ($env.PWD) -logfile ("~/Dropbox/matlab" | path join $"($log_file).txt" | path expand) -r "setenv('SHELL', '/bin/bash');"
-    return
-  }
-
-  let log = (date now | format date "%Y.%m.%d_%H.%M.%S") + "_log.txt"
-
-  let input = if ($input | is-empty) {
-      ls *.m
-      | get name
-      | path parse
-      | get stem
-      | input list -f (echo-g "m-file to run: ")
-    } else {
-      $input | path parse | get stem
+  with-env $env_vars {
+    if $login {
+      matlab -nodisplay -batch "opengl info"
+      return
     }
-  
 
-  let output = if ($output | is-empty) {$log} else {$output + ".txt"}
+    if $kill {
+      ps -l
+      | find -i matlab
+      | find local & MATLAB
+      | find -v 'MATLAB-language-server' & 'bin/nu'  & 'yandex-disk'
+      | each {|row|
+          kill -f $row.pid
+        }
 
-  job spawn {
-  	matlab -batch ("setenv('SHELL', '/bin/bash'); " + $input) 
-  	| save -f $output
-  } | ignore
-  sleep 2sec
+      return
+    }
+
+    if not $background {
+      matlab -nosplash -nodesktop -sd ($env.PWD) -logfile ("~/Dropbox/matlab" | path join $"($log_file).txt" | path expand) -r "setenv('SHELL', '/bin/bash');"
+      return
+    }
+
+    let log = (date now | format date "%Y.%m.%d_%H.%M.%S") + "_log.txt"
+
+    let input = if ($input | is-empty) {
+        ls *.m
+        | get name
+        | path parse
+        | get stem
+        | input list -f (echo-g "m-file to run: ")
+      } else {
+        $input | path parse | get stem
+      }
+    
+
+    let output = if ($output | is-empty) {$log} else {$output + ".txt"}
+
+    job spawn {
+      matlab -batch ("setenv('SHELL', '/bin/bash'); " + $input) 
+      | save -f $output
+    } | ignore
+    sleep 2sec
+  }
 }
 
 # Return the flag emoji for a given two-digit country code
