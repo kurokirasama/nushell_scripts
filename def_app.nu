@@ -79,7 +79,11 @@ export def matlab-cli [
 
   let output = if ($output | is-empty) {$log} else {$output + ".txt"}
 
-  job spawn {matlab -batch ("setenv('SHELL', '/bin/bash'); " + $input) | save -f $output} | ignore
+  job spawn {
+  	matlab -batch ("setenv('SHELL', '/bin/bash'); " + $input) 
+  	| save -f $output
+  } | ignore
+  sleep 2sec
 }
 
 # Return the flag emoji for a given two-digit country code
