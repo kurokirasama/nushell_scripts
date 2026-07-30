@@ -156,7 +156,7 @@ let host = sys host | get hostname
     nload -u H -U H $device
 }
 
-const profiles = ["no-mcp", "minimal", "standard", "webdev", "research", "googlesuit", "imagen", "websearch", "ollama", "full"]
+const profiles = ["no-mcp", "minimal", "standard", "webdev", "research", "googlesuit", "imagen", "websearch", "full", "matlab-mcp", "wolfram"]
 
 const profile_plugins = {
     "standard": ["conductor", "google-workspace", "context-mode"],
@@ -167,8 +167,50 @@ const profile_plugins = {
     "no-mcp": ["conductor"],
     "minimal": ["conductor", "google-workspace", "context-mode"],
     "websearch": ["conductor", "google-workspace", "context-mode"],
-    "ollama": ["conductor", "google-workspace", "context-mode"],
-    "full": ["conductor", "google-workspace", "gemini-cli-security", "gemini-docs-ext", "nanobanana", "context-mode"]
+    "full": ["conductor", "google-workspace", "gemini-cli-security", "gemini-docs-ext", "nanobanana", "context-mode"],
+    "matlab-mcp": ["conductor", "google-workspace", "context-mode"],
+    "wolfram": ["conductor", "google-workspace", "context-mode"]
+}
+
+# Helper to parse and resolve target profiles
+def resolve-profiles [profile: any, extra_profiles: list<string> = []] {
+  let raw = if ($profile | describe) =~ "^list" {
+    $profile | append $extra_profiles
+  } else if ($profile | describe) =~ "^string" {
+    ($profile | split row "," | str trim) | append $extra_profiles
+  } else {
+    [$profile] | append $extra_profiles
+  }
+  let target = $raw | flatten | where ($it | is-not-empty) | uniq
+  for p in $target {
+    if $p not-in $profiles {
+      return-error $"Invalid profile: ($p). Available profiles: ($profiles | str join ', ')"
+    }
+  }
+  $target
+}
+
+# Helper to resolve MCP servers for a single profile
+def resolve-mcp-servers [profile: string, mcp_names: list<string>] {
+  match $profile {
+    "standard" => {$mcp_names | find standard & context-mode & google-workspace -n},
+    "webdev" => {$mcp_names | find standard & webdev & context-mode & google-workspace -n},
+    "research" => {$mcp_names | find standard & research & context-mode & google-workspace -n},
+    "googlesuit" => {$mcp_names | find standard & googlesuit & context-mode & google-workspace -n},
+    "imagen" => {$mcp_names | find standard & imagen & context-mode & google-workspace -n},
+    "no-mcp" => {[]},
+    "minimal" => {$mcp_names | find nushell & context-mode & google-workspace -n},
+    "websearch" => {$mcp_names | find nushell & context-mode & ollama-search & exa & bravesearch & firecrawl & sequentialthinking & markdonify & context-mode & google-workspace -n},
+    "full" => {$mcp_names},
+    "matlab-mcp" => {$mcp_names | find -n matlab},
+    "wolfram" => {$mcp_names | find -n wolfram},
+    _ => {[]}
+  }
+}
+
+# Helper to combine and deduplicate MCP servers for a list of profiles
+def resolve-all-mcp-servers [target_profiles: list<string>, mcp_names: list<string>] {
+  $target_profiles | each { |p| resolve-mcp-servers $p $mcp_names } | flatten | uniq
 }
 
 # Change gemini profiles settings.
@@ -188,8 +230,7 @@ const profile_plugins = {
 #   gmn profile standard
 export def --env "gmn profile" [
         profile:string@$profiles = "standard"
-        --matlab-mcp(-M) #add the matlab mcp server
-        --wolfram(-w) #add the wolfram mcp server
+        ...extra_profiles:string@$profiles
         --list-mcp-servers-and-extensions(-l)
         --gemini-cli(-g) #use the legacy gemini-cli instead of antigravity-cli
 ] {
@@ -210,32 +251,9 @@ export def --env "gmn profile" [
     }
     return
   }
-  
-  let servers = match $profile {
-    "standard" => {$mcp_names | find standard & context-mode & google-workspace -n},
-    "webdev" => {$mcp_names | find standard & webdev & context-mode & google-workspace -n},
-    "research" => {$mcp_names | find standard & research & context-mode & google-workspace -n},
-    "googlesuit" => {$mcp_names | find standard & googlesuit & context-mode & google-workspace -n},
-    "imagen" => {$mcp_names | find standard & imagen & context-mode & google-workspace -n},
-    "no-mcp" => {[]},
-    "minimal" => {$mcp_names | find nushell & context-mode & google-workspace -n},
-    "ollama" => {$mcp_names | find standard & context-mode & google-workspace -n},
-    "websearch" => {$mcp_names | find nushell & context-mode & ollama-search & exa & bravesearch & firecrawl & sequentialthinking & markdonify & context-mode & google-workspace -n},
-    "full" => {$mcp_names},
-    _ => {return-error "Invalid profile"}
-  }
 
-  let servers = if $matlab_mcp {
-    $servers ++ ($mcp_names | find -n matlab)
-  } else {
-    $servers
-  }
-
-  let servers = if $wolfram {
-    $servers ++ ($mcp_names | find -n wolfram)
-  } else {
-    $servers
-  }
+  let target_profiles = resolve-profiles $profile $extra_profiles
+  let servers = resolve-all-mcp-servers $target_profiles $mcp_names
   
   let filtered_servers = if ($servers | is-empty) { {} } else { $mcp_servers | select ...$servers }
   
@@ -264,7 +282,11 @@ export def --env "gmn profile" [
     }
 
     # Handle plugins (extensions)
-    let plugins_to_enable = $profile_plugins | get $profile
+    let plugins_to_enable = if ("full" in $target_profiles) {
+      $profile_plugins | get full
+    } else {
+      $target_profiles | each { |p| $profile_plugins | get -o $p } | flatten | uniq | where ($it | is-not-empty)
+    }
     let all_plugins = $profile_plugins | get full
 
     for p in $all_plugins {
@@ -290,8 +312,7 @@ export def --env "gmn profile" [
 # Switch opencode profile settings
 export def --env "opn profile" [
     profile: string@$profiles = "standard"
-    --matlab-mcp(-M) #add the matlab mcp server
-    --wolfram(-w) #add the wolfram mcp server
+    ...extra_profiles: string@$profiles
     --list-mcp-servers-and-extensions(-l)
     --ollama(-o) #use local ollama models instead of remote
     --build(-b) #starts in build mode instead of plan mode
@@ -308,31 +329,8 @@ export def --env "opn profile" [
     return
   }
   
-  let servers = match $profile {
-    "standard" => {$mcp_names | find standard & context-mode & google-workspace -n},
-    "webdev" => {$mcp_names | find standard & webdev & context-mode & google-workspace -n},
-    "research" => {$mcp_names | find standard & research & context-mode & google-workspace -n},
-    "googlesuit" => {$mcp_names | find standard & googlesuit & context-mode & google-workspace -n},
-    "imagen" => {$mcp_names | find standard & imagen & context-mode & google-workspace -n},
-    "no-mcp" => {[]},
-    "minimal" => {$mcp_names | find nushell & context-mode & google-workspace -n},
-    "ollama" => {$mcp_names | find standard & context-mode & google-workspace -n},
-    "websearch" => {$mcp_names | find nushell & context-mode & ollama-search & exa & bravesearch & firecrawl & sequentialthinking & markdonify & context-mode & google-workspace -n},
-    "full" => {$mcp_names},
-    _ => {return-error "Invalid profile"}
-  }
-
-  let servers = if $matlab_mcp {
-    $servers ++ ($mcp_names | find -n matlab)
-  } else {
-    $servers
-  }
-
-  let servers = if $wolfram {
-    $servers ++ ($mcp_names | find -n wolfram)
-  } else {
-    $servers
-  }
+  let target_profiles = resolve-profiles $profile $extra_profiles
+  let servers = resolve-all-mcp-servers $target_profiles $mcp_names
   
   let filtered_mcp = if ($servers | is-empty) { {} } else { $mcp_servers | select ...$servers }
 
@@ -423,6 +421,7 @@ export def --env "opn profile" [
   let opencode_config_path = $env.HOME | path join .config opencode opencode.json
   mkdir ($opencode_config_path | path dirname)
   $final_config | save -f $opencode_config_path
+  print (echo-g $"OpenCode profiles '($target_profiles | str join ', ')' applied successfully.")
 }
 
 # Configure Ollama systemd service with the correct OLLAMA_CONTEXT_LENGTH for this machine.
@@ -469,54 +468,38 @@ const opn_normal_models = [
 
 export def --env --wrapped opn [
   --profile(-p): string@$profiles = "standard"
-  --matlab-mcp(-M) #use the matlab mcp server
-  --wolfram(-w) #use the wolfram mcp server
   --model(-m): string@$opn_normal_models #choose model
   --ollama(-o) #use local ollama models instead of remote
   --build(-b) #start in build mode instead of plan mode
   --manual #disable auto-approve mode (prompt for permissions)
+  --list-profiles(-l) #interactively select profiles
   ...rest
 ] {
+  let active_profile = if $list_profiles {
+    let selected = $profiles | input list --fuzzy --multi (echo-g "Select OpenCode profiles:")
+    if ($selected | is-empty) {
+      print (echo-r "No profiles selected. Aborting.")
+      return
+    }
+    $selected | str join ","
+  } else {
+    $profile
+  }
+
   let model_value = if (not $ollama) and ($model | is-not-empty) { $model } else { "" }
   let has_model = (not $ollama) and ($model | is-not-empty)
   
-  if $ollama {
-    if $matlab_mcp and $wolfram {
-      if $build { opn profile $profile --ollama --matlab-mcp --wolfram --build } else { opn profile $profile --ollama --matlab-mcp --wolfram }
-    } else if $matlab_mcp {
-      if $build { opn profile $profile --ollama --matlab-mcp --build } else { opn profile $profile --ollama --matlab-mcp }
-    } else if $wolfram {
-      if $build { opn profile $profile --ollama --wolfram --build } else { opn profile $profile --ollama --wolfram }
-    } else {
-      if $build { opn profile $profile --ollama --build } else { opn profile $profile --ollama }
-    }
+  let profile_args = if $ollama {
+    if $build { ["--ollama", "--build"] } else { ["--ollama"] }
   } else {
-    if $matlab_mcp and $wolfram {
-      if $build {
-        if $has_model { opn profile $profile --matlab-mcp --wolfram --build --model $model_value } else { opn profile $profile --matlab-mcp --wolfram --build }
-      } else {
-        if $has_model { opn profile $profile --matlab-mcp --wolfram --model $model_value } else { opn profile $profile --matlab-mcp --wolfram }
-      }
-    } else if $matlab_mcp {
-      if $build {
-        if $has_model { opn profile $profile --matlab-mcp --build --model $model_value } else { opn profile $profile --matlab-mcp --build }
-      } else {
-        if $has_model { opn profile $profile --matlab-mcp --model $model_value } else { opn profile $profile --matlab-mcp }
-      }
-    } else if $wolfram {
-      if $build {
-        if $has_model { opn profile $profile --wolfram --build --model $model_value } else { opn profile $profile --wolfram --build }
-      } else {
-        if $has_model { opn profile $profile --wolfram --model $model_value } else { opn profile $profile --wolfram }
-      }
+    if $build {
+      if $has_model { ["--build", "--model", $model_value] } else { ["--build"] }
     } else {
-      if $build {
-        if $has_model { opn profile $profile --build --model $model_value } else { opn profile $profile --build }
-      } else {
-        if $has_model { opn profile $profile --model $model_value } else { opn profile $profile }
-      }
+      if $has_model { ["--model", $model_value] } else { [] }
     }
   }
+
+  opn profile $active_profile ...$profile_args
 
   let opn_bin = $env.HOME | path join .opencode bin opencode
   
@@ -554,31 +537,34 @@ const gemini_models = [
 export def --env --wrapped gmn [
   ...rest
   --profile(-p):string@$profiles = "standard"
-  --matlab-mcp(-M) #use the matlab mcp server
-  --wolfram(-w) #use the wolfram mcp server
   --model(-m):string@$gemini_models #choose model
   --gemini-cli(-g) #use the legacy gemini-cli instead of antigravity-cli
+  --list-profiles(-l) #interactively select profiles
 ] {
-  if $matlab_mcp and $wolfram and $gemini_cli {
-    gmn profile $profile --matlab-mcp --wolfram --gemini-cli
-  } else if $matlab_mcp and $wolfram {
-    gmn profile $profile --matlab-mcp --wolfram
-  } else if $matlab_mcp and $gemini_cli {
-    gmn profile $profile --matlab-mcp --gemini-cli
-  } else if $wolfram and $gemini_cli {
-    gmn profile $profile --wolfram --gemini-cli
-  } else if $matlab_mcp {
-    gmn profile $profile --matlab-mcp
-  } else if $wolfram {
-    gmn profile $profile --wolfram
-  } else if $gemini_cli {
-    gmn profile $profile --gemini-cli
+  let active_profile = if $list_profiles {
+    let selected = $profiles | input list --fuzzy --multi (echo-g "Select Gemini profiles:")
+    if ($selected | is-empty) {
+      print (echo-r "No profiles selected. Aborting.")
+      return
+    }
+    $selected | str join ","
   } else {
-    gmn profile $profile
+    $profile
   }
 
   if $gemini_cli {
-    let extensions = if $profile == "full" { [] } else { $profile_plugins | get $profile }
+    gmn profile $active_profile --gemini-cli
+  } else {
+    gmn profile $active_profile
+  }
+
+  if $gemini_cli {
+    let target_profiles = resolve-profiles $active_profile
+    let extensions = if ("full" in $target_profiles) {
+      []
+    } else {
+      $target_profiles | each { |p| $profile_plugins | get -o $p } | flatten | uniq | where ($it | is-not-empty)
+    }
 
     let gemini_cmd = if ($model | is-not-empty) {
       if ($extensions | is-empty) {
@@ -623,38 +609,14 @@ export def --env --wrapped gmn [
 #   cld profile standard
 export def --env "cld profile" [
         profile:string@$profiles = "standard"
-        --matlab-mcp(-M) #add the matlab mcp server
-        --wolfram(-w) #add the wolfram mcp server
+        ...extra_profiles:string@$profiles
 ] {
   let settings = open ($env.MY_ENV_VARS.linux_backup | path join "settings_claude.json")
   let mcp_servers = $settings.mcpServers
   let mcp_names = $mcp_servers | columns | sort
   
-  let servers = match $profile {
-    "standard" => {$mcp_names | find standard & context-mode & google-workspace -n},
-    "webdev" => {$mcp_names | find standard & webdev & context-mode & google-workspace -n},
-    "research" => {$mcp_names | find standard & research & context-mode & google-workspace -n},
-    "googlesuit" => {$mcp_names | find standard & googlesuit & context-mode & google-workspace -n},
-    "imagen" => {$mcp_names | find standard & imagen & context-mode & google-workspace -n},
-    "no-mcp" => {[]},
-    "minimal" => {$mcp_names | find nushell & context-mode & google-workspace -n},
-    "ollama" => {$mcp_names | find standard & context-mode & google-workspace -n},
-    "websearch" => {$mcp_names | find nushell & context-mode & ollama-search & exa & bravesearch & firecrawl & sequentialthinking & markdonify & context-mode & google-workspace -n},
-    "full" => {$mcp_names},
-    _ => {return-error "Invalid profile"}
-  }
-
-  let servers = if $matlab_mcp {
-    $servers ++ ($mcp_names | find -n matlab)
-  } else {
-    $servers
-  }
-
-  let servers = if $wolfram {
-    $servers ++ ($mcp_names | find -n wolfram)
-  } else {
-    $servers
-  }
+  let target_profiles = resolve-profiles $profile $extra_profiles
+  let servers = resolve-all-mcp-servers $target_profiles $mcp_names
 
   let filtered_mcp = if ($servers | is-empty) { {} } else { $mcp_servers | select ...$servers }
   
@@ -670,31 +632,27 @@ export def --env "cld profile" [
     | merge $settings.claude_json_settings 
     | upsert mcpServers $filtered_mcp 
     | save -f $mcp_config_path
-  
-  if $profile == "ollama" {
-    $env.OPENAI_BASE_URL = "http://localhost:11434/v1"
-    $env.OPENAI_API_KEY = "ollama"
-  }
-
-  print (echo-g $"Claude profile '($profile)' applied successfully.")
+  print (echo-g $"Claude profiles '($target_profiles | str join ', ')' applied successfully.")
 }
 
 #wrapper for claude code
 export def --env --wrapped cld [
   ...rest
   --profile(-p):string@$profiles = "standard"
-  --matlab-mcp(-M) #use the matlab mcp server
-  --wolfram(-w) #use the wolfram mcp server
+  --list-profiles(-l) #interactively select profiles
 ] {
-  if $matlab_mcp and $wolfram {
-    cld profile $profile --matlab-mcp --wolfram
-  } else if $matlab_mcp {
-    cld profile $profile --matlab-mcp
-  } else if $wolfram {
-    cld profile $profile --wolfram
+  let active_profile = if $list_profiles {
+    let selected = $profiles | input list --fuzzy --multi (echo-g "Select Claude profiles:")
+    if ($selected | is-empty) {
+      print (echo-r "No profiles selected. Aborting.")
+      return
+    }
+    $selected | str join ","
   } else {
-    cld profile $profile
+    $profile
   }
+
+  cld profile $active_profile
   ^claude --dangerously-skip-permissions ...$rest
 }
 
@@ -732,12 +690,6 @@ export def ytm2 [
 
         if $is_work { ^cliamp-wrapper $playlist ...$common } else { ^cliamp $playlist ...$common }
 }
-
-# Switch to ollama profile for agents
-export def "ollama profile" [] {
-  gmn profile ollama
-}
-
 # Get installed ollama models
 export def get-ollama-models [] {
   try {
@@ -770,15 +722,10 @@ export def get-ollama-model-info [model: string] {
 export def --env --wrapped olm [
   ...rest
   --profile(-p):string@$profiles = "standard"
-  --matlab-mcp(-M) #use the matlab mcp server
   --model(-m): string # choose model
   --list(-l)         # list and select model from input list
 ] {
-  if $matlab_mcp {
-    cld profile $profile --matlab-mcp
-  } else {
-    cld profile $profile
-  }
+  cld profile $profile
 
   let available_models = get-ollama-models
   
