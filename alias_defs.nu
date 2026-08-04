@@ -230,9 +230,9 @@ def resolve-all-mcp-servers [target_profiles: list<string>, mcp_names: list<stri
 #   gmn profile standard
 export def --env "gmn profile" [
         profile:string@$profiles = "standard"
-        ...extra_profiles:string@$profiles
         --list-mcp-servers-and-extensions(-l)
         --gemini-cli(-g) #use the legacy gemini-cli instead of antigravity-cli
+        ...extra_profiles:string@$profiles
 ] {
   let settings_file = if $gemini_cli { "settings_gemini.json" } else { "settings_antigravity.json" }
   let settings = open ($env.MY_ENV_VARS.linux_backup | path join $settings_file)
@@ -312,11 +312,11 @@ export def --env "gmn profile" [
 # Switch opencode profile settings
 export def --env "opn profile" [
     profile: string@$profiles = "standard"
-    ...extra_profiles: string@$profiles
     --list-mcp-servers-and-extensions(-l)
     --ollama(-o) #use local ollama models instead of remote
     --build(-b) #starts in build mode instead of plan mode
     --model(-m): string   #override the default model (only for remote mode)
+    ...extra_profiles: string@$profiles
 ] {
   let settings_file = "settings_opencode.json"
   let settings = open ($env.MY_ENV_VARS.linux_backup | path join $settings_file)
@@ -489,17 +489,15 @@ export def --env --wrapped opn [
   let model_value = if (not $ollama) and ($model | is-not-empty) { $model } else { "" }
   let has_model = (not $ollama) and ($model | is-not-empty)
   
-  let profile_args = if $ollama {
-    if $build { ["--ollama", "--build"] } else { ["--ollama"] }
+  if $ollama {
+    if $build { opn profile $active_profile --ollama --build } else { opn profile $active_profile --ollama }
   } else {
     if $build {
-      if $has_model { ["--build", "--model", $model_value] } else { ["--build"] }
+      if $has_model { opn profile $active_profile --build --model $model_value } else { opn profile $active_profile --build }
     } else {
-      if $has_model { ["--model", $model_value] } else { [] }
+      if $has_model { opn profile $active_profile --model $model_value } else { opn profile $active_profile }
     }
   }
-
-  opn profile $active_profile ...$profile_args
 
   let opn_bin = $env.HOME | path join .opencode bin opencode
   

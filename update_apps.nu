@@ -970,10 +970,23 @@ export def "apps-update ddgr" [] {
   sudo make install
 }
 
+# rclone install.sh exits with 3 when the installed version is already up to date,
+# which is a success condition, not an error
+def is-rclone-update-success [exit_code: int] {
+  $exit_code == 0 or $exit_code == 3
+}
+
 #update rclone
 @category sudo
 export def "apps-update rclone" [] {
-  bash -c "sudo -v ; curl -s# https://rclone.org/install.sh | sudo bash"
+  try {
+    bash -c "sudo -v ; curl -s# https://rclone.org/install.sh | sudo bash"
+  } catch { }
+  if $env.LAST_EXIT_CODE == 3 {
+    print "rclone is already up to date."
+  } else if (not (is-rclone-update-success $env.LAST_EXIT_CODE)) {
+    return-error $"rclone update failed with exit code ($env.LAST_EXIT_CODE)"
+  }
 }
 
 #update matlab lsp server

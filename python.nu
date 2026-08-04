@@ -7,50 +7,36 @@
 #   create-virtualenv my_project/venv
 export def create-virtualenv [dir_name:string = "venv"] {
   let venv_path = $dir_name | path expand
-  
+
+  # Exclude from Dropbox via .mignore BEFORE creating the folder (prevents selective sync conflicts)
+  _ensure-mignore [
+    "**/.venv" "**/venv" "**/.vnv"
+    "**/__pycache__" "**/.pytest_cache"
+    "**/node_modules" "**/.next"
+    "**/dist" "**/build"
+    "**/target"
+  ]
+  _backup-mignore
+
   # 1. First create the folder
   mkdir $venv_path
-  
+
   # Resolve Dropbox and Yandex.Disk roots (support mocking for unit tests)
   let dropbox_root = $env.MOCK_DROPBOX_ROOT? | default ("~/Dropbox" | path expand)
   let yandex_root = $env.MOCK_YANDEX_ROOT? | default ("~/Yandex.Disk" | path expand)
-  
+
   # 2. Detect if the path is inside Dropbox or Yandex.Disk
   if ($venv_path | str starts-with $dropbox_root) {
-    # Dropbox logic
-    let relative_path = "/" + ($venv_path | path relative-to $dropbox_root)
-    # Check if maestral is in PATH
-    if (which maestral | is-not-empty) {
-      print $"Excluding ($venv_path) from Dropbox sync using Maestral..."
-      let res = maestral excluded add $relative_path | complete
-      if $res.exit_code != 0 {
-        let err_msg = $"($res.stderr)($res.stdout)"
-        if ($err_msg | str contains "Please try again when idle") {
-          print "Maestral is currently busy syncing. Pausing sync to apply exclusion..."
-          maestral pause | complete
-          let retry_res = maestral excluded add $relative_path | complete
-          maestral resume | complete
-          if $retry_res.exit_code != 0 {
-            print -e $"Warning: maestral excluded add failed after retry: ($retry_res.stderr | str trim)"
-          } else {
-            print "Exclusion applied successfully after pausing sync."
-          }
-        } else {
-          print -e $"Warning: maestral excluded add failed: ($res.stderr | str trim)"
-        }
-      }
-    } else {
-      print -e $"Warning: maestral executable not found in PATH. Skipping Dropbox exclusion."
-    }
+    # Dropbox is handled by .mignore patterns above — no maestral excluded add needed
   } else if ($venv_path | str starts-with $yandex_root) {
     # Yandex.Disk logic
     print $"Stopping Yandex.Disk daemon..."
     do -i { nu --config ~/.config/nushell/config.nu --env-config ~/.config/nushell/env.nu -c 'ydx stop' }
-    
+
     let primary_cfg = $env.MOCK_YANDEX_CONFIG_FILE? | default "/home/kira/.config/yandex-disk/config.cfg"
     print $"Updating Yandex.Disk config: ($primary_cfg)..."
     _update-yandex-config $primary_cfg $venv_path
-    
+
     let backup_dir = $env.MY_ENV_VARS.linux_backup? | default ""
     if not ($backup_dir | is-empty) {
       let backup_cfg = [$backup_dir "ydx_config.cfg"] | path join
@@ -59,11 +45,11 @@ export def create-virtualenv [dir_name:string = "venv"] {
     } else {
       print -e "Warning: $env.MY_ENV_VARS.linux_backup is not configured. Skipping backup config update."
     }
-    
+
     print $"Starting Yandex.Disk daemon..."
     do -i { nu --config ~/.config/nushell/config.nu --env-config ~/.config/nushell/env.nu -c 'ydx start' }
   }
-  
+
   # 3. Actually create the virtualenv
   python3 -m virtualenv $dir_name
 }
@@ -104,6 +90,30 @@ def _update-yandex-config [config_file: path, new_exclude: string] {
   }
   
   $final_content | str join "\n" | save -f $config_file
+}
+
+# Ensure .mignore patterns exist in Dropbox root (Maestral ignore file)
+# Patterns are added idempotently — existing content is preserved.
+def _ensure-mignore [patterns: list<string>] {
+  let dropbox_root = $env.MOCK_DROPBOX_ROOT? | default ("~/Dropbox" | path expand)
+  if not ($dropbox_root | path exists) { return }
+  let mignore_path = [$dropbox_root ".mignore"] | path join
+  let existing = if ($mignore_path | path exists) { open --raw $mignore_path | lines } else { [] }
+  let to_add = $patterns | where { |p| not ($existing | any { |e| ($e | str trim | str replace --all "*" '\*') == ($p | str trim | str replace --all "*" '\*') }) }
+  if ($to_add | is-empty) { return }
+  let new_content = $existing | append $to_add
+  $new_content | str join "\n" | save -f $mignore_path
+}
+
+# Backup .mignore to Yandex.Disk for cross-machine portability
+def _backup-mignore [] {
+  let dropbox_root = $env.MOCK_DROPBOX_ROOT? | default ("~/Dropbox" | path expand)
+  let mignore_path = [$dropbox_root ".mignore"] | path join
+  if not ($mignore_path | path exists) { return }
+  let backup_dir = $env.MOCK_BACKUP_DIR? | default ("/home/kira/Yandex.Disk/Backups/linux")
+  mkdir $backup_dir
+  let backup_path = [$backup_dir "mignore"] | path join
+  cp --force $mignore_path $backup_path
 }
 
 export def activate [] {

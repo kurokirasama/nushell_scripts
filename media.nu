@@ -410,44 +410,69 @@ export def "media cut-video" [
   --append(-a):string = "cutted"  #append to file name
   --notify(-n)             #notify to android via join/tasker
   --reencode(-r)           #reencode video
+  --audio-track: int       #audio stream index to include (0-based)
+  --subtitle-track: int    #subtitle stream index to include (0-based)
 ] {
   let ext = $file | path parse | get extension
   let name = $file | path parse | get stem
 
   let ofile = get-input $"($name)_($append).($ext)" $output_file
 
+  mut audio_idx = $audio_track
+  mut sub_idx = $subtitle_track
+  if ($audio_idx | is-empty) or ($sub_idx | is-empty) {
+    let info = media video-info $file
+    if ($audio_idx | is-empty) { $audio_idx = resolve-audio-track $info null }
+    if ($sub_idx | is-empty) { $sub_idx = resolve-subtitle-track $info null }
+  }
+
+  let args = build-cut-args $file $SEGSTART $SEGEND $ofile $reencode $audio_idx $sub_idx
+  let fallback_args = build-cut-args $file $SEGSTART $SEGEND $ofile $reencode null null
+
   try {
     echo-g "trying myffmpeg..."
-    if $reencode {
-        try {
-          my-ffmpeg -i $file -ss $SEGSTART -to $SEGEND -map 0:0 -map 0:1 $ofile
-        } catch {
-          my-ffmpeg -i $file -ss $SEGSTART -to $SEGEND -map 0:0 $ofile
-        }
-    } else {
-        try {
-          my-ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
-        } catch {
-          my-ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -c:v copy $ofile  
-        }
+    try {
+      my-ffmpeg ...$args
+    } catch {
+      print (echo-y "requested track(s) not available; falling back to video-only")
+      my-ffmpeg ...$fallback_args
     }
   } catch {
     echo-r "trying ffmpeg..."
-    if $reencode {
-        try {
-          ffmpeg -i $file -ss $SEGSTART -to $SEGEND -map 0:0 -map 0:1 $ofile
-        } catch {
-          ffmpeg -i $file -ss $SEGSTART -to $SEGEND -map 0:0 $ofile
-        }
-    } else {
-        try {
-          ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -map 0:1 -c:a copy -c:v copy $ofile  
-        } catch {
-          ffmpeg -i $file -ss $SEGSTART -to  $SEGEND -map 0:0 -c:v copy $ofile  
-        }        
+    try {
+      ffmpeg ...$args
+    } catch {
+      print (echo-y "requested track(s) not available; falling back to video-only")
+      ffmpeg ...$fallback_args
     }
   }
   if $notify {"summary finished!" | tasker send-notification}
+}
+
+#build ffmpeg argument list for a cut with selected streams
+def build-cut-args [
+  file: string
+  start: string
+  end: string
+  ofile: string
+  reencode: bool
+  audio_idx: any
+  sub_idx: any
+] {
+  mut args = ["-i", $file, "-ss", $start, "-to", $end]
+  $args = ($args | append ["-map", "0:0"])
+  if ($audio_idx | is-not-empty) {
+    $args = ($args | append ["-map", $"0:($audio_idx)"])
+  }
+  if ($sub_idx | is-not-empty) {
+    $args = ($args | append ["-map", $"0:($sub_idx)"])
+  }
+  if not $reencode {
+    $args = ($args | append ["-c:v", "copy"])
+    if ($audio_idx | is-not-empty) { $args = ($args | append ["-c:a", "copy"]) }
+    if ($sub_idx | is-not-empty) { $args = ($args | append ["-c:s", "copy"]) }
+  }
+  $args | append ["-y", $ofile]
 }
 
 #split video file
@@ -457,8 +482,14 @@ export def "media split-video" [
   --duration(-d):duration   #duration of each segment except probably the last one
   --delta:duration = 10sec  #duration of overlaping beetween segments
   --notify(-n)              #notify to android via join/tasker
+  --audio-track: int        #audio stream index to include (0-based)
+  --subtitle-track: int     #subtitle stream index to include (0-based)
 ] {
-  let full_length = media video-info $file
+  let info = media video-info $file
+  let audio_idx = resolve-audio-track $info $audio_track
+  let sub_idx = resolve-subtitle-track $info $subtitle_track
+
+  let full_length = $info
     | get format
     | get duration
   
@@ -481,13 +512,13 @@ export def "media split-video" [
     let segment_end = ($seg_end + ($it - 1) * $seg_duration + $delta) | into hhmmss
 
     print (echo-g $"generating part ($it): ($segment_start) - ($segment_end)...")
-    media cut-video $file $segment_start $segment_end -a ($it | into string)
+    media cut-video $file $segment_start $segment_end -a ($it | into string) --audio-track $audio_idx --subtitle-track $sub_idx
   }
 
   let segment_start = (($n_segments - 1) * $seg_duration) | into hhmmss
 
   print (echo-g $"generating part ($n_segments): ($segment_start) - ($full_hhmmss)...")
-  media cut-video $file $segment_start $full_hhmmss -a ($n_segments | into string)
+  media cut-video $file $segment_start $full_hhmmss -a ($n_segments | into string) --audio-track $audio_idx --subtitle-track $sub_idx
   if $notify {"video split finished!" | tasker send-notification}
 }
 
@@ -1817,4 +1848,66 @@ export def "media replace-logo" [
     } else {
         return-error "Failed to produce final replaced-logo video."
     }
+}
+
+# --- Track selection helpers (used by split-video / cut-video) ---
+
+#extract audio streams from video-info record
+export def get-audio-streams [info: record] {
+  $info.streams
+    | where codec_type == "audio"
+    | each {|s| {
+        index: ($s.index | into int)
+        codec_name: $s.codec_name
+        language: ($s.tags?.language? | default "?")
+        title: ($s.tags?.title? | default "")
+      }}
+}
+
+#extract subtitle streams from video-info record
+export def get-subtitle-streams [info: record] {
+  $info.streams
+    | where codec_type == "subtitle"
+    | each {|s| {
+        index: ($s.index | into int)
+        codec_name: $s.codec_name
+        language: ($s.tags?.language? | default "?")
+        title: ($s.tags?.title? | default "")
+      }}
+}
+
+#build input-list choices from a stream list
+export def build-stream-choice [streams: list] {
+  $streams | each {|s|
+    let title_part = if ($s.title | is-empty) {""} else {($" - ($s.title)")}
+    { value: $s.index, label: $"Stream #0:($s.index): ($s.codec_name), ($s.language)($title_part)" }
+  }
+}
+
+#select a stream track from video-info: auto-picks when unique, prompts when multiple
+export def select-track [streams: list, prompt: string] {
+  let n = $streams | length
+  if $n == 0 { return null }
+  if $n == 1 { return ($streams | get 0.index) }
+
+  let choice = $streams
+    | build-stream-choice $in
+    | input list -fd label (echo-g $prompt)
+
+  if ($choice | is-empty) { return null }
+  $choice.value
+}
+
+#resolve audio track: flag wins, else auto-select or prompt
+export def resolve-audio-track [info: record, audio_track: any = null] {
+  if ($audio_track | is-not-empty) { return $audio_track }
+  select-track (get-audio-streams $info) "Select audio track:"
+}
+
+#resolve subtitle track: flag wins, else prompt only when multiple (no auto-select)
+export def resolve-subtitle-track [info: record, subtitle_track: any = null] {
+  if ($subtitle_track | is-not-empty) { return $subtitle_track }
+  let streams = get-subtitle-streams $info
+  if ($streams | length) < 2 { return null }
+  select-track $streams "Select subtitle track:"
 }
