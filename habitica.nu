@@ -525,7 +525,7 @@ export def "h complete-todos" [
             print (echo-r (char -u f467))
         }
 
-        sleep 1sec
+        sleep 2sec
     }
 }
 
@@ -606,7 +606,7 @@ export def "h score-habits" [
         }
 
         # Add a delay to avoid rate limits
-        sleep 1sec
+        sleep 2sec
     }
 }
 
@@ -893,7 +893,7 @@ export def "h complete-checklist" [
     } else {
         print ((echo-r $"Failed to complete checklist item: ") + ($item.text) + (echo-r $". Message: ($response.message)"))
     }
-    sleep 1sec
+    sleep 2sec
   }
 }
 
@@ -972,7 +972,7 @@ export def "h add-checklist" [
     } else {
         print ((echo-r $"Failed to add checklist item '($item)'. Message: ") + ($response.message))
     }
-    sleep 1sec
+    sleep 2sec
   }
 }
 
