@@ -14,7 +14,9 @@
 #   get-cached-quota    - Read cache, return quota record (empty if cache missing)
 #   is-cache-stale      - Return true if cache is older than 600 seconds
 
-const CACHE_FILE = "/tmp/agy_quota_cache.json"
+def _cache-file [] {
+  $env.AGY_QUOTA_CACHE_FILE? | default "/tmp/agy_quota_cache.json"
+}
 const CACHE_TTL  = 600  # seconds
 
 # Write a quota record and timestamp to the cache file.
@@ -27,7 +29,7 @@ export def update-quota-cache [quota: record] {
     quota: $quota
   }
   try {
-    $cache | to json | save -f $CACHE_FILE
+    $cache | to json | save -f (_cache-file)
   } catch { |e|
     # Silently ignore write errors to avoid polluting statusline output
   }
@@ -35,9 +37,10 @@ export def update-quota-cache [quota: record] {
 
 # Return true if the cache file is older than CACHE_TTL seconds or missing.
 export def is-cache-stale [] {
-  if not ($CACHE_FILE | path exists) { return true }
+  let file = (_cache-file)
+  if not ($file | path exists) { return true }
 
-  let raw   = try { open --raw $CACHE_FILE } catch { return true }
+  let raw   = try { open --raw $file } catch { return true }
   let cache = try { $raw | from json } catch { return true }
   if ($cache | describe | str starts-with "string") { return true }
 
@@ -60,9 +63,10 @@ export def is-cache-stale [] {
 # Usage:  let q = get-cached-quota
 # Output: record with quota keys, or empty record {}
 export def get-cached-quota [] {
-  if not ($CACHE_FILE | path exists) { return {} }
+  let file = (_cache-file)
+  if not ($file | path exists) { return {} }
 
-  let raw = try { open --raw $CACHE_FILE } catch { return {} }
+  let raw = try { open --raw $file } catch { return {} }
   let cache = try { $raw | from json } catch { return {} }
   if ($cache | describe | str starts-with "string") { return {} }
   let quota = $cache | get -o quota | default {}
@@ -76,11 +80,12 @@ export def get-cached-quota [] {
 #
 # Output: record { quota: record, age_sec: int, stale: bool }
 export def get-cached-quota-with-meta [] {
-  if not ($CACHE_FILE | path exists) {
+  let file = (_cache-file)
+  if not ($file | path exists) {
     return { quota: {}, age_sec: -1, stale: true }
   }
 
-  let raw   = try { open --raw $CACHE_FILE } catch {
+  let raw   = try { open --raw $file } catch {
     return { quota: {}, age_sec: -1, stale: true }
   }
   let cache = try { $raw | from json } catch {
@@ -99,3 +104,45 @@ export def get-cached-quota-with-meta [] {
 
   { quota: $quota, age_sec: $age_sec, stale: $stale }
 }
+
+# Spawn a background job to validate the API key/network and refresh the cache timestamp.
+#
+# Prevents concurrent execution using a directory lock.
+export def trigger-background-fetch [] {
+  job spawn {
+    # Check/cleanup stale lock
+    let lock_dir = "/tmp/agy_quota_fetch.lock"
+    if ($lock_dir | path exists) {
+      let stat = (try { ls -d $lock_dir | get 0 } catch { {} })
+      if ($stat | is-not-empty) {
+        let age = ((date now) - $stat.modified)
+        if $age > 60sec {
+          try { rm -rf $lock_dir } catch { }
+        }
+      }
+    }
+
+    # Try to acquire lock
+    let lock_res = (^mkdir $lock_dir o+e>| complete)
+    if $lock_res.exit_code == 0 {
+      try {
+        use /home/kira/Yandex.Disk/my_scripts/nushell/apis.nu get-api-key
+        let key = (get-api-key google.gemini_paid)
+        let url = $"https://generativelanguage.googleapis.com/v1beta/models?key=($key)"
+        let response = (http get -f $url)
+        if $response.status == 200 {
+          let cache_file = (_cache-file)
+          if ($cache_file | path exists) {
+            let cache_data = (open --raw $cache_file | from json)
+            let updated_cache = ($cache_data | upsert timestamp (date now | into int))
+            $updated_cache | to json | save -f $cache_file
+          }
+        }
+      } catch {
+        # Ignore all errors in background job to keep it non-blocking and silent
+      }
+      try { rm -rf $lock_dir } catch { }
+    }
+  }
+}
+

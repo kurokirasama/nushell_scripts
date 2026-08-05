@@ -66,15 +66,12 @@ def main [] {
 
       # 4. Mark as stale if cache is > 10 minutes old
       if $is_stale {
-        # Add stale marker to each quota entry so downstream can show dim indicator
-        # agy_statusline.nu ignores unknown keys, so this is safe.
-        # The stale handling is done by agy_statusline.nu's existing color logic —
-        # we rely on the user seeing slightly outdated percentages as acceptable UX.
-        # For a stronger visual, a future enhancement could modify the ANSI output.
-        null  # stale_quota marker is informational only here
+        # Trigger background validation and touch cache
+        trigger-background-fetch
+        $merged_input = $input | upsert quota_stale true
       }
 
-      $merged_input = $input | upsert quota $quota_to_inject
+      $merged_input = $merged_input | upsert quota $quota_to_inject
     }
     # If no cache at all, merged_input stays as original (empty quota shown by statusline)
   }

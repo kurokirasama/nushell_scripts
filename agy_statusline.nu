@@ -62,8 +62,8 @@ def main [] {
     let context_color = (if $used_pct >= 70.0 { "#FFA500" } else { "green" })
     let context_part = $"(ansi $context_color)($used_pct)% \(($tokens_k)\)(ansi reset)"
 
-    # 5. Enhanced Fields: Quota, Execution Mode, Sandbox
     let quota = ($input.quota? | default {})
+    let quota_stale = ($input.quota_stale? | default false)
     mut quota_parts = []
 
     if ($quota | is-not-empty) {
@@ -106,7 +106,12 @@ def main [] {
             } else {
                 if ($key | str ends-with "-weekly") { "cyan" } else { "#32CD32" }
             })
-            $quota_parts = ($quota_parts | append $"(ansi $color)($label) ($pct)% ($reset_str)(ansi reset)")
+            let style = (if $quota_stale {
+                $"(ansi $color)(ansi d)(ansi i)"
+            } else {
+                $"(ansi $color)"
+            })
+            $quota_parts = ($quota_parts | append $"($style)($label) ($pct)% ($reset_str)(ansi reset)")
         }
     }
 
