@@ -49,6 +49,7 @@ use /path/to/scripts/ghome.nu *
 use /path/to/scripts/appimages.nu *
 use /path/to/scripts/ghome_cron.nu *
 use /path/to/scripts/agents_longterm_memory.nu *
+use /path/to/scripts/tv_calendar.nu *
 # use /path/to/scripts/polars_aliases.nu *
 # source ~/.local/share/atuin/init.nu
 source ~/.cache/carapace/init.nu

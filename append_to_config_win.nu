@@ -48,6 +48,7 @@ use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\dataestado.nu *
 use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\ghome.nu *
 use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\appimages.nu *
 use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\ghome_cron.nu *
+use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\tv_calendar.nu *
 # use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\polars_aliases.nu *
 # source-env C:\Users\usuario\AppData\Roaming\nushell\carapace\init.nu
 source-env C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\env_vars.nu
