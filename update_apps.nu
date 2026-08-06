@@ -184,6 +184,9 @@ export def supgrade [--old(-o),--apps(-a),--cargo_aps(-c)] {
   print (echo-g "updating stack...")
   stack upgrade
 
+  print (echo-g "updating firmware...")
+  sudo fwupdmgr update
+
   if $cargo_aps {
     print (echo-g "updating cargo apps...")
     cargo install-update -a

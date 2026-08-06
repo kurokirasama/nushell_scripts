@@ -59,7 +59,7 @@ export def network-switcher [] {
 export def wifi-info [
   --wifi_id(-w)
 ] {
-  let info = nmcli -t dev wifi 
+  let info = nmcli -t dev wifi
     | lines 
     | str replace -a '\:' '|' 
     | str replace -a ':' '#' 
