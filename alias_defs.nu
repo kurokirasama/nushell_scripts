@@ -268,10 +268,19 @@ export def --env "gmn profile" [
     mkdir ($mcp_config_path | path dirname)
     { mcpServers: $filtered_servers } | save -f $mcp_config_path
 
+    # Handle plugins (extensions)
+    let plugins_to_enable = if ("full" in $target_profiles) {
+      $profile_plugins | get full
+    } else {
+      $target_profiles | each { |p| $profile_plugins | get -o $p } | flatten | uniq | where ($it | is-not-empty)
+    }
+    let all_plugins = $profile_plugins | get full
+    let plugins_map = ($all_plugins | reduce -f {} { |p, acc| $acc | insert $p ($p in $plugins_to_enable) })
+
     # Update antigravity-cli settings.json
     let settings_path = $env.HOME | path join .gemini antigravity-cli settings.json
     mkdir ($settings_path | path dirname)
-    $settings | upsert mcpServers $filtered_servers | save -f $settings_path
+    $settings | upsert mcpServers $filtered_servers | upsert plugins $plugins_map | save -f $settings_path
 
     # Copy hooks_agy.json from backup dir to config dir
     let hooks_src = $env.MY_ENV_VARS.linux_backup | path join "hooks_agy.json"
@@ -280,14 +289,6 @@ export def --env "gmn profile" [
         mkdir ($hooks_target | path dirname)
         cp -f $hooks_src $hooks_target
     }
-
-    # Handle plugins (extensions)
-    let plugins_to_enable = if ("full" in $target_profiles) {
-      $profile_plugins | get full
-    } else {
-      $target_profiles | each { |p| $profile_plugins | get -o $p } | flatten | uniq | where ($it | is-not-empty)
-    }
-    let all_plugins = $profile_plugins | get full
 
     for p in $all_plugins {
       if ($p in $plugins_to_enable) {

@@ -525,7 +525,7 @@ export def "h complete-todos" [
             print (echo-r (char -u f467))
         }
 
-        sleep 2sec
+        sleep 3sec
     }
 }
 

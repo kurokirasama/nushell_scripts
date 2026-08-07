@@ -276,3 +276,19 @@ export def "ttt-restore" [] {
   cd $env.MY_ENV_VARS.linux_backup
   7z x ttt_config.7z -o/home/kira/.config/ -y
 }
+
+#backup yt-x settings
+@category backup
+@search-terms yt-x backup
+export def "yt-x backup" [] {
+  cd $env.MY_ENV_VARS.linux_backup
+  7z max yt-x_config.7z ("~/.config/yt-x" | path expand)
+}
+
+#restore yt-x settings
+@category backup
+@search-terms yt-x restore
+export def "yt-x restore" [] {
+  cd $env.MY_ENV_VARS.linux_backup
+  7z x yt-x_config.7z -o/home/kira/.config/ -y
+}
