@@ -139,7 +139,7 @@ let hooks = {
                 
                 if ($hstats.dailys_to_complete > 0) {
                     print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have ($hstats.dailys_to_complete) dailys to complete today, completing them now...(ansi reset)")
-                    try {h mark-dailys-done}
+                    try {h mark-dailys-done} catch { |err| print (echo $"(ansi -e { fg: '#FF0000'})($err.msg)(ansi reset)")  }
                 }
                 
                 if (h ls dailys -ni | where text =~ supgrade | length) > 0 {
@@ -148,6 +148,7 @@ let hooks = {
                 
                 print (h stats)
 
+                print (echo $"(ansi -e { fg: '#00ff00' attr: b })Checking pending software updates...(ansi reset)")
                 apps-update from-todos 
             }
         }
