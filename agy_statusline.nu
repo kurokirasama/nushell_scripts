@@ -89,7 +89,14 @@ def main [] {
             let reset_str = (if $reset > 0 {
                 if ($key | str ends-with "-weekly") {
                     let d = ($reset / 86400 | math floor)
-                    $"↻ ($d)d"
+                    let h = (($reset mod 86400) / 3600 | math floor)
+                    if $d > 0 and $h > 0 {
+                        $"↻ ($d)d ($h)h"
+                    } else if $d > 0 {
+                        $"↻ ($d)d"
+                    } else {
+                        $"↻ ($h)h"
+                    }
                 } else {
                     let h = ($reset / 3600 | math floor)
                     let m = (($reset mod 3600) / 60 | math floor)
