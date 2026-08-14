@@ -292,3 +292,19 @@ export def "yt-x restore" [] {
   cd $env.MY_ENV_VARS.linux_backup
   7z x yt-x_config.7z -o/home/kira/.config/ -y
 }
+
+#backup yt-dlp settings
+@category backup
+@search-terms yt-dlp backup
+export def "yt-dlp backup" [] {
+  cd $env.MY_ENV_VARS.linux_backup
+  7z max yt-dlp_config.7z ("~/.config/yt-dlp" | path expand)
+}
+
+#restore yt-dlp settings
+@category backup
+@search-terms yt-dlp restore
+export def "yt-dlp restore" [] {
+  cd $env.MY_ENV_VARS.linux_backup
+  7z x yt-dlp_config.7z -o/home/kira/.config/ -y
+}

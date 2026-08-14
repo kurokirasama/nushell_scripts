@@ -66,12 +66,24 @@ export def ssh-sin-pass [
   user:string
   ip:string
   --port(-p):int = 22
+  --sftp(-s) # enable passwordless authentication for SFTP-only servers
+  --key(-k):string = "~/.ssh/id_rsa.pub" # public key to copy
 ] {
-  if not ("~/.ssh/id_rsa.pub" | path expand | path exists) {
+  let pub_key = ($key | path expand)
+  if not ($pub_key | path exists) {
     ssh-keygen -t rsa
   }
 
-  ssh-copy-id -i ~/.ssh/id_rsa.pub -p $port $"($user)@($ip)"
+  if $sftp {
+    print (echo-g $"To install your key on an SFTP-only server, enter your password and run these commands in the sftp prompt:")
+    print (echo-y "  mkdir .ssh")
+    print (echo-y $"  put ($pub_key) .ssh/authorized_keys")
+    print (echo-y "  chmod 600 .ssh/authorized_keys")
+    print (echo-y "  bye\n")
+    ^sftp -P $port $"($user)@($ip)"
+  } else {
+    ssh-copy-id -i $pub_key -p $port $"($user)@($ip)"
+  }
 }
 
 #clean nerd-fonts repo

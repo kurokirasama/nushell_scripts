@@ -66,6 +66,11 @@ export def adbtasker [] {
 #open gmail client (cmdg)
 export def --env gmail [] {
   cd $env.MY_ENV_VARS.download_dir
+
+  if "GDK_PIXBUF_MODULE_FILE" in $env {
+      hide-env GDK_PIXBUF_MODULE_FILE 
+  }
+  
   try {
     cmdg -image_protocol auto -shell ($env.HOME | path join ".cargo" "bin" "nu")
   } catch {
