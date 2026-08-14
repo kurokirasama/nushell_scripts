@@ -305,6 +305,62 @@ export def get-github-latest [
   }
 }
 
+# Normalize a version string to a three-part semver-compatible string.
+# Example: "3.10" -> "3.10.0", "3.10-1" -> "3.10.0"
+export def normalize-version [v: string] {
+  let clean = ($v | split row "-" | get 0 | ansi strip | str trim)
+  let parts = ($clean | split row ".")
+  if ($parts | length) == 1 {
+    $"($parts.0).0.0"
+  } else if ($parts | length) == 2 {
+    $"($parts.0).($parts.1).0"
+  } else {
+    $clean
+  }
+}
+
+# Compare two normalized semver strings to see if v1 >= v2.
+export def semver-ge [v1: string, v2: string] {
+  if $v1 == $v2 { return true }
+  try {
+    let sorted = [($v1 | into semver), ($v2 | into semver)] | sort | each { into string }
+    return ($sorted.1 == $v1)
+  } catch {
+    return ($v1 == $v2)
+  }
+}
+
+# Check if the installed system version is greater than or equal to the latest version.
+export def is-system-up-to-date [sys_ver: string, new_ver: string] {
+  if ($sys_ver | is-empty) { return false }
+  let norm_sys = (normalize-version $sys_ver)
+  let norm_new = (normalize-version $new_ver)
+  return (semver-ge $norm_sys $norm_new)
+}
+
+# Retrieve the installed package/binary version for a given application.
+export def get-system-app-version [app: string] {
+  let dpkg_res = (do { dpkg-query -W -f='${Version}' $app } | complete)
+  if $dpkg_res.exit_code == 0 and ($dpkg_res.stdout | is-not-empty) {
+    return ($dpkg_res.stdout | ansi strip | str trim)
+  }
+  
+  let which_res = (do { which $app } | complete)
+  if $which_res.exit_code == 0 and ($which_res.stdout | is-not-empty) {
+    let ver_res = (do { nu -c $"($app) --version" } | complete)
+    if $ver_res.exit_code == 0 and ($ver_res.stdout | is-not-empty) {
+      let line = ($ver_res.stdout | lines | get 0 | ansi strip | str trim)
+      let match = ($line | parse -r '(?P<ver>\d+(\.\d+)+)')
+      if ($match | is-not-empty) {
+        return ($match.0.ver)
+      }
+    }
+  }
+  
+  return ""
+}
+
+
 #update github app release
 # if file doesnt have an extension, use the pattern flag
 export def github-app-update [
@@ -373,8 +429,35 @@ export def github-app-update [
       }
 
     if $current_version == $new_version {
-      print (echo-g $"($repo) is already in its latest version!")
-      return
+      if $file_type == "deb" {
+        let sys_ver = (get-system-app-version $app)
+        if (is-system-up-to-date $sys_ver $new_version) {
+          print (echo-g $"($repo) is already in its latest version!")
+          return
+        } else {
+          let deb_file_list = (
+            if ($pattern | is-not-empty) {
+              ls | find -n $pattern
+            } else {
+              ls ($"*.($file_type)" | into glob)
+            }
+            | find -n $app
+          )
+          if ($deb_file_list | is-not-empty) {
+            let deb_name = ($deb_file_list.0.name | ansi strip)
+            let sys_desc = (if ($sys_ver | is-empty) { "uninstalled" } else { $sys_ver })
+            print (echo-g $"($repo) version ($new_version) is already downloaded locally in ($down_dir), but system version is '($sys_desc)'.")
+            let install = input (echo-g "Would you like to install it now? (y/n): ")
+            if $install == "y" {
+              sudo gdebi -n $deb_name
+            }
+            return
+          }
+        }
+      } else {
+        print (echo-g $"($repo) is already in its latest version!")
+        return
+      }
     }
   }
 
