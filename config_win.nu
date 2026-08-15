@@ -109,35 +109,38 @@ let hooks = {
                 | save -f $ips_file
                 
                 ## verify habitica
-                let hstats = h stats
-                if not $hstats.logged_in_today {
-                    print (echo $"(ansi -e { fg: '#ff0000' attr: b })Not logged in to habitica yet, logging in now...(ansi reset)")
-                    if ($hstats.dailys_to_complete > 0) {
-                        print (echo $"(ansi -e { fg: '#FF0000' attr: b })You had ($hstats.dailys_to_complete) dailys to complete yesterday, completing them now...(ansi reset)")
+                try {
+                    let hstats = h stats
+                    if not $hstats.logged_in_today {
+                        print (echo $"(ansi -e { fg: '#ff0000' attr: b })Not logged in to habitica yet, logging in now...(ansi reset)")
+                        if ($hstats.dailys_to_complete > 0) {
+                            print (echo $"(ansi -e { fg: '#FF0000' attr: b })You had ($hstats.dailys_to_complete) dailys to complete yesterday, completing them now...(ansi reset)")
+                        }
+                        h login
+                        print (echo $"(ansi -e { fg: '#00ff00' attr: b })These are today's dailys:(ansi reset)")
+                        print (h ls dailys -pi | get text)
+                        print (echo $"(ansi -e { fg: '#00ff00' attr: b })These are latest todos:(ansi reset)")
+                        print (h ls todos -i | last 15 | get text)
                     }
-                    h login
-                    print (echo $"(ansi -e { fg: '#00ff00' attr: b })These are today's dailys:(ansi reset)")
-                    print (h ls dailys -pi | get text)
-                    print (echo $"(ansi -e { fg: '#00ff00' attr: b })These are latest todos:(ansi reset)")
-                    print (h ls todos -i | last 15 | get text)
+                    
+                    if $hstats.pending_quest {
+                        print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have a pending quest invitation, accepting it now...(ansi reset)")
+                        h auto-quest 
+                    }
+                    
+                    if ($hstats.dailys_to_complete > 0) {
+                        print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have ($hstats.dailys_to_complete) dailys to complete today, completing them now...(ansi reset)")
+                        h mark-dailys-done
+                    }
+                    
+                    if (h ls dailys -ni | where text =~ supgrade | length) > 0 {
+                        print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have to upgrade your system today!(ansi reset)")
+                    }
+                    
+                    print (h stats)
+                } catch { |err|
+                    print (echo-r $"[Habitica] Startup check warning: ($err.msg)")
                 }
-                
-                let hstats = h stats
-                if $hstats.pending_quest {
-                    print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have a pending quest invitation, accepting it now...(ansi reset)")
-                    h auto-quest 
-                }
-                
-                if ($hstats.dailys_to_complete > 0) {
-                    print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have ($hstats.dailys_to_complete) dailys to complete today, completing them now...(ansi reset)")
-                    try {h mark-dailys-done}
-                }
-                
-                if (h ls dailys -ni | where text =~ supgrade | length) > 0 {
-                    print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have to upgrade your system today!(ansi reset)")
-                }
-                
-                print (h stats)
             }
         }
     ]

@@ -7,19 +7,141 @@ export def "h credentials" [] {
     }
 }
 
+# Internal resilient HTTP request helper for Habitica API
+def _h-request [
+  method: string # GET, POST, DELETE, PUT
+  path: string   # Endpoint path (e.g. "/api/v3/user") or full URL
+  --params: record = {}
+  --body: any = null
+  --max-retries: int = 3
+  --initial-delay: duration = 2sec
+  --allow-errors # Return error record instead of raising error
+] {
+  let headers = h credentials
+  let base_url = "https://habitica.com"
+
+  let clean_path = if ($path starts-with "http://") or ($path starts-with "https://") {
+    $path | str replace "https://habitica.com" "" | str replace "http://habitica.com" ""
+  } else if ($path starts-with "/") {
+    $path
+  } else {
+    $"\/($path)"
+  }
+
+  let full_url = if ($params | is-not-empty) {
+    {
+      scheme: "https",
+      host: "habitica.com",
+      path: $clean_path,
+      params: $params
+    } | url join
+  } else {
+    $"($base_url)($clean_path)"
+  }
+
+  mut attempt = 1
+  mut last_response: any = null
+
+  while $attempt <= ($max_retries + 1) {
+    let http_res = try {
+      match ($method | str uppercase) {
+        "GET" => {
+          http get --allow-errors -f $full_url -H $headers
+        }
+        "POST" => {
+          let payload = if ($body == null) {
+            "{}"
+          } else if ($body | describe | starts-with "string") {
+            $body
+          } else {
+            $body | to json -r
+          }
+          http post --allow-errors -f --content-type application/json $full_url -H $headers $payload
+        }
+        "DELETE" => {
+          http delete --allow-errors -f $full_url -H $headers
+        }
+        "PUT" => {
+          let payload = if ($body == null) {
+            "{}"
+          } else if ($body | describe | starts-with "string") {
+            $body
+          } else {
+            $body | to json -r
+          }
+          http put --allow-errors -f --content-type application/json $full_url -H $headers $payload
+        }
+        _ => {
+          error make { msg: $"Unsupported HTTP method: ($method)" }
+        }
+      }
+    } catch { |e|
+      { status: 0, body: null, error: $e.msg, headers: { response: [] } }
+    }
+
+    $last_response = $http_res
+
+    let status = $http_res.status? | default 0
+    if ($status >= 200) and ($status < 300) {
+      return $http_res.body
+    }
+
+    if ($status == 429) or ($status in [500, 502, 503, 504, 0]) {
+      if $attempt <= $max_retries {
+        let resp_headers = $http_res.headers?.response? | default []
+        let reset_val = $resp_headers | where name == "x-ratelimit-reset" | get -o 0.value
+
+        let delay = if ($status == 429) and ($reset_val != null) {
+          let parsed_delay = try {
+            let reset_dt = ($reset_val | into datetime)
+            let diff = $reset_dt - (date now)
+            if ($diff > 0sec) and ($diff < 60sec) { $diff + 1sec } else { null }
+          } catch { null }
+
+          if ($parsed_delay != null) {
+            $parsed_delay
+          } else {
+            $initial_delay * (2 ** ($attempt - 1))
+          }
+        } else {
+          $initial_delay * (2 ** ($attempt - 1))
+        }
+
+        print (echo-y $"[Habitica API] HTTP ($status) encountered. Retrying in ($delay) [attempt ($attempt)/($max_retries)]...")
+        sleep $delay
+        $attempt = $attempt + 1
+        continue
+      }
+    }
+
+    break
+  }
+
+  let error_msg = if ($last_response.body?.message? | is-not-empty) {
+    $last_response.body.message
+  } else if ($last_response.error? | is-not-empty) {
+    $last_response.error
+  } else {
+    $"HTTP Error ($last_response.status? | default 'unknown')"
+  }
+
+  if $allow_errors {
+    return {
+      success: false,
+      status: ($last_response.status? | default 0),
+      message: $error_msg,
+      body: $last_response.body?
+    }
+  }
+
+  return-error $"Habitica API error: ($error_msg)"
+}
+
 # Gets user stats
 export def "h stats" [--show-avatar(-s)] {
-    let headers = h credentials 
     let hab_id = get-api-key "habitica.id"
-    let base_url = "https://habitica.com"
 
-    let url = {
-        scheme: ( $base_url | split row "://" | get 0 ),
-        host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
-        path: "/api/v3/user"
-    } | url join
-
-    let response = http get $url -H $headers | get data
+    let response = _h-request "GET" "/api/v3/user" | get data
     let party = h party
     let pending_quest = ($party.quest.key? | is-not-empty) and ($party.quest.active == false) and ($party.quest.members | get $hab_id | is-empty)
     
@@ -35,6 +157,14 @@ export def "h stats" [--show-avatar(-s)] {
         timg $env.MY_ENV_VARS.habitica_avatar
     }
     
+    let dailys_data = try {
+      _h-request "GET" "/api/v3/tasks/user" --params { type: "dailys" } | get data
+    } catch { [] }
+
+    let todos_data = try {
+      _h-request "GET" "/api/v3/tasks/user" --params { type: "todos" } | get data
+    } catch { [] }
+
     return {
         name: $response.profile.name,
         level: $response.stats.lvl,
@@ -42,8 +172,8 @@ export def "h stats" [--show-avatar(-s)] {
         hp: $hp,
         experience: $"($response.stats.exp | math round | into string)/($response.stats.toNextLevel | math round | into string)",
         mana: $"($response.stats.mp | math round | into string)/($response.stats.maxMP | math round | into string)",
-        dailys_to_complete: (h ls dailys | where completed == false and isDue == true | length),
-        todos_to_complete: (h ls todos | where completed == false | length),
+        dailys_to_complete: ($dailys_data | where completed == false and isDue == true | length),
+        todos_to_complete: ($todos_data | where completed == false | length),
         logged_in_today: (not $response.needsCron),
         in_quest: $party.quest.active,
         pending_quest: $pending_quest
@@ -62,16 +192,8 @@ export def "h ls" [
   --tags(-t)  #show only tasks with tags
   --label(-l): string #filter by label name
 ] {
-  let headers = h credentials
-
-  let tags_url = {
-    scheme: "https",
-    host: "habitica.com",
-    path: "/api/v3/tags"
-  } | url join
-
   let tags_map = try {
-    http get $tags_url -H $headers
+    _h-request "GET" "/api/v3/tags"
     | get data
     | reduce -f {} {|tag, acc| $acc | insert $tag.id $tag.name}
   } catch { {} }
@@ -81,19 +203,8 @@ export def "h ls" [
   if ($task_type not-in $types) {
     return-error "Invalid task type"
   }
-  
-  let base_url = "https://habitica.com"
 
-  let url = {
-    scheme: ( $base_url | split row "://" | get 0 ),
-    host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
-    path: "/api/v3/tasks/user",
-    params: {
-      type: $task_type
-    }
-  } | url join
-
-  let response = http get $url -H $headers | get data
+  let response = _h-request "GET" "/api/v3/tasks/user" --params { type: $task_type } | get data
 
   match $task_type {
     "dailys" => {
@@ -158,30 +269,41 @@ export def "h complete-daily" [
   task_id: string # The ID of the daily task to complete
   --verbose(-v)
   --dry-run # Return payload without sending
+  --allow-errors # Return result record instead of throwing error
 ] {
-  let headers = h credentials
-
-  let base_url = "https://habitica.com"
-
-  let url = {
-    scheme: ( $base_url | split row "://" | get 0 ),
-    host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
-    path: $"/api/v3/tasks/($task_id)/score/up"
-  } | url join
-
-  let response = http post --content-type application/json $url -H $headers {}
-
-  if ($response.success != true) {
-  	return-error $"Failed to complete task: ($response.message)"
+  if $dry_run {
+    return { task_id: $task_id, action: "score/up" }
   }
-  if ($verbose) {
-    print (echo-g $"Successfully completed task ID: ($task_id)")
-  } 
+
+  let response = if $allow_errors {
+    _h-request "POST" $"/api/v3/tasks/($task_id)/score/up" --allow-errors
+  } else {
+    _h-request "POST" $"/api/v3/tasks/($task_id)/score/up"
+  }
+
+  if ($response.success? | default true) != false {
+    if $verbose {
+      print (echo-g $"Successfully completed task ID: ($task_id)")
+    }
+    return $response
+  } else {
+    if $allow_errors {
+      return $response
+    }
+    return-error $"Failed to complete task: ($response.message? | default 'Unknown error')"
+  }
 }
 
 # Marks all due and incomplete daily tasks as complete
 export def "h mark-dailys-done" [--verbose(-v)] {
-  let dailys_to_complete = h ls dailys | where completed == false and isDue == true
+  let dailys_to_complete = try {
+    _h-request "GET" "/api/v3/tasks/user" --params { type: "dailys" }
+    | get data
+    | where completed == false and isDue == true
+  } catch { |e|
+    print (echo-r $"Failed to fetch daily tasks: ($e.msg)")
+    return
+  }
 
   if ($dailys_to_complete | is-empty) {
     print (echo-r "No due and incomplete daily tasks found to mark as done.")
@@ -190,24 +312,45 @@ export def "h mark-dailys-done" [--verbose(-v)] {
   
   let total = $dailys_to_complete | length
   mut index = 0
+  mut completed_count = 0
+  mut failed_tasks = []
   
   for $daily in $dailys_to_complete {
     if $verbose {
       print -n $"Completing daily: ($daily.text) "
     }
-    h complete-daily $daily._id
-    if $verbose {
-      print (echo-g (char -u ebb1))
+    
+    let res = h complete-daily $daily._id --allow-errors
+
+    if ($res.success? | default true) != false {
+      $completed_count = $completed_count + 1
+      if $verbose {
+        print (echo-g (char -u ebb1))
+      }
+    } else {
+      let err_msg = $res.message? | default "Request failed"
+      $failed_tasks = ($failed_tasks | append { id: $daily._id, text: $daily.text, error: $err_msg })
+      if $verbose {
+        print (echo-r $"FAILED: ($err_msg)")
+      }
     }
+
     if not $verbose {
       progress_bar ($index + 1) $total
     }
     $index = $index + 1
-    sleep 5sec
+    sleep 2sec
   }
   
-  if $verbose {
-    print (echo-g "All due and incomplete daily tasks marked as done.")
+  if ($failed_tasks | is-not-empty) {
+    print (echo-r $"\nCompleted ($completed_count)/($total) dailies. ($failed_tasks | length) failed:")
+    for $f in $failed_tasks {
+      print (echo-r $"  - ($f.text): ($f.error)")
+    }
+  } else {
+    if $verbose {
+      print (echo-g "All due and incomplete daily tasks marked as done.")
+    }
   }
 }
 
@@ -235,14 +378,8 @@ export def "h add" [
 
   # Resolve tag flags: fetch /api/v3/tags, validate IDs or resolve names to UUIDs
   let resolved_tags = if ($tag_id != null) or ($tag_name != null) {
-    let tags_url = {
-      scheme: "https",
-      host: "habitica.com",
-      path: "/api/v3/tags"
-    } | url join
-
     let tags_data = try {
-      http get $tags_url -H $headers | get data
+      _h-request "GET" "/api/v3/tags" | get data
     } catch {
       return-error "Failed to fetch tags from Habitica API"
     }
@@ -275,14 +412,6 @@ export def "h add" [
   if ($task_type not-in ["dailys", "todos", "habits"]) {
     return-error "Invalid task type. Must be 'dailys', 'todos', or 'habits'."
   }
-
-  let base_url = "https://habitica.com"
-
-  let url = {
-    scheme: ( $base_url | split row "://" | get 0 ),
-    host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
-    path: "/api/v3/tasks/user"
-  } | url join
 
   let task_text = _h-input $text "Enter task text (required): "
   if ($task_text | is-empty) {
@@ -415,12 +544,14 @@ export def "h add" [
 
   if ($dry_run) { return $payload }
 
-  let response = http post --content-type application/json $url -H $headers ($payload | to json)
+  let response = _h-request "POST" "/api/v3/tasks/user" --body $payload --allow-errors
   
-  if ($response.success == true) {
-    print (echo-g $"Successfully added ($task_type) task: ($response.data.text)")
+  if ($response.success? | default true) != false {
+    let task_title = $response.data?.text? | default $task_text
+    print (echo-g $"Successfully added ($task_type) task: ($task_title)")
   } else {
-    print (echo-r $"Failed to add ($task_type) task: ($response.message)")
+    let err_msg = $response.message? | default "Failed to add task"
+    print (echo-r $"Failed to add ($task_type) task: ($err_msg)")
   }
 }
 
@@ -431,8 +562,6 @@ export def "h del" [
   --text(-t): string # Task text to delete (first match)
   --dry-run # Return payload without sending
 ] {
-  let headers = h credentials
-  
   let task_type = _h-input $task_type "Select task type to delete: " --options $add_types
 
   if ($task_type not-in ["dailys", "todos", "habits"]) {
@@ -462,21 +591,14 @@ export def "h del" [
   
   if ($dry_run) { return $task_to_delete }
 
-  let base_url = "https://habitica.com"
+  let response = _h-request "DELETE" $"/api/v3/tasks/($task_to_delete._id)" --allow-errors
 
-  let url = {
-    scheme: ( $base_url | split row "://" | get 0 ),
-    host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
-    path: $"/api/v3/tasks/($task_to_delete._id)"
-  } | url join
-  
-  let response = http delete $url -H $headers
-
-  if ($response.success == true) {
+  if ($response.success? | default true) != false {
     let task_text = $task_to_delete.text? | default $task_to_delete._id
     print (echo-g $"Successfully deleted ($task_type) task: ($task_text)")
   } else {
-    print (echo-r $"Failed to delete ($task_type) task: ($response.message)")
+    let err_msg = $response.message? | default "Failed to delete task"
+    print (echo-r $"Failed to delete ($task_type) task: ($err_msg)")
   }
 }
 
@@ -506,26 +628,17 @@ export def "h complete-todos" [
     
     if ($dry_run) { return $selected_todos }
 
-    let base_url = "https://habitica.com"
-
     for $todo in $selected_todos {
         print -n $"Completing todo: ($todo.text) "
-      
-        let url = {
-            scheme: ( $base_url | split row "://" | get 0 ),
-            host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
-            path: $"/api/v3/tasks/($todo._id)/score/up"
-        } | url join
-      
-        let response = http post --content-type application/json $url -H $headers {}
+        let response = _h-request "POST" $"/api/v3/tasks/($todo._id)/score/up" --allow-errors
 
-        if ($response.success == true) {
+        if ($response.success? | default true) != false {
             print (echo-g (char -u ebb1))
         } else {
             print (echo-r (char -u f467))
         }
 
-        sleep 3sec
+        sleep 2sec
     }
 }
 
@@ -536,8 +649,6 @@ export def "h score-habits" [
     --direction(-d): string # Direction to score (up, down)
     --dry-run # Return payload without sending
 ] {
-    let headers = h credentials
-
     # Fetch the list of habits
     let habits = h ls habits | reverse
 
@@ -558,8 +669,6 @@ export def "h score-habits" [
     }
     
     if ($dry_run) { return { habits: $selected_habits, direction: $direction } }
-
-    let base_url = "https://habitica.com"
     
     # Loop over the selected habits
     for $habit in $selected_habits {
@@ -589,20 +698,15 @@ export def "h score-habits" [
              $directions | input list -f $"Choose a direction to score in habit '($habit.text)': "
         }
         
-        let url = {
-            scheme: ( $base_url | split row "://" | get 0 ),
-            host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
-            path: $"/api/v3/tasks/($habit._id)/score/($score_dir)"
-        } | url join
-        
         # Score the habit
-        let response = http post --content-type application/json -H $headers $url {}
+        let response = _h-request "POST" $"/api/v3/tasks/($habit._id)/score/($score_dir)" --allow-errors
 
         # Handle the response
-        if ($response.success == true) {
+        if ($response.success? | default true) != false {
             print $"Scored habit '($habit.text)' as ($score_dir)."
         } else {
-            print $"Failed to score habit '($habit.text)': ($response.body.message)"
+            let err_msg = $response.message? | default "Failed to score habit"
+            print $"Failed to score habit '($habit.text)': ($err_msg)"
         }
 
         # Add a delay to avoid rate limits
@@ -665,19 +769,14 @@ export def "h skill" [
 
     let spell_id = $selected_skill.spellId
 
-    let url = {
-        scheme: ( $base_url | split row "://" | get 0 ),
-        host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
-        path: $"/api/v3/user/class/cast/($spell_id)"
-    } | url join
-
     print (echo-g $"Casting skill: ($selected_skill.name) Cost: ($selected_skill.cost) MP")
-    let response = http post --content-type application/json $url -H $headers {}
+    let response = _h-request "POST" $"/api/v3/user/class/cast/($spell_id)" --allow-errors
 
-    if ($response.success == true) {
+    if ($response.success? | default true) != false {
         print (echo-g $"Successfully cast skill: ($selected_skill.name).")
     } else {
-        print (echo-r $"Failed to cast skill: ($selected_skill.name). Message: ($response.message)")
+        let err_msg = $response.message? | default "Failed to cast skill"
+        print (echo-r $"Failed to cast skill: ($selected_skill.name). Message: ($err_msg)")
     }
 }
 
@@ -685,8 +784,6 @@ export def "h skill" [
 export def "h skill-max" [
     skill_name?: string # The name of the skill to cast multiple times
 ] {
-    let headers = h credentials
-    let base_url = "https://habitica.com"
     let user_stats = h stats
     let user_class = $user_stats.class
     let current_mana_str = $user_stats.mana
@@ -731,17 +828,11 @@ export def "h skill-max" [
 
     let spell_id = $selected_skill.spellId
     
-    let url = {
-        scheme: ( $base_url | split row "://" | get 0 ),
-        host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
-        path: $"/api/v3/user/class/cast/($spell_id)"
-    } | url join
-    
     for i in (seq 1 $times_to_cast) {
         progress_bar $i $times_to_cast
 
-        http post --content-type application/json $url -H $headers {} | ignore
-        sleep 5sec
+        _h-request "POST" $"/api/v3/user/class/cast/($spell_id)" --allow-errors | ignore
+        sleep 2sec
     }
 
     print (echo-g $"Finished casting '($selected_skill.name)' ($times_to_cast) times.")
@@ -759,63 +850,39 @@ export def "h login" [] {
         print (echo-g "Already logged in today.")
         return
     }
-    
-    let headers = h credentials
-    let base_url = "https://habitica.com"
 
-    let url = {
-        scheme: ( $base_url | split row "://" | get 0 ),
-        host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
-        path: "/api/v3/cron"
-    } | url join
+    let response = _h-request "POST" "/api/v3/cron" --allow-errors
 
-    let response = http post --content-type application/json $url -H $headers {}
-
-    if ($response.success == true) {
+    if ($response.success? | default true) != false {
         print (echo-g "Successfully logged in to Habitica.")
         return
     } 
-    print (echo-r $"Failed to log in to Habitica: ($response.message)")
+    let err_msg = $response.message? | default "Failed to log in"
+    print (echo-r $"Failed to log in to Habitica: ($err_msg)")
 }
 
 # Buys a health potion
 export def "h buy-potion" [] {
-    let headers = h credentials
-    let base_url = "https://habitica.com"
+    let response = _h-request "POST" "/api/v3/user/buy-health-potion" --allow-errors
 
-    let url = {
-        scheme: ( $base_url | split row "://" | get 0 ),
-        host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
-        path: "/api/v3/user/buy-health-potion"
-    } | url join
-
-    let response = http post --content-type application/json $url -H $headers {}
-
-    if ($response.success == true) {
+    if ($response.success? | default true) != false {
         print (echo-g "Successfully bought a health potion.")
     } else {
-        print (echo-r $"Failed to buy a health potion: ($response.message)")
+        let err_msg = $response.message? | default "Failed to buy health potion"
+        print (echo-r $"Failed to buy a health potion: ($err_msg)")
     }
 }
 
 # Buys an item from the armoire
 export def "h buy-armoir" [] {
-    let headers = h credentials
-    let base_url = "https://habitica.com"
+    let response = _h-request "POST" "/api/v3/user/buy-armoire" --allow-errors
 
-    let url = {
-        scheme: ( $base_url | split row "://" | get 0 ),
-        host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
-        path: "/api/v3/user/buy-armoire"
-    } | url join
-
-    let response = http post --content-type application/json $url -H $headers {}
-
-    if ($response.success == true) {
+    if ($response.success? | default true) != false {
         print (echo-g "Successfully bought an item from the armoire.")
-        return $response.data.armoire
+        return ($response.data?.armoire? | default $response.data?)
     } else {
-        print (echo-r $"Failed to buy an item from the armoire: ($response.message)")
+        let err_msg = $response.message? | default "Failed to buy armoire item"
+        print (echo-r $"Failed to buy an item from the armoire: ($err_msg)")
     }
 }
 
@@ -873,25 +940,18 @@ export def "h complete-checklist" [
 
   if ($dry_run) { return { task: $selected_task, item_indices: $selected_checklist_indices } }
 
-  let base_url = "https://habitica.com"
-
   for $index in $selected_checklist_indices {
     let item = $checklist_items | get $index
     let task_id = $selected_task._id
     let item_id = $item.id
 
-    let url = {
-        scheme: ( $base_url | split row "://" | get 0 ),
-        host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
-        path: $"/api/v3/tasks/($task_id)/checklist/($item_id)/score"
-    } | url join
+    let response = _h-request "POST" $"/api/v3/tasks/($task_id)/checklist/($item_id)/score" --allow-errors
 
-    let response = http post --content-type application/json $url -H $headers {}
-
-    if ($response.success == true) {
+    if ($response.success? | default true) != false {
         print ((echo-g $"Successfully completed checklist item: ") + ($item.text))
     } else {
-        print ((echo-r $"Failed to complete checklist item: ") + ($item.text) + (echo-r $". Message: ($response.message)"))
+        let err_msg = $response.message? | default "Failed to complete item"
+        print ((echo-r $"Failed to complete checklist item: ") + ($item.text) + (echo-r $". Message: ($err_msg)"))
     }
     sleep 2sec
   }
@@ -905,8 +965,6 @@ export def "h add-checklist" [
   --items(-s): list<string> # Checklist items to add
   --dry-run # Return payload without sending
 ] {
-  let headers = h credentials
-  
   let task_type = _h-input $task_type "Select task type: " --options $add_types
 
   if ($task_type not-in ["dailys", "todos", "habits"]) {
@@ -954,23 +1012,17 @@ export def "h add-checklist" [
     return
   }
 
-  let base_url = "https://habitica.com"
   let task_id = $selected_task._id
-
-  let url = {
-      scheme: ( $base_url | split row "://" | get 0 ),
-      host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
-      path: $"/api/v3/tasks/($task_id)/checklist"
-  } | url join
 
   for $item in $checklist_items {
     let payload = { text: $item }
-    let response = http post --content-type application/json $url -H $headers ($payload | to json)
+    let response = _h-request "POST" $"/api/v3/tasks/($task_id)/checklist" --body $payload --allow-errors
 
-    if ($response.success == true) {
+    if ($response.success? | default true) != false {
         print ((echo-g $"Successfully added checklist item '($item)' to task: ") + ($selected_task.text))
     } else {
-        print ((echo-r $"Failed to add checklist item '($item)'. Message: ") + ($response.message))
+        let err_msg = $response.message? | default "Failed to add checklist item"
+        print ((echo-r $"Failed to add checklist item '($item)'. Message: ") + ($err_msg))
     }
     sleep 2sec
   }
@@ -978,47 +1030,31 @@ export def "h add-checklist" [
 
 # Party info
 export def "h party" [] {
-    let headers = h credentials
-    let base_url = "https://habitica.com"
+    let response = _h-request "GET" "/api/v3/groups/party" --allow-errors
     
-    let url = {
-        scheme: ( $base_url | split row "://" | get 0 ),
-        host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
-        path: "/api/v3/groups/party"
-    } | url join
-    
-    let response = http get $url -H $headers
-    
-    if not ($response.success == true) {
-        return-error (echo-r $"Failed to get party data: ($response.message)")
+    if not (($response.success? | default true) != false) {
+        return-error (echo-r $"Failed to get party data: ($response.message? | default 'Unknown error')")
     }
     
-    return ($response | get data)
+    return ($response.data? | default $response)
 }
 
 # Accepts a pending quest
 export def "h auto-quest" [] {
-    let headers = h credentials
     let hab_id = get-api-key "habitica.id"
-    let base_url = "https://habitica.com"
 
     let party = h party
 
-    if (($party.quest.key | is-not-empty) and ($party.quest.active == false) and ($party.quest.members | get $hab_id | is-empty)) {
+    if (($party.quest.key? | is-not-empty) and ($party.quest.active? == false) and ($party.quest.members? | get -o $hab_id | is-empty)) {
         print (echo-g "Pending quest found. Accepting...")
 
-        let accept_url = {
-            scheme: ( $base_url | split row "://" | get 0 ),
-            host: ( $base_url | split row "//" | get 1 | split row "/" | get 0 ),
-            path: "/api/v3/groups/party/quests/accept"
-        } | url join
+        let accept_response = _h-request "POST" "/api/v3/groups/party/quests/accept" --allow-errors
 
-        let accept_response = http post --content-type application/json $accept_url -H $headers {}
-
-        if ($accept_response.success == true) {
+        if ($accept_response.success? | default true) != false {
             print (echo-g "Successfully accepted the quest.")
         } else {
-            print (echo-r $"Failed to accept the quest: ($accept_response.message)")
+            let err_msg = $accept_response.message? | default "Failed to accept quest"
+            print (echo-r $"Failed to accept the quest: ($err_msg)")
         }
     } else {
         print "No pending quests to accept."
