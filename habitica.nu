@@ -8,7 +8,7 @@ export def "h credentials" [] {
 }
 
 # Internal resilient HTTP request helper for Habitica API
-def _h-request [
+export def _h-request [
   method: string # GET, POST, DELETE, PUT
   path: string   # Endpoint path (e.g. "/api/v3/user") or full URL
   --params: record = {}
@@ -46,37 +46,44 @@ def _h-request [
     let http_res = try {
       match ($method | str uppercase) {
         "GET" => {
-          http get --allow-errors -f $full_url -H $headers
+          http get --allow-errors -f -H $headers $full_url
         }
         "POST" => {
           let payload = if ($body == null) {
             "{}"
-          } else if ($body | describe | starts-with "string") {
+          } else if ($body | describe | str starts-with "string") {
             $body
           } else {
             $body | to json -r
           }
-          http post --allow-errors -f --content-type application/json $full_url -H $headers $payload
+          http post --allow-errors -f -H $headers --content-type application/json $full_url $payload
         }
         "DELETE" => {
-          http delete --allow-errors -f $full_url -H $headers
+          http delete --allow-errors -f -H $headers $full_url
         }
         "PUT" => {
           let payload = if ($body == null) {
             "{}"
-          } else if ($body | describe | starts-with "string") {
+          } else if ($body | describe | str starts-with "string") {
             $body
           } else {
             $body | to json -r
           }
-          http put --allow-errors -f --content-type application/json $full_url -H $headers $payload
+          http put --allow-errors -f -H $headers --content-type application/json $full_url $payload
         }
         _ => {
           error make { msg: $"Unsupported HTTP method: ($method)" }
         }
       }
     } catch { |e|
-      { status: 0, body: null, error: $e.msg, headers: { response: [] } }
+      let err_detail = if ($e.msg? | is-not-empty) {
+        $e.msg
+      } else if ($e.rendered? | is-not-empty) {
+        $e.rendered
+      } else {
+        ($e | to text)
+      }
+      { status: 0, body: null, error: $err_detail, headers: { response: [] } }
     }
 
     $last_response = $http_res
@@ -107,7 +114,12 @@ def _h-request [
           $initial_delay * (2 ** ($attempt - 1))
         }
 
-        print (echo-y $"[Habitica API] HTTP ($status) encountered. Retrying in ($delay) [attempt ($attempt)/($max_retries)]...")
+        let status_desc = if ($status == 0) and ($http_res.error? | is-not-empty) {
+          $"HTTP 0 \(($http_res.error)\)"
+        } else {
+          $"HTTP ($status)"
+        }
+        print (echo-y $"[Habitica API] ($status_desc) encountered. Retrying in ($delay) [attempt ($attempt)/($max_retries)]...")
         sleep $delay
         $attempt = $attempt + 1
         continue
@@ -1114,7 +1126,7 @@ export def budget [] {
 }
 
 # Private helper for handling flag vs interactive input
-def _h-input [
+export def _h-input [
     flag: any,
     prompt_msg: string,
     --options: any, # List of options for input list

@@ -544,6 +544,7 @@ export def --env --wrapped gmn [
   --model(-m):string@$gemini_models #choose model
   --gemini-cli(-g) #use the legacy gemini-cli instead of antigravity-cli
   --list-profiles(-l) #interactively select profiles
+  --api-key(-k) #use GEMINI_API_KEY env var for API key auth (sets modelProvider: gemini in settings.json)
 ] {
   let active_profile = if $list_profiles {
     let selected = $profiles | input list --fuzzy --multi (echo-g "Select Gemini profiles:")
@@ -586,6 +587,23 @@ export def --env --wrapped gmn [
 
     ^$gemini_cmd.0 ...($gemini_cmd | skip 1) ...$rest
     return
+  }
+
+  # API key auth mode: verify env var and patch settings.json
+  if $api_key {
+    let key = $env | get -o GEMINI_API_KEY
+    if ($key == null or ($key | is-empty)) {
+      return-error "GEMINI_API_KEY env var is not set or is empty. Set it before using --api-key."
+    }
+
+    let settings_path = $env.HOME | path join .gemini antigravity-cli settings.json
+    let current_settings = if ($settings_path | path exists) { open $settings_path } else { {} }
+    try {
+      $current_settings | upsert modelProvider "gemini" | save -f $settings_path
+      print (echo-g "API key mode: modelProvider set to 'gemini' in settings.json.")
+    } catch {
+      return-error $"Failed to write settings.json: ($in)"
+    }
   }
 
   let agy_cmd = if ($model | is-not-empty) {
