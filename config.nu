@@ -238,7 +238,7 @@ let hooks = {
         }
       ]
     }
-    # display_output: {tee {table | print} | $env.last = $in} # Deprecated: replaced by native $ans (v0.115.0+)
+    display_output: {table}
   }
 
 $env.config.hooks = $hooks
