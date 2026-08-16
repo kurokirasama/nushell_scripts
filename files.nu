@@ -404,8 +404,12 @@ export def find-file [search,--directory(-d):string] {
 }
 
 #update file index
-export def idx-update [dir? = "."] {
-  idx init $dir --wait
+export def idx-update [dir? = ".", --no-watch] {
+  if $no_watch {
+    idx init $dir --wait --no-watch
+  } else {
+    idx init $dir --wait
+  }
 }
 
 #get list of directories in current path
@@ -652,7 +656,7 @@ export def rm-empty-dirs [] {
 export def replicate-tree [to:string] {
   get-dirs -f
   | each {|dir|
-      let new_dir = $dir | get name | str prepend $"($to | path expand)/"
+      let new_dir = [$to ($dir | get name)] | path join
       if not ($new_dir | path exists) {
         print (echo-g $"creating ($new_dir)...")
         mkdir $new_dir | ignore
