@@ -1,16 +1,66 @@
-#update nushell
-export def "apps-update nushell" [
-  --repo(-r)    #install from repo instead of cargo
-  --force(-f)   #force cargo installation instead of update
+# Register a nushell plugin binary into $nu.plugin-path headlessly using the on-disk nu executable
+export def register-nu-plugin [
+    name_or_path: string # plugin name (e.g. "nu_plugin_inc" or "inc") or full path to plugin binary
 ] {
-  print (echo-g "deleting plugins...")
-  plugin list | get filename | each {|p| plugin rm $p}
-  
-  print (echo-g "updating nushell...")
-  cd ~/software/nushell
-  git pull
+    let is_win = (sys host | get name | str lowercase) == "windows"
+    let ext = if $is_win { ".exe" } else { "" }
+    
+    let full_path = if ($name_or_path | path exists) {
+        $name_or_path
+    } else {
+        let clean_name = if ($name_or_path | str starts-with "nu_plugin_") {
+            $name_or_path
+        } else {
+            $"nu_plugin_($name_or_path)"
+        }
+        let candidate = $"~/.cargo/bin/($clean_name)($ext)" | path expand
+        if not ($candidate | path exists) {
+            print (echo-y $"Warning: plugin binary not found at ($candidate), skipping registration")
+            return false
+        }
+        $candidate
+    }
+
+    let nu_bin = $"~/.cargo/bin/nu($ext)" | path expand
+    let nu_exec = if ($nu_bin | path exists) { $nu_bin } else { (which nu | get 0?.path? | default "nu") }
+    let reg_file = $nu.plugin-path
+
+    let res = do {
+        ^$nu_exec --plugin-config $reg_file -c $"plugin add '($full_path)'"
+    } | complete
+
+    if $res.exit_code == 0 {
+        print (echo-g $"  ✓ Registered ($full_path | path basename)")
+        true
+    } else {
+        print (echo-r $"  ✗ Failed to register ($full_path | path basename): ($res.stderr)")
+        false
+    }
+}
+
+# Register multiple nushell plugins headlessly
+export def register-nu-plugins [...plugins: string] {
+    let plugin_list = if ($plugins | is-empty) {
+        ["inc" "gstat" "query" "formats" "polars"]
+    } else {
+        $plugins | flatten
+    }
+    
+    $plugin_list | each {|p| register-nu-plugin $p }
+}
+
+#update nushell (and official plugins automatically by default)
+export def "apps-update nushell" [
+  --repo(-r)         #install from repo instead of cargo
+  --force(-f)        #force cargo installation instead of update
+  --server(-s)       #ignore polars in oracle/low-memory server
+  --no-plugins(-n)   #update only nushell binary without updating/registering plugins
+] {
+  print (echo-g "==> Step 1/3: Updating nushell binary...")
   
   if $repo {
+    cd ~/software/nushell
+    git pull
     bash scripts/install-all-mcp.sh
   } else {
     if $force {
@@ -21,9 +71,34 @@ export def "apps-update nushell" [
     }
   }
 
-  cargo clean
+  if not $no_plugins {
+    print (echo-g "\n==> Step 2/3: Updating and registering official plugins...")
+    try {
+      if $force {
+        if $server {
+          apps-update nushell-plugins --force --server
+        } else {
+          apps-update nushell-plugins --force
+        }
+      } else {
+        if $server {
+          apps-update nushell-plugins --server
+        } else {
+          apps-update nushell-plugins
+        }
+      }
+    } catch {|err|
+      print (echo-r $"Failed updating official plugins: ($err.msg)")
+    }
+  }
 
-  print (echo-g "now restart nushell...")
+  if $repo and ("~/software/nushell" | path expand | path exists) {
+    print (echo-g "\n==> Step 3/3: Cleaning local repo cargo caches...")
+    try { cd ~/software/nushell; cargo clean }
+  }
+
+  print (echo-g "\n✓ Nushell and official plugins have been updated and registered headlessly!")
+  print (echo-g "New terminal windows will immediately run the updated version with all plugins loaded.")
 }
 
 #update nushell default plugins
@@ -31,6 +106,7 @@ export def "apps-update nushell-plugins" [
     --force(-f) #force the install
     --server(-s) #ignore polars in oracle server
 ] {
+  print (echo-g "Updating official nushell plugins via cargo...")
   if $force {
     cargo install nu_plugin_inc nu_plugin_gstat nu_plugin_query nu_plugin_formats
     if not $server {
@@ -44,29 +120,28 @@ export def "apps-update nushell-plugins" [
     }
   }
 
-  print (echo-g "now run:")
-  print ([
-    "plugin add ~/.cargo/bin/nu_plugin_inc"
-    "plugin add ~/.cargo/bin/nu_plugin_gstat"
-    "plugin add ~/.cargo/bin/nu_plugin_query"
-    "plugin add ~/.cargo/bin/nu_plugin_formats"
-    "plugin add ~/.cargo/bin/nu_plugin_polars"
-  ] | str join "\n")
+  print (echo-g "Registering official plugins headlessly...")
+  let plugins = if $server {
+    ["nu_plugin_inc" "nu_plugin_gstat" "nu_plugin_query" "nu_plugin_formats"]
+  } else {
+    ["nu_plugin_inc" "nu_plugin_gstat" "nu_plugin_query" "nu_plugin_formats" "nu_plugin_polars"]
+  }
 
-  print (echo-g "then run:")
-  print ([
-    "plugin use ~/.cargo/bin/nu_plugin_inc"
-    "plugin use ~/.cargo/bin/nu_plugin_gstat"
-    "plugin use ~/.cargo/bin/nu_plugin_query"
-    "plugin use ~/.cargo/bin/nu_plugin_formats"
-    "plugin use ~/.cargo/bin/nu_plugin_polars"
-  ] | str join "\n")
+  $plugins | each {|p| register-nu-plugin $p }
+  
+  if not $server {
+    print (echo-g "Regenerating polars aliases...")
+    try { apps-update nushell-polars }
+  }
+
+  print (echo-g "✓ Official nushell plugins updated and registered successfully!")
 }
 
 #update nushell 3rd party plugins
 #
 #nu_plugin_port_extension nu_plugin_plot
 export def "apps-update nushell-plugins-external" [--force(-f)] {
+  print (echo-g "Updating 3rd-party nushell plugins via cargo...")
   if $force {
     cargo install --git https://github.com/kurokirasama/nu_plugin_plot.git --force
     cargo install --git https://github.com/FMotalleb/nu_plugin_port_extension.git --force
@@ -75,20 +150,13 @@ export def "apps-update nushell-plugins-external" [--force(-f)] {
     cargo install --git https://github.com/FMotalleb/nu_plugin_port_extension.git
   }
 
-  print (echo-g "now run:")
-  print ([
-    "plugin add ~/.cargo/bin/nu_plugin_port_extension"
-    "plugin add ~/.cargo/bin/nu_plugin_plot"
-  ] | str join "\n")
+  print (echo-g "Registering 3rd-party plugins headlessly...")
+  ["nu_plugin_plot" "nu_plugin_port_extension"] | each {|p| register-nu-plugin $p }
 
-  print (echo-g "then run:")
-  print ([
-    "plugin use ~/.cargo/bin/nu_plugin_port_extension"
-    "plugin use ~/.cargo/bin/nu_plugin_plot"
-  ] | str join "\n")
-  
-  print (echo-g "updating config file...")
+  print (echo-g "Updating config file...")
   update-nu-config
+
+  print (echo-g "✓ 3rd-party nushell plugins updated and registered successfully!")
 }
 
 #update polars aliases

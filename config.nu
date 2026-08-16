@@ -46,7 +46,7 @@ $env.config.cursor_shape.emacs = "blink_line"
 $env.config.edit_mode = "emacs" # Editing mode: "emacs" (default), "vi", "helix" (v0.115.0+)
 $env.config.highlight_resolved_externals = true
 $env.config.table.missing_value_symbol = (char -u e374)
-$env.config.max_last_result_size = 1024mb # Stores up to 1024mb of last REPL pipeline output in $ans.last (v0.115.0+)
+# $env.config.max_last_result_size = 1024mb # Stores up to 1024mb of last REPL pipeline output in $ans.last (uncomment in v0.115.0+)
 
 #hooks
 let hooks = {

@@ -666,7 +666,7 @@ export def get-used-keybindings [] {
 
 #get last command output ($ans.last in v0.115.0+ or fallback to $env.last)
 export def last-command [] {
-  try { $ans.last } catch { $env.last? }
+  try { $env.last? } catch { null }
 }
 
 const types = ["pixels", "ssl"]
