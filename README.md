@@ -16,20 +16,24 @@ git clone https://github.com/kurokirasama/nushell_scripts
 Modify `$env.PATH` and `$env.MY_ENV_VARS` in `$env_vars.nu` according to your settings.
 
 ### Nushell config
+Add the following bootstrap lines to the end of your `$nu.config-path` (replacing `/path/to/nushell_scripts` with your local clone path):
+
 #### Linux
-1. Modify `append_to_config.nu` and replace with the path to this repo.
-2. Take the content of `append_to_config.nu` and copy it at the end of the config.nu file. Or, you can run:
 ```nu
-open append_to_config.nu | save --append $nu.config-path
+source ~/.cache/carapace/init.nu
+source /path/to/nushell_scripts/all.nu
+source-env /path/to/nushell_scripts/env_vars.nu
+source-env /path/to/nushell_scripts/config.nu
 ```
-3. Restart Nushell.
 
 #### Windows
-1. Take the content of `append_to_config_win.nu` and copy it at the end of the `config.nu` file. Or, you can run:
 ```nu
-open append_to_config_win.nu | save --append $nu.config-path
+source C:\path\to\nushell_scripts\all.nu
+source-env C:\path\to\nushell_scripts\env_vars.nu
+source-env C:\path\to\nushell_scripts\config_win.nu
 ```
-2. Restart Nushell.
+
+Restart Nushell or run `source $nu.config-path`.
 
 ## Files description
 ### AI Tools
