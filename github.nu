@@ -1,9 +1,52 @@
+#generate an anonymized version of env_vars.nu for public release
+export def anonymize-env-vars [
+    source_path?: string # path to source env_vars.nu (defaults to workspace env_vars.nu)
+    dest_path?: string   # destination path (defaults to nu_scripts_public/env_vars.nu)
+] {
+    let src = if ($source_path != null) { $source_path } else { ($env.MY_ENV_VARS.nu_scripts | path join "env_vars.nu") }
+    let dst = if ($dest_path != null) { $dest_path } else { ($env.MY_ENV_VARS.nu_scripts_public | path join "env_vars.nu") }
+    
+    if not ($src | path exists) {
+        print (echo-r $"Source file not found: ($src)")
+        return
+    }
+    
+    let content = open --raw $src
+        | str replace -a "kurokirasama@gmail.com" "user@example.com"
+        | str replace -a "lgomez@ubiobio.cl" "user_work@example.com"
+        | str replace -a "luismiguelgomezguzman@gmail.com" "user_personal@example.com"
+        | str replace -a "-36.877568,-73.148715" "0.000000,0.000000"
+        | str replace -a "-36.821795,-73.014665" "0.000000,0.000000"
+        | str replace -a '"Kira"' '"Home_WiFi"'
+        | str replace -a '"wifi-ubb"' '"Work_WiFi"'
+        | str replace -a '"Amarita"' '"Mobile_Hotspot"'
+        | str replace -a '"el huemul 6258, san pedro de la paz, chile"' '"123 Main Street, City, Country"'
+        | str replace -a '"22101316G"' '"DEVICE_MAIN_ID"'
+        | str replace -a '"ZTE BLADE A530"' '"DEVICE_SECONDARY_ID"'
+        | str replace -a "git@gitlab.com:kurokirasama/yandex.disk.git" "git@example.com:username/repo.git"
+        | str replace -a "oracle-server.key" "id_rsa"
+        | str replace -a "usuario" "username"
+        | str replace -a "/home/kira" "/home/username"
+        | str replace -a "~/Yandex.Disk/Backups/linux" "~/scripts/linux"
+        | str replace -a "~/Yandex.Disk/Development/linux/nushell/nushell_scripts" "~/nushell_scripts"
+        | str replace -a "~/Yandex.Disk/Development/linux/sublime/nushell_sublime_syntax" "~/nushell_sublime_syntax"
+        | str replace -a "~/Yandex.Disk" "~/scripts"
+        | str replace -a "~/rclone/gubb/Depto/DireccionEscuelaIngenieria/NotasReunionesAi" "~/cloud/notes"
+        | str replace -a '"gubb"' '"cloud_drive"'
+        | str replace -a "open $env.MY_ENV_VARS.ips | columns" "try { open $env.MY_ENV_VARS.ips | columns } catch { [] }"
+        | str replace -a "$env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert api_keys (open-credential -u ($env.MY_ENV_VARS.credentials | path join credentials.json.asc))" "$env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert api_keys (try { open-credential -u ($env.MY_ENV_VARS.credentials | path join credentials.json.asc) } catch { {} })"
+        | str replace -a '$env.DC_API_KEY = (get-api-key "datacommons")' '$env.DC_API_KEY = (try { get-api-key "datacommons" } catch { "" })'
+        | str replace -a '$env.GEMINI_API_KEY = (get-api-key "google.gemini_paid")' '$env.GEMINI_API_KEY = (try { get-api-key "google.gemini_paid" } catch { "" })'
+        
+    $content | save -f $dst
+    print (echo-g $"  ✓ Anonymized env_vars.nu saved to ($dst)")
+}
+
 #copy private nushell script dir to public repo and commit
 export def copy-scripts-and-commit [--gemini(-G) = false] {
   print (echo-g "updating public repository...")
   let files = ls $env.MY_ENV_VARS.nu_scripts
-    | find -v private & signature & env_vars & aliases & before & send_not & deprecated & GEMINI & conductor & tests & plan & docs & todos.md & CLAUDE & AGENTS.md
-    | append (ls $env.MY_ENV_VARS.linux_backup | find -n append)
+    | find -v defs_private & signature & env_vars & before & send_not & deprecated & GEMINI & conductor & tests & plan & docs & todos.md & CLAUDE & AGENTS
     | append (ls $env.MY_ENV_VARS.credentials | find -v .asc | find -v credential)
   
 
@@ -12,9 +55,19 @@ export def copy-scripts-and-commit [--gemini(-G) = false] {
   cd $env.MY_ENV_VARS.nu_scripts_public
   let linux_scripts = $env.MY_ENV_VARS.nu_scripts
 
-  if ("append_to_config.nu" | path exists) {
-    (open append_to_config.nu | str replace -a $linux_scripts "/path/to/scripts") | save -f append_to_config.nu
+  if ("all.nu" | path exists) {
+    let public_all = open --raw all.nu
+      | str replace -a "/home/kira/software/nu-rich" "~/software/nu-rich"
+      | lines
+      | where { |line|
+          not ($line =~ 'defs_private')
+        }
+      | str join "\n"
+    $public_all | save -f all.nu
+    print (echo-g "  ✓ Cleaned public all.nu")
   }
+
+  try { anonymize-env-vars } catch { }
 
   if $gemini {
     ai git-push -G

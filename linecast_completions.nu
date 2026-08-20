@@ -17,7 +17,7 @@ def "nu-complete linecast-layers" [] {
 }
 
 def "nu-complete linecast-view" [] {
-    [ "street" "terrain" ]
+    [ "street" "terrain" "now" ]
 }
 
 def "nu-complete linecast-profile" [] {
@@ -32,13 +32,15 @@ def "nu-complete linecast-location-subcommands" [] {
     [ "show" "set" "auto" "search" ]
 }
 
+def "nu-complete linecast-units-subcommands" [] {
+    [ "show" "metric" "imperial" "auto" ]
+}
+
 export extern "linecast" [
-    --help(-h) # Show help
     --version(-v) # Show version
 ]
 
 export extern "linecast weather" [
-    --help(-h) # Show help
     --version # Show version
     --print
     --live
@@ -58,7 +60,6 @@ export extern "linecast weather" [
 ]
 
 export extern "linecast sunshine" [
-    --help(-h) # Show help
     --version # Show version
     --print
     --live
@@ -71,7 +72,6 @@ export extern "linecast sunshine" [
 ]
 
 export extern "linecast moon" [
-    --help(-h) # Show help
     --version # Show version
     --print
     --live
@@ -85,7 +85,6 @@ export extern "linecast moon" [
 ]
 
 export extern "linecast tides" [
-    --help(-h) # Show help
     --version # Show version
     --print
     --live
@@ -102,7 +101,6 @@ export extern "linecast tides" [
 ]
 
 export extern "linecast radar" [
-    --help(-h) # Show help
     --version # Show version
     --print
     --live
@@ -121,7 +119,6 @@ export extern "linecast radar" [
 ]
 
 export extern "linecast maps" [
-    --help(-h) # Show help
     --version # Show version
     --print
     --live
@@ -142,39 +139,53 @@ export extern "linecast maps" [
 
 export extern "linecast location" [
     subcommand?: string@"nu-complete linecast-location-subcommands"
-    --help(-h) # Show help
     --version # Show version
 ]
 
 export extern "linecast location show" [
-    --help(-h) # Show help
     --version # Show version
 ]
 
 export extern "linecast location set" [
     query?: string
-    --help(-h) # Show help
     --version # Show version
 ]
 
 export extern "linecast location auto" [
-    --help(-h) # Show help
     --version # Show version
 ]
 
 export extern "linecast location search" [
     query?: string
-    --help(-h) # Show help
+    --version # Show version
+]
+
+export extern "linecast units" [
+    subcommand?: string@"nu-complete linecast-units-subcommands"
+    --version # Show version
+]
+
+export extern "linecast units show" [
+    --version # Show version
+]
+
+export extern "linecast units metric" [
+    --version # Show version
+]
+
+export extern "linecast units imperial" [
+    --version # Show version
+]
+
+export extern "linecast units auto" [
     --version # Show version
 ]
 
 export extern "linecast completion" [
     shell?: string@"nu-complete linecast-shells"
-    --help(-h) # Show help
 ]
 
 export extern "weather" [
-    --help(-h) # Show help
     --version # Show version
     --print
     --live
@@ -194,7 +205,6 @@ export extern "weather" [
 ]
 
 export extern "sunshine" [
-    --help(-h) # Show help
     --version # Show version
     --print
     --live
@@ -207,7 +217,6 @@ export extern "sunshine" [
 ]
 
 export extern "moon" [
-    --help(-h) # Show help
     --version # Show version
     --print
     --live
@@ -221,7 +230,6 @@ export extern "moon" [
 ]
 
 export extern "tides" [
-    --help(-h) # Show help
     --version # Show version
     --print
     --live
@@ -238,7 +246,6 @@ export extern "tides" [
 ]
 
 export extern "radar" [
-    --help(-h) # Show help
     --version # Show version
     --print
     --live
@@ -257,7 +264,6 @@ export extern "radar" [
 ]
 
 export extern "maps" [
-    --help(-h) # Show help
     --version # Show version
     --print
     --live
@@ -278,29 +284,45 @@ export extern "maps" [
 
 export extern "location" [
     subcommand?: string@"nu-complete linecast-location-subcommands"
-    --help(-h) # Show help
     --version # Show version
 ]
 
 export extern "location show" [
-    --help(-h) # Show help
     --version # Show version
 ]
 
 export extern "location set" [
     query?: string
-    --help(-h) # Show help
     --version # Show version
 ]
 
 export extern "location auto" [
-    --help(-h) # Show help
     --version # Show version
 ]
 
 export extern "location search" [
     query?: string
-    --help(-h) # Show help
+    --version # Show version
+]
+
+export extern "units" [
+    subcommand?: string@"nu-complete linecast-units-subcommands"
+    --version # Show version
+]
+
+export extern "units show" [
+    --version # Show version
+]
+
+export extern "units metric" [
+    --version # Show version
+]
+
+export extern "units imperial" [
+    --version # Show version
+]
+
+export extern "units auto" [
     --version # Show version
 ]
 

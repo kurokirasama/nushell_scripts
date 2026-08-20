@@ -18,22 +18,22 @@ let is_windows = (sys host | get name | str lowercase) == "windows"
 let base_linux = if $is_windows {
   r#'C:\Users\username\AppData\Roaming\nushell\linux'#
 } else {
-  ("~/Yandex.Disk/Backups/linux" | path expand)
+  ("~/scripts/linux" | path expand)
 }
 
 let base_yandex = if $is_windows {
   r#'C:\Users\username\AppData\Roaming\nushell\linux'#
 } else {
-  ("~/Yandex.Disk" | path expand)
+  ("~/scripts" | path expand)
 }
 
 $env.MY_ENV_VARS = $env.MY_ENV_VARS
-  | upsert backup (if $is_windows { $base_linux | path join ".." } else { "~/Yandex.Disk/Backups" | path expand })
+  | upsert backup (if $is_windows { $base_linux | path join ".." } else { "~/scripts/Backups" | path expand })
   | upsert linux_backup $base_linux
   | upsert nu_scripts ($base_yandex | path join "my_scripts" "nushell")
   | upsert python_scripts ($base_yandex | path join "my_scripts" "python")
-  | upsert nu_scripts_public (if $is_windows { $base_yandex | path join "Development" "linux" "nushell" "nushell_scripts" } else { "~/Yandex.Disk/Development/linux/nushell/nushell_scripts" | path expand })
-  | upsert nushell_syntax_public (if $is_windows { $base_yandex | path join "Development" "linux" "sublime" "nushell_sublime_syntax" } else { "~/Yandex.Disk/Development/linux/sublime/nushell_sublime_syntax" | path expand })
+  | upsert nu_scripts_public (if $is_windows { $base_yandex | path join "Development" "linux" "nushell" "nushell_scripts" } else { "~/nushell_scripts" | path expand })
+  | upsert nushell_syntax_public (if $is_windows { $base_yandex | path join "Development" "linux" "sublime" "nushell_sublime_syntax" } else { "~/nushell_sublime_syntax" | path expand })
   | upsert credentials ($base_linux | path join "credentials")
   | upsert debs ($base_yandex | path join "Backups" "debs")
   | upsert gdrive_debs (if $is_windows { r#'G:\My Drive\Yandex.Disk.Backup'# } else { "~/rclone/gubb/Yandex.Disk.Backup" | path expand })
@@ -60,14 +60,14 @@ $env.MY_ENV_VARS = $env.MY_ENV_VARS
   | upsert l_prompt "short"
   | upsert data ($base_yandex | path join "cards")
   | upsert download_dir ($base_yandex | path join "Downloads")
-  | upsert gdriveTranscriptionSummaryDirectory (if $is_windows { r#'G:\My Drive\Depto\DireccionEscuelaIngenieria\NotasReunionesAi'# } else { "~/rclone/gubb/Depto/DireccionEscuelaIngenieria/NotasReunionesAi" | path expand })
-  | upsert gdrive_mount_point "gubb"
+  | upsert gdriveTranscriptionSummaryDirectory (if $is_windows { r#'G:\My Drive\Depto\DireccionEscuelaIngenieria\NotasReunionesAi'# } else { "~/cloud/notes" | path expand })
+  | upsert gdrive_mount_point "cloud_drive"
   | upsert mega_mount_point "mega"
   | upsert llms_configs ($base_yandex | path join "llms_configs")
   | upsert chatgpt ($base_yandex | path join "ChatGpt")
   | upsert datasets ($base_yandex | path join "Downloads" "datasets")
   # | upsert private_linux_backup_repo "git@gitlab.com:kurokirasama/ubuntu_semiautomatic_install.git" # Deprecated
-  | upsert yandex_disk_repo "git@example.com:username/yandex.disk.git"
+  | upsert yandex_disk_repo "git@example.com:username/repo.git"
   | upsert tasker_server.devices.main.name "DEVICE_MAIN_ID"
   | upsert tasker_server.devices.main.file ($base_yandex | path join "Android_Devices" "Common" "Download" "http_main.json")
   | upsert tasker_server.devices.alfred1.name "DEVICE_SECONDARY_ID"
@@ -77,14 +77,14 @@ $env.MY_ENV_VARS = $env.MY_ENV_VARS
   | upsert ox_plugins ($base_linux | path join "ox" "plugins")
   | upsert api_keys {}
   | upsert negative_prompt $negative_prompt
-  | upsert oracle_server_key ("~/.ssh/oracle-server.key" | path expand)
+  | upsert oracle_server_key ("~/.ssh/id_rsa" | path expand)
   | upsert habitica_avatar ($base_linux | path join "wizard_gemini2.png")
   | upsert webapps ($base_yandex | path join "webapps")
   | upsert address "123 Main Street, City, Country"
   | upsert base_yandex $base_yandex
   | upsert OBSIDIAN_VAULT_ROOT ($base_yandex | path join "obsidian" "vaults")
 
-$env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert hosts (open $env.MY_ENV_VARS.ips | columns)
+$env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert hosts (try { open $env.MY_ENV_VARS.ips | columns } catch { [] })
 
 # default gemini model, initialized with default and updated dynamically by ai_google.nu export-env
 $env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert gemini_model_to_use ($env.MY_ENV_VARS.gemini_model_to_use? | default "gemini-3.7-flash")
@@ -162,17 +162,17 @@ $env.HOST = sys host | get hostname
 $env.CLOUD = "f4ac"
 
 $env.HOST_GLYPH = (
-  if $env.HOST == $env.MY_ENV_VARS.hosts.0 {
+  if $env.HOST == ($env.MY_ENV_VARS.hosts? | get -o 0) {
       "eb06"
-  } else if $env.HOST == $env.MY_ENV_VARS.hosts.1 {
+  } else if $env.HOST == ($env.MY_ENV_VARS.hosts? | get -o 1) {
       "f109"
-  } else if $env.HOST == $env.MY_ENV_VARS.hosts.2 {
+  } else if $env.HOST == ($env.MY_ENV_VARS.hosts? | get -o 2) {
       "f4a9"
-  } else if $env.HOST == $env.MY_ENV_VARS.hosts.3 {
+  } else if $env.HOST == ($env.MY_ENV_VARS.hosts? | get -o 3) {
       "f233"
-  } else if $env.HOST == $env.MY_ENV_VARS.hosts.6 {
+  } else if $env.HOST == ($env.MY_ENV_VARS.hosts? | get -o 6) {
       "f15c9"
-  } else if $env.HOST == $env.MY_ENV_VARS.hosts.8 {
+  } else if $env.HOST == ($env.MY_ENV_VARS.hosts? | get -o 8) {
       "f048b"
   } else {
       "f2c0"
@@ -293,10 +293,10 @@ if ($sdl3_pc_path | path exists) {
 #api_keys
 use crypt.nu [open-credential]
 use apis.nu [get-api-key]
-$env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert api_keys (open-credential -u ($env.MY_ENV_VARS.credentials | path join credentials.json.asc))
+$env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert api_keys (try { open-credential -u ($env.MY_ENV_VARS.credentials | path join credentials.json.asc) } catch { {} })
 
-$env.DC_API_KEY = (get-api-key "datacommons")
-$env.GEMINI_API_KEY = (get-api-key "google.gemini_paid")
+$env.DC_API_KEY = (try { get-api-key "datacommons" } catch { "" })
+$env.GEMINI_API_KEY = (try { get-api-key "google.gemini_paid" } catch { "" })
 $env.GEMINI_CLI_WORKSPACE_FORCE_FILE_STORAGE = true #gemini-cli google workspace extension workaround
 
 $env.LS_COLORS = "rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:*.txt=00;33:"
