@@ -13,6 +13,7 @@ source /path/to/scripts/string_manipulation.nu
 source /path/to/scripts/table_manipulation.nu
 source /path/to/scripts/files.nu
 source /path/to/scripts/tasker.nu
+source /path/to/scripts/crypt.nu
 source /path/to/scripts/def_data.nu
 source /path/to/scripts/def_system.nu
 source /path/to/scripts/def_app.nu
@@ -46,11 +47,13 @@ source /path/to/scripts/ai_deepl.nu
 source /path/to/scripts/ai_tools.nu
 source /path/to/scripts/ai_privategpt.nu
 source /path/to/scripts/github.nu
+source /path/to/scripts/gmn_automatons.nu
 source /path/to/scripts/git_tools.nu
 source /path/to/scripts/dataestado.nu
 source /path/to/scripts/ghome.nu
 source /path/to/scripts/appimages.nu
 source /path/to/scripts/ghome_cron.nu
+source /path/to/scripts/agents_longterm_memory.nu
 source /path/to/scripts/tv_calendar.nu
 source /path/to/scripts/linecast_completions.nu
 source /path/to/scripts/manga.nu
