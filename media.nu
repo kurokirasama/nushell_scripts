@@ -1415,6 +1415,7 @@ export def "media auto-remove-logo" [
     --height_band(-H): int = 18,   # Height search band percentage (default 18)
     --corner(-c): int,             # Fix logo corner [0-3] (NW, NE, SW, SE)
     --return-info(-i),             # Return detection info (start, end, coordinates)
+    --detect_only(-d),             # Only detect coordinates without transcoding/removing
     --notify(-n)                   # Notify to android via join/tasker
 ] {
     let ext = $file | path parse | get extension | str lowercase
@@ -1466,7 +1467,7 @@ export def "media auto-remove-logo" [
         
         print (echo-g $"Detected logo params: ($p)")
 
-        if $return_info {
+        if $return_info or $detect_only {
             let duration = ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $file | str trim | into float
             let coords = $p | parse -r r#'delogo=x=(?<x>\d+):y=(?<y>\d+):w=(?<w>\d+):h=(?<h>\d+)'# | get 0
             $info = {
@@ -1489,7 +1490,7 @@ export def "media auto-remove-logo" [
         let template_gray = $"($template | path parse | get stem)_gray.png"
         ffmpeg -i $template -vf format=gray $template_gray -y -loglevel quiet
 
-        let time_limit = if $return_info { "" } else { "-t 5" }
+        let time_limit = if $return_info or $detect_only { "" } else { "-t 5" }
         let detection = bash -c $"ffmpeg -i '($file)' -vf 'find_rect=object=($template_gray):threshold=($threshold)' ($time_limit) -f null -" | complete
         rm $template_gray | ignore
 
@@ -1505,7 +1506,7 @@ export def "media auto-remove-logo" [
             let w = $info_template.0
             let h = $info_template.1
 
-            if $return_info {
+            if $return_info or $detect_only {
                 let start_t = $matches.t | into float | math min
                 let end_t = $matches.t | into float | math max
                 $info = {
@@ -1530,6 +1531,19 @@ export def "media auto-remove-logo" [
 
     # Validate and clip coordinates to prevent FFmpeg "outside of frame" errors
     let params = media clip-delogo-params $params $file --w_band $width_band --h_band $height_band
+
+    if $return_info or $detect_only {
+        $info = ($info | upsert delogo_params $params)
+        let coords_clipped = $params | parse -r r#'delogo=x=(?<x>\d+):y=(?<y>\d+):w=(?<w>\d+):h=(?<h>\d+)'#
+        if ($coords_clipped | is-not-empty) {
+            let c0 = $coords_clipped | first
+            $info = ($info | upsert x ($c0.x | into int) | upsert y ($c0.y | into int) | upsert w ($c0.w | into int) | upsert h ($c0.h | into int))
+        }
+    }
+
+    if $detect_only {
+        return (if $return_info { $info } else { $params })
+    }
 
     # Removal Phase
     print (echo-g $"Applying removal filter to ($ofile)...")
@@ -1565,6 +1579,7 @@ export def "media add-logo" [
     logo_data: any,        # List of records or path to JSON/YAML file
     --iterative(-I),       # Process logos iteratively (one pass per logo)
     --fit(-f),             # Reposition logos for best fit within frame
+    --crf(-q): int = 18,   # Video encoding quality CRF/CQ (default 18 for visually lossless)
     --output(-o): string   # Optional output file name
 ] {
     let ext = $file | path parse | get extension | str lowercase
@@ -1689,18 +1704,35 @@ export def "media add-logo" [
 
         $r = ($r | upsert x $clamped_x | upsert y $clamped_y | upsert w $final_w | upsert h $final_h)
 
-        if $final_w != $curr_w or $final_h != $curr_h {
-            let img_source = $r.image
+        let img_source = $r.image
+        let img_ext = $img_source | path parse | get extension | str lowercase
+        if $final_w != $curr_w or $final_h != $curr_h or $img_ext == "svg" {
             let temp_logo = $"(( $img_source | path parse | get stem ))_resized_(( random chars --length 5 )).png"
-            print (echo-g $"Pre-resizing logo: ($img_source) to ($final_w)x($final_h) with Lanczos filter...")
-            try {
-                ^convert $img_source -background none -filter Lanczos -resize $"($final_w)x($final_h)" -channel RGB -unsharp 0x0.6+0.6+0.005 +channel $temp_logo
-            } catch {
-                print (echo-y "Warning: High-quality ImageMagick resizing failed. Falling back to basic resize.")
+            print (echo-g $"Pre-resizing logo: ($img_source) to ($final_w)x($final_h)...")
+            if $img_ext == "svg" {
                 try {
-                    ^convert $img_source -resize $"($final_w)x($final_h)" $temp_logo
+                    ^convert -density 300 -background none $img_source -resize $"($final_w)x($final_h)!" $temp_logo
                 } catch {
-                    print (echo-y "Warning: ImageMagick resizing failed. Using original image.")
+                    try {
+                        ^convert -background none $img_source -resize $"($final_w)x($final_h)!" $temp_logo
+                    } catch {
+                        print (echo-y "Warning: SVG conversion failed.")
+                    }
+                }
+            } else {
+                try {
+                    ^convert $img_source -colorspace RGB -filter Lanczos -resize $"($final_w)x($final_h)" -colorspace sRGB -channel RGB -unsharp 0x0.6+0.6+0.005 +channel $temp_logo
+                } catch {
+                    print (echo-y "Warning: High-quality gamma-corrected resizing failed. Falling back to basic Lanczos resize.")
+                    try {
+                        ^convert $img_source -background none -filter Lanczos -resize $"($final_w)x($final_h)" -channel RGB -unsharp 0x0.6+0.6+0.005 +channel $temp_logo
+                    } catch {
+                        try {
+                            ^convert $img_source -resize $"($final_w)x($final_h)" $temp_logo
+                        } catch {
+                            print (echo-y "Warning: ImageMagick resizing failed. Using original image.")
+                        }
+                    }
                 }
             }
             
@@ -1738,12 +1770,12 @@ export def "media add-logo" [
             
             print (echo-g $"Applying logo ($i + 1)/($total_logos): ($row.image) at [($row.x), ($row.y)] from ($row.start_time)s to ($row.end_time)s...")
             
-            let filter = $"overlay=x=($row.x):y=($row.y):enable='between\(t,($row.start_time),($row.end_time)\)'"
+            let filter = $"overlay=x=($row.x):y=($row.y):format=auto:enable='between\(t,($row.start_time),($row.end_time)\)'"
             
             try {
-                my-ffmpeg -i $in_file -i $row.image -filter_complex $filter -map 0:v -map 0:a? -c:a copy $temp_output -y
+                my-ffmpeg -i $in_file -i $row.image -filter_complex $filter -map 0:v -c:v h264_nvenc -preset p7 -cq $crf -b:v 0 -map 0:a? -c:a copy $temp_output -y
             } catch {
-                ffmpeg -i $in_file -i $row.image -filter_complex $filter -map 0:v -map 0:a? -c:a copy $temp_output -y
+                ffmpeg -i $in_file -i $row.image -filter_complex $filter -map 0:v -c:v libx264 -crf $crf -preset slow -pix_fmt yuv420p -map 0:a? -c:a copy $temp_output -y
             }
 
             if $i > 0 {
@@ -1774,7 +1806,7 @@ export def "media add-logo" [
             $inputs = ($inputs | append ["-i" $row.image])
             
             let next_label = $"[v($img_idx)]"
-            let filter = $"($last_label)[($img_idx):v]overlay=x=($row.x):y=($row.y):enable='between\(t,($row.start_time),($row.end_time)\)'($next_label)"
+            let filter = $"($last_label)[($img_idx):v]overlay=x=($row.x):y=($row.y):format=auto:enable='between\(t,($row.start_time),($row.end_time)\)'($next_label)"
             $filter_parts = ($filter_parts | append $filter)
             $last_label = $next_label
         }
@@ -1787,9 +1819,9 @@ export def "media add-logo" [
         print (echo-g $"Executing single-pass FFmpeg with ($validated_data | length) logos...")
         
         try {
-            my-ffmpeg ...$final_inputs -filter_complex $filter_complex -map $map_label -map 0:a? -c:a copy $final_ofile -y
+            my-ffmpeg ...$final_inputs -filter_complex $filter_complex -map $map_label -c:v h264_nvenc -preset p7 -cq $crf -b:v 0 -map 0:a? -c:a copy $final_ofile -y
         } catch {
-            ffmpeg ...$final_inputs -filter_complex $filter_complex -map $map_label -map 0:a? -c:a copy $final_ofile -y
+            ffmpeg ...$final_inputs -filter_complex $filter_complex -map $map_label -c:v libx264 -crf $crf -preset slow -pix_fmt yuv420p -map 0:a? -c:a copy $final_ofile -y
         }
 
         # Cleanup temporary resized logos
@@ -1822,7 +1854,9 @@ export def "media replace-logo" [
     --scale(-s): float,            # Scale factor for the new logo (1.0 = original size)
     --resize(-r): string,          # Force custom size (WxH, e.g., 200x100)
     --fit(-f),                     # Reposition logo for best fit without scaling
-    --clean(-c)                    # Delete intermediate logo-free video
+    --original-logo-size(-O),      # Keep logo at its 1:1 original dimensions without resizing
+    --crf(-q): int = 18,           # Video encoding quality CRF/CQ (default 18 for visually lossless)
+    --clean(-c)                    # Delete intermediate logo-free video (if two-pass fallback is used)
 ] {
     let ext = $file | path parse | get extension | str lowercase
     let name = $file | path parse | get stem
@@ -1834,58 +1868,196 @@ export def "media replace-logo" [
     if not ($image | path exists) {
         return-error $"Logo image not found: ($image)"
     }
-    if $fit and ($scale != null or ($resize | is-not-empty)) {
-        return-error "Flag --fit cannot be used with --scale or --resize."
+    if $fit and ($scale != null or ($resize | is-not-empty) or $original_logo_size) {
+        return-error "Flag --fit cannot be used with --scale, --resize, or --original-logo-size."
     }
-
-    # Phase 2: Logo Removal and Data Extraction
-    print (echo-g $"Detecting and removing original logo from ($file)...")
-    let info = media auto-remove-logo $file --return-info
-    
-    if ($info | is-empty) {
-        return-error "Logo detection failed or returned no information. Aborting replacement."
+    if $original_logo_size and ($scale != null or ($resize | is-not-empty)) {
+        return-error "Flag --original-logo-size cannot be used with --scale or --resize."
     }
 
     let dir = $file | path parse | get parent
-    let intermediate_file = $dir | path join $"($name)_nologo.($ext)"
-    if not ($intermediate_file | path exists) {
-        return-error $"Intermediate logo-free file missing: ($intermediate_file)"
-    }
-
-    # Phase 3: Logo Addition and Resizing Logic
-    print (echo-g "Preparing new logo data...")
-    
-    mut logo_record = $info | insert image $image
-    
-    if ($resize | is-not-empty) {
-        let parts = $resize | split row "x"
-        if ($parts | length) != 2 {
-            return-error "Resize format must be WxH (e.g., 200x100)."
-        }
-        $logo_record = ($logo_record | upsert w ($parts.0 | into int) | upsert h ($parts.1 | into int) | upsert scale null)
-    } else if $scale != null {
-        $logo_record = ($logo_record | upsert scale $scale)
-    } else if $fit {
-        # Moving logic to add-logo, but we must ensure we don't scale to original
-        $logo_record = ($logo_record | upsert scale null | upsert w null | upsert h null)
-    } else {
-        # Default: match detected logo dimensions
-        $logo_record = ($logo_record | upsert scale null)
-    }
-
     let ofile = $dir | path join $"($name)_replaced.($ext)"
-    
-    print (echo-g $"Adding new logo to ($intermediate_file)...")
-    media add-logo $intermediate_file [$logo_record] --output $ofile --fit=$fit
 
-    if ($ofile | path exists) {
-        print (echo-g $"SUCCESS: Logo replaced. Final output: ($ofile)")
-        if $clean {
-            print (echo-y $"Cleaning up intermediate file: ($intermediate_file)...")
+    # Phase 2: Logo Detection (Attempt fast detect-only without lossy intermediate transcoding)
+    print (echo-g $"Detecting original logo on ($file)...")
+    let info = try {
+        media auto-remove-logo $file --return-info --detect_only
+    } catch {
+        null
+    }
+
+    if ($info | is-empty) or ($info.x? | is-empty) or ($info.delogo_params? | is-empty) {
+        # Fallback to two-pass if direct detection failed
+        print (echo-y "Direct detection failed. Falling back to two-pass logo replacement...")
+        let remove_info = media auto-remove-logo $file --return-info
+        if ($remove_info | is-empty) {
+            return-error "Logo detection failed. Aborting replacement."
+        }
+        let intermediate_file = $dir | path join $"($name)_nologo.($ext)"
+        if not ($intermediate_file | path exists) {
+            return-error $"Intermediate logo-free file missing: ($intermediate_file)"
+        }
+        mut logo_rec = $remove_info | insert image $image
+        if $original_logo_size {
+            let logo_dim = ^identify ($image | path expand) | str trim | split row " " | get 2 | split row "x" | into int
+            $logo_rec = ($logo_rec | upsert w $logo_dim.0 | upsert h $logo_dim.1 | upsert scale null)
+        } else if ($resize | is-not-empty) {
+            let parts = $resize | split row "x"
+            $logo_rec = ($logo_rec | upsert w ($parts.0 | into int) | upsert h ($parts.1 | into int) | upsert scale null)
+        } else if $scale != null {
+            $logo_rec = ($logo_rec | upsert scale $scale)
+        } else if $fit {
+            $logo_rec = ($logo_rec | upsert scale null | upsert w null | upsert h null)
+        } else {
+            $logo_rec = ($logo_rec | upsert scale null)
+        }
+        media add-logo $intermediate_file [$logo_rec] --output $ofile --fit=$fit --crf $crf
+        if ($ofile | path exists) and $clean {
             rm $intermediate_file | ignore
         }
+        return
+    }
+
+    # Phase 3: Single-Pass Combined Delogo + Overlay
+    print (echo-g "Preparing high-quality replacement logo and single-pass filtergraph...")
+    let v_info = media video-info $file
+    let duration = $v_info.format.duration | into float
+    let frame_w = $v_info.streams | where codec_type == "video" | get 0.width | into int
+    let frame_h = $v_info.streams | where codec_type == "video" | get 0.height | into int
+
+    let logo_info = ^identify ($image | path expand) | str trim | split row " "
+    let logo_dim = $logo_info | get 2 | split row "x"
+    let curr_w = $logo_dim | get 0 | into int
+    let curr_h = $logo_dim | get 1 | into int
+    let aspect = ($curr_w | into float) / ($curr_h | into float)
+
+    let final_dims = if $original_logo_size {
+        [$curr_w, $curr_h]
+    } else if ($resize | is-not-empty) {
+        let parts = $resize | split row "x"
+        [($parts.0 | into int), ($parts.1 | into int)]
+    } else if $scale != null and ($info.w? | is-not-empty) and ($info.h? | is-not-empty) {
+        let target_box_w = ($info.w | into float) * $scale
+        let target_box_h = ($info.h | into float) * $scale
+        let w_based_h = $target_box_w / $aspect
+        if $w_based_h <= $target_box_h {
+            [($target_box_w | math round | into int), ($w_based_h | math round | into int)]
+        } else {
+            [(($target_box_h * $aspect) | math round | into int), ($target_box_h | math round | into int)]
+        }
+    } else if ($info.w? | is-not-empty) and ($info.h? | is-not-empty) {
+        let target_box_w = $info.w | into float
+        let target_box_h = $info.h | into float
+        let w_based_h = $target_box_w / $aspect
+        if $w_based_h <= $target_box_h {
+            [($target_box_w | math round | into int), ($w_based_h | math round | into int)]
+        } else {
+            [(($target_box_h * $aspect) | math round | into int), ($target_box_h | math round | into int)]
+        }
     } else {
-        return-error "Failed to produce final replaced-logo video."
+        [$curr_w, $curr_h]
+    }
+
+    let final_w = $final_dims.0
+    let final_h = $final_dims.1
+
+    let raw_x = if ($info.w? | is-not-empty) {
+        ($info.x | into float) + ((($info.w - $final_w) | into float) / 2.0) | math round | into int
+    } else {
+        $info.x
+    }
+    let raw_y = if ($info.h? | is-not-empty) {
+        ($info.y | into float) + ((($info.h - $final_h) | into float) / 2.0) | math round | into int
+    } else {
+        $info.y
+    }
+
+    let clamped_x = if $final_w >= $frame_w {
+        0
+    } else if $raw_x < 0 {
+        0
+    } else if ($raw_x + $final_w) > $frame_w {
+        $frame_w - $final_w
+    } else {
+        $raw_x
+    }
+
+    let clamped_y = if $final_h >= $frame_h {
+        0
+    } else if $raw_y < 0 {
+        0
+    } else if ($raw_y + $final_h) > $frame_h {
+        $frame_h - $final_h
+    } else {
+        $raw_y
+    }
+
+    let img_source = ($image | path expand)
+    let img_ext = $img_source | path parse | get extension | str lowercase
+    let temp_logo = $"(( $img_source | path parse | get stem ))_resized_(( random chars --length 5 )).png"
+    
+    let actual_logo = if $original_logo_size {
+        if $img_ext == "svg" {
+            try {
+                ^convert -density 300 -background none $img_source $temp_logo
+                $temp_logo
+            } catch {
+                $img_source
+            }
+        } else {
+            $img_source
+        }
+    } else {
+        print (echo-g $"Pre-resizing logo: ($img_source) to ($final_w)x($final_h)...")
+        if $img_ext == "svg" {
+            try {
+                ^convert -density 300 -background none $img_source -resize $"($final_w)x($final_h)!" $temp_logo
+            } catch {
+                try {
+                    ^convert -background none $img_source -resize $"($final_w)x($final_h)!" $temp_logo
+                } catch {
+                    print (echo-y "Warning: SVG conversion failed.")
+                }
+            }
+        } else {
+            try {
+                ^convert $img_source -colorspace RGB -filter Lanczos -resize $"($final_w)x($final_h)" -colorspace sRGB -channel RGB -unsharp 0x0.6+0.6+0.005 +channel $temp_logo
+            } catch {
+                print (echo-y "Warning: High-quality gamma-corrected resizing failed. Falling back to basic Lanczos resize.")
+                try {
+                    ^convert $img_source -background none -filter Lanczos -resize $"($final_w)x($final_h)" -channel RGB -unsharp 0x0.6+0.6+0.005 +channel $temp_logo
+                } catch {
+                    try {
+                        ^convert $img_source -resize $"($final_w)x($final_h)" $temp_logo
+                    } catch {
+                        print (echo-y "Warning: ImageMagick resizing failed. Using original image.")
+                    }
+                }
+            }
+        }
+        if ($temp_logo | path exists) { $temp_logo } else { $img_source }
+    }
+
+    let delogo_filter = $info.delogo_params
+    let start_t = ($info.start_time? | default 0)
+    let end_t = ($info.end_time? | default $duration)
+    let filter_complex = $"[0:v]($delogo_filter)[clean];[clean][1:v]overlay=x=($clamped_x):y=($clamped_y):format=auto:enable='between\(t,($start_t),($end_t)\)'[outv]"
+
+    print (echo-g $"Executing single-pass delogo + overlay on ($file) -> ($ofile)...")
+    try {
+        my-ffmpeg -i $file -i $actual_logo -filter_complex $filter_complex -map "[outv]" -c:v h264_nvenc -preset p7 -cq $crf -b:v 0 -map 0:a? -c:a copy $ofile -y
+    } catch {
+        ffmpeg -i $file -i $actual_logo -filter_complex $filter_complex -map "[outv]" -c:v libx264 -crf $crf -preset slow -pix_fmt yuv420p -map 0:a? -c:a copy $ofile -y
+    }
+
+    if ($temp_logo | path exists) {
+        rm $temp_logo | ignore
+    }
+
+    if ($ofile | path exists) {
+        print (echo-g $"SUCCESS: Logo replaced in a single pass. Output saved to ($ofile)")
+    } else {
+        return-error "FFmpeg failed to produce output file."
     }
 }
 
