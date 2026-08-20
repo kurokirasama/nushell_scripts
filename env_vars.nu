@@ -8,7 +8,7 @@ $env.CONSTANTS.gamma = 0.5772156649015329
 $env.CONSTANTS.phi = 1.618033988749895
 $env.CONSTANTS.silver_ratio = 2.41421356237309
 
-let negative_prompt = "deform, extra legs, extra hand, bad face, bad eyes, shadow, jpeg artifacts, mutated hands, lots of hands, long neck, bad hair, unnatural body, uncoordinated body, unnatural eyes, uncoordinated eyes, cropped:1.4, bad quality, ugly, tiling, poorly drawn hands, out of frame, poorly drawn face, poorly drawn feet, disfigured, extra limbs, body out of frame, bad anatomy, watermark, signature, grainy, blurred, normal res, low res, bad art, overexposed,underexposed, worst quality, low quality:2, normal quality, skin spots, acnes, skin blemishes, age spot, extra fingers, fewer fingers, strange fingers, bad hands, bad feet, bad anatomy, username, childish, out of frame, big hands, un-detailed skin, ugly mouth, missing teeth, crooked teeth, bad proportions, cloned face, earrings, multi arms, bad anatomy, bad hand anatomy, other hands, fused fingers, too many fingers, multilegs, bad leg anatomy, missing legs, mutated legs"
+let negative_prompt = "placeholder_negative_prompt"
 
 #MY_ENV_VARS
 $env.MY_ENV_VARS = {}
@@ -36,18 +36,18 @@ $env.MY_ENV_VARS = $env.MY_ENV_VARS
   | upsert nushell_syntax_public (if $is_windows { $base_yandex | path join "Development" "linux" "sublime" "nushell_sublime_syntax" } else { "~/nushell_sublime_syntax" | path expand })
   | upsert credentials ($base_linux | path join "credentials")
   | upsert debs ($base_yandex | path join "Backups" "debs")
-  | upsert gdrive_debs (if $is_windows { r#'G:\My Drive\Yandex.Disk.Backup'# } else { "~/rclone/gubb/Yandex.Disk.Backup" | path expand })
+  | upsert gdrive_debs (if $is_windows { r#'G:\My Drive\Backup'# } else { "~/cloud/Backup" | path expand })
   | upsert mega_debs (if $is_windows { r#'M:\'# } else { "~/rclone/mega" | path expand })
   | upsert youtube_database ($base_linux | path join "youtube_music_playlists")
   | upsert ai_database ($base_yandex | path join "ai_database")
   | upsert appImages (if $is_windows { "" } else { $base_linux | path join ".." "appimages" })
   | upsert local_manga ($base_yandex | path join "Manga")
-  | upsert external_manga (if $is_windows { r#'E:\Manga'# } else { "~/media/Seagate Portable Drive/Manga" | path expand })
-  | upsert zoom (if $is_windows { r#'C:\Users\username\Documents\Zoom'# } else { "~/Documents/Zoom" | path expand })
+  | upsert external_manga (if $is_windows { r#'E:\Manga'# } else { "~/media/External_Drive/Manga" | path expand })
+  | upsert zoom (if $is_windows { r#'C:\Users\username\Documents'# } else { "~/Documents" | path expand })
   | upsert mps ($base_yandex | path join "mps")
   | upsert dropbox (if $is_windows { r#'C:\Users\username\Dropbox'# } else { "~/Dropbox" | path expand })
   | upsert nushell_dir (if $is_windows { r#'C:\Users\username\AppData\Roaming\nushell'# } else { "~/software/nushell" | path expand })
-  | upsert media_database (if $is_windows { r#'C:\Users\username\Dropbox\Directorios'# } else { "~/Dropbox/Directorios" | path expand })
+  | upsert media_database (if $is_windows { r#'C:\Users\username\Dropbox\Media'# } else { "~/media" | path expand })
   | upsert ips ($base_linux | path join "ips.json")
   | upsert home_wifi "Home_WiFi"
   | upsert home_loc "0.000000,0.000000"
@@ -60,7 +60,7 @@ $env.MY_ENV_VARS = $env.MY_ENV_VARS
   | upsert l_prompt "short"
   | upsert data ($base_yandex | path join "cards")
   | upsert download_dir ($base_yandex | path join "Downloads")
-  | upsert gdriveTranscriptionSummaryDirectory (if $is_windows { r#'G:\My Drive\Depto\DireccionEscuelaIngenieria\NotasReunionesAi'# } else { "~/cloud/notes" | path expand })
+  | upsert gdriveTranscriptionSummaryDirectory (if $is_windows { r#'G:\My Drive\Notes'# } else { "~/cloud/notes" | path expand })
   | upsert gdrive_mount_point "cloud_drive"
   | upsert mega_mount_point "mega"
   | upsert llms_configs ($base_yandex | path join "llms_configs")
@@ -69,16 +69,16 @@ $env.MY_ENV_VARS = $env.MY_ENV_VARS
   # | upsert private_linux_backup_repo "git@gitlab.com:kurokirasama/ubuntu_semiautomatic_install.git" # Deprecated
   | upsert yandex_disk_repo "git@example.com:username/repo.git"
   | upsert tasker_server.devices.main.name "DEVICE_MAIN_ID"
-  | upsert tasker_server.devices.main.file ($base_yandex | path join "Android_Devices" "Common" "Download" "http_main.json")
+  | upsert tasker_server.devices.main.file ($base_yandex | path join "devices" "main.json")
   | upsert tasker_server.devices.alfred1.name "DEVICE_SECONDARY_ID"
-  | upsert tasker_server.devices.alfred1.file ($base_yandex | path join "Android_Devices" "Common" "Download" "http_alfred1.json")
+  | upsert tasker_server.devices.alfred1.file ($base_yandex | path join "devices" "secondary.json")
   | upsert mermaid_puppetter_config ([$base_linux "puppeteer.json"] | path join)
   | upsert pandoc_theme ([$base_linux "pandoc_highlight.theme"] | path join)
   | upsert ox_plugins ($base_linux | path join "ox" "plugins")
   | upsert api_keys {}
   | upsert negative_prompt $negative_prompt
   | upsert oracle_server_key ("~/.ssh/id_rsa" | path expand)
-  | upsert habitica_avatar ($base_linux | path join "wizard_gemini2.png")
+  | upsert habitica_avatar ($base_linux | path join "avatar.png")
   | upsert webapps ($base_yandex | path join "webapps")
   | upsert address "123 Main Street, City, Country"
   | upsert base_yandex $base_yandex
