@@ -1,4 +1,5 @@
-const gemini_model_to_use = "gemini-3.5-flash"
+# Centralized model selection: reads the default model exported by ai_google.nu (which also mirrors it into MY_ENV_VARS.gemini_model_to_use)
+const gemini_model_to_use = $last_gemini_model
 
 #ai tools
 export def "ai help" [] {
@@ -15,6 +16,8 @@ export def "ai help" [] {
     { name: "google_ai", description: "Single call to google ai LLM api wrapper and chat mode" },
     { name: "google_aimage", description: "Single call to google ai LLM image generations api wrapper" },
     { name: "ai google_search-summary", description: "Summarize the output of google_search via ai" },
+    { name: "ai google-interaction", description: "Manage Google Interactions API background tasks (list, status, retrieve, cancel, delete, watch)" },
+    { name: "ai deep-research", description: "Gemini Deep Research session manager (start, status, retrieve, plan-respond)" },
     { name: "ai web_search-multi", description: "Execute multiple web searches in parallel and consolidate results" },
     { name: "o_llama", description: "Single call ollama wrapper" },
     { name: "chat_gpt", description: "Single call chatgpt wrapper" },
@@ -105,21 +108,21 @@ const web_engines = ["google" "ollama"]
 export def askai [
   prompt?:string   # string with the prompt, can be piped
   system?:string   # string with the system message. It has precedence over the s.m. flags
-  --programmer(-P) # use programmer s.m with temp 0.75, else use assistant with temp 0.9
-  --nushell-programmer(-N) # use bash-nushell programmer s.m with temp 0.75, else use assistant with temp 0.9
-  --teacher(-T)    # use school teacher s.m with temp 0.95, else use assistant with temp 0.9
-  --rubb(-R)       # use rubb s.m. with temperature 0.65, else use assistant with temp 0.9
-  --create-school-eval(-s) #use school teacer s.m with temp 0.95 and school evaluation preprompt
-  --biblical(-B)   # use biblical assistant s.m with temp 0.78
-  --math-teacher(-M) # use undergraduate and postgraduate math teacher s.m. with temp 0.95
-  --google-assistant(-O) # use gOogle assistant (with web search) s.m with temp 0.7
-  --engineer(-E)   # use prompt_engineer s.m. with temp 0.8 and its preprompt
-  --writer(-W)       # use writing_expert s.m with temp 0.95
-  --academic(-A)   # use academic writer improver s.m with temp 0.78, and its preprompt
-  --fix-bug(-F)    # use programmer s.m. with temp 0.75 and fix_code_bug preprompt
-  --summarizer(-S) #use simple summarizer s.m with temp 0.70 and its preprompt
-  --linux-expert(-L) #use linux expert s.m with temp temp 0.85
-  --curricular-designer(-U) #use curricular designer s.m. with temp 0.8
+  --programmer(-P) # use programmer s.m with thinking_level low, else use assistant with thinking_level medium
+  --nushell-programmer(-N) # use bash-nushell programmer s.m with thinking_level low, else use assistant with thinking_level medium
+  --teacher(-T)    # use school teacher s.m with thinking_level medium, else use assistant with thinking_level medium
+  --rubb(-R)       # use rubb s.m. with thinking_level minimal, else use assistant with thinking_level medium
+  --create-school-eval(-s) #use school teacher s.m with thinking_level medium and school evaluation preprompt
+  --biblical(-B)   # use biblical assistant s.m with thinking_level low
+  --math-teacher(-M) # use undergraduate and postgraduate math teacher s.m. with thinking_level medium
+  --google-assistant(-O) # use gOogle assistant (with web search) s.m with thinking_level low
+  --engineer(-E)   # use prompt_engineer s.m. with thinking_level low and its preprompt
+  --writer(-W)       # use writing_expert s.m with thinking_level medium
+  --academic(-A)   # use academic writer improver s.m with thinking_level low, and its preprompt
+  --fix-bug(-F)    # use programmer s.m. with thinking_level low and fix_code_bug preprompt
+  --summarizer(-S) #use simple summarizer s.m with thinking_level low and its preprompt
+  --linux-expert(-L) #use linux expert s.m with thinking_level low
+  --curricular-designer(-U) #use curricular designer s.m. with thinking_level low
   --document(-d):string   # answer question from provided document
   --auxiliary-data(-a):string # include context file in the prompt
   --list-system(-l)       # select s.m from list (takes precedence over flags)
@@ -132,7 +135,6 @@ export def askai [
   --fast(-f)   #get prompt from prompt.md file and save response to answer.md
   --gemini(-G) #use google gemini instead of chatgpt. 
   --paid       #use the billing account for gemini
-  --bison(-b)  #use google bison instead of chatgpt (needs --gemini)
   --chat(-c)   #use chat mode (text only). Only else valid flags: --gemini, --gpt
   --database(-D)   #load chat conversation from database
   --web-search(-w) #include web search results into the prompt
@@ -142,6 +144,8 @@ export def askai [
   --ollama(-o)  #use ollama models
   --ollama-model(-m):string #select ollama model to use
   --embed(-e) #make embedding instead of generate or chat
+  --thinking-level:string@$thinking_levels # override thinking_level for gemini calls (no short flag; -e is taken by --embed)
+  --background(-b) = false # execute query in the background (for gemini)
 ] {
   let prompt = if $fast {
       open --raw ($env.MY_ENV_VARS.chatgpt | path join prompt.md) 
@@ -165,10 +169,6 @@ export def askai [
   
   if $gpt and $gemini {
     return-error "Please select only one ai system!"
-  }
-
-  if $bison and (not $gemini) {
-    return-error "--bison needs --gemini!"
   }
   
   if $vision and ($image | is-empty) {
@@ -199,6 +199,18 @@ export def askai [
     $temperature
   }
   
+  # Derive thinking_level for gemini calls from personality mapping (--thinking-level flag overrides)
+  let tl_level = if ($thinking_level | is-not-empty) {
+    $thinking_level
+  } else {
+    match $temp {
+      $t if $t >= 0.9 => "medium"
+      $t if $t >= 0.7 => "low"
+      _ => "minimal"
+    }
+  }
+  
+
   let system = if ($system | is-empty) {
       if $list_system {
         ""
@@ -256,7 +268,7 @@ export def askai [
   #chat mode
   if $chat {
     if $gemini {
-      google_ai $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -n $web_results --select_preprompt $pre_prompt --document $document --web_engine $web_engine -m "gemini-3.5" -P $paid
+      google_ai $prompt -c -D $database --thinking_level $tl_level --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -n $web_results --select_preprompt $pre_prompt --document $document --web_engine $web_engine -m $gemini_model_to_use -P $paid
     } else if $ollama {
       o_llama $prompt -c -D $database -t $temp --select_system $system -p $list_preprompt -l $list_system -d false -w $web_search -n $web_results --select_preprompt $pre_prompt --document $document --web_engine $web_engine -m $ollama_model
     } else {
@@ -270,12 +282,9 @@ export def askai [
   #use google
   if $gemini {    
     let answer = if $vision {
-        google_ai $prompt -t $temp -l $list_system -m gemini-pro-vision -p $list_preprompt -d true -i $image --select_preprompt $pre_prompt --select_system $system -P $paid
+        google_ai $prompt --thinking_level $tl_level -l $list_system -m gemini-pro-vision -p $list_preprompt -d true -i $image --select_preprompt $pre_prompt --select_system $system -P $paid --background $background
       } else {
-          match $bison {
-          true => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m text-bison-001 -d true -w $web_search -n $web_results --select_preprompt $pre_prompt --select_system $system --document $document --web_engine $web_engine -P $paid},
-          false => {google_ai $prompt -t $temp -l $list_system -p $list_preprompt -m $gemini_model_to_use -d true -w $web_search -n $web_results --select_preprompt $pre_prompt --select_system $system --document $document --web_engine $web_engine -P $paid},
-        }
+        google_ai $prompt --thinking_level $tl_level -l $list_system -p $list_preprompt -m $gemini_model_to_use -d true -w $web_search -n $web_results --select_preprompt $pre_prompt --select_system $system --document $document --web_engine $web_engine -P $paid --background $background
       }
     
 
@@ -409,12 +418,12 @@ export def "ai git-push" [
         },
         [false,true] => {
           try {
-            google_ai $question -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true -m $gemini_model_to_use -P $paid
+            google_ai $question -e low --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true -m $gemini_model_to_use -P $paid
           } catch {
             try {
-              google_ai $prompt -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true -m $gemini_model_to_use -P $paid
+              google_ai $prompt -e low --select_system get_diff_summarizer --select_preprompt summarize_git_diff -d true -m $gemini_model_to_use -P $paid
             } catch {
-              google_ai $prompt_short -t 0.5 --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d true -m $gemini_model_to_use -P $paid
+              google_ai $prompt_short -e low --select_system get_diff_summarizer --select_preprompt summarize_git_diff_short -d true -m $gemini_model_to_use -P $paid
             }
           }
         }
@@ -652,7 +661,7 @@ export def "ai media-summary" [
     if $gpt {
       chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-5
     } else if $gemini {
-      google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $gemini_model_to_use -P $paid
+      google_ai $prompt -e low --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $gemini_model_to_use -P $paid
     } else if $claude {
       claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-sonnet-4-5
     } else if $ollama {
@@ -735,7 +744,7 @@ export def "ai transcription-summary" [
   if $gpt {
     chat_gpt $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d -m gpt-5
   } else if $gemini {
-    google_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $gemini_model_to_use -P $paid
+    google_ai $prompt -e low --select_system $system_prompt --select_preprompt $pre_prompt -d true -m $gemini_model_to_use -P $paid
   } else if $claude {
     claude_ai $prompt -t 0.5 --select_system $system_prompt --select_preprompt $pre_prompt -d true -m claude-sonnet-4-5
   } else if $ollama {
@@ -991,7 +1000,7 @@ export def "ai gcal" [
     } else if $gpt {
       chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d -m gpt-5
     } else if $gemini {
-      google_ai $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d true -m $gemini_model_to_use -P $paid
+      google_ai $prompt -e minimal --select_system gcal_assistant --select_preprompt nl2gcal -d true -m $gemini_model_to_use -P $paid
     } else {
       chat_gpt $prompt -t 0.2 --select_system gcal_assistant --select_preprompt nl2gcal -d
     }
@@ -1021,7 +1030,7 @@ export def "ai gcal" [
         } else if $gpt {
           chat_gpt $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -m gpt-5
         } else if $gemini {
-          google_ai $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl -d false -m $gemini_model_to_use -P $paid
+          google_ai $gcal2nl_prompt -e minimal --select_system gcal_translator --select_preprompt gcal2nl -d false -m $gemini_model_to_use -P $paid
         } else {
           chat_gpt $gcal2nl_prompt -t 0.2 --select_system gcal_translator --select_preprompt gcal2nl
         }
@@ -1077,7 +1086,7 @@ export def "ai habitica" [
     } else if $gpt {
       chat_gpt $prompt -t 0.2 --select_system habitica_assistant --select_preprompt nl2habitica -d -m gpt-5
     } else if $gemini {
-      google_ai $prompt -t 0.2 --select_system habitica_assistant --select_preprompt nl2habitica -d true -m $gemini_model_to_use -P $paid
+      google_ai $prompt -e minimal --select_system habitica_assistant --select_preprompt nl2habitica -d true -m $gemini_model_to_use -P $paid
     } else {
       chat_gpt $prompt -t 0.2 --select_system habitica_assistant --select_preprompt nl2habitica -d
     }
@@ -1110,7 +1119,7 @@ export def "ai habitica" [
       } else if $gpt {
         chat_gpt $habitica2nl_prompt -t 0.2 --select_system habitica_translator --select_preprompt habitica2nl -m gpt-5
       } else if $gemini {
-        google_ai $habitica2nl_prompt -t 0.2 --select_system habitica_translator --select_preprompt habitica2nl -d false -m $gemini_model_to_use -P $paid
+        google_ai $habitica2nl_prompt -e minimal --select_system habitica_translator --select_preprompt habitica2nl -d false -m $gemini_model_to_use -P $paid
       } else {
         chat_gpt $habitica2nl_prompt -t 0.2 --select_system habitica_translator --select_preprompt habitica2nl
       }
@@ -1184,7 +1193,7 @@ export def "ai trans" [
     if $ollama {
       o_llama $prompt -t 0.5 -s $system_prompt -m $ollama_model
     } else if $gemini {
-      google_ai $prompt -t 0.5 -s $system_prompt -m $gemini_model_to_use -P $paid
+      google_ai $prompt -e low -s $system_prompt -m $gemini_model_to_use -P $paid
     } else if $gpt {
       chat_gpt $prompt -t 0.5 -s $system_prompt -m gpt-5
     } else {
@@ -1387,7 +1396,7 @@ export def "ai debunk" [
   let log_fallacies = if $ollama {
     o_llama $data -t 0.2 --select_system logical_falacies_finder --select_preprompt find_fallacies -d true -m $ollama_model
     } else {
-      google_ai $data -t 0.2 --select_system logical_falacies_finder --select_preprompt find_fallacies -d true -m $gemini_model_to_use -P $paid
+      google_ai $data -e minimal --select_system logical_falacies_finder --select_preprompt find_fallacies -d true -m $gemini_model_to_use -P $paid
     } | remove-code-blocks | from json 
 
   print (echo-g "debunking found logical fallacies...")
@@ -1398,7 +1407,7 @@ export def "ai debunk" [
   let false_claims = if $ollama {
     o_llama $data -t 0.2 --select_system false_claims_extracter --select_preprompt extract_false_claims -d true -m $ollama_model
   } else {
-    google_ai $data -t 0.2 --select_system false_claims_extracter --select_preprompt extract_false_claims -d true -m $gemini_model_to_use -P $paid
+    google_ai $data -e minimal --select_system false_claims_extracter --select_preprompt extract_false_claims -d true -m $gemini_model_to_use -P $paid
   } | remove-code-blocks | from json
 
   print (echo-g "debunking found false claims...")
@@ -1677,7 +1686,7 @@ export def "ai analyze_ai_generated_text" [
     } else if $ollama {
       o_llama $text --select_system ai_generated_text_detector --select_preprompt analize_ai_generated_text -d true -m $ollama_model -t 0.1
     } else {
-      google_ai $text --select_system ai_generated_text_detector --select_preprompt analize_ai_generated_text -d true -m $gemini_model_to_use -t 0.1 -P $paid
+      google_ai $text --select_system ai_generated_text_detector --select_preprompt analize_ai_generated_text -d true -m $gemini_model_to_use -e minimal -P $paid
     }
 
   if not $correct_text {
@@ -1712,7 +1721,7 @@ export def "ai analyze_ai_generated_text" [
       } else if $ollama {
         o_llama $prompt --select_system ai_generated_text_corrector --select_preprompt $pre_prompt_name -d false -m $ollama_model -t 0.9
       } else {
-        google_ai $prompt --select_system ai_generated_text_corrector --select_preprompt $pre_prompt_name -d false -m $gemini_model_to_use -t 0.9 -P $paid
+        google_ai $prompt --select_system ai_generated_text_corrector --select_preprompt $pre_prompt_name -d false -m $gemini_model_to_use -e medium -P $paid
       }
     
     let new_text = $new_text | str replace --regex '(?i)^\s*#\s*CORRECTED\s+TEXT\s*' ''
@@ -1726,7 +1735,7 @@ export def "ai analyze_ai_generated_text" [
       } else if $ollama {
         o_llama $validation_prompt --select_system json_fixer --select_preprompt is_corrected_text_complete -d false -m $ollama_model -t 0.1
       } else {
-        google_ai $validation_prompt --select_system json_fixer --select_preprompt is_corrected_text_complete -d false -m $gemini_model_to_use -t 0.1 -P $paid
+        google_ai $validation_prompt --select_system json_fixer --select_preprompt is_corrected_text_complete -d false -m $gemini_model_to_use -e minimal -P $paid
       } | remove-code-blocks | from json | get complete
 
     $complete = $is_complete
@@ -1806,7 +1815,7 @@ export def "ai analyze_religious_text" [
   } else if $ollama {
     o_llama $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_false_bible_claims -d true -v $verbose -m $ollama_model
   } else {
-    google_ai $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_false_bible_claims -d true -v $verbose -m $gemini_model_to_use -P $paid
+    google_ai $data -e minimal --select_system biblical_assistant --select_preprompt extract_false_bible_claims -d true -v $verbose -m $gemini_model_to_use -P $paid
   } | remove-code-blocks | from json 
 
   print (echo-g "debunking found false claims...")
@@ -1819,7 +1828,7 @@ export def "ai analyze_religious_text" [
   } else if $ollama {
     o_llama $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_biblical_references -d true -v $verbose -m $ollama_model
   } else {
-    google_ai $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_biblical_references -d true -v $verbose -m $gemini_model_to_use -P $paid
+    google_ai $data -e minimal --select_system biblical_assistant --select_preprompt extract_biblical_references -d true -v $verbose -m $gemini_model_to_use -P $paid
   } | remove-code-blocks | from json 
 
   # search for new biblical references
@@ -1829,7 +1838,7 @@ export def "ai analyze_religious_text" [
   } else if $ollama {
     o_llama $data -t 0.2 --select_system biblical_assistant --select_preprompt find_biblical_references -d true -v $verbose -m $ollama_model
   } else {
-    google_ai $data -t 0.2 --select_system biblical_assistant --select_preprompt find_biblical_references -d true -v $verbose -m $gemini_model_to_use -P $paid
+    google_ai $data -e minimal --select_system biblical_assistant --select_preprompt find_biblical_references -d true -v $verbose -m $gemini_model_to_use -P $paid
   } | remove-code-blocks | from json 
 
   # extract main message
@@ -1839,7 +1848,7 @@ export def "ai analyze_religious_text" [
   } else if $ollama {
     o_llama $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_main_idea -d true -v $verbose -m $ollama_model
   } else {
-    google_ai $data -t 0.2 --select_system biblical_assistant --select_preprompt extract_main_idea -d true -v $verbose -m $gemini_model_to_use -P $paid
+    google_ai $data -e minimal --select_system biblical_assistant --select_preprompt extract_main_idea -d true -v $verbose -m $gemini_model_to_use -P $paid
   } 
 
   # consolidation and compatibility test

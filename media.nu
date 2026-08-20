@@ -1629,40 +1629,79 @@ export def "media add-logo" [
         let logo_dim = $logo_info | get 2 | split row "x"
         let curr_w = $logo_dim | get 0 | into int
         let curr_h = $logo_dim | get 1 | into int
+        let aspect = ($curr_w | into float) / ($curr_h | into float)
 
-        # Apply fit logic BEFORE potential resizing (based on specified target or native)
-        if $fit {
-            # Target dimensions (what it would be if we didn't resize)
-            let target_w = if $r.scale != null { ($curr_w | into float) * $r.scale | into int } else if $r.w != null { $r.w } else { $curr_w }
-            let target_h = if $r.scale != null { ($curr_h | into float) * $r.scale | into int } else if $r.h != null { $r.h } else { $curr_h }
-
-            if ($r.x + $target_w) > $frame_w {
-                let new_x = $frame_w - $target_w
-                $r = ($r | upsert x (if $new_x < 0 { 0 } else { $new_x }))
+        # Compute target dimensions preserving aspect ratio
+        let final_dims = if $r.scale != null and $r.w != null and $r.h != null {
+            # Scaling relative to existing bounding box
+            let target_box_w = ($r.w | into float) * $r.scale
+            let target_box_h = ($r.h | into float) * $r.scale
+            let w_based_h = $target_box_w / $aspect
+            if $w_based_h <= $target_box_h {
+                [($target_box_w | math round | into int), ($w_based_h | math round | into int)]
+            } else {
+                [(($target_box_h * $aspect) | math round | into int), ($target_box_h | math round | into int)]
             }
-            if ($r.y + $target_h) > $frame_h {
-                let new_y = $frame_h - $target_h
-                $r = ($r | upsert y (if $new_y < 0 { 0 } else { $new_y }))
+        } else if $r.w != null and $r.h != null {
+            # Proportional fit inside w x h bounding box
+            let target_box_w = $r.w | into float
+            let target_box_h = $r.h | into float
+            let w_based_h = $target_box_w / $aspect
+            if $w_based_h <= $target_box_h {
+                [($target_box_w | math round | into int), ($w_based_h | math round | into int)]
+            } else {
+                [(($target_box_h * $aspect) | math round | into int), ($target_box_h | math round | into int)]
             }
+        } else if $r.w != null {
+            let target_w = $r.w | into int
+            let target_h = ($target_w | into float) / $aspect | math round | into int
+            [$target_w, $target_h]
+        } else if $r.h != null {
+            let target_h = $r.h | into int
+            let target_w = ($target_h | into float) * $aspect | math round | into int
+            [$target_w, $target_h]
+        } else if $r.scale != null {
+            let target_w = ($curr_w | into float) * $r.scale | math round | into int
+            let target_h = ($curr_h | into float) * $r.scale | math round | into int
+            [$target_w, $target_h]
+        } else {
+            [$curr_w, $curr_h]
         }
 
-        if $r.scale != null or $r.w != null or $r.h != null {
-            let temp_logo = $"(( $r.image | path parse | get stem ))_resized_(( random chars --length 5 )).png"
-            let resize_param = if $r.scale != null {
-                $"(( $r.scale * 100 ))%"
-            } else if $r.w != null and $r.h != null {
-                $"($r.w)x($r.h)!"
-            } else if $r.w != null {
-                $"($r.w)x"
-            } else {
-                $"x($r.h)"
-            }
-            
-            print (echo-g $"Pre-resizing logo: ($r.image) to ($resize_param)...")
+        let final_w = $final_dims.0
+        let final_h = $final_dims.1
+
+        # Center position relative to original bounding box (if specified) and clamp to frame boundaries
+        let raw_x = if $r.w != null {
+            ($r.x | into float) + ((($r.w - $final_w) | into float) / 2.0) | math round | into int
+        } else {
+            $r.x
+        }
+        let raw_y = if $r.h != null {
+            ($r.y | into float) + ((($r.h - $final_h) | into float) / 2.0) | math round | into int
+        } else {
+            $r.y
+        }
+
+        # Apply fit / boundary clamping
+        let clamped_x = if $raw_x < 0 { 0 } else if ($raw_x + $final_w) > $frame_w { $frame_w - $final_w } else { $raw_x }
+        let clamped_y = if $raw_y < 0 { 0 } else if ($raw_y + $final_h) > $frame_h { $frame_h - $final_h } else { $raw_y }
+
+        $r = ($r | upsert x $clamped_x | upsert y $clamped_y | upsert w $final_w | upsert h $final_h)
+
+        if $final_w != $curr_w or $final_h != $curr_h {
+            let img_source = $r.image
+            let temp_logo = $"(( $img_source | path parse | get stem ))_resized_(( random chars --length 5 )).png"
+            print (echo-g $"Pre-resizing logo: ($img_source) to ($final_w)x($final_h) with Lanczos filter...")
             try {
-                ^convert $r.image -resize $resize_param $temp_logo
+                ^convert $img_source -background none -filter Lanczos -resize $"($final_w)x($final_h)" -channel RGB -unsharp 0x0.6+0.6+0.005 +channel $temp_logo
             } catch {
-                print (echo-y "Warning: ImageMagick resizing failed. Using original image.")
+                print (echo-y "Warning: High-quality ImageMagick resizing failed. Falling back to basic resize.")
+                try {
+                    ^convert $img_source -resize $"($final_w)x($final_h)" $temp_logo
+                } catch {
+                    print (echo-y "Warning: ImageMagick resizing failed. Using original image.")
+                }
             }
             
             if ($temp_logo | path exists) {
@@ -1825,7 +1864,7 @@ export def "media replace-logo" [
         }
         $logo_record = ($logo_record | upsert w ($parts.0 | into int) | upsert h ($parts.1 | into int) | upsert scale null)
     } else if $scale != null {
-        $logo_record = ($logo_record | upsert scale $scale | upsert w null | upsert h null)
+        $logo_record = ($logo_record | upsert scale $scale)
     } else if $fit {
         # Moving logic to add-logo, but we must ensure we don't scale to original
         $logo_record = ($logo_record | upsert scale null | upsert w null | upsert h null)

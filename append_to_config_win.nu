@@ -1,6 +1,7 @@
 
 use std
 use std-rfc
+use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\date_formats.nu *
 use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\python.nu *
 use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\aliases.nu *
 use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\string_manipulation.nu *
@@ -28,7 +29,7 @@ use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\yandex.nu *
 use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\yt_api.nu *
 use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\plots.nu *
 use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\zoxide.nu *
-use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\weather_tomorrow.nu [weather,get_weather_by_interval]
+use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\weather_tomorrow.nu [my-weather,get_weather_by_interval]
 use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\alias_defs.nu *
 use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\ai_google.nu *
 use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\ai_chatpdf.nu *
@@ -49,6 +50,8 @@ use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\ghome.nu *
 use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\appimages.nu *
 use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\ghome_cron.nu *
 use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\tv_calendar.nu *
+use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\linecast_completions.nu *
+use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\manga.nu *
 # use C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\polars_aliases.nu *
 # source-env C:\Users\usuario\AppData\Roaming\nushell\carapace\init.nu
 source-env C:\Users\usuario\AppData\Roaming\nushell\my_scripts\nushell\env_vars.nu

@@ -1,6 +1,7 @@
 
 use std
 use std-rfc
+use /path/to/scripts/date_formats.nu *
 use /path/to/scripts/python.nu *
 use /path/to/scripts/aliases.nu *
 use /path/to/scripts/string_manipulation.nu *
@@ -28,7 +29,7 @@ use /path/to/scripts/yandex.nu *
 use /path/to/scripts/yt_api.nu *
 use /path/to/scripts/plots.nu *
 use /path/to/scripts/zoxide.nu *
-use /path/to/scripts/weather_tomorrow.nu [weather,get_weather_by_interval]
+use /path/to/scripts/weather_tomorrow.nu [my-weather,get_weather_by_interval]
 use /path/to/scripts/alias_defs.nu *
 use /path/to/scripts/ai_google.nu *
 use /path/to/scripts/ai_chatpdf.nu *
@@ -50,6 +51,8 @@ use /path/to/scripts/appimages.nu *
 use /path/to/scripts/ghome_cron.nu *
 use /path/to/scripts/agents_longterm_memory.nu *
 use /path/to/scripts/tv_calendar.nu *
+use /path/to/scripts/linecast_completions.nu *
+use /path/to/scripts/manga.nu *
 # use /path/to/scripts/polars_aliases.nu *
 # source ~/.local/share/atuin/init.nu
 source ~/.cache/carapace/init.nu

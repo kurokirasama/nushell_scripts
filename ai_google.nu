@@ -1,29 +1,41 @@
-const last_gemini_model = "gemini-3.6-flash"
-const gemini_pro_vision = "gemini-3.6-flash"
-const gemini_models = [
+export const last_gemini_model = "gemini-3.7-flash"
+export const gemini_pro_vision = "gemini-3.7-flash"
+export const gemini_models = [
+  "gemini-3.7-flash"
   "gemini-3.6-flash"
   "gemini-3.5-flash"
   "gemini-3.5-flash-lite"
   "gemini-3.1-pro"
   "gemini-3.1-flash-lite"
-  "gemini-2.5-flash"
-  "gemini-2.5-flash-lite"
   "gemini-pro-vision"
+]
+
+export const thinking_levels = [
+  "minimal"
+  "low"
+  "medium"
+  "high"
 ]	
+
+# Export the default gemini model to MY_ENV_VARS so consumers (ai_tools.nu, etc.) can read it centrally
+export-env { $env.MY_ENV_VARS = ($env.MY_ENV_VARS? | default {} | upsert gemini_model_to_use $last_gemini_model) }
+
 
 #single call to google ai LLM api wrapper and chat mode
 #
 #Available models at https://ai.google.dev/models:
-# - gemini-3.6-flash: Latest GA (July 2026), optimized for complex multi-step workflows, coding, agentic tasks (FREE TIER)
-# - gemini-3.5-flash: Optimized for speed, agentic workflows, and coding (GA May 2026) (FREE TIER)
+# - gemini-3.7-flash: Latest GA (Aug 2026), most intelligent Flash for coding/agents, tunable thinking (FREE TIER)
+# - gemini-3.6-flash: Complex multi-step workflows, coding, agentic tasks (GA July 2026) (FREE TIER)
+# - gemini-3.5-flash: Sustained frontier performance, agentic/coding at scale (GA May 2026) (FREE TIER)
 # - gemini-3.5-flash-lite: Cost-efficient model for high-volume tasks (GA July 2026) (FREE TIER)
 # - gemini-3.1-pro: High-capability, complex reasoning, agentic coding, 1M context (PAID ONLY)
-# - gemini-3.1-flash-lite: Fast, cost-efficient model for high-volume tasks (FREE TIER)
-# - gemini-2.5-flash: Legacy proven fallback for speed/cost (FREE TIER)
-# - gemini-2.5-flash-lite: Legacy lightweight model (FREE TIER)
-# - gemini-pro-vision: Placeholder for image input, uses gemini-3.6-flash
+# - gemini-3.1-flash-lite: Fast, cost-efficient model for high-volume tasks, long-term stable (FREE TIER)
+# - gemini-pro-vision: Placeholder for image input, uses gemini-3.7-flash
 # - text-embedding-004: Text embedding model
 # - aqa: Retrieval
+#
+# IMPORTANT: For Gemini 3.x models, use --thinking_level (minimal|low|medium|high) instead of --temp/--top_p/--top_k
+# Deprecated parameters (temperature, top_p, top_k, thinking_budget) are ignored and will return HTTP 400 in future versions.
 #
 #system messages are available in:
 #   [$env.MY_ENV_VARS.llms_configs system] | path join
@@ -45,6 +57,72 @@ const gemini_models = [
 #
 #You must use the flag --safety_settings and provide a table with two columns:
 # - category and threshold
+# Helper functions for Google Interactions API background execution and history
+
+# Get the shared Google Interactions history file path
+def get-interactions-history-file [] {
+    let yandex_dir = ("~/Yandex.Disk" | path expand)
+    if ($yandex_dir | path exists) {
+        $yandex_dir | path join ".gemini-interactions-history.json"
+    } else {
+        "~/.gemini-interactions-history.json" | path expand
+    }
+}
+
+# Load interactions history
+def load-interactions-history [] {
+    let file = (get-interactions-history-file)
+    if ($file | path exists) {
+        try { open $file } catch { [] }
+    } else {
+        []
+    }
+}
+
+# Save interactions history
+def save-interactions-history [history: list] {
+    let file = (get-interactions-history-file)
+    try {
+        $history | save -f $file
+    } catch { |e|
+        print (echo-y $"Warning: Could not save interactions history to ($file): ($e.msg)")
+    }
+}
+
+# Record a new interaction in history
+def record-interaction [entry: record] {
+    mut history = (load-interactions-history)
+    let exists = ($history | where id == $entry.id | is-not-empty)
+    if $exists {
+        $history = ($history | each { |it| if $it.id == $entry.id { $it | merge $entry } else { $it } })
+    } else {
+        $history = ($history | append $entry)
+    }
+    save-interactions-history $history
+}
+
+# Update an interaction's status in history
+def update-interaction-status [id: string, status: string] {
+    mut history = (load-interactions-history)
+    $history = ($history | each { |it| if $it.id == $id { $it | upsert status $status | upsert updated_at (date as iso-8601-utc) } else { $it } })
+    save-interactions-history $history
+}
+
+# Extract text output from an Interaction response
+def extract-interaction-text [response: any] {
+    mut report = ""
+    if ($response | get -o outputs | is-not-empty) {
+        $report = ($response.outputs | where type == "text" | each {|o| $o.text} | str join "\n\n")
+    } else if ($response | get -o steps | is-not-empty) {
+        $report = ($response.steps 
+            | where type == "model_output" 
+            | each {|s| $s.content | where type == "text" | each {|c| $c.text} } 
+            | flatten 
+            | str join "\n\n")
+    }
+    return $report
+}
+
 #
 #Note that:
 # - --select_system > --list_system > --system
@@ -53,9 +131,10 @@ const gemini_models = [
 @search-terms gemini
 export def google_ai [
     query?: string                          # the query to Gemini
-    --model(-m):string@$gemini_models = "gemini-3.6-flash" # the model gemini-3.6-flash, gemini-3.5-flash, etc
+    --model(-m):string@$gemini_models = "gemini-3.7-flash" # the model gemini-3.7-flash, gemini-3.6-flash, etc
     --system(-s):string = "You are a helpful assistant." # system message
-    --temp(-t): float = 0.9             # the temperature of the model
+    --temp(-t): float = 0.9             # the temperature of the model (deprecated for Gemini 3.x)
+    --thinking_level(-e): string@$thinking_levels = "medium" # thinking effort level (minimal, low, medium, high)
     --image(-i):any                     # filepath of image file (or list of files) for gemini-pro-vision
     --list_system(-l) = false           # select system message from list
     --pre_prompt(-p) = false            # select pre-prompt from list
@@ -72,6 +151,7 @@ export def google_ai [
     --verbose(-v) = false     #show the attempts to call the gemini api
     --document:string         #uses provided document to retrieve the answer
     --paid(-P) = false	  	  #use the billing api for greater limits
+    --background(-b) = false  #execute the prompt in the background (asynchronous Interaction)
 ] {
   let query = get-input $in $query
 
@@ -95,23 +175,49 @@ export def google_ai [
     }
 
   let max_output_tokens = match $model {
+    $m if ($m =~ "gemini-3.7") => 64000
     $m if ($m =~ "gemini-3.6") => 64000
     $m if ($m =~ "gemini-3.5") => 64000
     $m if ($m =~ "gemini-3.1") => 64000
     $m if ($m =~ "gemini-3") => 64000
     $m if ($m =~ "gemini-2.5") => 64000
+    $m if ($m =~ "gemini-pro-vision") => 64000
     _ => 8192
   }
 
   let input_model = $model
   let model = match $model {
     "gemini-pro-vision" => $gemini_pro_vision
+    "gemini-3.7" => "gemini-3.7-flash"
     "gemini-3.6" => "gemini-3.6-flash"
     "gemini-3.5" => "gemini-3.5-flash"
     "gemini-3.1" => "gemini-3.1-pro"
-    "gemini-2.5" => "gemini-2.5-flash"
     "gemini-3.0" | "gemini-3" => $last_gemini_model
     _ => $model
+  }  
+
+  if ($temp != 0.9) and ($model =~ "gemini-3") {
+    print (echo-y "Warning: --temp is deprecated for Gemini 3.x models and will be ignored. Use --thinking_level instead.")
+  }
+
+  let thinking_level_val = if ($model =~ "gemini-3") {
+    $thinking_level
+  } else {
+    ""
+  }
+
+  let gen_config = if ($model =~ "gemini-3") {
+    let base = { max_output_tokens: $max_output_tokens }
+    if ($thinking_level_val | is-not-empty) {
+      $base | insert thinking_level $thinking_level_val
+    } else {
+      $base
+    }
+  } else {
+    {
+      temperature: $temp,
+      max_output_tokens: $max_output_tokens
+    }
   }  
 
   let url_request = {
@@ -216,7 +322,7 @@ export def google_ai [
         model: ("models/" + $model),
         system_instruction: $system,
         input: (do $to_steps $contents),
-        generation_config: { temperature: $temp }
+        generation_config: $gen_config
     }
 
     let answer_resp = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $chat_request
@@ -237,7 +343,7 @@ export def google_ai [
     while not ($chat_prompt | is-empty) {
       let search_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriate for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $chat_prompt + "\n'''"
 
-      let search = if $web_search {google_ai $search_prompt -t 0.2 | lines | first} else {""}
+      let search = if $web_search {google_ai $search_prompt -e low | lines | first} else {""}
       let web_content = if $web_search { 
           try {
               web_search $search -n $web_results -m -v -e $web_engine 
@@ -330,7 +436,7 @@ export def google_ai [
   #search prompts
   let web_content = if $web_search {
     let search_prompt = "From the next question delimited by triple single quotes ('''), please generate a JSON list of search queries that would be useful to gather all necessary information to answer it completely. Ensure that the queries are not redundant, each query searches for different information, and the list is minimal (a single query is allowed and preferred if sufficient). Deliver your response in a raw JSON array of strings, without markdown formatting or code blocks. If no search is needed, return an empty array []. The question:\n'''" + $prompt + "\n'''"
-    let search_json = try { google_ai $search_prompt -t 0.2 } catch { "[]" }
+    let search_json = try { google_ai $search_prompt -e low } catch { "[]" }
     
     let queries = try {
       $search_json 
@@ -340,7 +446,7 @@ export def google_ai [
     } catch {
       # Fallback: single query extraction
       let fallback_prompt = "From the next question delimited by triple single quotes ('''), please extract one sentence appropriated for a google search. Deliver your response in plain text without any formatting nor commentary on your part, and in the ORIGINAL language of the question. The question:\n'''" + $prompt + "\n'''"
-      let fallback_search = try { google_ai $fallback_prompt -t 0.2 | lines | first } catch { "" }
+      let fallback_search = try { google_ai $fallback_prompt -e low | lines | first } catch { "" }
       if ($fallback_search | is-empty) { [] } else { [$fallback_search] }
     }
 
@@ -367,9 +473,41 @@ export def google_ai [
         content: ([{ type: "text", text: $prompt }] ++ $image_parts)
       }
     ],
-    generation_config: {
-        temperature: $temp,
-        max_output_tokens: $max_output_tokens
+    generation_config: $gen_config
+  }
+
+  if $background {
+    let bg_request = ($request | merge { background: true, store: true })
+    if $verbose { print (echo-g $"Starting background interaction with model ($model)...") }
+    let response = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $bg_request -e
+
+    if ($response | get error? | is-not-empty) {
+      return-error $response.error.message
+    }
+
+    let entry = {
+      id: $response.id,
+      prompt: ($query | default "" | str substring 0..200),
+      agent: $model,
+      model: $model,
+      type: "model",
+      created_at: (date as iso-8601-utc),
+      status: ($response | get status? | default "in_progress"),
+      paid: $paid
+    }
+    record-interaction $entry
+
+    print (echo-g $"Background interaction started. ID: ($response.id)")
+    print (echo-c "  Check status:   " "yellow") (echo-c $"ai google-interaction status ($response.id)" "green")
+    print (echo-c "  Retrieve output: " "yellow") (echo-c $"ai google-interaction retrieve ($response.id)" "green")
+    print (echo-c "  Watch progress:  " "yellow") (echo-c $"ai google-interaction watch ($response.id)" "green")
+
+    return {
+      id: $response.id,
+      status: ($response | get status? | default "in_progress"),
+      model: $model,
+      created_at: $entry.created_at,
+      prompt: ($query | default "")
     }
   }
 
@@ -386,6 +524,12 @@ export def google_ai [
   while (not $no_retry_models) and (($answer | is-empty) or ($answer == null) or ($answer | get error? | is-not-empty) or ($answer | describe) == nothing) and ($index_model < $n_models) {
     let next_model = $models | get $index_model
     $request.model = ("models/" + $next_model)
+    if ($next_model =~ "gemini-3") {
+      let base = { max_output_tokens: $max_output_tokens }
+      $request.generation_config = (if ($thinking_level_val | is-not-empty) { $base | insert thinking_level $thinking_level_val } else { $base })
+    } else {
+      $request.generation_config = { temperature: $temp, max_output_tokens: $max_output_tokens }
+    }
 
     $answer = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $request -e
     $index_model += 1
@@ -512,14 +656,6 @@ export def google_aimage [
   if ($task like "edit") and ($model like "imagen") {
     return-error "Editing mode not available form Imagen model!"
   }
-
-  let safetySettings = [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_CIVIC_INTEGRITY", threshold: "BLOCK_NONE" }
-      ]
 
   let gen = if ($model like "imagen") {":predict"} else {":generateContent"}
 
@@ -659,7 +795,7 @@ export def "ai google_search-summary" [
         chat_gpt $complete_prompt --select_system html2text_summarizer -m gpt-4.1
       },
       "gemini" => {
-        google_ai $complete_prompt --select_system html2text_summarizer -m gemini-2.5-flash -P $paid
+        google_ai $complete_prompt --select_system html2text_summarizer -m gemini-3.5-flash -P $paid
       }
     }
     
@@ -684,7 +820,7 @@ export def "ai google_search-summary" [
         chat_gpt $complete_prompt --select_system html2text_summarizer -m gpt-4.1
       },
       "gemini" => {
-        google_ai $complete_prompt --select_system html2text_summarizer -m gemini-2.5-flash -P $paid
+        google_ai $complete_prompt --select_system html2text_summarizer -m gemini-3.5-flash -P $paid
       }
     }
 
@@ -709,6 +845,309 @@ export def "ai google_search-summary" [
   } else {
     return $updated_content
   }
+}
+
+# =========================================================
+# Google Interactions API Suite (ai google-interaction)
+# =========================================================
+
+# List background interactions tracked in history
+@category ai
+@search-terms gemini interaction background list
+export def "ai google-interaction list" [
+    --all(-a)                               # refresh live status of in-progress jobs from API
+    --paid(-P)                              # use paid API key for refresh
+] {
+    mut history = (load-interactions-history)
+    if ($history | is-empty) {
+        print (echo-y "No background interactions found in history.")
+        return []
+    }
+
+    if $all {
+        print (echo-g "Refreshing live status for active interactions...")
+        let apikey = if $paid { get-api-key "google.gemini_paid" } else { get-api-key "google.gemini" }
+        $history = ($history | each { |item|
+            if ($item.status == "in_progress" or $item.status == "requires_action") {
+                let url_request = {
+                    scheme: "https",
+                    host: "generativelanguage.googleapis.com",
+                    path: ("/v1beta/interactions/" + $item.id),
+                    params: { key: $apikey }
+                } | url join
+
+                let response = (try {
+                    http get -H ["Api-Revision", "2026-05-20"] $url_request -e
+                } catch { null })
+
+                if ($response != null) and ($response | get status? | is-not-empty) {
+                    $item | upsert status $response.status | upsert updated_at (date as iso-8601-utc)
+                } else {
+                    $item
+                }
+            } else {
+                $item
+            }
+        })
+        save-interactions-history $history
+    }
+
+    return ($history 
+        | sort-by created_at -r 
+        | select id created_at (if ($history | columns | any {|c| $c == "type"}) { "type" } else { "model" }) model status prompt
+        | rename -c { prompt: "prompt_preview" }
+        | each { |row| $row | upsert prompt_preview ($row.prompt_preview | default "" | str substring 0..60) }
+    )
+}
+
+# Check the live status of a Google Interaction
+@category ai
+@search-terms gemini interaction background status
+export def "ai google-interaction status" [
+    id?: string                             # interaction ID (interactive list if omitted)
+    --paid(-P)                              # use paid API key
+] {
+    let interaction_id = if ($id | is-not-empty) {
+        $id
+    } else {
+        let history = (load-interactions-history)
+        if ($history | is-empty) {
+            return-error "No interaction ID provided and no history found!"
+        }
+        let selection = ($history 
+            | sort-by created_at -r 
+            | each {|row| { display: $"($row.created_at) [($row.status)] ($row.model): ($row.prompt | default '' | str substring 0..50)...", id: $row.id } }
+            | input list -d display "Select an interaction to check status:")
+        if ($selection | is-empty) { return }
+        $selection.id
+    }
+
+    let apikey = if $paid { get-api-key "google.gemini_paid" } else { get-api-key "google.gemini" }
+    let url_request = {
+        scheme: "https",
+        host: "generativelanguage.googleapis.com",
+        path: ("/v1beta/interactions/" + $interaction_id),
+        params: { key: $apikey }
+    } | url join
+
+    let response = http get -H ["Api-Revision", "2026-05-20"] $url_request -e
+    if ($response | get error? | is-not-empty) {
+        return-error $response.error.message
+    }
+
+    if ($response | get status? | is-not-empty) {
+        update-interaction-status $interaction_id $response.status
+    }
+
+    return $response
+}
+
+# Retrieve the output of a completed Google Interaction
+@category ai
+@search-terms gemini interaction background retrieve
+export def "ai google-interaction retrieve" [
+    id?: string                             # interaction ID (interactive list if omitted)
+    --output(-o): string                    # output filename to save response
+    --copy(-c)                              # copy output text to system clipboard
+    --json                                  # return full raw JSON response
+    --paid(-P)                              # use paid API key
+] {
+    let interaction_id = if ($id | is-not-empty) {
+        $id
+    } else {
+        let history = (load-interactions-history)
+        if ($history | is-empty) {
+            return-error "No interaction ID provided and no history found!"
+        }
+        let selection = ($history 
+            | sort-by created_at -r 
+            | each {|row| { display: $"($row.created_at) [($row.status)] ($row.model): ($row.prompt | default '' | str substring 0..50)...", id: $row.id } }
+            | input list -d display "Select an interaction to retrieve:")
+        if ($selection | is-empty) { return }
+        $selection.id
+    }
+
+    let response = (if $paid { ai google-interaction status $interaction_id -P } else { ai google-interaction status $interaction_id })
+
+    if ($json) {
+        return $response
+    }
+
+    if ($response.status != "completed") {
+        print (echo-y $"Interaction ($interaction_id) is currently '($response.status)'.")
+        return $response
+    }
+
+    let report = (extract-interaction-text $response)
+    if ($report | is-empty) {
+        print (echo-r "Warning: Could not find extracted text in the interaction response.")
+        return $response
+    }
+
+    if ($copy) {
+        try {
+            $report | wl-copy
+            print (echo-g "Output copied to clipboard via wl-copy.")
+        } catch {
+            try {
+                $report | xclip -selection clipboard
+                print (echo-g "Output copied to clipboard via xclip.")
+            } catch {
+                print (echo-y "Warning: Could not copy to clipboard (neither wl-copy nor xclip available).")
+            }
+        }
+    }
+
+    if ($output | is-not-empty) {
+        $report | save -f $output
+        print (echo-g $"Interaction output saved to ($output)")
+    }
+
+    return $report
+}
+
+# Cancel a running Google Interaction
+@category ai
+@search-terms gemini interaction background cancel
+export def "ai google-interaction cancel" [
+    id?: string                             # interaction ID (interactive list if omitted)
+    --paid(-P)                              # use paid API key
+] {
+    let interaction_id = if ($id | is-not-empty) {
+        $id
+    } else {
+        let history = (load-interactions-history)
+        if ($history | is-empty) {
+            return-error "No interaction ID provided and no history found!"
+        }
+        let selection = ($history 
+            | where status == "in_progress" or status == "requires_action"
+            | sort-by created_at -r 
+            | each {|row| { display: $"($row.created_at) [($row.status)] ($row.model): ($row.prompt | default '' | str substring 0..50)...", id: $row.id } }
+            | input list -d display "Select an active interaction to cancel:")
+        if ($selection | is-empty) { return }
+        $selection.id
+    }
+
+    let apikey = if $paid { get-api-key "google.gemini_paid" } else { get-api-key "google.gemini" }
+    let url_request = {
+        scheme: "https",
+        host: "generativelanguage.googleapis.com",
+        path: $"/v1beta/interactions/($interaction_id)/cancel",
+        params: { key: $apikey }
+    } | url join
+
+    let response = http post -H ["Api-Revision", "2026-05-20"] $url_request {} -e
+    if ($response | get error? | is-not-empty) {
+        return-error $response.error.message
+    }
+
+    update-interaction-status $interaction_id "cancelled"
+    print (echo-g $"Interaction ($interaction_id) successfully cancelled.")
+    return $response
+}
+
+# Delete an interaction from the server and local history
+@category ai
+@search-terms gemini interaction background delete
+export def "ai google-interaction delete" [
+    id?: string                             # interaction ID (interactive list if omitted)
+    --paid(-P)                              # use paid API key
+] {
+    let interaction_id = if ($id | is-not-empty) {
+        $id
+    } else {
+        let history = (load-interactions-history)
+        if ($history | is-empty) {
+            return-error "No interaction ID provided and no history found!"
+        }
+        let selection = ($history 
+            | sort-by created_at -r 
+            | each {|row| { display: $"($row.created_at) [($row.status)] ($row.model): ($row.prompt | default '' | str substring 0..50)...", id: $row.id } }
+            | input list -d display "Select an interaction to delete:")
+        if ($selection | is-empty) { return }
+        $selection.id
+    }
+
+    let apikey = if $paid { get-api-key "google.gemini_paid" } else { get-api-key "google.gemini" }
+    let url_request = {
+        scheme: "https",
+        host: "generativelanguage.googleapis.com",
+        path: $"/v1beta/interactions/($interaction_id)",
+        params: { key: $apikey }
+    } | url join
+
+    let response = http delete -H ["Api-Revision", "2026-05-20"] $url_request -e
+    if ($response | get error? | is-not-empty) {
+        return-error $response.error.message
+    }
+
+    mut history = (load-interactions-history)
+    $history = ($history | where id != $interaction_id)
+    save-interactions-history $history
+
+    print (echo-g $"Interaction ($interaction_id) deleted.")
+    return $response
+}
+
+# Watch a background interaction until completion with optional Discord alert
+@category ai
+@search-terms gemini interaction background watch
+export def "ai google-interaction watch" [
+    id?: string                             # interaction ID (interactive list if omitted)
+    --interval(-i): int = 5                 # polling interval in seconds
+    --discord(-D)                           # send Discord alert when interaction finishes
+    --paid(-P)                              # use paid API key
+] {
+    let interaction_id = if ($id | is-not-empty) {
+        $id
+    } else {
+        let history = (load-interactions-history)
+        if ($history | is-empty) {
+            return-error "No interaction ID provided and no history found!"
+        }
+        let selection = ($history 
+            | where status == "in_progress" or status == "requires_action"
+            | sort-by created_at -r 
+            | each {|row| { display: $"($row.created_at) [($row.status)] ($row.model): ($row.prompt | default '' | str substring 0..50)...", id: $row.id } }
+            | input list -d display "Select an active interaction to watch:")
+        if ($selection | is-empty) { return }
+        $selection.id
+    }
+
+    print (echo-g $"Watching interaction ($interaction_id)... (Polling every ($interval)s)")
+    mut current_status = "in_progress"
+    mut response: any = null
+
+    loop {
+        $response = (if $paid { ai google-interaction status $interaction_id -P } else { ai google-interaction status $interaction_id })
+        $current_status = ($response | get status? | default "unknown")
+        
+        print (echo-c $"[ (date now | format date '%H:%M:%S') ] Status: " "yellow") (echo-c $"($current_status)" "green")
+
+        if ($current_status != "in_progress" and $current_status != "requires_action") {
+            break
+        }
+        sleep ($interval * 1sec)
+    }
+
+    if $discord {
+        let msg = $"🤖 **Gemini Interaction Finished**\n\n**ID:** `($interaction_id)`\n**Status:** `($current_status)`\n\nRetrieve with: `ai google-interaction retrieve ($interaction_id)`"
+        try {
+            to-discord $msg -p
+            print (echo-g "Discord notification sent.")
+        } catch { |e|
+            print (echo-y $"Warning: Could not send Discord alert: ($e.msg)")
+        }
+    }
+
+    if ($current_status == "completed") {
+        print (echo-g $"Interaction completed! Retrieving output...")
+        return (ai google-interaction retrieve $interaction_id)
+    } else {
+        print (echo-r $"Interaction finished with status: ($current_status)")
+        return $response
+    }
 }
 
 # Start a Gemini Deep Research session
@@ -780,10 +1219,16 @@ export def "ai deep-research start" [
         id: $response.id,
         prompt: $prompt,
         agent: $agent,
-        created_at: (date now | format date "%Y-%m-%dT%H:%M:%SZ"),
+        model: $agent,
+        type: "deep-research",
+        created_at: (date as iso-8601-utc),
         status: "in_progress",
-        planning: $planning
+        planning: $planning,
+        paid: $paid
     }
+
+    # Record in unified interaction history
+    record-interaction $history_entry
 
     mut history = if ($history_file | path exists) { open $history_file } else { [] }
     $history = ($history | append $history_entry)
@@ -896,19 +1341,8 @@ export def "ai deep-research retrieve" [
         return $response
     }
 
-    # Robustly extract report text from response
-    mut report = ""
-    if ($response | get -o outputs | is-not-empty) {
-        # Handle 'outputs' field (used by some SDKs/Extensions)
-        $report = ($response.outputs | where type == "text" | each {|o| $o.text} | str join "\n\n")
-    } else if ($response | get -o steps | is-not-empty) {
-        # Handle 'steps' field (standard Interactions API structure)
-        $report = ($response.steps 
-            | where type == "model_output" 
-            | each {|s| $s.content | where type == "text" | each {|c| $c.text} } 
-            | flatten 
-            | str join "\n\n")
-    }
+    # Extract report text using shared helper
+    let report = (extract-interaction-text $response)
 
     if ($report | is-empty) {
         print (echo-r "Error: Could not find report content in the interaction response.")
@@ -1034,7 +1468,7 @@ export def "ai deep-research plan-respond" [
             id: $response.id,
             prompt: $job.prompt,
             agent: $job.agent,
-            created_at: (date now | format date "%Y-%m-%dT%H:%M:%SZ"),
+            created_at: (date as iso-8601-utc),
             status: "in_progress",
             planning: false
         }

@@ -470,7 +470,7 @@ export def "h add" [
       let task_date = _h-input $due "Enter due date (YYYY-MM-DD, optional): "
       if ($task_date | is-not-empty) {
         # Convert to ISO 8601 format
-        let iso_date = $task_date | into datetime | format date "%Y-%m-%dT%H:%M:%S.000Z"
+        let iso_date = ($task_date | into datetime | date as ecma-262)
         $payload = ($payload | upsert date $iso_date)
       }
 

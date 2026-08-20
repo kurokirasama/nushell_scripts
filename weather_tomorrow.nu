@@ -3,7 +3,7 @@
 # - Air polution condition using airvisual api (deprecated)
 # - Street address using google maps api
 # - Version 2.0
-export def --env weather [
+export def --env my-weather [
     --coordinates(-c):string    #lat,lng of location of interest
     --address(-a):string        #address of interest, it can be only city and country
     --home(-h)

@@ -175,6 +175,29 @@ export def "apps-update nushell-polars" [] {
     }
 }
 
+#update nu-datetime module (date_formats.nu)
+export def "apps-update datetime" [--force(-f)] {
+  let scripts_dir = $env.MY_ENV_VARS?.nu_scripts? | default "/home/kira/Yandex.Disk/my_scripts/nushell"
+  let target_file = $scripts_dir | path join "date_formats.nu"
+  let url = "https://raw.githubusercontent.com/fdncred/nu-datetime/main/date-formats.nu"
+  print (echo-g "Checking latest date_formats.nu from nu-datetime repository...")
+  try {
+    let content = http get $url
+    if ($target_file | path exists) and (not $force) {
+      let local_content = open --raw $target_file
+      if $local_content == $content {
+        print (echo-g "date_formats.nu is already in its latest version!")
+        return
+      }
+    }
+    $content | save -f $target_file
+    print (echo-g $"✓ Successfully updated ($target_file)")
+  } catch {|err|
+    return-error $"Failed to download date_formats.nu: ($err.msg)"
+  }
+}
+
+
 #update nu config (after nushell update)
 export def update-nu-config [] {
   #config
@@ -322,6 +345,11 @@ export def apps-update [] {
     apps-update rtk
   } catch {
     print (echo-r "RTK update failed!")
+  }
+  try {
+    apps-update datetime
+  } catch {
+    print (echo-r "Datetime update failed!")
   }
   # try {
   #   apps-update nmap
@@ -1421,6 +1449,17 @@ export def "apps-update termframe" [] {
 #update gowall
 export def "apps-update gowall" [] {
     go install github.com/Achno/gowall@latest
+}
+
+#update linecast
+export def "apps-update linecast" [] {
+  if (which uv | is-not-empty) {
+    uv tool upgrade linecast
+  } else if (which pipx | is-not-empty) {
+    pipx upgrade linecast
+  } else {
+    pip install -U linecast
+  }
 }
 
 #update windows zed

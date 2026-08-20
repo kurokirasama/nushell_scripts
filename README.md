@@ -39,13 +39,50 @@ The AI tools are a collection of scripts that provide a comprehensive suite of t
 *   `ai_claude.nu`: Interact with Anthropic's Claude models.
 *   `ai_deepl.nu`: Translate text using the DeepL API.
 *   `ai_elevenlabs.nu`: Generate speech from text using ElevenLabs API.
-*   `ai_google.nu`: Interact with Google's Gemini and Imagen models.
+*   `ai_google.nu`: Interact with Google's Gemini and Imagen models. Includes native support for **Interactions API Background Execution** and **Gemini Deep Research**.
 *   `ai_ollama.nu`: Interact with local Ollama models.
 *   `ai_openai.nu`: Interact with OpenAI's ChatGPT and DALL-E models.
 *   `ai_stablediffusion.nu`: Generate images using Stable Diffusion models.
-*   `ai_tools.nu`: A collection of general AI-related tools and wrappers that provide a unified interface to the other AI scripts.
+*   `ai_tools.nu`: A collection of general AI-related tools and wrappers (`askai`, `tts`, `ai media-summary`, `ai google-interaction`, etc.) that provide a unified interface to the other AI scripts.
 
-These scripts facilitate tasks such as transcription, summarization, image generation, and text-to-speech conversion, streamlining the integration of AI capabilities into users' workflows and enhancing productivity and automation within the Nushell environment.
+These scripts facilitate tasks such as transcription, summarization, image generation, text-to-speech conversion, and asynchronous background agent execution, streamlining the integration of AI capabilities into users' workflows and enhancing productivity and automation within the Nushell environment.
+
+#### Gemini Background Execution & Interaction Suite
+Google's Interactions API (`/v1beta/interactions`) allows long-running AI queries to execute asynchronously on Google's servers. This prevents standard 60-second HTTP timeouts and enables non-blocking terminal workflows for heavy tasks (such as deep reasoning with `gemini-3.7-flash` / `gemini-3.1-pro`, or analyzing large multi-thousand line documents).
+
+##### When to Use Background Execution
+1. **High-Effort Reasoning**: Tasks requiring several minutes of reasoning tokens (e.g. `--thinking_level high`).
+2. **Large Document Audits**: Analyzing full codebases or PDF books via `--document`.
+3. **Non-Blocking Shell Workflows**: Submitting background prompts and regaining instant terminal control.
+4. **Automated Discord Alerts**: Watching long jobs and receiving push notifications via `to-discord` upon completion.
+
+##### Usage Examples
+
+```nu
+# 1. Start a background reasoning task with Gemini 3.7
+google_ai "Provide a comprehensive formal proof and edge-case analysis for an asynchronous consensus protocol with dynamic validator sets" --thinking_level high -m gemini-3.7-flash -b
+
+# 2. Large document analysis in the background via askai
+askai -G --document "large_codebase_dump.txt" "Perform a thorough architectural debt audit and categorize all security anti-patterns" -b
+
+# 3. List tracked background interactions (with live status refresh)
+ai google-interaction list -a
+
+# 4. Check status of an interaction (interactive fuzzy picker if ID omitted)
+ai google-interaction status "int_67b61f8a4e9c1234"
+
+# 5. Retrieve output and save to file or clipboard
+ai google-interaction retrieve "int_67b61f8a4e9c1234" -o "consensus_proof.md" -c
+
+# 6. Watch progress until completion and send a Discord notification
+let job = (google_ai "Generate a complete 10-part production tutorial on Nushell automation" -b)
+ai google-interaction watch $job.id -D
+
+# 7. Cancel or delete an interaction
+ai google-interaction cancel "int_67b61f8a4e9c1234"
+ai google-interaction delete "int_67b61f8a4e9c1234"
+```
+
 
 ### alias_def
 These custom functions for Nushell provide a variety of utilities for streamlining tasks on a Unix-like system. These functions allow users to analyze code statistics, manage keybindings, navigate to the nu configuration directory, monitor core temperatures, check battery stats, view listening ports, connect to a Bluetooth headset, gather RAM usage data, interface with YouTube through a command-line client, and perform ADB operations for Android devices. Each function is designed to execute a specific task, such as retrieving system information, manipulating environmental settings, or integrating with external applications and devices, all from within the Nushell environment.
@@ -165,8 +202,8 @@ These custom functions offer enhanced directory navigation capabilities. They al
 | `ansi-strip-table` | ansi strip table |
 | `apagar` | No description provided. |
 | `apps-update` | update off-package manager apps |
-| `askai` | No description provided. |
-| `askaimage` | No description provided. |
+| `askai` | Unified fast call wrapper for Gemini, ChatGPT, Claude, and Ollama models (supports --background, system messages, web search) |
+| `askaimage` | Fast call wrapper for DALL-E, Stable Diffusion, and Google image generation models |
 | `askpdf` | No description provided. |
 | `autolister` | create media database for downloads and all mounted disks |
 | `autouse-file` | generate autouse file |
@@ -247,8 +284,8 @@ These custom functions offer enhanced directory navigation capabilities. They al
 | `gg-trans` | No description provided. |
 | `github-app-update` | update github app release if file doesnt have an extension, use the pattern flag |
 | `gnu-plot` | plot data table using gnuplot  Example: If $x is a table with 2 columns $x \| gnu-plot ($x \| column 0) \| gnu-plot ($x \| column 1) \| gnu-plot ($x \| column 0) \| gnu-plot --title "My Title" gnu-plot $x --title "My Title" |
-| `google_ai` | No description provided. |
-| `google_aimage` | No description provided. |
+| `google_ai` | CLI wrapper for Google Gemini models with chat mode, thinking levels, document analysis, and asynchronous background execution (-b) |
+| `google_aimage` | CLI wrapper for Google Imagen and Gemini image generation |
 | `google_search` | No description provided. |
 | `grep-nu` | grep for nu  Examples; grep-nu search file.txt ls **/* \| some_filter \| grep-nu search open file.txt \| grep-nu search |
 | `group-list` | group list Example: [1 1 2 2 3 4] \| group list {$in mod 2 == 0} |
