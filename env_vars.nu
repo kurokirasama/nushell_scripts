@@ -66,7 +66,6 @@ $env.MY_ENV_VARS = $env.MY_ENV_VARS
   | upsert llms_configs ($base_yandex | path join "llms_configs")
   | upsert chatgpt ($base_yandex | path join "ChatGpt")
   | upsert datasets ($base_yandex | path join "Downloads" "datasets")
-  # | upsert private_linux_backup_repo "git@gitlab.com:kurokirasama/ubuntu_semiautomatic_install.git" # Deprecated
   | upsert yandex_disk_repo "git@example.com:username/repo.git"
   | upsert tasker_server.devices.main.name "DEVICE_MAIN_ID"
   | upsert tasker_server.devices.main.file ($base_yandex | path join "devices" "main.json")
