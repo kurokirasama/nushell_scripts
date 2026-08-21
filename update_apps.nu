@@ -59,16 +59,16 @@ export def "apps-update nushell" [
   let nu_dir = ($env.MY_ENV_VARS.nushell_dir? | default "~/software/nushell" | path expand)
   
   if ($nu_dir | path exists) {
-    print (echo-g "==> Step 1/4: Pulling latest upstream Nushell repo & default configs...")
+    try { rich rule "Step 1/4: Pulling Upstream Nushell & Configs" --style "bold cyan" } catch { print (echo-g "==> Step 1/4: Pulling latest upstream Nushell repo & default configs...") }
     try {
       cd $nu_dir
       ^git pull
     } catch {|err|
-      print (echo-y $"Warning: git pull on nushell repo failed: ($err.msg)")
+      try { rich print $"[yellow]Warning:[/] git pull on nushell repo failed: ($err.msg)" } catch { print (echo-y $"Warning: git pull on nushell repo failed: ($err.msg)") }
     }
   }
 
-  print (echo-g "\n==> Step 2/4: Updating nushell binary...")
+  try { rich rule "Step 2/4: Updating Nushell Binary" --style "bold cyan" } catch { print (echo-g "\n==> Step 2/4: Updating nushell binary...") }
   if $repo {
     cd $nu_dir
     bash scripts/install-all-mcp.sh
@@ -82,7 +82,7 @@ export def "apps-update nushell" [
   }
 
   if not $no_plugins {
-    print (echo-g "\n==> Step 3/4: Updating and registering official plugins...")
+    try { rich rule "Step 3/4: Updating Official Plugins" --style "bold cyan" } catch { print (echo-g "\n==> Step 3/4: Updating and registering official plugins...") }
     try {
       if $force {
         if $server {
@@ -98,10 +98,10 @@ export def "apps-update nushell" [
         }
       }
     } catch {|err|
-      print (echo-r $"Failed updating official plugins: ($err.msg)")
+      try { rich print $"[bold red]Failed updating official plugins:[/] ($err.msg)" } catch { print (echo-r $"Failed updating official plugins: ($err.msg)") }
     }
 
-    print (echo-g "\n==> Step 4/4: Updating and registering external plugins & modules...")
+    try { rich rule "Step 4/4: Updating External Plugins & Modules" --style "bold cyan" } catch { print (echo-g "\n==> Step 4/4: Updating and registering external plugins & modules...") }
     try {
       if $force {
         apps-update nushell-plugins-external --force
@@ -109,20 +109,25 @@ export def "apps-update nushell" [
         apps-update nushell-plugins-external
       }
     } catch {|err|
-      print (echo-r $"Failed updating external plugins: ($err.msg)")
+      try { rich print $"[bold red]Failed updating external plugins:[/] ($err.msg)" } catch { print (echo-r $"Failed updating external plugins: ($err.msg)") }
     }
   }
 
   if $repo and ($nu_dir | path exists) {
-    print (echo-g "\n==> Cleaning local repo cargo caches...")
+    try { rich print "[cyan]Cleaning local repo cargo caches...[/]" } catch { print (echo-g "\n==> Cleaning local repo cargo caches...") }
     try { cd $nu_dir; cargo clean }
   }
 
-  print (echo-g "\nUpdating config files...")
+  try { rich print "[cyan]Updating config files...[/]" } catch { print (echo-g "\nUpdating config files...") }
   try { update-nu-config } catch { }
 
-  print (echo-g "\n✓ Nushell, official plugins, and external modules have been updated and registered headlessly!")
-  print (echo-g "New terminal windows will immediately run the updated version with all plugins loaded.")
+  try {
+    "✓ Nushell binary, official plugins, and external modules updated and registered headlessly!\nNew terminal windows will immediately run the updated version with all plugins loaded."
+      | rich panel --title "Nushell Update Complete" --box rounded --border-style green
+  } catch {
+    print (echo-g "\n✓ Nushell, official plugins, and external modules have been updated and registered headlessly!")
+    print (echo-g "New terminal windows will immediately run the updated version with all plugins loaded.")
+  }
 }
 
 #update nushell default plugins
@@ -204,48 +209,89 @@ export def "apps-update nushell-plugins-external" [
         }
     ]
 
-    print (echo-g "==> Checking 3rd-party Nushell plugins & modules...")
+    try { rich rule "Checking 3rd-Party Nushell Plugins & Modules" --style "bold cyan" } catch { print (echo-g "==> Checking 3rd-party Nushell plugins & modules...") }
 
     for item in $items {
         let target_dir = if ($item.custom_path != null) { $item.custom_path } else { ($base_dir | path join $item.name) }
         mut needs_build = false
 
         if not ($target_dir | path exists) {
-            print (echo-g $"  Cloning ($item.name) from ($item.repo)...")
+            try { rich print $"  [cyan]Cloning[/] [bold]($item.name)[/] from [dim]($item.repo)[/]..." } catch { print (echo-g $"  Cloning ($item.name) from ($item.repo)...") }
             cd $base_dir
             let clone_res = do { ^git clone $item.repo $item.name } | complete
             if $clone_res.exit_code != 0 {
-                print (echo-r $"  ✗ Failed to clone ($item.name): ($clone_res.stderr)")
+                try { rich print $"  [bold red]✗ Failed to clone ($item.name):[/] ($clone_res.stderr)" } catch { print (echo-r $"  ✗ Failed to clone ($item.name): ($clone_res.stderr)") }
                 continue
             }
             $needs_build = true
         } else {
             cd $target_dir
-            try { ^git fetch origin } catch { }
+            do { ^git fetch origin } | complete | ignore
 
-            let local_commit = (try { ^git rev-parse HEAD } catch { "" }) | str trim
-            let remote_commit = (try { ^git rev-parse "@{u}" } catch {
-                try { ^git rev-parse "origin/main" } catch {
-                    try { ^git rev-parse "origin/master" } catch { "" }
-                }
-            }) | str trim
-
-            let bin_missing = if ($item.binary != null) {
-                let candidate = $"~/.cargo/bin/($item.binary)($ext)" | path expand
-                not ($candidate | path exists)
+            let local_commit = (do { ^git rev-parse HEAD } | complete).stdout | str trim
+            let upstream_res = (do { ^git rev-parse "@{u}" } | complete)
+            let has_upstream = ($upstream_res.exit_code == 0)
+            let remote_commit = if $has_upstream {
+                $upstream_res.stdout | str trim
             } else {
-                false
+                let main_res = (do { ^git rev-parse "origin/main" } | complete)
+                if $main_res.exit_code == 0 {
+                    $main_res.stdout | str trim
+                } else {
+                    (do { ^git rev-parse "origin/master" } | complete).stdout | str trim
+                }
             }
 
-            let is_up_to_date = ($local_commit == $remote_commit) and ($local_commit | str length) > 0 and (not $bin_missing)
+            let bin_path = if ($item.binary != null) { $"~/.cargo/bin/($item.binary)($ext)" | path expand } else { null }
+            let bin_missing = if ($bin_path != null) { not ($bin_path | path exists) } else { false }
+
+            let cargo_toml_path = ($target_dir | path join "Cargo.toml")
+            let repo_version = if ($cargo_toml_path | path exists) {
+                try { open $cargo_toml_path | get package.version } catch { "" }
+            } else {
+                ""
+            }
+
+            let plugin_short_name = if ($item.binary != null) { ($item.binary | str replace -r "^nu_plugin_" "") } else { "" }
+            let installed_version = try {
+                let from_list = (try { plugin list | where name == $plugin_short_name or name == $item.binary | get 0.version } catch { "" })
+                if ($from_list | is-not-empty) {
+                    $from_list
+                } else {
+                    version | get installed_plugins | split row ", " | parse "{name} {version}" | where name == $plugin_short_name or name == $item.binary | get 0.version
+                }
+            } catch {
+                ""
+            }
+
+            let is_up_to_date = if ($item.custom_path != null) {
+                # For local dev repo, compare Cargo.toml version against installed plugin version from `ver`
+                if ($repo_version | is-not-empty) and ($installed_version | is-not-empty) {
+                    ($repo_version == $installed_version) and (not $bin_missing)
+                } else {
+                    not $bin_missing
+                }
+            } else {
+                ($local_commit == $remote_commit) and ($local_commit | str length) > 0 and (not $bin_missing)
+            }
 
             if $is_up_to_date and (not $force) {
-                print (echo-g $"  ✓ ($item.name) is already up to date.")
+                let ver_suffix = if ($installed_version | is-not-empty) { " (v" + $installed_version + ")" } else { "" }
+                try { rich print $"  [bold green]✓[/] [bold]($item.name)[/]($ver_suffix) is already up to date." } catch { print (echo-g $"  ✓ ($item.name)($ver_suffix) is already up to date.") }
             } else {
-                print (echo-g $"  Updating ($item.name)...")
-                let pull_res = do { ^git pull } | complete
-                if $pull_res.exit_code != 0 {
-                    print (echo-y $"  Warning: git pull failed for ($item.name), proceeding with build attempt...")
+                if $has_upstream {
+                    try { rich print $"  [yellow]Updating[/] [bold]($item.name)[/]..." } catch { print (echo-g $"  Updating ($item.name)...") }
+                    let pull_res = do { ^git pull } | complete
+                    if $pull_res.exit_code != 0 {
+                        try { rich print $"  [yellow]Warning:[/] git pull failed for ($item.name), proceeding with build attempt..." } catch { print (echo-y $"  Warning: git pull failed for ($item.name), proceeding with build attempt...") }
+                    }
+                } else {
+                    let build_reason = if ($repo_version != $installed_version) and ($repo_version | is-not-empty) {
+                        $" [Cargo.toml v($repo_version) != installed v($installed_version)]"
+                    } else {
+                        ""
+                    }
+                    try { rich print $"  [yellow]Rebuilding[/] local development package [bold]($item.name)[/]($build_reason)..." } catch { print (echo-g $"  Rebuilding local development package ($item.name)($build_reason)...") }
                 }
                 $needs_build = true
             }
@@ -254,7 +300,7 @@ export def "apps-update nushell-plugins-external" [
         if $needs_build or $force {
             cd $target_dir
             if $item.type == "plugin" {
-                print (echo-g $"  Building ($item.name) with cargo...")
+                try { rich print $"  [cyan]Building[/] [bold]($item.name)[/] with cargo..." } catch { print (echo-g $"  Building ($item.name) with cargo...") }
                 let install_res = do {
                     if $force {
                         ^cargo install --path . --force
@@ -265,21 +311,26 @@ export def "apps-update nushell-plugins-external" [
 
                 if $install_res.exit_code == 0 {
                     register-nu-plugin $item.binary
-                    print (echo-g $"  Cleaning build artifacts for ($item.name)...")
+                    try { rich print $"  [dim]Cleaning build artifacts for ($item.name)...[/]" } catch { print (echo-g $"  Cleaning build artifacts for ($item.name)...") }
                     try { ^cargo clean } catch { }
                 } else {
-                    print (echo-r $"  ✗ Failed to cargo install ($item.name): ($install_res.stderr)")
+                    try { rich print $"  [bold red]✗ Failed to cargo install ($item.name):[/] ($install_res.stderr)" } catch { print (echo-r $"  ✗ Failed to cargo install ($item.name): ($install_res.stderr)") }
                 }
             } else if $item.type == "module" {
-                print (echo-g $"  ✓ Module ($item.name) is ready.")
+                try { rich print $"  [bold green]✓[/] Module [bold]($item.name)[/] is ready." } catch { print (echo-g $"  ✓ Module ($item.name) is ready.") }
             }
         }
     }
 
-    print (echo-g "Updating config file...")
+    try { rich print "[cyan]Updating config files...[/]" } catch { print (echo-g "Updating config file...") }
     try { update-nu-config } catch { }
 
-    print (echo-g "✓ 3rd-party nushell plugins and modules updated and verified successfully!")
+    try {
+      "✓ 3rd-party Nushell plugins and modules (nu_plugin_plot, nu_plugin_port_extension, nu_plugin_file, nu-rich) updated and registered headlessly!"
+        | rich panel --title "External Plugins Complete" --box rounded --border-style green
+    } catch {
+      print (echo-g "✓ 3rd-party nushell plugins and modules updated and verified successfully!")
+    }
 }
 
 #alias for apps-update nushell-plugins-external
@@ -329,41 +380,22 @@ export def "apps-update datetime" [--force(-f)] {
 export def update-nu-config [] {
   let nu_dir = ($env.MY_ENV_VARS.nushell_dir? | default "~/software/nushell" | path expand)
   
-  # Ensure repo is pulled so default_config/default_env are fresh
-  if ($nu_dir | path exists) {
-    try {
-      cd $nu_dir
-      ^git pull
-    } catch { }
-  }
+  # Direct paths to default sample configs in nushell source tree (instant, zero recursive disk scan)
+  let default_config = ($nu_dir | path join "crates" "nu-config" "default_files" "default_config.nu")
+  let default_env = ($nu_dir | path join "crates" "nu-config" "default_files" "default_env.nu")
 
-  # config.nu
-  let default_config = (try {
-    ls ($nu_dir + "/**/*" | into glob) 
-      | find -in default_config 
-      | get name 
-      | get 0?
-  } catch { null })
-  
-  if ($default_config != null) and ($default_config | path exists) {
+  if ($default_config | path exists) {
     cp -f $default_config $nu.config-path
   }
 
-  # env.nu
-  let default_env = (try {
-    ls ($nu_dir + "/**/*" | into glob) 
-      | find -in default_env 
-      | get name 
-      | get 0?
-  } catch { null })
-
-  if ($default_env != null) and ($default_env | path exists) {
+  if ($default_env | path exists) {
     cp -f $default_env $nu.env-path
   }
 
   # Generate bootstrap lines directly without external file dependency
   let is_windows = (sys host | get name | str lowercase) == "windows"
-  let nu_scripts = $env.MY_ENV_VARS.nu_scripts
+  let default_scripts_dir = if $is_windows { "C:\\Users\\kira\\YandexDisk\\my_scripts\\nushell" } else { "~/Yandex.Disk/my_scripts/nushell" | path expand }
+  let nu_scripts = ($env.MY_ENV_VARS.nu_scripts? | default $default_scripts_dir)
   let nu_lines = if $is_windows {
     [
       $"source '($nu_scripts | path join "all.nu")'"
@@ -381,8 +413,11 @@ export def update-nu-config [] {
 
   $"\n($nu_lines)\n" | save --append $nu.config-path
 
-  nu -c $"source-env ($nu.config-path)"
-  print (echo-g "✓ Nushell configuration successfully updated and reloaded.")
+  try {
+    rich print "  [bold green]✓[/] Nushell configuration updated successfully."
+  } catch {
+    print (echo-g "✓ Nushell configuration successfully updated.")
+  }
 }
 
 #patch font with nerd font

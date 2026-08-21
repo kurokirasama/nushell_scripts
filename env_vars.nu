@@ -95,17 +95,10 @@ let rich_dir = if $is_windows {
   ("~/software/nu-rich" | path expand)
 }
 
-let scripts_parent = if $is_windows {
-  r#'C:\Users\username\AppData\Roaming\nushell\linux'#
-} else {
-  ($base_yandex | path join "my_scripts")
-}
-
 $env.NU_LIB_DIRS = (
   $env.NU_LIB_DIRS?
   | default []
   | append $env.MY_ENV_VARS.nu_scripts
-  | append $scripts_parent
   | append $rich_dir
   | where { path exists }
   | uniq

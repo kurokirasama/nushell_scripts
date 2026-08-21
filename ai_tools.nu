@@ -59,18 +59,15 @@ export def "ai help" [] {
   # Calculate the maximum length of the command names for padding
   let max_name_length = $commands_description | get name | str length | math max
 
-  # Format the help text with padding and descriptions
-  let help_text = $commands_description
-    | each {|cmd|
-        # Pad the command name to align descriptions
-        let padded_name = $cmd.name | fill -w ($max_name_length + 2) -a left
-        # Format the line: "command_name    # description"
-        $"($padded_name)  # ($cmd.description)"
+  try { rich rule "AI Automation Toolkit" --style "bold cyan" } catch { print "AI Tools Help:\n" }
+  for cmd in $commands_description {
+      let padded_name = $cmd.name | fill -w ($max_name_length + 2) -a left
+      try {
+          rich print $"  [bold cyan]($padded_name)[/] [dim]#[/] ($cmd.description)"
+      } catch {
+          print $"  ($padded_name)  # ($cmd.description)"
       }
-    | prepend "AI Tools Help:\n" # Add a header
-
-  # Print the formatted help text with syntax highlighting
-  print ($help_text | str join "\n" | nu-highlight)
+  }
 }
 
 #calculate aprox words per tokens
@@ -1104,7 +1101,7 @@ export def "ai habitica" [
 
   if ($method in $data_commands) {
     let habitica_info = match $method {
-            "h stats" => { h stats | table -e | str join (char newline) },
+            "h stats" => { h stats -r | table -e | str join (char newline) },
             "h ls" => { h ls ($params.type? | default "dailys") | table -e | str join (char newline) },
             "h skills" => { h skills | table -e | str join (char newline) },
             "h party" => { h party | table -e | str join (char newline) },

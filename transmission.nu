@@ -1,29 +1,31 @@
 #transmission wrapper
 export def "t help" [] {
-  print ([
-    "transmission-daemon wrapper"
-      "METHODS:"
-      "- t start"
-      "- t stop"
-      "- t reload"
-      "- t list"
-      "- t basic-stats"
-      "- t full-stats"
-      "- t ui"
-      "- t add"
-      "- t add-from-file"
-      "- t info"
-      "- t remove"
-      "- t remove-delete"
-      "- t remove-done"
-      "- t remove-name"
-      "- t start-torrent"
-      "- t start-all-torrents"
-      "- t stop-torrent"
-      "- t stop-all-torrents"
-    ]
-    | str join "\n"
-  )
+  try { rich rule "Transmission CLI Commands" --style "bold cyan" } catch { print "transmission-daemon wrapper\n" }
+  let commands = [
+    { name: "t start", description: "Start transmission daemon service" },
+    { name: "t stop", description: "Stop transmission daemon service" },
+    { name: "t reload", description: "Reload transmission daemon service" },
+    { name: "t list", description: "List all active/idle torrents with status" },
+    { name: "t basic-stats", description: "Show basic transmission statistics in panel" },
+    { name: "t full-stats", description: "Show comprehensive transmission statistics" },
+    { name: "t ui", description: "Open tremc TUI client" },
+    { name: "t add", description: "Add magnet URL or torrent file to queue" },
+    { name: "t add-from-file", description: "Add torrent file directly" },
+    { name: "t info", description: "Show detailed info for a specific torrent" },
+    { name: "t remove", description: "Remove a torrent from transmission" },
+    { name: "t remove-delete", description: "Remove a torrent and delete downloaded data" },
+    { name: "t remove-done", description: "Remove all finished torrents" },
+    { name: "t start-all-torrents", description: "Start all torrent transfers" },
+    { name: "t stop-all-torrents", description: "Stop all torrent transfers" },
+  ]
+  for cmd in $commands {
+      let padded = $cmd.name | fill -w 22 -a left
+      try {
+          rich print $"  [bold cyan]($padded)[/] [dim]#[/] ($cmd.description)"
+      } catch {
+          print $"  ($padded)  # ($cmd.description)"
+      }
+  }
 }
 
 #transmission start
@@ -89,12 +91,22 @@ export def "t list" [] {
 
 #transmission basic stats
 export def "t basic-stats" [] {
-  transmission-remote -n 'transmission:transmission' -st
+  let stats_text = (do { transmission-remote -n 'transmission:transmission' -st } | complete).stdout
+  try {
+    $stats_text | str trim | rich panel --title "Transmission Basic Stats" --box rounded --border-style cyan
+  } catch {
+    transmission-remote -n 'transmission:transmission' -st
+  }
 }
 
 #transmission full stats
 export def "t full-stats" [] {
-  transmission-remote -n 'transmission:transmission' -si
+  let stats_text = (do { transmission-remote -n 'transmission:transmission' -si } | complete).stdout
+  try {
+    $stats_text | str trim | rich panel --title "Transmission Full Stats" --box rounded --border-style cyan
+  } catch {
+    transmission-remote -n 'transmission:transmission' -si
+  }
 }
 
 #open transmission tui

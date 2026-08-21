@@ -1,16 +1,21 @@
 #gcalcli wrapper for accesing google calendar
 export def "gcal help" [] {
-  print ([
-    "gcalcli wrapper:"
-      "METHODS"
-      "- gcal add"
-      "- gcal agenda"
-      "- gcal semana"
-      "- gcal mes"
-      "- gcal list"
-    ] | str join "\n"
-    | nu-highlight
-  ) 
+  try { rich rule "Google Calendar CLI (gcalcli)" --style "bold cyan" } catch { print "gcalcli wrapper:\n" }
+  let commands = [
+    { name: "gcal add", description: "Add event to Google Calendar (interactive or parameterized)" },
+    { name: "gcal agenda", description: "Show agenda of upcoming events" },
+    { name: "gcal semana", description: "Show week schedule view" },
+    { name: "gcal mes", description: "Show month schedule view" },
+    { name: "gcal list", description: "List all configured Google Calendars" },
+  ]
+  for cmd in $commands {
+      let padded = $cmd.name | fill -w 16 -a left
+      try {
+          rich print $"  [bold cyan]($padded)[/] [dim]#[/] ($cmd.description)"
+      } catch {
+          print $"  ($padded)  # ($cmd.description)"
+      }
+  }
 }
 
 #add event to google calendar, also usable without arguments
@@ -32,6 +37,11 @@ export def "gcal add" [
   let where = if ($where | is-empty) {input (echo-g "where: ")} else {$where}
   let duration = if ($duration | is-empty) {input (echo-g "duration: ")} else {$duration}
   
+  try {
+    $"Adding Event to Calendar [bold]($calendar)[/]:\nTitle: [bold cyan]($title)[/]\nWhen: [yellow]($when)[/] | Duration: ($duration) mins\nWhere: ($where)"
+      | rich panel --title "Google Calendar Event" --box rounded --border-style green
+  } catch { }
+
   gcalcli --calendar $"($calendar)" add --title $"($title)" --when $"($when)" --where $"($where)" --duration $"($duration)" --default-reminders
 }
 

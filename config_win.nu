@@ -76,16 +76,18 @@ let hooks = {
     ]
     pre_execution: [
         {||
-            let autolister_path = $env.MY_ENV_VARS.nushell_dir | path join "autolister.json"
+            let autolister_path = ($env.HOME | path join ".autolister.json")
             #checking existence of data file
             if not ($autolister_path | path exists) {
-                cp ($env.MY_ENV_VARS.linux_backup | path join autolister.json) $autolister_path
+                if (($env.MY_ENV_VARS.linux_backup? | default "" | path join autolister.json) | path exists) {
+                    cp ($env.MY_ENV_VARS.linux_backup | path join autolister.json) $autolister_path
+                }
             }
             
             #checking conditions
             let interval = 12hr 
             let now = date now
-            let autolister_content = open $autolister_path
+            let autolister_content = open $autolister_path | default {}
             let update = ($autolister_content | get updated | into datetime) + $interval < $now
             
             if $update and ((sys host | get hostname) != "rayen") {
@@ -112,7 +114,7 @@ let hooks = {
                 
                 ## verify habitica
                 try {
-                    let hstats = h stats
+                    let hstats = _h-user-stats
                     if not $hstats.logged_in_today {
                         print (echo $"(ansi -e { fg: '#ff0000' attr: b })Not logged in to habitica yet, logging in now...(ansi reset)")
                         if ($hstats.dailys_to_complete > 0) {
@@ -139,7 +141,7 @@ let hooks = {
                         print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have to upgrade your system today!(ansi reset)")
                     }
                     
-                    print (h stats)
+                    h stats
                 } catch { |err|
                     print (echo-r $"[Habitica] Startup check warning: ($err.msg)")
                 }
@@ -149,15 +151,17 @@ let hooks = {
     env_change: {
       PWD: [
         {|before, after|
-            let pwd_sizes_path = $env.MY_ENV_VARS.nushell_dir | path join "pwd_sizes.json"
+            let pwd_sizes_path = ($env.HOME | path join ".pwd_sizes.json")
             #checking existence of data file
             if not ($pwd_sizes_path | path exists) {
-                cp ($env.MY_ENV_VARS.linux_backup | path join pwd_sizes.json) $pwd_sizes_path
+                if (($env.MY_ENV_VARS.linux_backup? | default "" | path join pwd_sizes.json) | path exists) {
+                    cp ($env.MY_ENV_VARS.linux_backup | path join pwd_sizes.json) $pwd_sizes_path
+                }
             }
             
             #checking conditions
             let interval = 12hr 
-            let last_record = open $pwd_sizes_path | where directory == $env.PWD
+            let last_record = (open $pwd_sizes_path | default []) | where directory == $env.PWD
             let now = date now
             let not_update = if ($last_record | length) == 0 {
                     false

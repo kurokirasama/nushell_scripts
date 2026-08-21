@@ -225,15 +225,22 @@ export def get-devices [] {
 
 #get wifi pass
 export def wifi-pass [] {
-  sudo grep "^psk=" /etc/NetworkManager/system-connections/* 
-  | lines 
-  | split column system-connections/ 
-  | get column2 
-  | each {|row| 
-      $row 
-      | parse "{net}.nmconnection:psk={password}"
-    } 
-  | flatten
+  try { rich rule "Stored Wi-Fi Passwords" --style "bold cyan" } catch { }
+  let res = (sudo grep "^psk=" /etc/NetworkManager/system-connections/* 
+    | lines 
+    | split column system-connections/ 
+    | get column2 
+    | each {|row| 
+        $row 
+        | parse "{net}.nmconnection:psk={password}"
+      } 
+    | flatten)
+  
+  try {
+    $res | rich table --title "Wi-Fi Connections" --header-style "bold green"
+  } catch {
+    $res
+  }
 }
 
 #show stored ips

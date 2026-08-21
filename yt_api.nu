@@ -1,34 +1,23 @@
 #help info for yt-api
 export def "yt-api help" [] {
-  print ([
-    "CONFIGURE $env.MY_ENV_VARS.credentials"
-    " Add the path to your directory with the credential file or replace manually."
+  try { rich rule "YouTube Music & API Toolkit" --style "bold cyan" } catch { }
+  let setup_info = [
+    "[bold]1. Credentials Setup:[/]"
+    "   - Ensure OAuth2 credentials exist in $env.MY_ENV_VARS.credentials"
+    "   - Run `yt-api get-token` to authenticate"
     ""
-    "CREATE CREDENTIALS"
-    " 1) Create an api key from google developers console"
-    " 2) Create oauth2 credentials. You should download a json file with at least the following fields:"
-    "   - client_id"
-    "   - client_secret"
-    "   - redirect_uris"
-    " 3) Add the api key to the previous file, from now on, the credentials file."
-    " 4) Run `yt-api get-token`. The token is automatically added to the credentials file."
-    " 5) Run `yt-api get-regresh-token`. The refresh token is automatically added to the credentials file."
-    " 6) When the token expires, it will run `yt-api get-token` again."
-    " 7) When `yt-api refresh-token` is finished, the refresh will be automatic."
-    ""
-    "METHODS:"
-    " - yt-api"
-    " - yt-api get-songs"
-    " - yt-api update-all"
-    " - yt-api download-music-playlists"
-    ""
-    "MORE HELP"
-    " Run `? yt-api`"
-    ""
-    "RELATED"
-    " ytm"
-    ] | str join "\n"
-  )
+    "[bold]2. Common Commands:[/]"
+    "   - [bold cyan]yt-api[/]                     # Fetch raw YouTube API endpoints"
+    "   - [bold cyan]yt-api get-songs[/]           # Download song metadata from playlist"
+    "   - [bold cyan]yt-api update-all[/]          # Synchronize all local music databases"
+    "   - [bold cyan]ytm[/]                        # Play tracks with terminal artwork"
+    "   - [bold cyan]ytm --list[/]                 # Select a local playlist to stream"
+  ]
+  try {
+    $setup_info | str join "\n" | rich panel --title "YouTube API Guide" --box rounded --border-style cyan
+  } catch {
+    print ($setup_info | str join "\n")
+  }
 }
 
 #play youtube music with playlist items pulled from local database
@@ -78,7 +67,13 @@ export def ytm [
       # notify-send $"($song.item.title)" $"($song.item.artist)" -t 5000 --icon=/tmp/thumbnail.ico | complete | ignore
       print ("")
       timg /tmp/thumbnail.jpg
-      print -n (echo-g $"($song.item.title) | ($song.item.artist)\n[($song.index)/($len)]")
+      let card = try {
+        $"Track: [bold cyan]($song.item.title)[/]\nArtist: [bold magenta]($song.item.artist)[/]\nProgress: [yellow](($song.index) + 1)/($len)[/]"
+          | rich panel --title "Now Playing" --box rounded --border-style green
+      } catch {
+        (echo-g $"($song.item.title) | ($song.item.artist)\n[($song.index)/($len)]")
+      }
+      print $card
       
       try {
         ^mpv --msg-level=all=no --no-resume-playback --no-video --input-conf=($mpv_input) $song.item.url
@@ -135,7 +130,13 @@ export def "ytm online" [
 
           notify-send $"($song.item.title)" $"($song.item.artist)" -t 5000 --icon=/tmp/thumbnail.ico
           timg /tmp/thumbnail.ico 
-          print (echo-g $"now playing ($song.item.title) by ($song.item.artist) [($song.index)/($len)]...")
+          let card = try {
+            $"Track: [bold cyan]($song.item.title)[/]\nArtist: [bold magenta]($song.item.artist)[/]\nProgress: [yellow](($song.index) + 1)/($len)[/]"
+              | rich panel --title "Now Playing (Online)" --box rounded --border-style green
+          } catch {
+            (echo-g $"now playing ($song.item.title) by ($song.item.artist) [($song.index)/($len)]...")
+          }
+          print $card
 
           ^mpv --msg-level=all=no --no-resume-playback --no-video --input-conf=($mpv_input) $song.item.url
         }    

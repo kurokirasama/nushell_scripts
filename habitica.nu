@@ -28,6 +28,11 @@ export def _h-request [
     $"\/($path)"
   }
 
+  if ($env.MOCK_HABITICA_RESPONSE? | is-not-empty) {
+    let mock_fn = $env.MOCK_HABITICA_RESPONSE
+    return (do $mock_fn $method $clean_path $params $body)
+  }
+
   let full_url = if ($params | is-not-empty) {
     {
       scheme: "https",
@@ -149,25 +154,24 @@ export def _h-request [
   return-error $"Habitica API error: ($error_msg)"
 }
 
-# Gets user stats
-export def "h stats" [--show-avatar(-s)] {
+# Internal helper to retrieve raw Habitica user statistics record
+export def _h-user-stats [] {
     let hab_id = get-api-key "habitica.id"
 
     let response = _h-request "GET" "/api/v3/user" | get data
-    let party = h party
-    let pending_quest = ($party.quest.key? | is-not-empty) and ($party.quest.active == false) and ($party.quest.members | get $hab_id | is-empty)
-    
-    let hp = $"($response.stats.hp | math round | into string)/($response.stats.maxHealth | math round | into string)"
-    
-    let hp = if $response.stats.hp < 30 { 
-        echo-r $hp
-    } else { 
-        $hp
+    let party = if ($env.MOCK_HABITICA_PARTY? | is-not-empty) {
+        $env.MOCK_HABITICA_PARTY
+    } else {
+        try { h party } catch { { quest: { key: "", active: false, members: {} } } }
     }
+    let pending_quest = ($party.quest.key? | is-not-empty) and ($party.quest.active? == false) and (($party.quest.members? | default {}) | get -o $hab_id | is-empty)
     
-    if $show_avatar {
-        timg $env.MY_ENV_VARS.habitica_avatar
-    }
+    let hp_num = ($response.stats.hp? | default 0 | math round)
+    let max_hp_num = ($response.stats.maxHealth? | default 50 | math round)
+    let mp_num = ($response.stats.mp? | default 0 | math round)
+    let max_mp_num = ($response.stats.maxMP? | default 100 | math round)
+    let exp_num = ($response.stats.exp? | default 0 | math round)
+    let to_next_lvl_num = ($response.stats.toNextLevel? | default 1000 | math round)
     
     let dailys_data = try {
       _h-request "GET" "/api/v3/tasks/user" --params { type: "dailys" } | get data
@@ -177,19 +181,384 @@ export def "h stats" [--show-avatar(-s)] {
       _h-request "GET" "/api/v3/tasks/user" --params { type: "todos" } | get data
     } catch { [] }
 
+    let quest_key = ($party.quest.key? | default "")
+    let quest_active = ($party.quest.active? | default false)
+    let quest_progress = if $quest_active {
+        if ($party.quest.progress?.up? | is-not-empty) {
+            $"Boss HP: ($party.quest.progress.hp? | default 0 | math round)"
+        } else if ($party.quest.progress?.collect? | is-not-empty) {
+            "Collecting items"
+        } else {
+            "Active"
+        }
+    } else {
+        "None"
+    }
+
     return {
         name: $response.profile.name,
         level: $response.stats.lvl,
         class: $response.stats.class,
-        hp: $hp,
-        experience: $"($response.stats.exp | math round | into string)/($response.stats.toNextLevel | math round | into string)",
-        mana: $"($response.stats.mp | math round | into string)/($response.stats.maxMP | math round | into string)",
+        hp: $"($hp_num)/($max_hp_num)",
+        hp_val: $hp_num,
+        max_hp: $max_hp_num,
+        experience: $"($exp_num)/($to_next_lvl_num)",
+        exp_val: $exp_num,
+        to_next_level: $to_next_lvl_num,
+        mana: $"($mp_num)/($max_mp_num)",
+        mana_val: $mp_num,
+        max_mana: $max_mp_num,
         dailys_to_complete: ($dailys_data | where completed == false and isDue == true | length),
         todos_to_complete: ($todos_data | where completed == false | length),
-        logged_in_today: (not $response.needsCron),
-        in_quest: $party.quest.active,
-        pending_quest: $pending_quest
+        logged_in_today: (not ($response.needsCron? | default false)),
+        in_quest: $quest_active,
+        pending_quest: $pending_quest,
+        quest_key: $quest_key,
+        quest_progress: $quest_progress
     }
+}
+
+# Internal helper to convert avatar image into ANSI block character lines
+export def _h-get-avatar-lines [
+    avatar_path?: string
+    --width: int = 24
+    --height: int = 10
+] {
+    if ($env.MOCK_HABITICA_AVATAR_LINES? | is-not-empty) {
+        return $env.MOCK_HABITICA_AVATAR_LINES
+    }
+
+    let target_path = ($avatar_path | default ($env.MY_ENV_VARS?.habitica_avatar? | default ""))
+    if ($target_path | is-empty) or (not ($target_path | path exists)) {
+        return []
+    }
+
+    # Force quarter-block Unicode text mode (-pq) to guarantee text cell lines rather than Kitty/Sixel graphics protocols
+    let timg_out = (do { ^timg -pq -g $"($width)x($height)" $target_path } | complete)
+    if $timg_out.exit_code == 0 and ($timg_out.stdout | str trim | is-not-empty) {
+        return ($timg_out.stdout | split row -r '\r?\n' | each { |l| $l | str trim -r } | where ($it | str length) > 0)
+    }
+
+    # Fallback to half-block mode
+    let timg_h_out = (do { ^timg -ph -g $"($width)x($height)" $target_path } | complete)
+    if $timg_h_out.exit_code == 0 and ($timg_h_out.stdout | str trim | is-not-empty) {
+        return ($timg_h_out.stdout | split row -r '\r?\n' | each { |l| $l | str trim -r } | where ($it | str length) > 0)
+    }
+
+    # Fallback to chafa block character rendering
+    let chafa_out = (do { ^chafa -s $"($width)x($height)" --symbols block $target_path } | complete)
+    if $chafa_out.exit_code == 0 and ($chafa_out.stdout | str trim | is-not-empty) {
+        return ($chafa_out.stdout | split row -r '\r?\n' | each { |l| $l | str trim -r } | where ($it | str length) > 0)
+    }
+
+    return []
+}
+
+# Detects if the current terminal supports the Kitty Graphics Protocol
+export def _h-is-kitty-supported [] {
+    if ($env.MOCK_KITTY_SUPPORTED? | is-not-empty) {
+        return ($env.MOCK_KITTY_SUPPORTED == true or $env.MOCK_KITTY_SUPPORTED == "true")
+    }
+    let term_prog = ($env.TERM_PROGRAM? | default "" | str lowercase)
+    let term_val = ($env.TERM? | default "" | str lowercase)
+    let kitty_pid = ($env.KITTY_PID? | default "")
+
+    if ($term_prog in ["ghostty", "kitty", "wezterm"]) or ($kitty_pid | is-not-empty) or ($term_val =~ "kitty") {
+        return true
+    }
+    return false
+}
+
+# Generates a Kitty Graphics Protocol escape sequence with cursor preservation (C=1)
+export def _h-get-kitty-avatar-seq [
+    avatar_path?: string
+    --width: int = 22
+    --height: int = 9
+] {
+    if ($env.MOCK_HABITICA_KITTY_SEQ? | is-not-empty) {
+        return $env.MOCK_HABITICA_KITTY_SEQ
+    }
+
+    let target_path = ($avatar_path | default ($env.MY_ENV_VARS?.habitica_avatar? | default ""))
+    if ($target_path | is-empty) or (not ($target_path | path exists)) {
+        return ""
+    }
+
+    let b64_path = ($target_path | encode base64)
+    return $"\u{1b}_Ga=T,f=100,t=f,C=1,c=($width),r=($height);($b64_path)\u{1b}\\"
+}
+
+# Renders Habitica user stats using high-resolution Kitty Graphics Protocol
+export def _h-render-kitty-stats-panel [
+    stats: record
+    --avatar-seq: string = ""
+] {
+    let reset = (ansi reset)
+    let bold = (ansi default_bold)
+    let dim = (ansi default_dimmed)
+    let underline = (ansi default_underline)
+    let cyan = (ansi cyan)
+    let cyan_bold = (ansi cyan_bold)
+    let yellow_bold = (ansi yellow_bold)
+    let green_bold = (ansi green_bold)
+    let red_bold = (ansi red_bold)
+    let magenta_bold = (ansi magenta_bold)
+
+    let hp_color = if $stats.hp_val < 15 {
+        $red_bold
+    } else if $stats.hp_val < 30 {
+        $yellow_bold
+    } else {
+        $green_bold
+    }
+
+    let exp_pct = if $stats.to_next_level > 0 {
+        (($stats.exp_val * 100.0) / $stats.to_next_level) | math round
+    } else {
+        0
+    }
+
+    let dailies_status = if $stats.dailys_to_complete == 0 {
+        $"($green_bold)✓ 0 pending($reset)"
+    } else {
+        $"($yellow_bold)⚠ ($stats.dailys_to_complete) pending($reset)"
+    }
+
+    let todos_status = if $stats.todos_to_complete == 0 {
+        $"($dim)0 pending($reset)"
+    } else {
+        $"($bold)($stats.todos_to_complete) pending($reset)"
+    }
+
+    let login_status = if $stats.logged_in_today {
+        $"($green_bold)✓ Checked in today($reset)"
+    } else {
+        $"($yellow_bold)⚠ Needs daily login / cron($reset)"
+    }
+
+    let quest_status = if $stats.pending_quest {
+        $"($yellow_bold)✉ Invitation pending: ($stats.quest_key)($reset)"
+    } else if $stats.in_quest {
+        $"($green_bold)⚔ ($stats.quest_key)($reset) ($dim)\(($stats.quest_progress)\)($reset)"
+    } else {
+        $"($dim)No active quest($reset)"
+    }
+
+    let left_lines = [
+        $"($underline)($bold)Vitals & Attributes($reset)"
+        $"  ($bold)HP:($reset)   ($hp_color)($stats.hp)($reset)    ($dim)|($reset)  ($bold)MP:($reset)   ($cyan_bold)($stats.mana)($reset)"
+        $"  ($bold)EXP:($reset)  ($yellow_bold)($stats.experience)($reset) ($dim)\(($exp_pct)%\)($reset)"
+        ""
+        $"($underline)($bold)Tasks & Routine($reset)"
+        $"  ($bold)Dailies due today:($reset) ($dailies_status)"
+        $"  ($bold)Active To-Dos:($reset)     ($todos_status)"
+        $"  ($bold)Daily Check-in:($reset)    ($login_status)"
+        ""
+        $"($underline)($bold)Quest & Party($reset)"
+        $"  ($bold)Quest:($reset) ($quest_status)"
+    ]
+
+    let has_avatar = ($avatar_seq | is-not-empty)
+    let left_width = 46
+    let avatar_width = 24
+    let inner_width = if $has_avatar { $left_width + 2 + $avatar_width } else { $left_width }
+    let max_rows = 11
+
+    let rows = (0..($max_rows - 1) | each { |i|
+        let l = if $i < ($left_lines | length) { $left_lines | get $i } else { "" }
+        let l_clean = ($l | str replace -a -r '[\r\n]' "")
+        let l_vis = ($l_clean | ansi strip | split chars | length)
+        let l_pad_len = [($left_width - $l_vis) 0] | math max
+        let l_pad = ("" | fill -a left -c " " -w $l_pad_len)
+
+        if $has_avatar {
+            let r_pad = ("" | fill -a left -c " " -w $avatar_width)
+            let img_trigger = if $i == 1 { $avatar_seq } else { "" }
+            $"($cyan)│($reset) ($l_clean)($l_pad)  ($img_trigger)($r_pad) ($cyan)│($reset)"
+        } else {
+            $"($cyan)│($reset) ($l_clean)($l_pad) ($cyan)│($reset)"
+        }
+    })
+
+    let class_name = ($stats.class | default "warrior" | str capitalize)
+    let title = $" ($bold)($cyan_bold)($stats.name)($reset) ($dim)|($reset) ($yellow_bold)Lvl ($stats.level)($reset) ($magenta_bold)($class_name)($reset) "
+    let title_vis = ($title | ansi strip | split chars | length)
+    let top_pad_len = [($inner_width - $title_vis + 2) 0] | math max
+    let top_left = ($top_pad_len // 2)
+    let top_right = $top_pad_len - $top_left
+    let top_bar = $"($cyan)╭("─" | fill -c "─" -w $top_left)($reset)($title)($cyan)("─" | fill -c "─" -w $top_right)╮($reset)"
+
+    let subtitle = $" ($dim)Habitica Character Card($reset) "
+    let sub_vis = ($subtitle | ansi strip | split chars | length)
+    let bot_pad_len = [($inner_width - $sub_vis + 2) 0] | math max
+    let bot_left = ($bot_pad_len // 2)
+    let bot_right = $bot_pad_len - $bot_left
+    let bot_bar = $"($cyan)╰("─" | fill -c "─" -w $bot_left)($reset)($subtitle)($cyan)("─" | fill -c "─" -w $bot_right)╯($reset)"
+
+    [$top_bar] | append $rows | append $bot_bar | str join (char nl)
+}
+
+# Renders Habitica user stats in a styled pure ANSI character card panel
+export def _h-render-stats-panel [
+    stats: record
+    --avatar-lines: list<string> = []
+] {
+    let reset = (ansi reset)
+    let bold = (ansi default_bold)
+    let dim = (ansi default_dimmed)
+    let underline = (ansi default_underline)
+    let cyan = (ansi cyan)
+    let cyan_bold = (ansi cyan_bold)
+    let yellow_bold = (ansi yellow_bold)
+    let green_bold = (ansi green_bold)
+    let red_bold = (ansi red_bold)
+    let magenta_bold = (ansi magenta_bold)
+
+    let hp_color = if $stats.hp_val < 15 {
+        $red_bold
+    } else if $stats.hp_val < 30 {
+        $yellow_bold
+    } else {
+        $green_bold
+    }
+
+    let exp_pct = if $stats.to_next_level > 0 {
+        (($stats.exp_val * 100.0) / $stats.to_next_level) | math round
+    } else {
+        0
+    }
+
+    let dailies_status = if $stats.dailys_to_complete == 0 {
+        $"($green_bold)✓ 0 pending($reset)"
+    } else {
+        $"($yellow_bold)⚠ ($stats.dailys_to_complete) pending($reset)"
+    }
+
+    let todos_status = if $stats.todos_to_complete == 0 {
+        $"($dim)0 pending($reset)"
+    } else {
+        $"($bold)($stats.todos_to_complete) pending($reset)"
+    }
+
+    let login_status = if $stats.logged_in_today {
+        $"($green_bold)✓ Checked in today($reset)"
+    } else {
+        $"($yellow_bold)⚠ Needs daily login / cron($reset)"
+    }
+
+    let quest_status = if $stats.pending_quest {
+        $"($yellow_bold)✉ Invitation pending: ($stats.quest_key)($reset)"
+    } else if $stats.in_quest {
+        $"($green_bold)⚔ ($stats.quest_key)($reset) ($dim)\(($stats.quest_progress)\)($reset)"
+    } else {
+        $"($dim)No active quest($reset)"
+    }
+
+    let left_lines = [
+        $"($underline)($bold)Vitals & Attributes($reset)"
+        $"  ($bold)HP:($reset)   ($hp_color)($stats.hp)($reset)    ($dim)|($reset)  ($bold)MP:($reset)   ($cyan_bold)($stats.mana)($reset)"
+        $"  ($bold)EXP:($reset)  ($yellow_bold)($stats.experience)($reset) ($dim)\(($exp_pct)%\)($reset)"
+        ""
+        $"($underline)($bold)Tasks & Routine($reset)"
+        $"  ($bold)Dailies due today:($reset) ($dailies_status)"
+        $"  ($bold)Active To-Dos:($reset)     ($todos_status)"
+        $"  ($bold)Daily Check-in:($reset)    ($login_status)"
+        ""
+        $"($underline)($bold)Quest & Party($reset)"
+        $"  ($bold)Quest:($reset) ($quest_status)"
+    ]
+
+    let has_avatar = ($avatar_lines | is-not-empty)
+    let left_width = 46
+    let avatar_width = 24
+    let inner_width = if $has_avatar { $left_width + 2 + $avatar_width } else { $left_width }
+
+    let max_rows = if $has_avatar {
+        [($left_lines | length) ($avatar_lines | length)] | math max
+    } else {
+        $left_lines | length
+    }
+
+    let rows = (0..($max_rows - 1) | each { |i|
+        let l = if $i < ($left_lines | length) { $left_lines | get $i } else { "" }
+        let l_clean = ($l | str replace -a -r '[\r\n]' "")
+        let l_vis = ($l_clean | ansi strip | split chars | length)
+        let l_pad_len = [($left_width - $l_vis) 0] | math max
+        let l_pad = ("" | fill -a left -c " " -w $l_pad_len)
+
+        if $has_avatar {
+            let r = if $i < ($avatar_lines | length) { $avatar_lines | get $i } else { "" }
+            let r_clean = ($r | str replace -a -r '[\r\n]' "")
+            let r_vis = ($r_clean | ansi strip | split chars | length)
+            let r_pad_len = [($avatar_width - $r_vis) 0] | math max
+            let r_pad = ("" | fill -a left -c " " -w $r_pad_len)
+            $"($cyan)│($reset) ($l_clean)($l_pad)  ($r_clean)($r_pad) ($cyan)│($reset)"
+        } else {
+            $"($cyan)│($reset) ($l_clean)($l_pad) ($cyan)│($reset)"
+        }
+    })
+
+    let class_name = ($stats.class | default "warrior" | str capitalize)
+    let title = $" ($bold)($cyan_bold)($stats.name)($reset) ($dim)|($reset) ($yellow_bold)Lvl ($stats.level)($reset) ($magenta_bold)($class_name)($reset) "
+    let title_vis = ($title | ansi strip | split chars | length)
+    let top_pad_len = [($inner_width - $title_vis + 2) 0] | math max
+    let top_left = ($top_pad_len // 2)
+    let top_right = $top_pad_len - $top_left
+    let top_bar = $"($cyan)╭("─" | fill -c "─" -w $top_left)($reset)($title)($cyan)("─" | fill -c "─" -w $top_right)╮($reset)"
+
+    let subtitle = $" ($dim)Habitica Character Card($reset) "
+    let sub_vis = ($subtitle | ansi strip | split chars | length)
+    let bot_pad_len = [($inner_width - $sub_vis + 2) 0] | math max
+    let bot_left = ($bot_pad_len // 2)
+    let bot_right = $bot_pad_len - $bot_left
+    let bot_bar = $"($cyan)╰("─" | fill -c "─" -w $bot_left)($reset)($subtitle)($cyan)("─" | fill -c "─" -w $bot_right)╯($reset)"
+
+    [$top_bar] | append $rows | append $bot_bar | str join (char nl)
+}
+
+# Gets user stats
+export def "h stats" [
+    --show-avatar(-s) # Show habitica avatar image
+    --no-avatar       # Suppress avatar rendering even on wide terminals
+    --kitty(-k)       # Use high-resolution Kitty Graphics Protocol if supported
+    --raw(-r)         # Return raw structured record
+] {
+    let stats = _h-user-stats
+
+    if $raw {
+        return $stats
+    }
+
+    let cols = if ($env.MOCK_TERM_COLUMNS? | is-not-empty) {
+        $env.MOCK_TERM_COLUMNS
+    } else {
+        try { (term size).columns } catch { 80 }
+    }
+
+    let avatar_file = ($env.MY_ENV_VARS?.habitica_avatar? | default "")
+    let has_avatar_file = ($avatar_file | is-not-empty) and ($avatar_file | path exists)
+
+    if $kitty and $has_avatar_file and (_h-is-kitty-supported) and not $no_avatar {
+        let avatar_seq = (_h-get-kitty-avatar-seq $avatar_file --width 22 --height 9)
+        return (_h-render-kitty-stats-panel $stats --avatar-seq $avatar_seq)
+    }
+
+    if $has_avatar_file and not $no_avatar {
+        if $cols >= 80 {
+            let avatar_lines = (_h-get-avatar-lines $avatar_file --width 24 --height 10)
+            return (_h-render-stats-panel $stats --avatar-lines $avatar_lines)
+        } else {
+            # On narrow terminal, show standalone preview before the compact single-column card
+            if ($env.MOCK_TIMG_INVOCATION? | is-not-empty) {
+                do $env.MOCK_TIMG_INVOCATION $avatar_file
+            } else {
+                try { if (which timg | is-not-empty) { ^timg -pq --grid=1 -W $avatar_file } } catch { }
+            }
+            return (_h-render-stats-panel $stats)
+        }
+    }
+
+    return (_h-render-stats-panel $stats)
 }
 
 const types = ["dailys", "todos", "habits", "rewards", "completedTodos"]
@@ -313,12 +682,12 @@ export def "h mark-dailys-done" [--verbose(-v)] {
     | get data
     | where completed == false and isDue == true
   } catch { |e|
-    print (echo-r $"Failed to fetch daily tasks: ($e.msg)")
+    try { rich print $"[bold red]Failed to fetch daily tasks:[/] ($e.msg)" } catch { print (echo-r $"Failed to fetch daily tasks: ($e.msg)") }
     return
   }
 
   if ($dailys_to_complete | is-empty) {
-    print (echo-r "No due and incomplete daily tasks found to mark as done.")
+    try { rich print "[dim]No due and incomplete daily tasks found to mark as done.[/]" } catch { print (echo-r "No due and incomplete daily tasks found to mark as done.") }
     return
   }
   
@@ -327,23 +696,21 @@ export def "h mark-dailys-done" [--verbose(-v)] {
   mut completed_count = 0
   mut failed_tasks = []
   
+  try { rich rule "Completing Habitica Dailies" --style "bold cyan" } catch { }
+
   for $daily in $dailys_to_complete {
-    if $verbose {
-      print -n $"Completing daily: ($daily.text) "
-    }
-    
     let res = h complete-daily $daily._id --allow-errors
 
     if ($res.success? | default true) != false {
       $completed_count = $completed_count + 1
       if $verbose {
-        print (echo-g (char -u ebb1))
+        try { rich print $"  [bold green]✓[/] [bold]($daily.text)[/]" } catch { print (echo-g $"✓ ($daily.text)") }
       }
     } else {
       let err_msg = $res.message? | default "Request failed"
       $failed_tasks = ($failed_tasks | append { id: $daily._id, text: $daily.text, error: $err_msg })
       if $verbose {
-        print (echo-r $"FAILED: ($err_msg)")
+        try { rich print $"  [bold red]✗ Failed: ($daily.text)[/] - ($err_msg)" } catch { print (echo-r $"FAILED: ($err_msg)") }
       }
     }
 
@@ -354,14 +721,26 @@ export def "h mark-dailys-done" [--verbose(-v)] {
     sleep 2sec
   }
   
-  if ($failed_tasks | is-not-empty) {
-    print (echo-r $"\nCompleted ($completed_count)/($total) dailies. ($failed_tasks | length) failed:")
-    for $f in $failed_tasks {
-      print (echo-r $"  - ($f.text): ($f.error)")
+  let final_completed = $completed_count
+  let final_failed = $failed_tasks
+  if ($final_failed | is-not-empty) {
+    try {
+      $"Completed ($final_completed)/($total) dailies.\n($final_failed | length) failed."
+        | rich panel --title "Habitica Dailies Result" --border-style red
+    } catch {
+      print (echo-r $"\nCompleted ($final_completed)/($total) dailies. ($final_failed | length) failed:")
+      for $f in $final_failed {
+        print (echo-r $"  - ($f.text): ($f.error)")
+      }
     }
   } else {
-    if $verbose {
-      print (echo-g "All due and incomplete daily tasks marked as done.")
+    try {
+      $"All ($total) due and incomplete daily tasks marked as done."
+        | rich panel --title "Habitica Dailies Complete" --border-style green
+    } catch {
+      if $verbose {
+        print (echo-g "All due and incomplete daily tasks marked as done.")
+      }
     }
   }
 }
@@ -470,7 +849,7 @@ export def "h add" [
       let task_date = _h-input $due "Enter due date (YYYY-MM-DD, optional): "
       if ($task_date | is-not-empty) {
         # Convert to ISO 8601 format
-        let iso_date = ($task_date | into datetime | date as ecma-262)
+        let iso_date = ($task_date | into datetime | format date "%+")
         $payload = ($payload | upsert date $iso_date)
       }
 
@@ -625,7 +1004,7 @@ export def "h complete-todos" [
     let todos = h ls todos | where completed == false | reverse
 
     if ($todos | is-empty) {
-        print (echo-r "No incomplete todo tasks found to complete.")
+        try { rich print "[dim]No incomplete todo tasks found to complete.[/]" } catch { print (echo-r "No incomplete todo tasks found to complete.") }
         return
     }
 
@@ -640,17 +1019,39 @@ export def "h complete-todos" [
     
     if ($dry_run) { return $selected_todos }
 
+    try { rich rule "Completing Habitica To-Dos" --style "bold cyan" } catch { }
+    mut completed_count = 0
+    mut failed_count = 0
+
     for $todo in $selected_todos {
-        print -n $"Completing todo: ($todo.text) "
         let response = _h-request "POST" $"/api/v3/tasks/($todo._id)/score/up" --allow-errors
 
         if ($response.success? | default true) != false {
-            print (echo-g (char -u ebb1))
+            $completed_count = $completed_count + 1
+            try { rich print $"  [bold green]✓[/] Completed: [bold]($todo.text)[/]" } catch { print (echo-g $"✓ ($todo.text)") }
         } else {
-            print (echo-r (char -u f467))
+            $failed_count = $failed_count + 1
+            let err_msg = $response.message? | default "Request failed"
+            try { rich print $"  [bold red]✗ Failed:[/] ($todo.text) - ($err_msg)" } catch { print (echo-r $"FAILED: ($todo.text) - ($err_msg)") }
         }
 
         sleep 2sec
+    }
+
+    let final_completed = $completed_count
+    let final_failed = $failed_count
+    let total_selected = $selected_todos | length
+
+    if $final_failed > 0 {
+        try {
+            $"Completed ($final_completed)/($total_selected) to-dos.\n($final_failed) failed."
+                | rich panel --title "Habitica To-Dos Result" --border-style red
+        } catch { }
+    } else {
+        try {
+            $"All ($final_completed) selected to-do item(s) marked as completed!"
+                | rich panel --title "Habitica To-Dos Complete" --border-style green
+        } catch { }
     }
 }
 
@@ -757,7 +1158,7 @@ export def "h skill" [
 ] {
     let headers = h credentials
     let base_url = "https://habitica.com"
-    let user_stats = h stats
+    let user_stats = _h-user-stats
     let user_class = $user_stats.class
 
     let skills_data = h skills
@@ -796,7 +1197,7 @@ export def "h skill" [
 export def "h skill-max" [
     skill_name?: string # The name of the skill to cast multiple times
 ] {
-    let user_stats = h stats
+    let user_stats = _h-user-stats
     let user_class = $user_stats.class
     let current_mana_str = $user_stats.mana
 
@@ -852,25 +1253,41 @@ export def "h skill-max" [
 
 # Logs in to Habitica and runs cron
 export def "h login" [] {
-    let stats = h stats
+    try { rich rule "Habitica Daily Login & Cron" --style "bold cyan" } catch { }
+    let stats = _h-user-stats
     if ($stats.dailys_to_complete > 0) {
-        print "Completing pending daily tasks..."
+        try { rich print $"  [yellow]Completing ($stats.dailys_to_complete) pending daily tasks first...[/]" } catch { print "Completing pending daily tasks..." }
         h mark-dailys-done
     }
         
     if $stats.logged_in_today {
-        print (echo-g "Already logged in today.")
+        try {
+          "✓ Already logged in today. Cron has already run."
+            | rich panel --title "Habitica Status" --border-style green
+        } catch {
+          print (echo-g "Already logged in today.")
+        }
         return
     }
 
     let response = _h-request "POST" "/api/v3/cron" --allow-errors
 
     if ($response.success? | default true) != false {
-        print (echo-g "Successfully logged in to Habitica.")
+        try {
+          "✓ Successfully logged in to Habitica and triggered daily cron."
+            | rich panel --title "Habitica Cron Complete" --border-style green
+        } catch {
+          print (echo-g "Successfully logged in to Habitica.")
+        }
         return
     } 
     let err_msg = $response.message? | default "Failed to log in"
-    print (echo-r $"Failed to log in to Habitica: ($err_msg)")
+    try {
+      $"✗ Failed to log in to Habitica: ($err_msg)"
+        | rich panel --title "Habitica Cron Error" --border-style red
+    } catch {
+      print (echo-r $"Failed to log in to Habitica: ($err_msg)")
+    }
 }
 
 # Buys a health potion
@@ -1058,23 +1475,24 @@ export def "h auto-quest" [] {
     let party = h party
 
     if (($party.quest.key? | is-not-empty) and ($party.quest.active? == false) and ($party.quest.members? | get -o $hab_id | is-empty)) {
-        print (echo-g "Pending quest found. Accepting...")
+        try { rich print $"  [cyan]Pending quest found:[/] [bold]($party.quest.key)[/]. Accepting..." } catch { print (echo-g "Pending quest found. Accepting...") }
 
         let accept_response = _h-request "POST" "/api/v3/groups/party/quests/accept" --allow-errors
 
         if ($accept_response.success? | default true) != false {
-            print (echo-g "Successfully accepted the quest.")
+            try { rich print $"  [bold green]✓[/] Successfully accepted quest: [bold]($party.quest.key)[/]." } catch { print (echo-g "Successfully accepted the quest.") }
         } else {
             let err_msg = $accept_response.message? | default "Failed to accept quest"
-            print (echo-r $"Failed to accept the quest: ($err_msg)")
+            try { rich print $"  [bold red]✗ Failed to accept the quest:[/] ($err_msg)" } catch { print (echo-r $"Failed to accept the quest: ($err_msg)") }
         }
     } else {
-        print "No pending quests to accept."
+        try { rich print "  [dim]No pending quests to accept.[/]" } catch { print "No pending quests to accept." }
     }
 }
 
 # Show help for Habitica commands
 export def "h help" [] {
+  try { rich rule "Habitica CLI Commands" --style "bold cyan" } catch { print "Habitica Tools Help:\n" }
   let commands_description = [
     { name: "h add", description: "Adds a new task (daily, todo, habit)" },
     { name: "h add-checklist", description: "Adds a checklist item to a task" },
@@ -1102,21 +1520,18 @@ export def "h help" [] {
   let max_name_length = $commands_description | get name | str length | math max
 
   # Format the help text with padding and descriptions
-  let help_text = $commands_description
-    | each {|cmd|
-        # Pad the command name to align descriptions
-        let padded_name = $cmd.name | fill -w ($max_name_length + 2) -a left
-        # Format the line: "command_name    # description"
-        $"($padded_name)  # ($cmd.description)"
+  for cmd in $commands_description {
+      let padded_name = $cmd.name | fill -w ($max_name_length + 2) -a left
+      try {
+          rich print $"  [bold cyan]($padded_name)[/] [dim]#[/] ($cmd.description)"
+      } catch {
+          print $"  ($padded_name)  # ($cmd.description)"
       }
-    | prepend "Habitica Tools Help:\n" # Add a header
-
-  # Print the formatted help text with syntax highlighting
-  print ($help_text | str join "\n" | nu-highlight)
+  }
 }
 
 #aliases
-export alias hs = h stats -s
+export alias hs = h stats -s -k
 export alias todos = h ls todos -i 
 export alias dailys = h ls dailys -ni
 

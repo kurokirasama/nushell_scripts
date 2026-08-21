@@ -12,6 +12,7 @@ export def anonymize-env-vars [
     }
     
     let content = open --raw $src
+        | str replace --regex 'let negative_prompt = ".*?"' 'let negative_prompt = "placeholder_negative_prompt"'
         | str replace -a "kurokirasama@gmail.com" "user@example.com"
         | str replace -a "lgomez@ubiobio.cl" "user_work@example.com"
         | str replace -a "luismiguelgomezguzman@gmail.com" "user_personal@example.com"
@@ -31,7 +32,18 @@ export def anonymize-env-vars [
         | str replace -a "~/Yandex.Disk/Development/linux/nushell/nushell_scripts" "~/nushell_scripts"
         | str replace -a "~/Yandex.Disk/Development/linux/sublime/nushell_sublime_syntax" "~/nushell_sublime_syntax"
         | str replace -a "~/Yandex.Disk" "~/scripts"
-        | str replace -a "~/rclone/gubb/Depto/DireccionEscuelaIngenieria/NotasReunionesAi" "~/cloud/notes"
+        | str replace -a "G:\\My Drive\\Yandex.Disk.Backup" "G:\\My Drive\\Backup"
+        | str replace -a "G:\\My Drive\\Depto\\DireccionEscuelaIngenieria\\NotasReunionesAi" "G:\\My Drive\\Notes"
+        | str replace -a '~/rclone/gubb/Yandex.Disk.Backup' '~/cloud/Backup'
+        | str replace -a '~/rclone/gubb/Depto/DireccionEscuelaIngenieria/NotasReunionesAi' '~/cloud/notes'
+        | str replace -a '~/media/Seagate Portable Drive/Manga' '~/media/External_Drive/Manga'
+        | str replace -a '~/Documents/Zoom' '~/Documents'
+        | str replace -a "Documents\\Zoom" "Documents"
+        | str replace -a '~/Dropbox/Directorios' '~/media'
+        | str replace -a "Dropbox\\Directorios" "Dropbox\\Media"
+        | str replace -a 'Android_Devices" "Common" "Download" "http_main.json' 'devices" "main.json'
+        | str replace -a 'Android_Devices" "Common" "Download" "http_alfred1.json' 'devices" "secondary.json'
+        | str replace -a 'wizard_gemini2.png' 'avatar.png'
         | str replace -a '"gubb"' '"cloud_drive"'
         | str replace -a "open $env.MY_ENV_VARS.ips | columns" "try { open $env.MY_ENV_VARS.ips | columns } catch { [] }"
         | str replace -a "$env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert api_keys (open-credential -u ($env.MY_ENV_VARS.credentials | path join credentials.json.asc))" "$env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert api_keys (try { open-credential -u ($env.MY_ENV_VARS.credentials | path join credentials.json.asc) } catch { {} })"
@@ -39,12 +51,12 @@ export def anonymize-env-vars [
         | str replace -a '$env.GEMINI_API_KEY = (get-api-key "google.gemini_paid")' '$env.GEMINI_API_KEY = (try { get-api-key "google.gemini_paid" } catch { "" })'
         
     $content | save -f $dst
-    print (echo-g $"  ✓ Anonymized env_vars.nu saved to ($dst)")
+    try { rich print $"  [bold green]✓[/] Anonymized [bold]env_vars.nu[/] saved to ($dst)" } catch { print (echo-g $"  ✓ Anonymized env_vars.nu saved to ($dst)") }
 }
 
 #copy private nushell script dir to public repo and commit
 export def copy-scripts-and-commit [--gemini(-G) = false] {
-  print (echo-g "updating public repository...")
+  try { rich rule "Updating Public GitHub Repository" --style "bold cyan" } catch { print (echo-g "updating public repository...") }
   let files = ls $env.MY_ENV_VARS.nu_scripts
     | find -v defs_private & signature & env_vars & before & send_not & deprecated & GEMINI & conductor & tests & plan & docs & todos.md & CLAUDE & AGENTS
     | append (ls $env.MY_ENV_VARS.credentials | find -v .asc | find -v credential)
@@ -64,10 +76,15 @@ export def copy-scripts-and-commit [--gemini(-G) = false] {
         }
       | str join "\n"
     $public_all | save -f all.nu
-    print (echo-g "  ✓ Cleaned public all.nu")
+    try { rich print "  [bold green]✓[/] Cleaned public [bold]all.nu[/]" } catch { print (echo-g "  ✓ Cleaned public all.nu") }
   }
 
   try { anonymize-env-vars } catch { }
+
+  try {
+    "✓ All public scripts copied, all.nu cleaned, and env_vars.nu anonymized.\nProceeding with AI git commit and push."
+      | rich panel --title "Public Sync Prepared" --box rounded --border-style green
+  } catch { }
 
   if $gemini {
     ai git-push -G

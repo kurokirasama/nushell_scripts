@@ -780,7 +780,7 @@ export def system-cleanup [
     mut total_saved = 0b
     
     # 1. User Caches
-    print "--- 1. User Caches ---"
+    try { rich rule "1. User Caches" --align left --style "bold cyan" } catch { print "--- 1. User Caches ---" }
     let user_caches = [
         "thumbnails"
         "fontconfig"
@@ -800,23 +800,23 @@ export def system-cleanup [
             let size = du $path | get 0.apparent
             $total_saved += $size
             if $dry_run {
-                print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would remove ($path) - approx. ($size)")
+                try { rich print $"  [yellow]DRY RUN:[/] Would remove [bold]($path)[/] - approx. [cyan]($size)[/]" } catch { print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would remove ($path) - approx. ($size)") }
             } else {
-                print ((echo-r 'Cleaning:') + $" ($path) - approx. ($size)")
+                try { rich print $"  [red]Cleaning:[/] ($path) - approx. [cyan]($size)[/]" } catch { print ((echo-r 'Cleaning:') + $" ($path) - approx. ($size)") }
                 rm -rf $path
             }
         }
     }
 
     # 2. Package Managers
-    print "\n--- 2. Package Managers ---"
+    try { rich rule "2. Package Managers" --align left --style "bold cyan" } catch { print "\n--- 2. Package Managers ---" }
     
     # APT
     if $sudo and (which apt-get | is-not-empty) {
         if $dry_run {
-            print ((echo-c 'DRY RUN:' 'yellow' -b) + " Would run 'apt-get clean' and 'apt-get autoremove' - requires sudo")
+            try { rich print "  [yellow]DRY RUN:[/] Would run 'apt-get clean' & 'apt-get autoremove' (requires sudo)" } catch { print ((echo-c 'DRY RUN:' 'yellow' -b) + " Would run 'apt-get clean' and 'apt-get autoremove' - requires sudo") }
         } else {
-            print ((echo-r 'Running:') + " apt-get clean & autoremove")
+            try { rich print "  [red]Running:[/] apt-get clean & autoremove" } catch { print ((echo-r 'Running:') + " apt-get clean & autoremove") }
             ^sudo apt-get clean
             ^sudo apt-get autoremove -y
         }
@@ -825,9 +825,9 @@ export def system-cleanup [
     # LaTeX Docs (Aggressive + Sudo)
     if $aggressive and $sudo and (which apt-get | is-not-empty) {
         if $dry_run {
-            print ((echo-c 'DRY RUN:' 'yellow' -b) + " Would remove 'texlive-*-doc' packages - requires sudo")
+            try { rich print "  [yellow]DRY RUN:[/] Would purge 'texlive-*-doc' packages (requires sudo)" } catch { print ((echo-c 'DRY RUN:' 'yellow' -b) + " Would remove 'texlive-*-doc' packages - requires sudo") }
         } else {
-            print ((echo-r 'Removing:') + " texlive-*-doc")
+            try { rich print "  [red]Purging:[/] texlive-*-doc" } catch { print ((echo-r 'Removing:') + " texlive-*-doc") }
             ^sudo apt-get remove --purge "texlive-*-doc" -y
         }
     }
@@ -845,14 +845,14 @@ export def system-cleanup [
     for tool in $lang_tools {
         if (which $tool.name | is-not-empty) {
             if $dry_run {
-                print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would run '($tool.cmd)'")
+                try { rich print $"  [yellow]DRY RUN:[/] Would run '($tool.cmd)'" } catch { print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would run '($tool.cmd)'") }
             } else {
-                print ((echo-r 'Running:') + $" ($tool.msg)...")
+                try { rich print $"  [cyan]Running:[/] ($tool.msg)..." } catch { print ((echo-r 'Running:') + $" ($tool.msg)...") }
                 let res = (do { ^bash -c $tool.cmd } | complete)
                 if $res.exit_code == 0 {
-                    print (echo-g $"($tool.msg) successfully")
+                    try { rich print $"  [bold green]✓[/] ($tool.msg) completed successfully." } catch { print (echo-g $"($tool.msg) successfully") }
                 } else {
-                    print (echo-y $"($tool.msg) failed")
+                    try { rich print $"  [bold yellow]Warning:[/] ($tool.msg) failed." } catch { print (echo-y $"($tool.msg) failed") }
                     if ($res.stderr | is-not-empty) {
                         print $res.stderr
                     }
@@ -863,24 +863,24 @@ export def system-cleanup [
 
     # 3. Docker (Sudo)
     if $sudo and (which docker | is-not-empty) {
-        print "\n--- 3. Docker ---"
+        try { rich rule "3. Docker" --align left --style "bold cyan" } catch { print "\n--- 3. Docker ---" }
         let prune_cmd = if $aggressive { "docker system prune -a --volumes -f" } else { "docker system prune -f" }
         if $dry_run {
-            print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would run '($prune_cmd)' - requires sudo")
+            try { rich print $"  [yellow]DRY RUN:[/] Would run '($prune_cmd)' (requires sudo)" } catch { print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would run '($prune_cmd)' - requires sudo") }
         } else {
-            print ((echo-r 'Running:') + $" ($prune_cmd)")
+            try { rich print $"  [red]Running:[/] ($prune_cmd)" } catch { print ((echo-r 'Running:') + $" ($prune_cmd)") }
             ^sudo bash -c $prune_cmd
         }
     }
 
     # 4. System Logs
     if $sudo {
-        print "\n--- 4. System Logs ---"
+        try { rich rule "4. System Logs" --align left --style "bold cyan" } catch { print "\n--- 4. System Logs ---" }
         if (which journalctl | is-not-empty) {
             if $dry_run {
-                print ((echo-c 'DRY RUN:' 'yellow' -b) + " Would run 'journalctl --vacuum-size=500M' - requires sudo")
+                try { rich print "  [yellow]DRY RUN:[/] Would run 'journalctl --vacuum-size=500M' (requires sudo)" } catch { print ((echo-c 'DRY RUN:' 'yellow' -b) + " Would run 'journalctl --vacuum-size=500M' - requires sudo") }
             } else {
-                print ((echo-r 'Vacuuming logs:') + " journalctl --vacuum-size=500M")
+                try { rich print "  [cyan]Vacuuming logs:[/] journalctl --vacuum-size=500M" } catch { print ((echo-r 'Vacuuming logs:') + " journalctl --vacuum-size=500M") }
                 ^sudo journalctl --vacuum-size=500M
             }
         }
@@ -888,7 +888,7 @@ export def system-cleanup [
 
     # 5. Aggressive Cleanup (Build Artifacts & Toolchains)
     if $aggressive {
-        print "\n--- 5. Aggressive Cleanup ---"
+        try { rich rule "5. Aggressive Cleanup" --align left --style "bold cyan" } catch { print "\n--- 5. Aggressive Cleanup ---" }
         
         # Rustup toolchains
         if (which rustup | is-not-empty) {
@@ -896,13 +896,13 @@ export def system-cleanup [
             let targets = $toolchains | where $it != "stable" and $it != "stable-x86_64-unknown-linux-gnu"
             
             if ($targets | is-empty) {
-                print "No non-stable Rust toolchains found."
+                try { rich print "  [dim]No non-stable Rust toolchains found.[/]" } catch { print "No non-stable Rust toolchains found." }
             } else {
                 for t in $targets {
                     if $dry_run {
-                        print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would uninstall toolchain: ($t)")
+                        try { rich print $"  [yellow]DRY RUN:[/] Would uninstall toolchain: ($t)" } catch { print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would uninstall toolchain: ($t)") }
                     } else {
-                        print ((echo-r 'Uninstalling toolchain:') + $" ($t)")
+                        try { rich print $"  [red]Uninstalling toolchain:[/] ($t)" } catch { print ((echo-r 'Uninstalling toolchain:') + $" ($t)") }
                         ^rustup toolchain uninstall $t
                     }
                 }
@@ -910,7 +910,7 @@ export def system-cleanup [
         }
 
         # Old build directories (node_modules, target)
-        print "\nSearching for old build directories (node_modules, target) modified > 30 days ago in current tree..."
+        try { rich print "\n[cyan]Searching for old build directories (node_modules, target) modified > 30 days ago...[/]" } catch { print "\nSearching for old build directories (node_modules, target) modified > 30 days ago in current tree..." }
         let exclusions = [ 
             "**/node_modules/**/*" 
             "**/target/**/*" 
@@ -928,15 +928,15 @@ export def system-cleanup [
             | where modified < ((date now) - 30day)
         
         if ($old_dirs | is-empty) {
-            print "No old build directories found."
+            try { rich print "  [dim]No old build directories found.[/]" } catch { print "No old build directories found." }
         } else {
             for dir in $old_dirs {
                 let size = du $dir.name | get 0.apparent
                 $total_saved += $size
                 if $dry_run {
-                    print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would remove old directory: ($dir.name) - Modified: ($dir.modified), Size: ($size)")
+                    try { rich print $"  [yellow]DRY RUN:[/] Would remove old directory: [bold]($dir.name)[/] - Modified: ($dir.modified), Size: [cyan]($size)[/]" } catch { print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would remove old directory: ($dir.name) - Modified: ($dir.modified), Size: ($size)") }
                 } else {
-                    print ((echo-r 'Removing old directory:') + $" ($dir.name) - Size: ($size)")
+                    try { rich print $"  [red]Removing old directory:[/] ($dir.name) - [cyan]($size)[/]" } catch { print ((echo-r 'Removing old directory:') + $" ($dir.name) - Size: ($size)") }
                     rm -rf $dir.name
                 }
             }
@@ -944,9 +944,15 @@ export def system-cleanup [
     }
 
     let summary = if $dry_run { "Estimated space to save:" } else { "Total space reclaimed:" }
-    print ""
-    print (echo-g "System cleanup complete!")
-    print ((echo-c $summary 'cyan' -b) + $" ($total_saved)")
+    let final_saved = $total_saved
+    try {
+      $"Status: [bold green]System Cleanup Complete[/]\n($summary) [bold cyan]($final_saved)[/]"
+        | rich panel --title "System Cleanup Summary" --box rounded --border-style (if $dry_run { "yellow" } else { "green" })
+    } catch {
+      print ""
+      print (echo-g "System cleanup complete!")
+      print ((echo-c $summary 'cyan' -b) + $" ($final_saved)")
+    }
 }
 
 #change window focus in hyprland
