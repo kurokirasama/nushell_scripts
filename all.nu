@@ -1,59 +1,56 @@
 # Master loader for personal Nushell productivity toolkit
-# Sources all toolkit scripts into the global namespace in strict topological dependency order
-
 use std
 use std-rfc
 use ~/software/nu-rich/rich *
 
-# Core Utilities & Primitives (Topological Dependency Order)
-source ./date_formats.nu
-source ./python.nu
-source ./aliases.nu
-source ./string_manipulation.nu
-source ./table_manipulation.nu
-source ./files.nu
-source ./tasker.nu
-source ./crypt.nu
-source ./def_data.nu
-source ./def_system.nu
-source ./def_app.nu
-source ./def_file_compilers.nu
-source ./def_dev.nu
-source ./maths.nu
-source ./system.nu
-source ./gcal.nu
-source ./media.nu
-source ./apis.nu
-source ./obsidian.nu
-source ./habitica.nu
-source ./network.nu
-source ./backups.nu
-source ./update_apps.nu
-source ./transmission.nu
-source ./yandex.nu
-source ./yt_api.nu
-source ./plots.nu
-source ./zoxide.nu
-source ./weather_tomorrow.nu
-source ./alias_defs.nu
-source ./ai_google.nu
-source ./ai_chatpdf.nu
-source ./ai_claude.nu
-source ./ai_elevenlabs.nu
-source ./ai_ollama.nu
-source ./ai_openai.nu
-source ./ai_stablediffusion.nu
-source ./ai_deepl.nu
-source ./ai_tools.nu
-source ./ai_privategpt.nu
-source ./github.nu
-source ./gmn_automatons.nu
-source ./git_tools.nu
-source ./dataestado.nu
-source ./ghome.nu
-source ./appimages.nu
-source ./ghome_cron.nu
-source ./agents_longterm_memory.nu
-source ./tv_calendar.nu
-source ./linecast_completions.nu
-source ./manga.nu
+export use ./date_formats.nu *
+export use ./python.nu *
+export use ./aliases.nu *
+export use ./string_manipulation.nu *
+export use ./table_manipulation.nu *
+export use ./files.nu *
+export use ./tasker.nu *
+export use ./crypt.nu *
+export use ./def_data.nu *
+export use ./def_system.nu *
+export use ./def_app.nu *
+export use ./def_file_compilers.nu *
+export use ./def_dev.nu *
+export use ./maths.nu *
+export use ./system.nu *
+export use ./gcal.nu *
+export use ./media.nu *
+export use ./apis.nu *
+export use ./obsidian.nu *
+export use ./habitica.nu *
+export use ./network.nu *
+export use ./backups.nu *
+export use ./update_apps.nu *
+export use ./transmission.nu *
+export use ./yandex.nu *
+export use ./yt_api.nu *
+export use ./plots.nu *
+export use ./zoxide.nu *
+export use ./weather_tomorrow.nu *
+export use ./alias_defs.nu *
+export use ./ai_google.nu *
+export use ./ai_chatpdf.nu *
+export use ./ai_claude.nu *
+export use ./ai_elevenlabs.nu *
+export use ./ai_ollama.nu *
+export use ./ai_openai.nu *
+export use ./ai_stablediffusion.nu *
+export use ./ai_deepl.nu *
+export use ./ai_tools.nu *
+export use ./ai_privategpt.nu *
+export use ./github.nu *
+export use ./gmn_automatons.nu *
+export use ./git_tools.nu *
+export use ./dataestado.nu *
+export use ./ghome.nu *
+export use ./appimages.nu *
+export use ./ghome_cron.nu *
+export use ./agents_longterm_memory.nu *
+export use ./tv_calendar.nu *
+export use ./linecast_completions.nu *
+export use ./manga.nu *

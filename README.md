@@ -98,6 +98,25 @@ This set of custom functions for Nushell includes a variety of utilities that en
 ### autolister
 Standalone script that get the list of files in provided directory recursively. It is used within `pre_execution_hook.nu` file. 
 
+### vm-cachyos
+Standalone QEMU/KVM Virtual Machine manager providing hardware-accelerated (VirGL / OpenGL) virtualization for testing CachyOS, Omarchy, and Hyprland environments. *(Note: Standalone module, not sourced in `all.nu`)*.
+
+#### Available Subcommands
+* `vm-cachyos create-disk [--size 40G] [--path <path>]`: Creates a dynamic qcow2 virtual disk.
+* `vm-cachyos boot-iso [--iso <path>] [--disk <path>] [--ram 8G] [--cores 4]`: Boots the CachyOS live installation ISO with KVM, VirGL 3D acceleration (`-display sdl,gl=on`), and VirtIO network/audio.
+* `vm-cachyos run [--disk <path>] [--ram 8G] [--cores 4]`: Boots the installed CachyOS system from disk image with full 3D hardware acceleration.
+
+#### Usage Example
+```nu
+use vm-cachyos.nu *
+
+# 1. Boot Live ISO and install CachyOS to virtual disk
+vm-cachyos boot-iso --iso "/home/kira/temp/cachyos-desktop-linux-260426.iso"
+
+# 2. Boot the installed system
+vm-cachyos run
+``` 
+
 ### backups
 These custom functions collectively offer a set of utilities to backup and restore configurations/settings for various applications including Sublime Text, nchat, GNOME shell extensions, and LibreOffice. They also include a function to update Sublime Text syntax highlighting for Nushell commands and another to backup Nushell history. The backup functions typically compress configuration files into `7z` archives or copy them to a backup directory, while the restore functions extract these archives or copy the files back to their original locations. The syntax update function generates a list of nushell commands, including built-ins, plugins, custom commands, keywords, and aliases, and integrates them into the Sublime Text syntax file, with an option to push changes to a repository if specified. Lastly, the history backup function vacuums the nushell command history into a specified output file.
 

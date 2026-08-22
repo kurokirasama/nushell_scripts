@@ -494,8 +494,17 @@ export def "media split-video" [
     | get duration
   
 
+def format-hhmmss [dur?: duration] {
+  let dur_val = if ($dur | is-empty) { $in } else { $dur }
+  let total_secs = ($dur_val / 1sec | math floor | into int)
+  let hours = ($total_secs / 3600 | math floor | into int)
+  let mins = (($total_secs mod 3600) / 60 | math floor | into int)
+  let secs = ($total_secs mod 60 | into int)
+  $"($hours | fill -a right -c '0' -w 2):($mins | fill -a right -c '0' -w 2):($secs | fill -a right -c '0' -w 2)"
+}
+
   let full_secs = ($full_length + "sec") | into duration
-  let full_hhmmss = $full_secs | into hhmmss
+  let full_hhmmss = $full_secs | format-hhmmss
 
   let n_segments = if not ($number_segments | is-empty) {
       $number_segments
@@ -508,14 +517,14 @@ export def "media split-video" [
   let seg_end = $seg_duration
 
   for $it in 1..($n_segments - 1) {
-    let segment_start = (($it - 1) * $seg_duration) | into hhmmss
-    let segment_end = ($seg_end + ($it - 1) * $seg_duration + $delta) | into hhmmss
+    let segment_start = (($it - 1) * $seg_duration) | format-hhmmss
+    let segment_end = ($seg_end + ($it - 1) * $seg_duration + $delta) | format-hhmmss
 
     print (echo-g $"generating part ($it): ($segment_start) - ($segment_end)...")
     media cut-video $file $segment_start $segment_end -a ($it | into string) --audio-track $audio_idx --subtitle-track $sub_idx
   }
 
-  let segment_start = (($n_segments - 1) * $seg_duration) | into hhmmss
+  let segment_start = (($n_segments - 1) * $seg_duration) | format-hhmmss
 
   print (echo-g $"generating part ($n_segments): ($segment_start) - ($full_hhmmss)...")
   media cut-video $file $segment_start $full_hhmmss -a ($n_segments | into string) --audio-track $audio_idx --subtitle-track $sub_idx

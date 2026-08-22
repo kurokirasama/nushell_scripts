@@ -220,7 +220,7 @@ export def "yt-api get-songs" [
         $item.snippet.thumbnails | transpose | last | get column1 | get url
       }
     | upsert url {|item|
-        $item.snippet.resourceId.videoId | str prepend "https://www.youtube.com/watch?v="
+        $"https://www.youtube.com/watch?v=($item.snippet.resourceId.videoId)"
       }
     | reject snippet
 

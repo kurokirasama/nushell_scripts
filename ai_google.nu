@@ -20,6 +20,8 @@ export const thinking_levels = [
 # Export the default gemini model to MY_ENV_VARS so consumers (ai_tools.nu, etc.) can read it centrally
 export-env { $env.MY_ENV_VARS = ($env.MY_ENV_VARS? | default {} | upsert gemini_model_to_use $last_gemini_model) }
 
+def format-iso-utc [] { date now | format date "%Y-%m-%dT%H:%M:%SZ" }
+
 
 #single call to google ai LLM api wrapper and chat mode
 #
@@ -104,7 +106,7 @@ def record-interaction [entry: record] {
 # Update an interaction's status in history
 def update-interaction-status [id: string, status: string] {
     mut history = (load-interactions-history)
-    $history = ($history | each { |it| if $it.id == $id { $it | upsert status $status | upsert updated_at (date as iso-8601-utc) } else { $it } })
+    $history = ($history | each { |it| if $it.id == $id { $it | upsert status $status | upsert updated_at (format-iso-utc) } else { $it } })
     save-interactions-history $history
 }
 
@@ -491,7 +493,7 @@ export def google_ai [
       agent: $model,
       model: $model,
       type: "model",
-      created_at: (date as iso-8601-utc),
+      created_at: (format-iso-utc),
       status: ($response | get status? | default "in_progress"),
       paid: $paid
     }
@@ -881,7 +883,7 @@ export def "ai google-interaction list" [
                 } catch { null })
 
                 if ($response != null) and ($response | get status? | is-not-empty) {
-                    $item | upsert status $response.status | upsert updated_at (date as iso-8601-utc)
+                    $item | upsert status $response.status | upsert updated_at (format-iso-utc)
                 } else {
                     $item
                 }
@@ -1221,7 +1223,7 @@ export def "ai deep-research start" [
         agent: $agent,
         model: $agent,
         type: "deep-research",
-        created_at: (date as iso-8601-utc),
+        created_at: (format-iso-utc),
         status: "in_progress",
         planning: $planning,
         paid: $paid
@@ -1468,7 +1470,7 @@ export def "ai deep-research plan-respond" [
             id: $response.id,
             prompt: $job.prompt,
             agent: $job.agent,
-            created_at: (date as iso-8601-utc),
+            created_at: (format-iso-utc),
             status: "in_progress",
             planning: false
         }

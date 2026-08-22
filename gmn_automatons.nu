@@ -72,7 +72,8 @@ export def --env "gmn cron" [
 
 # Free OpenCode Zen model names for --model completions
 const opn_normal_models = [
-  "opencode/deepseek-v4-flash-free"
+  "opencode-go/ox-alpha-free"
+  "opencode/nemotron-3.5-lightning-free"
   "opencode/nemotron-3-ultra-free"
   "opencode/big-pickle"
   "opencode/deepseek-v4-flash"
@@ -96,7 +97,7 @@ export def --env "opn cron" [
 
   # Resolve model before profile call so it can be forwarded
   let actual_model = if (not $ollama) and ($model | is-empty) {
-    "opencode/deepseek-v4-flash-free"
+    "opencode-go/ox-alpha-free"
   } else if ($model | is-not-empty) {
     $model
   } else {

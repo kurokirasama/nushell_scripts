@@ -363,7 +363,7 @@ export def --env "opn profile" [
     let resolved_model = if ($model | is-not-empty) { $model } else { "opencode-go/deepseek-v4-pro" }
     {
       model: $resolved_model,
-      small_model: "opencode/deepseek-v4-flash-free"
+      small_model: "opencode-go/ox-alpha-free"
     }
   }
 
@@ -463,7 +463,8 @@ export def opn-setup-ollama [] {
 
 
 const opn_normal_models = [
-  "opencode/deepseek-v4-flash-free"
+  "opencode-go/ox-alpha-free"
+  "opencode/nemotron-3.5-lightning-free"
   "opencode/nemotron-3-ultra-free"
   "opencode/big-pickle"
   "opencode/deepseek-v4-flash"

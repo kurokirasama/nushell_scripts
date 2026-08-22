@@ -237,27 +237,70 @@ export def "cliamp-restore" [] {
   7z x cliamp_config.7z -o/home/kira/.config/ -y
 }
 
+def is-cachyos [] {
+    let os_id = (try { open /etc/os-release | lines | find -r '^ID=' | first | str replace 'ID=' '' | str trim -c '"' } catch { "" })
+    $os_id == "cachyos"
+}
+
 #backup hyprland configs
 @category backup
 @search-terms hyprland backup
-export def "hyprlnd backup" [] {
+export def "hyprlnd backup" [
+    --cachyos(-c) # Backup CachyOS Omarchy Hyprland configuration
+] {
+    if $cachyos and not (is-cachyos) {
+        error make { msg: "Cannot use --cachyos flag on a non-CachyOS system." }
+    }
+
+    let target_folder = if $cachyos {
+        $env.MY_ENV_VARS.linux_backup | path join "cachyos-omarchy-hyperland"
+    } else {
+        $env.MY_ENV_VARS.linux_backup | path join "hyprland"
+    }
+
+    mkdir $target_folder
     cd ~/.config/
-    7z max waybar waybar/
-    7z max hypr hypr/
-    7z max wlogout wlogout/
-    7z max swaync swaync/
-    7z max rofi rofi/
-    7z max wallust wallust/
+
+    if $cachyos {
+        7z max hypr hypr/
+        7z max omarchy omarchy/
+        if ("fontconfig" | path exists) { 7z max fontconfig fontconfig/ }
+        if ("eww" | path exists) { 7z max eww eww/ }
+        if ("wlogout" | path exists) { 7z max wlogout wlogout/ }
+        if ("waybar" | path exists) { 7z max waybar waybar/ }
+    } else {
+        7z max waybar waybar/
+        7z max hypr hypr/
+        7z max wlogout wlogout/
+        7z max swaync swaync/
+        7z max rofi rofi/
+        7z max wallust wallust/
+    }
     
-    mv *.7z ($env.MY_ENV_VARS.linux_backup | path join hyprland)
+    mv *.7z $target_folder
 }
 
 #restore hyprland configs
 @category backup
 @search-terms hyprland restore
-export def "hyprlnd restore" [] {
-    cd ($env.MY_ENV_VARS.linux_backup | path join hyprland)
-    
+export def "hyprlnd restore" [
+    --cachyos(-c) # Restore CachyOS Omarchy Hyprland configuration
+] {
+    if $cachyos and not (is-cachyos) {
+        error make { msg: "Cannot restore CachyOS Hyprland configs on a non-CachyOS system." }
+    }
+
+    let source_folder = if $cachyos {
+        $env.MY_ENV_VARS.linux_backup | path join "cachyos-omarchy-hyperland"
+    } else {
+        $env.MY_ENV_VARS.linux_backup | path join "hyprland"
+    }
+
+    if not ($source_folder | path exists) {
+        error make { msg: $"Backup folder ($source_folder) does not exist." }
+    }
+
+    cd $source_folder
     ls *.7z | get name | each {|f| 7z x $f -o/home/kira/.config/ -y}
 }
 

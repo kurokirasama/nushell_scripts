@@ -83,7 +83,7 @@ $env.MY_ENV_VARS = $env.MY_ENV_VARS
   | upsert base_yandex $base_yandex
   | upsert OBSIDIAN_VAULT_ROOT ($base_yandex | path join "obsidian" "vaults")
 
-$env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert hosts (try { open $env.MY_ENV_VARS.ips | columns } catch { [] })
+$env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert hosts (try { try { open $env.MY_ENV_VARS.ips | columns } catch { [] } } catch { [] })
 
 # default gemini model, initialized with default and updated dynamically by ai_google.nu export-env
 $env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert gemini_model_to_use ($env.MY_ENV_VARS.gemini_model_to_use? | default "gemini-3.7-flash")
@@ -122,7 +122,7 @@ $env.PATH = (
   | prepend ('~/.local/bin' | path expand)
   | prepend ($base_yandex | path join "my_scripts" "bash_for_nushell")
   | prepend ($base_yandex | path join "my_scripts" "r")
-  | prepend ($"~/R/x86_64-pc-linux-gnu-library/(ls ~/R/x86_64-*/* | sort-by name | last | get name | split row "/" | last)/rush/exec" | path expand)
+  | prepend (try { let r_dir = glob "~/R/x86_64-*/" | last; if ($r_dir | is-not-empty) { $r_dir | path join "rush" "exec" | path expand } else { "" } } catch { "" })
   | prepend '/usr/local/texlive/2022/bin/x86_64-linux'
   | prepend ('~/.cargo/bin' | path expand)
   | prepend $"($env.PYENV_ROOT)/bin"
@@ -138,15 +138,7 @@ $env.PATH = (
 $env.PATH = $env.PATH | uniq | where {path exists}
 
 $env.PWD_SIZE = ""
-$env.GIT_STATUS = try {
-  if (ls .git | length) > 0 and (git status -s | str length) > 0 {
-    git status -s | lines | length
-  } else {
-    0
-  }
-} catch {
-  0
-}
+$env.GIT_STATUS = 0
 
 $env.HOST = sys host | get hostname
 
@@ -186,14 +178,14 @@ $env.PROMPT_COMMAND = {[
     }
    }
   )
-  (let git_branch = (if ($env.GIT_BRANCH | is-not-empty) { [$"(char -u e0a0)" ($env.GIT_BRANCH)] | str join } else { "" });
-   let git_ahead = (if $env.GIT_AHEAD > 0 { [$"(char -u f176)" ($env.GIT_AHEAD)] | str join } else { "" });
+  (let git_branch = (if ($env.GIT_BRANCH? | default "" | is-not-empty) { [$"(char -u e0a0)" ($env.GIT_BRANCH)] | str join } else { "" });
+   let git_ahead = (if ($env.GIT_AHEAD? | default 0 | into int) > 0 { [$"(char -u f176)" ($env.GIT_AHEAD)] | str join } else { "" });
    # GIT_BEHIND set by pre_prompt hook in config.nu (same pattern as GIT_AHEAD et al.)
-   let git_behind = (if $env.GIT_BEHIND > 0 { [$"(char -u f175)" ($env.GIT_BEHIND)] | str join } else { "" });
-   let git_staged = (if $env.GIT_STAGED > 0 { [$"(char -u f12f1)" ($env.GIT_STAGED)] | str join } else { "" });
-   let git_modified = (if $env.GIT_MODIFIED > 0 { [$"(char -u eafc)" ($env.GIT_MODIFIED)] | str join } else { "" });
-   let git_deleted = (if $env.GIT_DELETED > 0 { [$"(char -u f12f1)" ($env.GIT_DELETED)] | str join } else { "" });
-   let git_untracked = (if $env.GIT_UNTRACKED > 0 { [$"(char -u f1238)" ($env.GIT_UNTRACKED)] | str join } else { "" });
+   let git_behind = (if ($env.GIT_BEHIND? | default 0 | into int) > 0 { [$"(char -u f175)" ($env.GIT_BEHIND)] | str join } else { "" });
+   let git_staged = (if ($env.GIT_STAGED? | default 0 | into int) > 0 { [$"(char -u f12f1)" ($env.GIT_STAGED)] | str join } else { "" });
+   let git_modified = (if ($env.GIT_MODIFIED? | default 0 | into int) > 0 { [$"(char -u eafc)" ($env.GIT_MODIFIED)] | str join } else { "" });
+   let git_deleted = (if ($env.GIT_DELETED? | default 0 | into int) > 0 { [$"(char -u f12f1)" ($env.GIT_DELETED)] | str join } else { "" });
+   let git_untracked = (if ($env.GIT_UNTRACKED? | default 0 | into int) > 0 { [$"(char -u f1238)" ($env.GIT_UNTRACKED)] | str join } else { "" });
    let git_prompt = ([$git_branch $git_ahead $git_behind $git_staged $git_modified $git_deleted $git_untracked] | where ($it | is-not-empty) | str join "");
    
    if $env.PWD == $env.HOME {#in home, no expansion of prompt (left_prompt)
@@ -214,13 +206,8 @@ $env.PROMPT_COMMAND = {[
   (ansi reset)] | str join
 }
 
-$env.MY_ENV_VARS.NETWORK.status = try {
-      http get "https://www.google.com" | ignore;true
-    } catch {
-      false
-    }
-
-$env.MY_ENV_VARS.NETWORK.color = if $env.MY_ENV_VARS.NETWORK.status {'#00ff00'} else {'#ffffff'}
+$env.MY_ENV_VARS.NETWORK.status = true
+$env.MY_ENV_VARS.NETWORK.color = '#00ff00'
 
 ##green over black
 $env.PROMPT_COMMAND_RIGHT = {||

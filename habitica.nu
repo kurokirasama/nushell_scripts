@@ -1049,7 +1049,7 @@ export def "h complete-todos" [
         } catch { }
     } else {
         try {
-            $"All ($final_completed) selected to-do item(s) marked as completed!"
+            $"All ($final_completed) selected to-do (if $final_completed == 1 { "item" } else { "items" }) marked as completed!"
                 | rich panel --title "Habitica To-Dos Complete" --border-style green
         } catch { }
     }

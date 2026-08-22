@@ -908,10 +908,12 @@ export def "apps-update chrome" [] {
 export def "apps-update earth" [] {
   cd $env.MY_ENV_VARS.debs
 
-  let new_version = http get "https://support.google.com/earth/answer/40901#zippy=%2Cearth-version" 
-    | query web -q a 
+  let new_version = try {
+    http get "https://support.google.com/earth/answer/40901#zippy=%2Cearth-version" 
+    | lines 
     | find -n version 
     | first
+  } catch { "" }
   
 
   let current_version = open ([$env.MY_ENV_VARS.debs earth.json] | path join) | get version
@@ -1121,11 +1123,13 @@ export def "apps-update ttyplot" [] {
 export def "apps-update vivaldi" [] {
   cd $env.MY_ENV_VARS.debs
   
-  let release_url = http get "https://vivaldi.com/download/"
-    | query web -q .download-link -a href 
+  let release_url = try {
+    http get "https://vivaldi.com/download/"
+    | lines 
     | find -n deb 
     | find -n amd64 
-    | get 0
+    | first
+  } catch { "" }
   
 
   if ($release_url | is-empty) {
@@ -2304,7 +2308,7 @@ export def "apps-update from-todos" [--dry-run] {
   }
 
   if $dry_run {
-    print $"\nDry run — ($matched | length) update(s) matched:"
+    print $"\nDry run — ($matched | length) (if ($matched | length) == 1 { "update" } else { "updates" }) matched:"
     print ($matched | select todo_text update_command | table)
     return
   }

@@ -1,3 +1,16 @@
+# Cryptographic utilities and secure credential management with RAM-disk caching
+
+def get-credential-cache-path [] {
+	let is_win = (sys host | get name | str lowercase) == "windows"
+	if $is_win {
+		$env.TEMP? | default "C:\\Temp" | path join "nu_creds_cache.json"
+	} else if ("/dev/shm" | path exists) {
+		$"/dev/shm/.nu_creds_cache_(sys host | get hostname).json"
+	} else {
+		$env.HOME | path join ".cache" "nu_creds_cache.json"
+	}
+}
+
 #crypt
 export def nu-crypt [
 	file?
@@ -6,43 +19,66 @@ export def nu-crypt [
 	--output_file(-o):string #only for -d option
 	--no_ui(-n)				 #to ask for password in cli
 ] {
-	let file = get-input $in $file -n
+	let input_file = if ($file | is-not-empty) { $file } else if ($in | is-not-empty) { $in } else { null }
+	if ($input_file | is-empty) {
+		error make { msg: "no file provided to nu-crypt" }
+	}
 
 	match [$encrypt,$decrypt] {
-		[true,false] => {gpg --pinentry-mode loopback --symmetric --armor --yes $file},
+		[true,false] => { gpg --pinentry-mode loopback --symmetric --armor --yes $input_file },
 		[false,true] => {
 			if ($output_file | is-empty) {
 				if $no_ui {
-					gpg --pinentry-mode loopback --decrypt --quiet $file
+					gpg --pinentry-mode loopback --decrypt --quiet $input_file
 				} else {
-					gpg --decrypt --quiet $file
+					gpg --decrypt --quiet $input_file
 				}
 			} else {
 				if $no_ui {
-					gpg --pinentry-mode loopback --output $output_file --quiet --decrypt $file
+					gpg --pinentry-mode loopback --output $output_file --quiet --decrypt $input_file
 				} else {
-					gpg --output $output_file --quiet --decrypt $file
+					gpg --output $output_file --quiet --decrypt $input_file
 				}
 			}
 		},
-		_ => {return-error "flag combination not allowed!!"}
+		_ => { error make { msg: "flag combination not allowed in nu-crypt" } }
 	}
 }
 
-#open credentials
-export def open-credential [file?,--ui(-u)] {
-	let file = get-input $in $file -n
-	if $ui {
-		nu-crypt -d $file | from json
-	} else {
-		nu-crypt -d $file -n | from json
+#open credentials with caching
+export def open-credential [file?, --ui(-u), --no-cache] {
+	let input_file = if ($file | is-not-empty) { $file } else if ($in | is-not-empty) { $in } else { null }
+	let cache_path = (get-credential-cache-path)
+
+	if (not $no_cache) and ($cache_path | path exists) and ($input_file | is-not-empty) and ($input_file | path exists) {
+		let file_mtime = (ls -l $input_file | get 0.modified)
+		let cache_mtime = (ls -l $cache_path | get 0.modified)
+		if $cache_mtime >= $file_mtime {
+			let cached = try { open $cache_path } catch { null }
+			if ($cached | is-not-empty) {
+				return $cached
+			}
+		}
 	}
+
+	let decrypted = if $ui {
+		nu-crypt -d $input_file | from json
+	} else {
+		nu-crypt -d $input_file -n | from json
+	}
+
+	try {
+		$decrypted | to json | save -f $cache_path
+		chmod 600 $cache_path
+	} catch {}
+
+	return $decrypted
 }
 
 #save credentials
-export def save-credential [content,field:string] {
+export def save-credential [content, field:string] {
 	if ($field | is-empty) or ($content | is-empty) {
-		return-error "missing arguments!"
+		error make { msg: "missing arguments in save-credential" }
 	}
 
 	let credentials_e = $env.MY_ENV_VARS.credentials | path join credentials.json.asc
@@ -54,4 +90,8 @@ export def save-credential [content,field:string] {
 
 	nu-crypt -e $credentials
 	rm -f $credentials | ignore
+
+	# Invalidate cache
+	let cache_path = (get-credential-cache-path)
+	rm -f $cache_path | ignore
 }

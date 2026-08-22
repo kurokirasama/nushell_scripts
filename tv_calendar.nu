@@ -4,51 +4,30 @@ const pogg_selector = "div.contbox.prembox.removed"
 
 # Parse recent TV additions HTML into a structured table
 export def tv-parse [html: string] {
-  let titles = $html
-    | query web --query ($pogg_selector + " h2") --document
-    | flatten
+  let boxes = ($html | split row -r "<div\\s+class=[\x27\"]contbox prembox removed[\x27\"]" | skip 1)
+  $boxes | each { |box|
+    let title_match = ($box | parse -r "<h2>(?P<title>[^<]+)</h2>" | get -o 0?.title? | default "")
+    let url_match = ($box | parse -r "<a\\s+href=[\x27\"](?P<url>[^\x27\"]+)" | get -o 0?.url? | default "")
+    let net_genre = ($box | parse -r "<span\\s+style=[\x27\"][^\x27\"]*[\x27\"]>(?P<net_genre>[^<]+)</span>" | get -o 0?.net_genre? | default "")
+    let parts = ($net_genre | split row " // ")
+    let network = ($parts | get -o 0 | default "")
+    let genre = ($parts | get -o 1 | default "")
+    let desc = ($box | parse -r "class=[\x27\"]shwtxt[\x27\"]>(?P<desc>.*?)</span>" | get -o 0?.desc? | default "" | str replace -a "<br>" " " | str replace -a "<br/>" " " | str trim)
+    let airing = ($box | parse -r "class=[\x27\"]hil selby[\x27\"]>(?:<!--.*?-->)?(?P<airing>[^<]+)</span>" | get -o 0?.airing? | default "" | str trim)
+    let show_id = ($box | parse -r "value=[\x27\"](?P<sid>\\d+)[\x27\"]" | get -o 0?.sid? | default "0" | into int)
+    let img = ($box | parse -r "url\\((?P<img>[^\\)]+)\\)" | get -o 0?.img? | default "" | str replace -a "\"" "" | str replace -a "\x27" "")
+    let is_new = ($box | str contains "<strong><em>NEW!</em></strong>") or ($box | str contains "<em>NEW!</em>")
 
-  let urls = $html
-    | query web --query ($pogg_selector + " a") --attribute href --document
-    | flatten
-
-  let network_genre = $html
-    | query web --query ($pogg_selector + " a span") --document
-    | flatten
-
-  let descriptions = $html
-    | query web --query ($pogg_selector + " .shwtxt") --document
-    | flatten
-
-  let air_times = $html
-    | query web --query ($pogg_selector + " .hil.selby") --document
-    | flatten
-
-  let show_ids = $html
-    | query web --query ($pogg_selector + " input[type=checkbox]") --attribute value --document
-    | flatten
-
-  let images = $html
-    | query web --query ($pogg_selector + " a") --attribute style --document
-    | flatten
-
-  let is_news = $html
-    | query web --query ($pogg_selector + " strong em") --document
-    | flatten
-
-  $titles | enumerate | each { |e|
-    let i = $e.index
-    let title = $e.item
     {
-      title: $title
-      url: ($pogg_site + ($urls | get -o $i | default ""))
-      network: (($network_genre | get -o $i | default "") | str replace -r " // .*$" "")
-      genre: (($network_genre | get -o $i | default "") | str replace -r "^.* // " "")
-      description: ($descriptions | get -o $i | default "")
-      airing: ($air_times | get -o $i | default "" | str trim)
-      show_id: (($show_ids | get -o $i | default "0") | into int)
-      image: (($images | get -o $i | default "") | str replace "background-image: url(" "" | str replace ");" "")
-      new: (($is_news | get -o $i | default "") == "NEW!")
+      title: $title_match
+      url: (if ($url_match | str starts-with "/") { "https://www.pogdesign.co.uk" + $url_match } else { $url_match })
+      network: $network
+      genre: $genre
+      description: $desc
+      airing: $airing
+      show_id: $show_id
+      image: $img
+      new: $is_new
     }
   }
 }
