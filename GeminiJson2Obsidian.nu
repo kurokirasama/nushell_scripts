@@ -28,10 +28,10 @@ export def main [tags?:string = "ai,ai_notes,bard"] {
 
 #check obsidian server
 export def "obs check" [] {
-  let apikey = "cf32804c5e2066aafdecfa16b3bc39456d84e12d88671f97b5ee8a38f2cc0964"
-  let host = "127.0.0.1"
-  let port = 27124
-  let certificate = "/home/kira/Yandex.Disk/obsidian/obsidian-local-rest-api.crt"
+  let apikey = $env.MY_ENV_VARS.api_keys.obsidian.local_rest_apikey
+  let host = $env.MY_ENV_VARS.api_keys.obsidian.host
+  let port = $env.MY_ENV_VARS.api_keys.obsidian.port
+  let certificate = $env.MY_ENV_VARS.api_keys.obsidian.certificate
 
   let url = {
               "scheme": "https",
