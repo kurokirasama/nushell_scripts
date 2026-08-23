@@ -73,7 +73,10 @@ export def --env "gmn cron" [
 # Free OpenCode Zen model names for --model completions
 const opn_normal_models = [
   "opencode-go/ox-alpha-free"
+  "opencode/mimo-v2.5-free"
   "opencode/nemotron-3.5-lightning-free"
+  "opencode/muse-spark-1.2-contributor-free"
+  "opencode/hy3-free"
   "opencode/nemotron-3-ultra-free"
   "opencode/big-pickle"
   "opencode/deepseek-v4-flash"

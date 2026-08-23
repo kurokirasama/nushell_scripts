@@ -291,7 +291,7 @@ export def "manga sync" [
             # Send Discord alert
             try {
                 let msg = $"📚 **Nushell Manga Monitor**: Created new crawljob with ($pending_urls | length) (if ($pending_urls | length) == 1 { "chapter" } else { "chapters" }).\n($pending_urls | first 5 | str join "\n")"
-                to-discord $msg -p
+                to-discord $msg --channel gemini_cli_cron -p
             } catch { }
         }
         $created
@@ -316,7 +316,7 @@ export def "torrent sync" [
     }
 
     let all_files = (try { ls -a -f $dir } catch { [] })
-    let torrent_files = ($all_files | where type == file and ($it.name =~ '(?i)\.torrent'))
+    let torrent_files = ($all_files | where { |f| $f.type == "file" and ($f.name =~ '(?i)\.torrent') })
 
     if ($torrent_files | is-empty) {
         return []
@@ -343,18 +343,10 @@ export def "torrent sync" [
     if (not $dry_run) {
         let count = ($new_torrents | length)
 
-        # Tasker push notification
-        try {
-            let tasker_script = "/home/kira/Yandex.Disk/my_scripts/nushell/tasker_send_not.nu"
-            if ($tasker_script | path exists) {
-                nu $tasker_script $"($count) new (if $count == 1 { "torrent" } else { "torrents" }) found!"
-            }
-        } catch { }
-
         # Discord notification
         try {
             let msg = $"🧲 **Nushell Torrent Monitor**: Found ($count) new torrent (if $count == 1 { "file" } else { "files" }):\n($torrent_names | str join "\n")"
-            to-discord $msg -p
+            to-discord $msg --channel gemini_cli_cron -p
         } catch { }
 
         # Update state file

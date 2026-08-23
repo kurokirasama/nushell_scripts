@@ -208,6 +208,7 @@ export def "tasker tts" [
 	--device(-d):string = "main"  #main, 
 	--language(-l):string = "spa" #language of tts (spa, eng)
 	--select_device(-s)
+	--max-time: duration = 5sec
 ] {
 	let text = get-input $in $text
 	
@@ -215,10 +216,12 @@ export def "tasker tts" [
 		tasker media-volume $volume -d $device
 	}
 
-	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
-	let server = get-tasker-server $device $select_device
+	try {
+		let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
+		let server = get-tasker-server $device $select_device
 
-	http get $"($server)/command?say=($text | url encode)&language=($language)" | ignore
+		http get $"($server)/command?say=($text | url encode)&language=($language)" --max-time $max_time --allow-errors | ignore
+	} catch { }
 }
 
 #send notificacion via tasker http server
@@ -227,14 +230,17 @@ export def "tasker send-notification" [
 	--device(-d):string = "main"
 	--title(-t):string
 	--select_device(-s)
+	--max-time: duration = 5sec
 ] {
 	let text = get-input $in $text
 	let title = get-input ("from " + $env.HOST) $title
 	
-	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
-	let server = get-tasker-server $device $select_device
-	
-	http get $"($server)/command?notification=($text | url encode)&title=($title | url encode)"  --allow-errors | ignore
+	try {
+		let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
+		let server = get-tasker-server $device $select_device
+		
+		http get $"($server)/command?notification=($text | url encode)&title=($title | url encode)" --max-time $max_time --allow-errors | ignore
+	} catch { }
 }
 
 #send ssm via tasker http server
@@ -243,13 +249,16 @@ export def "tasker sms" [
 	text?:string
 	--device(-d):string = "main"
 	--select_device(-s)
+	--max-time: duration = 5sec
 ] {
 	let sms = get-input $in $text
 	
-	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
-	let server = get-tasker-server $device $select_device
+	try {
+		let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
+		let server = get-tasker-server $device $select_device
 
-	http get $"($server)/command?sms=($text | url encode)&phone=($phone)" | ignore
+		http get $"($server)/command?sms=($text | url encode)&phone=($phone)" --max-time $max_time --allow-errors | ignore
+	} catch { }
 }
 
 #phone call via tasker http server
@@ -257,14 +266,17 @@ export def "tasker phone-call" [
 	phone?:string
 	--device(-d):string = "main"
 	--select_device(-s)
+	--max-time: duration = 5sec
 ] {
 	let phone = get-input $in $phone
 	let title = "phone call started from " + $env.HOST + " to " + $phone
 	
-	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
-	let server = get-tasker-server $device $select_device
+	try {
+		let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
+		let server = get-tasker-server $device $select_device
 
-	http get $"($server)/command?call=($phone | url encode)&title=($title | url encode)" | ignore
+		http get $"($server)/command?call=($phone | url encode)&title=($title | url encode)" --max-time $max_time --allow-errors | ignore
+	} catch { }
 }
 
 export alias finished = tasker tts "copy finished" -l eng
@@ -284,16 +296,19 @@ export def "tasker phone-info" [
 	--device(-d):string = "main"
 	--select_device(-s)
 	--conky(-c) #return output for conky display
+	--max-time: duration = 5sec
 ] {
 	let phone = get-input $in $phone
 	
-	let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
-	let server = get-tasker-server $device $select_device
-	let response = http get $"($server)/command?info=info" -f
+	try {
+		let device_name = $env.MY_ENV_VARS.tasker_server.devices | get $device | get name
+		let server = get-tasker-server $device $select_device
+		let response = http get $"($server)/command?info=info" -f --max-time $max_time
 
-	if $response.status == 200 {
-		$response.body | from json
-	}
+		if $response.status == 200 {
+			$response.body | from json
+		}
+	} catch { }
 }
 
 #start autosync

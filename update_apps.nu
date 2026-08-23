@@ -1631,6 +1631,127 @@ export def "apps-update agy" [] {
   agy update
 }
 
+#update/install antigravity remote control headless daemon (agy-daemon)
+#
+# Remote Control Linking:
+# To link this machine to https://antigravity.google.com:
+# 1. Run `agy --remote-control` interactively in your terminal once.
+# 2. Open the printed Google sign-in link, authenticate, and paste the code.
+# 3. The token is saved to `~/.gemini/jetski-standalone-oauth-token` and your machine appears on https://antigravity.google.com.
+# 4. Restart or manage the background service via `apps-update agy-daemon`.
+export def "apps-update agy-daemon" [
+  --install(-i) #install and configure systemd user service if missing or requested
+] {
+  let service_file = ("~/.config/systemd/user/agy-remote-control.service" | path expand)
+  let wrapper_file = ("~/.antigravity/bin/run_agy_remote_control.sh" | path expand)
+  let timer_file = ("~/.config/systemd/user/agy-remote-control-update.timer" | path expand)
+  let update_svc_file = ("~/.config/systemd/user/agy-remote-control-update.service" | path expand)
+  let token_file = ("~/.gemini/jetski-standalone-oauth-token" | path expand)
+
+  let is_installed = ($service_file | path exists) and ($wrapper_file | path exists)
+
+  if (not $is_installed) and (not $install) {
+    try { rich print "[bold yellow]⚠ agy-daemon systemd service is not installed.[/]" } catch { print (echo-y "⚠ agy-daemon systemd service is not installed.") }
+    try { rich print "[cyan]To install and configure agy-daemon, run:[/]" } catch { print (echo-g "To install and configure agy-daemon, run:") }
+    try { rich print "  [bold green]apps-update agy-daemon --install[/]" } catch { print (echo-g "  apps-update agy-daemon --install") }
+    return
+  }
+
+  if $install or (not $is_installed) {
+    try { rich rule "Installing Antigravity Remote Control Daemon (agy-daemon)" --style "bold cyan" } catch { print (echo-g "==> Installing Antigravity Remote Control Headless Daemon (agy-daemon)...") }
+    mkdir ("~/.antigravity/bin" | path expand)
+    mkdir ("~/.config/systemd/user" | path expand)
+
+    let wrapper_content = "#!/usr/bin/env bash
+# Antigravity Remote Control Daemon Launcher
+set -euo pipefail
+
+export PATH=\"$HOME/.local/bin:$HOME/bin:$PATH\"
+export USER=\"${USER:-$(whoami)}\"
+export HOME=\"${HOME:-$(getent passwd \"$USER\" | cut -d: -f6)}\"
+
+mkdir -p \"$HOME/.antigravity\"
+AGY_BIN=\"$HOME/.local/bin/agy\"
+[[ -x \"$AGY_BIN\" ]] || AGY_BIN=$(command -v agy)
+exec \"$AGY_BIN\" --remote-control \"$@\"
+"
+    $wrapper_content | save -f $wrapper_file
+    ^chmod +x $wrapper_file
+
+    let service_content = "[Unit]
+Description=Antigravity Remote Control Headless Daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.antigravity/bin/run_agy_remote_control.sh
+Restart=always
+RestartSec=10
+StandardOutput=append:%h/.antigravity/agy_daemon.log
+StandardError=append:%h/.antigravity/agy_daemon.log
+
+[Install]
+WantedBy=default.target
+"
+    $service_content | save -f $service_file
+
+    let update_svc_content = "[Unit]
+Description=Update Antigravity Remote Control Daemon
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/agy update
+ExecStartPost=/usr/bin/systemctl --user restart agy-remote-control.service
+"
+    $update_svc_content | save -f $update_svc_file
+
+    let timer_content = "[Unit]
+Description=Daily update timer for Antigravity Remote Control Daemon
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=1800
+
+[Install]
+WantedBy=timers.target
+"
+    $timer_content | save -f $timer_file
+
+    do { ^systemctl --user daemon-reload } | complete | ignore
+    try { ^loginctl enable-linger $env.USER } catch { }
+    do { ^systemctl --user enable agy-remote-control.service } | complete | ignore
+    do { ^systemctl --user enable agy-remote-control-update.timer } | complete | ignore
+    do { ^systemctl --user start agy-remote-control-update.timer } | complete | ignore
+    do { ^systemctl --user restart agy-remote-control.service } | complete | ignore
+
+    try { rich print "[bold green]✓ agy-daemon systemd user service and auto-update timer installed and started successfully![/]" } catch { print (echo-g "✓ agy-daemon systemd user service and auto-update timer installed and started successfully!") }
+
+    if not ($token_file | path exists) {
+      print ""
+      try { rich print "[bold yellow]⚠ One-Time Remote Control Linking Required:[/]" } catch { print (echo-y "⚠ One-Time Remote Control Linking Required:") }
+      try { rich print "  To link this machine to [bold cyan]https://antigravity.google.com[/]:" } catch { print (echo-g "  To link this machine to https://antigravity.google.com:") }
+      try { rich print "  1. Run [bold green]agy --remote-control[/] in your terminal once." } catch { print (echo-g "  1. Run agy --remote-control in your terminal once.") }
+      try { rich print "  2. Complete Google sign-in to save [dim]~/.gemini/jetski-standalone-oauth-token[/]." } catch { print (echo-g "  2. Complete Google sign-in to save ~/.gemini/jetski-standalone-oauth-token.") }
+      try { rich print "  3. Your machine will appear in the dashboard at [bold cyan]https://antigravity.google.com[/]!" } catch { print (echo-g "  3. Your machine will appear in the dashboard at https://antigravity.google.com!") }
+    }
+    return
+  }
+
+  try { rich rule "Updating Antigravity Remote Control Daemon" --style "bold cyan" } catch { print (echo-g "==> Updating agy binary and restarting agy-daemon...") }
+  agy update
+  do { ^systemctl --user restart agy-remote-control.service } | complete | ignore
+  try { rich print "[bold green]✓ agy binary updated and agy-remote-control.service restarted successfully![/]" } catch { print (echo-g "✓ agy binary updated and agy-remote-control.service restarted successfully!") }
+
+  if not ($token_file | path exists) {
+    print ""
+    try { rich print "[bold yellow]⚠ Notice: Machine not yet linked to https://antigravity.google.com[/]" } catch { print (echo-y "⚠ Notice: Machine not yet linked to https://antigravity.google.com") }
+    try { rich print "  Run [bold green]agy --remote-control[/] interactively once to complete one-time Google sign-in." } catch { print (echo-g "  Run agy --remote-control interactively once to complete one-time Google sign-in.") }
+  }
+}
+
 #update gemini-cli
 export def "apps-update gemini" [] {
   npm install --engine-strict -g @google/gemini-cli@latest
@@ -2186,7 +2307,14 @@ def is-app-installed [app_name: string] {
     claude: ["claude"]
     gemini: ["gemini"]
     agy: ["agy", "antigravity", "antigravity-cli"]
+    agy-daemon: ["agy-daemon", "agy-remote-control"]
     rtk: ["rtk"]
+  }
+
+  if $app_name == "agy-daemon" or $app_name == "agy-remote-control" {
+    if ("~/.config/systemd/user/agy-remote-control.service" | path exists) and (which agy | is-not-empty) {
+      return true
+    }
   }
 
   let candidates = if ($app_name in ($mappings | columns)) {
