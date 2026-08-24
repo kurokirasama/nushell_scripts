@@ -612,11 +612,12 @@ export def normalize-version [v: string] {
 }
 
 # Compare two normalized semver strings to see if v1 >= v2.
+# Since v0.115.1 semver comparisons parse as bool, direct comparison replaces
+# the old sort-based workaround.
 export def semver-ge [v1: string, v2: string] {
   if $v1 == $v2 { return true }
   try {
-    let sorted = [($v1 | into semver), ($v2 | into semver)] | sort | each { into string }
-    return ($sorted.1 == $v1)
+    ($v1 | into semver) >= ($v2 | into semver)
   } catch {
     return ($v1 == $v2)
   }
@@ -1462,8 +1463,7 @@ export def "apps-update rtk" [
   print $"Latest RTK version: ($latest_version)"
 
   if not $force {
-    let sorted = [($current_version | into semver), ($latest_version | into semver)] | sort | each { into string }
-    if $sorted.1 == $current_version {
+    if ($current_version | into semver) >= ($latest_version | into semver) {
       print (echo-g "RTK is already at the latest version!")
       return
     }

@@ -288,6 +288,7 @@ let new_keybinds_names = ["alias_menu"
     "insert_view_code"
     "insert_let"
     "help"
+    "leave_insert_mode"
 ]
 
 let new_keybinds = [
@@ -437,6 +438,16 @@ let new_keybinds = [
                 { send: Enter }
                ]
     },
+    {
+        name: leave_insert_mode
+        modifier: control
+        keycode: char_g
+        mode: [vi_insert, helix_insert]
+        event: { until: [
+            { send: ViChangeMode, mode: normal }
+            { send: HelixChangeMode, mode: normal }
+        ] }
+    },
 ]
 
-$env.config.keybindings = $env.config.keybindings | where name not-in $new_keybinds | append $new_keybinds
+$env.config.keybindings = $env.config.keybindings | where name not-in $new_keybinds_names | append $new_keybinds
