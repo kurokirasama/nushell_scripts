@@ -125,6 +125,9 @@ export def activate [] {
 export def jdown [
   --ubb(-b):string = "0"
 ] {
-  overlay use ("~/Yandex.Disk/my_scripts/python/venv/bin/activate.nu" | path expand)
-  python3 ([$env.MY_ENV_VARS.python_scripts jdown.py] | path join) -b $ubb
+  let venv_py = ("~/Yandex.Disk/my_scripts/python/venv/bin/python3" | path expand)
+  let py_exec = if ($venv_py | path exists) { $venv_py } else { "python3" }
+  let py_dir = ($env.MY_ENV_VARS?.python_scripts? | default ("~/Yandex.Disk/my_scripts/python" | path expand))
+  let script = ([$py_dir "jdown.py"] | path join)
+  ^$py_exec $script -b $ubb
 }

@@ -62,6 +62,76 @@ def main [] {
     let context_color = (if $used_pct >= 70.0 { "#FFA500" } else { "green" })
     let context_part = $"(ansi $context_color)($used_pct)% \(($tokens_k)\)(ansi reset)"
 
+    # 5. Cost (explicit from AGY payload or estimated from session token usage)
+    let explicit_cost = (
+        if ($input.cost? | describe | str starts-with "record") {
+            ($input.cost?.total_cost_usd? | default $input.cost?.estimated_cost_usd? | default $input.cost?.cost?)
+        } else if ($input.cost? != null) {
+            $input.cost?
+        } else if ($input.total_cost_usd? != null) {
+            $input.total_cost_usd?
+        } else if ($input.estimated_cost_usd? != null) {
+            $input.estimated_cost_usd?
+        } else if ($input.cost_summary?.estimated_cost_usd? != null) {
+            $input.cost_summary?.estimated_cost_usd?
+        } else {
+            null
+        }
+    )
+
+    let in_tok = ($input.context_window?.total_input_tokens? | default 0)
+    let out_tok = ($input.context_window?.total_output_tokens? | default 0)
+
+    let cost_val = (
+        if $explicit_cost != null {
+            ($explicit_cost | into float)
+        } else if ($in_tok + $out_tok) > 0 {
+            let model_name = ($input.model?.display_name? | default "" | str lowercase)
+            let model_id = ($input.model?.id? | default "" | str lowercase)
+            let m_combined = $"($model_id) ($model_name)"
+            let rates = (
+                if ($m_combined | str contains "flash") {
+                    { in: 0.000000075, out: 0.00000030 }
+                } else if ($m_combined | str contains "opus") {
+                    { in: 0.00001500, out: 0.00007500 }
+                } else if ($m_combined | str contains "sonnet") {
+                    { in: 0.00000300, out: 0.00001500 }
+                } else if ($m_combined | str contains "haiku") {
+                    { in: 0.00000080, out: 0.00000400 }
+                } else if ($m_combined | str contains "pro") {
+                    { in: 0.00000125, out: 0.00000500 }
+                } else if ($m_combined | str contains "mini") {
+                    { in: 0.00000015, out: 0.00000060 }
+                } else if ($m_combined | str contains "gpt-4") {
+                    { in: 0.00000250, out: 0.00001000 }
+                } else if ($m_combined | str contains "o1") or ($m_combined | str contains "o3") {
+                    { in: 0.00001500, out: 0.00006000 }
+                } else {
+                    { in: 0.00000015, out: 0.00000060 }
+                }
+            )
+            (($in_tok * $rates.in) + ($out_tok * $rates.out))
+        } else {
+            null
+        }
+    )
+
+    let cost_str = (
+        if $cost_val == null { "" }
+        else if $cost_val == 0.0 { "0.00" }
+        else if $cost_val < 0.01 { $"($cost_val | math round --precision 4)" }
+        else if $cost_val < 1.00 { $"($cost_val | math round --precision 3)" }
+        else if $cost_val < 10.00 { $"($cost_val | math round --precision 2)" }
+        else { $"($cost_val | math round --precision 1)" }
+    )
+    let cost_part = (if $cost_str != "" {
+        if $width < 80 {
+            $"(ansi yellow)\$($cost_str)(ansi reset)"
+        } else {
+            $"(ansi yellow)Cost: \$($cost_str)(ansi reset)"
+        }
+    } else { "" })
+
     let quota = ($input.quota? | default {})
     let quota_stale = ($input.quota_stale? | default false)
     mut quota_parts = []
@@ -137,21 +207,7 @@ def main [] {
     let agy_mem = (if $ppid > 0 { try { ps | where pid == $ppid | get 0.mem | into string } catch { "" } } else { "" })
     let mem_part = (if ($agy_mem != "") { $"(ansi white)($agy_mem)(ansi reset)" } else { "" })
 
-    # 7. Counters
-    let tasks_count = ($input.task_count? | default 0)
-    let subagents_count = ($input.subagents? | default [] | length)
-    let artifacts_count = ($input.artifact_count? | default 0)
-    let pending_count = ($input.pending_input_count? | default 0)
-    
-    mut counters = []
-    if ($width > 100 or $tasks_count > 0) { $counters = ($counters | append $"Tk:($tasks_count)") }
-    if ($width > 100 or $subagents_count > 0) { $counters = ($counters | append $"Ag:($subagents_count)") }
-    if ($width > 120 or $artifacts_count > 0) { $counters = ($counters | append $"Ar:($artifacts_count)") }
-    if ($width > 120 or $pending_count > 0) { $counters = ($counters | append $"Pn:($pending_count)") }
-    
-    let counters_part = (if ($counters | length) > 0 { $"(ansi white)($counters | str join ' ')(ansi reset)" } else { "" })
-
-    # 8. Version
+    # 7. Version
     let version = ($input.version? | default "unknown")
     let version_part = (if ($width > 150) { $"(ansi white)agy v($version)(ansi reset)" } else { "" })
 
@@ -167,10 +223,10 @@ def main [] {
     if ($diff_stats != "") { $stats_parts = ($stats_parts | append $diff_stats) }
     let quota_str = ($quota_parts | str join " ")
     if ($quota_str != "") { $stats_parts = ($stats_parts | append $quota_str) }
+    if ($cost_part != "") { $stats_parts = ($stats_parts | append $cost_part) }
     if ($exec_mode_part != "") { $stats_parts = ($stats_parts | append $exec_mode_part) }
     if ($sandbox_part != "") { $stats_parts = ($stats_parts | append $sandbox_part) }
     if ($mem_part != "") { $stats_parts = ($stats_parts | append $mem_part) }
-    if ($counters_part != "") { $stats_parts = ($stats_parts | append $counters_part) }
     if ($version_part != "") { $stats_parts = ($stats_parts | append $version_part) }
     
     let base = $"($main_info) | ($stats_parts | str join ' | ')"

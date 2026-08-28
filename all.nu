@@ -43,6 +43,7 @@ export use ./ai_stablediffusion.nu *
 export use ./ai_deepl.nu *
 export use ./ai_tools.nu *
 export use ./ai_privategpt.nu *
+export use ./agents.nu *
 export use ./github.nu *
 export use ./gmn_automatons.nu *
 export use ./git_tools.nu *

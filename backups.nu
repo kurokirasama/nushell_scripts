@@ -246,7 +246,7 @@ def is-cachyos [] {
 @category backup
 @search-terms hyprland backup
 export def "hyprlnd backup" [
-    --cachyos(-c) # Backup CachyOS Omarchy Hyprland configuration
+    --cachyos(-c) # Backup CachyOS Hyprland & Omarchy configuration
 ] {
     if $cachyos and not (is-cachyos) {
         error make { msg: "Cannot use --cachyos flag on a non-CachyOS system." }
@@ -263,11 +263,15 @@ export def "hyprlnd backup" [
 
     if $cachyos {
         7z max hypr hypr/
-        7z max omarchy omarchy/
+        if ("omarchy" | path exists) { 7z max omarchy omarchy/ }
         if ("fontconfig" | path exists) { 7z max fontconfig fontconfig/ }
         if ("eww" | path exists) { 7z max eww eww/ }
         if ("wlogout" | path exists) { 7z max wlogout wlogout/ }
         if ("waybar" | path exists) { 7z max waybar waybar/ }
+        if ("swaync" | path exists) { 7z max swaync swaync/ }
+        if ("rofi" | path exists) { 7z max rofi rofi/ }
+        if ("walker" | path exists) { 7z max walker walker/ }
+        if ("mako" | path exists) { 7z max mako mako/ }
     } else {
         7z max waybar waybar/
         7z max hypr hypr/
@@ -284,7 +288,7 @@ export def "hyprlnd backup" [
 @category backup
 @search-terms hyprland restore
 export def "hyprlnd restore" [
-    --cachyos(-c) # Restore CachyOS Omarchy Hyprland configuration
+    --cachyos(-c) # Restore CachyOS Hyprland & Omarchy configuration
 ] {
     if $cachyos and not (is-cachyos) {
         error make { msg: "Cannot restore CachyOS Hyprland configs on a non-CachyOS system." }
@@ -301,7 +305,8 @@ export def "hyprlnd restore" [
     }
 
     cd $source_folder
-    ls *.7z | get name | each {|f| 7z x $f -o/home/kira/.config/ -y}
+    let target_dest = ($env.HOME | path join ".config")
+    ls *.7z | get name | each {|f| 7z x $f -o($target_dest) -y}
 }
 
 #backup ttt settings

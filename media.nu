@@ -310,74 +310,228 @@ export def "media remove-audio-noise" [
   if $notify {"noise removal finished!" | tasker send-notification}
 }
 
+# Helper to resolve PulseAudio/PipeWire sink monitor and source input
+export def resolve-screen-record-audio [] {
+  mut sink_monitor = "@DEFAULT_SINK@.monitor"
+  mut source_input = "@DEFAULT_SOURCE@"
+  mut sink_name = ""
+
+  try {
+    let raw_sink = (pactl get-default-sink | str trim)
+    if ($raw_sink | is-not-empty) {
+      $sink_name = $raw_sink
+      $sink_monitor = $"($raw_sink).monitor"
+    }
+  } catch {
+    # Fallback to virtual alias @DEFAULT_SINK@.monitor
+  }
+
+  try {
+    let raw_source = (pactl get-default-source | str trim)
+    if ($raw_source | is-not-empty) {
+      $source_input = $raw_source
+    }
+  } catch {
+    # Fallback to virtual alias @DEFAULT_SOURCE@
+  }
+
+  {
+    sink_monitor: $sink_monitor,
+    source_input: $source_input,
+    sink_name: $sink_name
+  }
+}
+
+# Helper to build screen recording arguments for FFmpeg
+export def build-screen-record-args [
+  resolution: string
+  display: string
+  file: string
+  audio: bool = true
+  no_mic: bool = false
+  no_system: bool = false
+  separate_tracks: bool = false
+  sink_monitor: string = "@DEFAULT_SINK@.monitor"
+  source_input: string = "@DEFAULT_SOURCE@"
+  use_nvenc: bool = true
+] {
+  let ofile = $"($file).mp4"
+  let video_input = [-thread_queue_size 1024 -video_size $resolution -framerate 24 -f x11grab -i $"($display).0+0,0"]
+  let video_encode = if $use_nvenc {
+    [-c:v h264_nvenc -preset p4 -cq 18 -pix_fmt yuv420p]
+  } else {
+    [-c:v libx264 -preset veryfast -crf 18 -pix_fmt yuv420p]
+  }
+
+  let capture_system = ($audio and (not $no_system))
+  let capture_mic = ($audio and (not $no_mic))
+
+  if ($capture_system and $capture_mic) {
+    if $separate_tracks {
+      [
+        ...$video_input
+        -thread_queue_size 1024 -f pulse -ac 2 -i $sink_monitor
+        -thread_queue_size 1024 -f pulse -ac 2 -i $source_input
+        -map 0:v -map 1:a -map 2:a
+        ...$video_encode
+        -c:a aac -b:a 192k -strict experimental
+        $ofile
+      ]
+    } else {
+      [
+        ...$video_input
+        -thread_queue_size 1024 -f pulse -ac 2 -i $sink_monitor
+        -thread_queue_size 1024 -f pulse -ac 2 -i $source_input
+        -filter_complex "[1:a][2:a]amix=inputs=2:duration=longest:dropout_transition=0[aout]"
+        -map 0:v -map "[aout]"
+        ...$video_encode
+        -c:a aac -b:a 192k -strict experimental
+        $ofile
+      ]
+    }
+  } else if $capture_system {
+    [
+      ...$video_input
+      -thread_queue_size 1024 -f pulse -ac 2 -i $sink_monitor
+      -map 0:v -map 1:a
+      ...$video_encode
+      -c:a aac -b:a 192k -strict experimental
+      $ofile
+    ]
+  } else if $capture_mic {
+    [
+      ...$video_input
+      -thread_queue_size 1024 -f pulse -ac 2 -i $source_input
+      -map 0:v -map 1:a
+      ...$video_encode
+      -c:a aac -b:a 192k -strict experimental
+      $ofile
+    ]
+  } else {
+    [
+      ...$video_input
+      ...$video_encode
+      $ofile
+    ]
+  }
+}
+
 #screen record
 export def "media screen-record" [
-  file:string = "video"  #output filename without extension
-  --audio = true  #whether to record with audio or not
+  file: string = "video"         # output filename without extension
+  --audio = true                 # whether to record with audio or not
+  --no-mic                       # do not record microphone (computer/system audio only)
+  --no-system                    # do not record computer/system audio (microphone only)
+  --separate-tracks              # record computer audio and microphone into separate audio streams
+  --output(-o): string           # specific monitor/output to record on Hyprland (e.g. HDMI-A-1, DP-5)
+  --select(-s)                   # interactively select a window or region to record (via slurp on Hyprland)
+  --choose(-c)                   # interactively choose which screen/monitor to record
 ] {
-  let os_version = sys host | get os_version
+  let is_hyprland = (($env.XDG_CURRENT_DESKTOP? | default "") == "Hyprland")
 
-  if ($env.XDG_CURRENT_DESKTOP == "Hyprland") {
-    if $audio {
-      print (echo-g "recording screen with audio for Hyprland...")
-      # You can adjust --audio-codec, --audio-codec-param, and --sample-rate for better quality.
-      # To find your audio device, run: pactl list sources | grep Name
-      # If audio is saturated, check your system's audio input levels (e.g., in pavucontrol).
-      let default_audio_source = pactl info | grep 'Default Source:' | awk '{print $3}'
-      wf-recorder --audio --audio-codec aac --sample-rate 48000 --audio-codec-param "b=192k" --file=$"($file).mp4"
-    } else {
-      print (echo-g "recording screen without audio for Hyprland...")
-      wf-recorder --file=$"($file).mp4"
-    }
-  } else {
-    let resolution = xrandr | grep '*' | awk '{print $1}' | lines | first
+  if $is_hyprland {
+    mut output_args = []
 
-    if $audio {
-      print (echo-g "recording screen with audio for Gnome...")
-      let devices = if $os_version == "24.04" {
-          pw-dump 
-          | lines 
-          | find -n '"node.name"' 
-          | str trim 
-          | parse "\"{name}\": \"{device}\"," 
-        } else {
-          pacmd list-sources 
-          | lines 
-          | find -n "name:"
-          | str trim
-          | parse "{name}: <{device}>"
+    if $select {
+      try {
+        let geometry = (slurp | str trim)
+        if ($geometry | is-not-empty) {
+          $output_args = [-g $geometry]
         }
-        | where device like "alsa_input|bluez_" 
-        | get device
-      
-
-      let bluetooth_not_connected = $devices | find blue | is-empty
-
-      if $bluetooth_not_connected {
-        let device = $devices | find -n alsa_input | get 0
-      
-        try {
-          print (echo-g "trying myffmpeg...")
-          my-ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -acodec aac -strict experimental $"($file).mp4"
-        } catch {
-          print (echo-r "myffmpeg failed...")
-          ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $device -acodec aac -strict experimental $"($file).mp4"
-        }
-      } else {
-        let alsa = $devices | find -n alsa_input | get 0
-        let blue = $devices | find -n blue | get 0
-
-        try {
-          print (echo-g "trying myffmpeg...")
-          my-ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $blue -f pulse -ac 2 -i $alsa -filter_complex amerge=inputs=2 -acodec aac -strict experimental $"($file).mp4"
-        } catch {
-          print (echo-r "myffmpeg failed...")
-          ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" -f pulse -ac 2 -i $blue -f pulse -ac 2 -i $alsa -filter_complex amerge=inputs=2 -acodec aac -strict experimental $"($file).mp4"
+      } catch {}
+    } else if $choose {
+      let monitors = try { hyprctl monitors -j | from json } catch { [] }
+      if ($monitors | is-not-empty) {
+        let options = ($monitors | each { |m| $"($m.name) - ($m.description)" })
+        let chosen = ($options | input list "Select screen to record:")
+        if ($chosen | is-not-empty) {
+          let mon_name = ($chosen | split row " - " | first)
+          $output_args = [-o $mon_name]
         }
       }
+    } else if ($output | is-not-empty) {
+      $output_args = [-o $output]
     } else {
-      print (echo-g "recording screen without audio for Gnome...")
-      ffmpeg -video_size $resolution -framerate 24 -f x11grab -i $"($env.DISPLAY).0+0,0" $"($file).mp4"
+      let focused_output = try {
+        hyprctl monitors -j | from json | where focused | get 0.name
+      } catch {
+        try {
+          hyprctl monitors -j | from json | get 0.name
+        } catch {
+          ""
+        }
+      }
+      if ($focused_output | is-not-empty) {
+        $output_args = [-o $focused_output]
+      }
+    }
+
+    if ($audio and (not ($no_mic and $no_system))) {
+      print (echo-g "recording screen with audio for Hyprland...")
+      let audio_info = resolve-screen-record-audio
+      print (echo-g $"[screen-record] Sink Monitor: ($audio_info.sink_monitor)")
+      print (echo-g $"[screen-record] Mic Source:   ($audio_info.source_input)")
+
+      if $no_mic {
+        # Computer audio only
+        wf-recorder ...$output_args $"--audio=($audio_info.sink_monitor)" -C aac -P b=192k -x yuv420p -f $"($file).mp4"
+      } else if $no_system {
+        # Microphone only
+        wf-recorder ...$output_args $"--audio=($audio_info.source_input)" -C aac -P b=192k -x yuv420p -f $"($file).mp4"
+      } else {
+        # Dual audio: mix sink monitor and microphone via dynamic PipeWire null-sink
+        let mix_name = $"sr_mix_(random chars -l 6)"
+        let sink_mod = (pactl load-module module-null-sink $"sink_name=($mix_name)" | str trim)
+        let lb_sink_mod = (pactl load-module module-loopback $"source=($audio_info.sink_monitor)" $"sink=($mix_name)" latency_msec=20 | str trim)
+        let lb_src_mod = (pactl load-module module-loopback $"source=($audio_info.source_input)" $"sink=($mix_name)" latency_msec=20 | str trim)
+
+        try {
+          wf-recorder ...$output_args $"--audio=($mix_name).monitor" -C aac -P b=192k -x yuv420p -f $"($file).mp4"
+        } catch { |e|
+          # recording completed or interrupted by Ctrl+C
+        }
+
+        # Cleanup PipeWire modules
+        try { pactl unload-module $lb_src_mod } catch {}
+        try { pactl unload-module $lb_sink_mod } catch {}
+        try { pactl unload-module $sink_mod } catch {}
+      }
+    } else {
+      print (echo-g "recording screen without audio for Hyprland...")
+      wf-recorder ...$output_args -x yuv420p -f $"($file).mp4"
+    }
+  } else {
+    let resolution = try {
+      xrandr | grep '*' | awk '{print $1}' | lines | first
+    } catch {
+      "1920x1080"
+    }
+    let display = ($env.DISPLAY? | default ":0")
+
+    if ($audio and (not ($no_mic and $no_system))) {
+      print (echo-g "recording screen with audio for Gnome/X11...")
+      let audio_info = resolve-screen-record-audio
+      print (echo-g $"[screen-record] Sink Monitor: ($audio_info.sink_monitor)")
+      print (echo-g $"[screen-record] Mic Source:   ($audio_info.source_input)")
+
+      let args_nvenc = build-screen-record-args $resolution $display $file $audio $no_mic $no_system $separate_tracks $audio_info.sink_monitor $audio_info.source_input true
+      let args_cpu = build-screen-record-args $resolution $display $file $audio $no_mic $no_system $separate_tracks $audio_info.sink_monitor $audio_info.source_input false
+
+      try {
+        ffmpeg ...$args_nvenc
+      } catch {
+        print (echo-y "NVENC encode failed, falling back to CPU libx264...")
+        ffmpeg ...$args_cpu
+      }
+    } else {
+      print (echo-g "recording screen without audio for Gnome/X11...")
+      let args_nvenc = build-screen-record-args $resolution $display $file false false false false "" "" true
+      let args_cpu = build-screen-record-args $resolution $display $file false false false false "" "" false
+      try {
+        ffmpeg ...$args_nvenc
+      } catch {
+        ffmpeg ...$args_cpu
+      }
     }
   }
   print (echo-g "recording finished...")

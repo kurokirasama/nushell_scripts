@@ -61,16 +61,22 @@ export def open-credential [file?, --ui(-u), --no-cache] {
 		}
 	}
 
-	let decrypted = if $ui {
-		nu-crypt -d $input_file | from json
-	} else {
-		nu-crypt -d $input_file -n | from json
+	let decrypted = try {
+		if $ui {
+			nu-crypt -d $input_file | from json
+		} else {
+			nu-crypt -d $input_file -n | from json
+		}
+	} catch {
+		{}
 	}
 
-	try {
-		$decrypted | to json | save -f $cache_path
-		chmod 600 $cache_path
-	} catch {}
+	if ($decrypted | is-not-empty) {
+		try {
+			$decrypted | to json | save -f $cache_path
+			chmod 600 $cache_path
+		} catch {}
+	}
 
 	return $decrypted
 }

@@ -158,6 +158,8 @@ $env.HOST_GLYPH = (
       "f15c9"
   } else if $env.HOST == ($env.MY_ENV_VARS.hosts? | get -o 8) {
       "f048b"
+  } else if $env.HOST == ($env.MY_ENV_VARS.hosts? | get -o 10) {
+      "f0322"
   } else {
       "f2c0"
   }
@@ -272,7 +274,7 @@ if ($sdl3_pc_path | path exists) {
 #api_keys
 use crypt.nu [open-credential]
 use apis.nu [get-api-key]
-$env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert api_keys (try { open-credential -u ($env.MY_ENV_VARS.credentials | path join credentials.json.asc) } catch { {} })
+$env.MY_ENV_VARS = ($env.MY_ENV_VARS | upsert api_keys (try { open-credential -u ($env.MY_ENV_VARS.credentials | path join credentials.json.asc) } catch { {} }))
 
 $env.DC_API_KEY = (try { get-api-key "datacommons" } catch { "" })
 $env.GEMINI_API_KEY = (try { get-api-key "google.gemini_paid" } catch { "" })

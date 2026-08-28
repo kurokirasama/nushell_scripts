@@ -1,3 +1,8 @@
+# Fallback colors when alias_defs.nu is not loaded in scope
+def echo-g [str: string] { $"(ansi -e { fg: '#00ff00' attr: b })($str)(ansi reset)" }
+def echo-y [str: string] { $"(ansi -e { fg: '#ffff00' attr: b })($str)(ansi reset)" }
+def echo-r [str: string] { $"(ansi -e { fg: '#ff0000' attr: b })($str)(ansi reset)" }
+
 # Register a nushell plugin binary into $nu.plugin-path headlessly using the on-disk nu executable
 export def register-nu-plugin [
     name_or_path: string # plugin name (e.g. "nu_plugin_inc" or "inc") or full path to plugin binary
@@ -191,7 +196,8 @@ export def "apps-update nushell-plugins-external" [
             repo: "https://github.com/FMotalleb/nu_plugin_port_extension.git",
             type: "plugin",
             binary: "nu_plugin_port_extension",
-            custom_path: null
+            custom_path: null,
+            locked: true
         },
         {
             name: "nu_plugin_file",
@@ -302,8 +308,13 @@ export def "apps-update nushell-plugins-external" [
             if $item.type == "plugin" {
                 try { rich print $"  [cyan]Building[/] [bold]($item.name)[/] with cargo..." } catch { print (echo-g $"  Building ($item.name) with cargo...") }
                 let install_res = do {
-                    if $force {
+                    let lock_flag = ($item.locked? | default false)
+                    if $force and $lock_flag {
+                        ^cargo install --path . --locked --force
+                    } else if $force {
                         ^cargo install --path . --force
+                    } else if $lock_flag {
+                        ^cargo install --path . --locked
                     } else {
                         ^cargo install --path .
                     }
@@ -378,7 +389,7 @@ export def "apps-update datetime" [--force(-f)] {
 
 #update nu config (after nushell update)
 export def update-nu-config [] {
-  let nu_dir = ($env.MY_ENV_VARS.nushell_dir? | default "~/software/nushell" | path expand)
+  let nu_dir = ($env.MY_ENV_VARS?.nushell_dir? | default "~/software/nushell" | path expand)
   
   # Direct paths to default sample configs in nushell source tree (instant, zero recursive disk scan)
   let default_config = ($nu_dir | path join "crates" "nu-config" "default_files" "default_config.nu")
@@ -395,7 +406,7 @@ export def update-nu-config [] {
   # Generate bootstrap lines directly without external file dependency
   let is_windows = (sys host | get name | str lowercase) == "windows"
   let default_scripts_dir = if $is_windows { "C:\\Users\\kira\\YandexDisk\\my_scripts\\nushell" } else { "~/Yandex.Disk/my_scripts/nushell" | path expand }
-  let nu_scripts = ($env.MY_ENV_VARS.nu_scripts? | default $default_scripts_dir)
+  let nu_scripts = ($env.MY_ENV_VARS?.nu_scripts? | default $default_scripts_dir)
   let nu_lines = if $is_windows {
     [
       $"source '($nu_scripts | path join "all.nu")'"
@@ -1315,9 +1326,9 @@ export def "apps-update claude" [] {
   npm update -g @anthropic-ai/claude-code
 }
 
-#update claude cli
+#update mermaid-ascii
 export def "apps-update mermaid-ascii" [] {
-  npm update -g @mermaid-js/mermaid-cli
+  npm update -g mermaid-ascii
 }
 
 #update open-codex

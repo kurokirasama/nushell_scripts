@@ -172,6 +172,12 @@ export def _h-user-stats [] {
     let max_mp_num = ($response.stats.maxMP? | default 100 | math round)
     let exp_num = ($response.stats.exp? | default 0 | math round)
     let to_next_lvl_num = ($response.stats.toNextLevel? | default 1000 | math round)
+    let raw_gp = ($response.stats.gp? | default 0.0)
+    let gp_val = if ($raw_gp | describe | str starts-with "float") or ($raw_gp | describe | str starts-with "int") {
+        ($raw_gp | math round -p 1)
+    } else {
+        0.0
+    }
     
     let dailys_data = try {
       _h-request "GET" "/api/v3/tasks/user" --params { type: "dailys" } | get data
@@ -199,6 +205,8 @@ export def _h-user-stats [] {
         name: $response.profile.name,
         level: $response.stats.lvl,
         class: $response.stats.class,
+        gold: $"($gp_val) GP",
+        gp: $gp_val,
         hp: $"($hp_num)/($max_hp_num)",
         hp_val: $hp_num,
         max_hp: $max_hp_num,
@@ -288,6 +296,77 @@ export def _h-get-kitty-avatar-seq [
     return $"\u{1b}_Ga=T,f=100,t=f,C=1,c=($width),r=($height);($b64_path)\u{1b}\\"
 }
 
+# Renders a solid-block progress bar with ANSI styling
+export def _h-render-progress-bar [
+    current: int
+    max_val: int
+    --width: int = 10
+    --color: string = ""
+] {
+    let pct = if $max_val > 0 {
+        ((($current | into float) * 100.0) / ($max_val | into float)) | math round | into int
+    } else {
+        0
+    }
+    let clamped_pct = ([$pct 0] | math max | [$in 100] | math min)
+    let filled_len = ($width * $clamped_pct // 100)
+    let empty_len = ($width - $filled_len)
+
+    let filled_char = "█"
+    let empty_char = "░"
+
+    let bar_fill = ("" | fill -a left -c $filled_char -w $filled_len)
+    let bar_empty = ("" | fill -a left -c $empty_char -w $empty_len)
+
+    let reset = (ansi reset)
+    let dim = (ansi default_dimmed)
+
+    let bar_color = if ($color | is-not-empty) {
+        $color
+    } else {
+        (ansi reset)
+    }
+
+    $"($bar_color)[($bar_fill)($dim)($bar_empty)($reset)($bar_color)]($reset)"
+}
+
+# Renders a single formatted vital row with aligned label, fraction value, progress bar, and percentage
+export def _h-render-vital-line [
+    label: string
+    current: int
+    max_val: int
+    color: string
+    --width: int = 10
+    --label-width: int = 6
+    --val-width: int = 10
+] {
+    let reset = (ansi reset)
+    let bold = (ansi default_bold)
+    let dim = (ansi default_dimmed)
+
+    let pct = if $max_val > 0 {
+        ((($current | into float) * 100.0) / ($max_val | into float)) | math round | into int
+    } else {
+        0
+    }
+    let clamped_pct = ([$pct 0] | math max | [$in 100] | math min)
+    let filled_len = ($width * $clamped_pct // 100)
+    let empty_len = ($width - $filled_len)
+
+    let filled_char = "█"
+    let empty_char = "░"
+
+    let bar_fill = ("" | fill -a left -c $filled_char -w $filled_len)
+    let bar_empty = ("" | fill -a left -c $empty_char -w $empty_len)
+
+    let padded_label = ($label | fill -a left -w $label_width)
+    let fraction_str = $"($current)/($max_val)"
+    let padded_val = ($fraction_str | fill -a left -w $val_width)
+    let pct_str = ($"($clamped_pct)%" | fill -a right -w 4)
+
+    $"  ($bold)($padded_label)($reset)($color)($padded_val) [($bar_fill)($dim)($bar_empty)($reset)($color)] ($pct_str)($reset)"
+}
+
 # Renders Habitica user stats using high-resolution Kitty Graphics Protocol
 export def _h-render-kitty-stats-panel [
     stats: record
@@ -344,10 +423,15 @@ export def _h-render-kitty-stats-panel [
         $"($dim)No active quest($reset)"
     }
 
+    let hp_line = (_h-render-vital-line "HP:" $stats.hp_val $stats.max_hp $hp_color)
+    let mp_line = (_h-render-vital-line "MP:" $stats.mana_val $stats.max_mana $cyan_bold)
+    let exp_line = (_h-render-vital-line "EXP:" $stats.exp_val $stats.to_next_level $yellow_bold)
+
     let left_lines = [
         $"($underline)($bold)Vitals & Attributes($reset)"
-        $"  ($bold)HP:($reset)   ($hp_color)($stats.hp)($reset)    ($dim)|($reset)  ($bold)MP:($reset)   ($cyan_bold)($stats.mana)($reset)"
-        $"  ($bold)EXP:($reset)  ($yellow_bold)($stats.experience)($reset) ($dim)\(($exp_pct)%\)($reset)"
+        $hp_line
+        $mp_line
+        $exp_line
         ""
         $"($underline)($bold)Tasks & Routine($reset)"
         $"  ($bold)Dailies due today:($reset) ($dailies_status)"
@@ -362,7 +446,7 @@ export def _h-render-kitty-stats-panel [
     let left_width = 46
     let avatar_width = 24
     let inner_width = if $has_avatar { $left_width + 2 + $avatar_width } else { $left_width }
-    let max_rows = 11
+    let max_rows = if $has_avatar { [($left_lines | length) 12] | math max } else { $left_lines | length }
 
     let rows = (0..($max_rows - 1) | each { |i|
         let l = if $i < ($left_lines | length) { $left_lines | get $i } else { "" }
@@ -381,7 +465,12 @@ export def _h-render-kitty-stats-panel [
     })
 
     let class_name = ($stats.class | default "warrior" | str capitalize)
-    let title = $" ($bold)($cyan_bold)($stats.name)($reset) ($dim)|($reset) ($yellow_bold)Lvl ($stats.level)($reset) ($magenta_bold)($class_name)($reset) "
+    let gold_display = if ($stats.gp? | is-not-empty) {
+        $" ($dim)|($reset) ($yellow_bold)🪙 ($stats.gp) GP($reset)"
+    } else {
+        ""
+    }
+    let title = $" ($bold)($cyan_bold)($stats.name)($reset) ($dim)|($reset) ($yellow_bold)Lvl ($stats.level)($reset) ($magenta_bold)($class_name)($reset)($gold_display) "
     let title_vis = ($title | ansi strip | split chars | length)
     let top_pad_len = [($inner_width - $title_vis + 2) 0] | math max
     let top_left = ($top_pad_len // 2)
@@ -454,10 +543,15 @@ export def _h-render-stats-panel [
         $"($dim)No active quest($reset)"
     }
 
+    let hp_line = (_h-render-vital-line "HP:" $stats.hp_val $stats.max_hp $hp_color)
+    let mp_line = (_h-render-vital-line "MP:" $stats.mana_val $stats.max_mana $cyan_bold)
+    let exp_line = (_h-render-vital-line "EXP:" $stats.exp_val $stats.to_next_level $yellow_bold)
+
     let left_lines = [
         $"($underline)($bold)Vitals & Attributes($reset)"
-        $"  ($bold)HP:($reset)   ($hp_color)($stats.hp)($reset)    ($dim)|($reset)  ($bold)MP:($reset)   ($cyan_bold)($stats.mana)($reset)"
-        $"  ($bold)EXP:($reset)  ($yellow_bold)($stats.experience)($reset) ($dim)\(($exp_pct)%\)($reset)"
+        $hp_line
+        $mp_line
+        $exp_line
         ""
         $"($underline)($bold)Tasks & Routine($reset)"
         $"  ($bold)Dailies due today:($reset) ($dailies_status)"
@@ -499,7 +593,12 @@ export def _h-render-stats-panel [
     })
 
     let class_name = ($stats.class | default "warrior" | str capitalize)
-    let title = $" ($bold)($cyan_bold)($stats.name)($reset) ($dim)|($reset) ($yellow_bold)Lvl ($stats.level)($reset) ($magenta_bold)($class_name)($reset) "
+    let gold_display = if ($stats.gp? | is-not-empty) {
+        $" ($dim)|($reset) ($yellow_bold)🪙 ($stats.gp) GP($reset)"
+    } else {
+        ""
+    }
+    let title = $" ($bold)($cyan_bold)($stats.name)($reset) ($dim)|($reset) ($yellow_bold)Lvl ($stats.level)($reset) ($magenta_bold)($class_name)($reset)($gold_display) "
     let title_vis = ($title | ansi strip | split chars | length)
     let top_pad_len = [($inner_width - $title_vis + 2) 0] | math max
     let top_left = ($top_pad_len // 2)

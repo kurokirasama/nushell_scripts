@@ -2,7 +2,7 @@
 # Standalone CLI runner for Manga monitoring and synchronization.
 # Can be run periodically via cron / systemd timer, or continuously with --watch.
 
-use manga.nu *
+use /home/kira/Yandex.Disk/my_scripts/nushell/manga.nu *
 
 def run-cycle [
     dir: path
