@@ -111,12 +111,41 @@ $env.PYENV_ROOT = $"($env.HOME)/.pyenv"
 $env.BUN_INSTALL = $env.HOME | path join ".bun"
 $env.PNPM_HOME = if $is_windows { r#'C:\Users\username\AppData\Local\pnpm'# } else { "/home/username/.local/share/pnpm" }
 
+# MATLAB Dynamic Version Autodiscovery
+let matlab_active_bin = if (not $is_windows) {
+  let raw_matches = (try {
+    ["/usr/local/MATLAB/*/bin", "/opt/MATLAB/*/bin"]
+    | each { try { glob $in } catch { [] } }
+    | flatten
+    | where { |p| ($p | path join "matlab" | path exists) }
+  } catch { [] })
+  
+  if ($raw_matches | is-not-empty) {
+    let sorted_versions = ($raw_matches | each { |p|
+      let parent_dir = ($p | path dirname | path basename)
+      { path: $p, release: $parent_dir }
+    } | sort-by release --reverse)
+
+    if ($sorted_versions | length) > 1 {
+      let active = ($sorted_versions | first)
+      let all_releases = ($sorted_versions | get release | str join ", ")
+      let warn_msg = $"(ansi yellow)Warning: Multiple MATLAB installations detected [($all_releases)]. Using most recent: ($active.release) -> ($active.path)(ansi reset)"
+      print $warn_msg
+    }
+
+    $sorted_versions | first | get path
+  } else {
+    null
+  }
+} else {
+  null
+}
+
 #PATH
 $env.PATH = (
   $env.PATH
   | split row (char esep)
-  | prepend ('/usr/local/MATLAB/R2024b/bin' | path expand)
-  | prepend ('/opt/MATLAB/R2024b/bin' | path expand)
+  | prepend (if ($matlab_active_bin | is-not-empty) { $matlab_active_bin } else { "" })
   | prepend ('/usr/local/go/bin' | path expand)
   | prepend ('~/go/bin/' | path expand)
   | prepend ('~/.local/bin' | path expand)
