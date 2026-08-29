@@ -327,7 +327,7 @@ export def _h-render-progress-bar [
         (ansi reset)
     }
 
-    $"($bar_color)[($bar_fill)($dim)($bar_empty)($reset)($bar_color)]($reset)"
+    $"($bar_color)($bar_fill)($dim)($bar_empty)($reset)"
 }
 
 # Renders a single formatted vital row with aligned label, fraction value, progress bar, and percentage
@@ -364,7 +364,7 @@ export def _h-render-vital-line [
     let padded_val = ($fraction_str | fill -a left -w $val_width)
     let pct_str = ($"($clamped_pct)%" | fill -a right -w 4)
 
-    $"  ($bold)($padded_label)($reset)($color)($padded_val) [($bar_fill)($dim)($bar_empty)($reset)($color)] ($pct_str)($reset)"
+    $"  ($bold)($padded_label)($reset)($color)($padded_val) ($bar_fill)($dim)($bar_empty)($reset) ($pct_str)($reset)"
 }
 
 # Renders Habitica user stats using high-resolution Kitty Graphics Protocol

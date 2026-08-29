@@ -488,6 +488,7 @@ export def patch-font [file? = "Monocraft.ttc", --no-update(-n)] {
     try {
       mkdir ("~/.local/share/fonts" | path expand)
       cp -f $patched_name ("~/.local/share/fonts/Monocraft.ttc" | path expand)
+      rm -f ("~/.fonts/Monocraft*.ttc" | path expand)
     } catch {}
     fc-cache -fv; try { sudo fc-cache -fv } catch {}
   }
