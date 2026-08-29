@@ -111,3 +111,17 @@ export def country-flag [
   }
   | str join
 }
+
+# Run Sober (Roblox player on Linux via Flatpak)
+export def sober [
+  --foreground(-f) # Run in foreground to stream Roblox/Sober logs
+] {
+  if $foreground {
+    flatpak run org.vinegarhq.Sober
+  } else {
+    job spawn { flatpak run org.vinegarhq.Sober } | ignore
+  }
+}
+
+# Alias for sober (Roblox)
+export alias roblox = sober

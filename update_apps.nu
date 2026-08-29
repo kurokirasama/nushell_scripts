@@ -533,6 +533,11 @@ export def supgrade [--old(-o),--apps(-a),--cargo_aps(-c)] {
   print (echo-g "updating firmware...")
   sudo fwupdmgr update
 
+  if (which flatpak | is-not-empty) {
+    print (echo-g "updating flatpak packages...")
+    flatpak update -y
+  }
+
   if $cargo_aps {
     print (echo-g "updating cargo apps...")
     cargo install-update -a
@@ -605,6 +610,11 @@ export def apps-update [] {
     apps-update datetime
   } catch {
     print (echo-r "Datetime update failed!")
+  }
+  try {
+    apps-update sober
+  } catch {
+    print (echo-r "Something went wrong with Sober (Roblox) update!")
   }
   # try {
   #   apps-update nmap
@@ -2646,3 +2656,34 @@ export def "apps-update ponytail" [] {
   }
 
 }
+
+# Install Sober (Roblox player) Flatpak on Ubuntu or CachyOS
+export def install-sober [] {
+  let is_cachyos = (try { open /etc/os-release | lines | find -r '^ID=' | first | str replace 'ID=' '' | str trim -c '"' } catch { "" }) == "cachyos"
+  if $is_cachyos {
+    print (echo-g "Installing flatpak via pacman...")
+    sudo pacman -S --noconfirm --needed flatpak
+  } else {
+    print (echo-g "Installing flatpak via nala/apt...")
+    if (which nala | is-not-empty) {
+      sudo nala install -y flatpak
+    } else {
+      sudo apt install -y flatpak
+    }
+  }
+
+  print (echo-g "Adding Flathub remote...")
+  flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+  print (echo-g "Installing Sober (org.vinegarhq.Sober) from Flathub...")
+  flatpak install -y flathub org.vinegarhq.Sober
+}
+
+# Update Sober (Roblox player) Flatpak package
+export def sober-update [] {
+  print (echo-g "Updating Sober (Roblox player) Flatpak package...")
+  flatpak update -y org.vinegarhq.Sober
+}
+
+# Alias for sober-update
+export alias "apps-update sober" = sober-update

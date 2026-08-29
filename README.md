@@ -321,6 +321,7 @@ These custom functions offer enhanced directory navigation capabilities. They al
 | `htop` | No description provided. |
 | `indexify` | add a hidden column with the content of the # column |
 | `install-font` | install font |
+| `install-sober` | Install Sober (Roblox player) Flatpak on Ubuntu or CachyOS |
 | `intersect` | intersection between two lists |
 | `is-column` | verify if a column exist within a table |
 | `is-in` | checks to see if the elements in the first list are contained in the second list analog to polars is-in  Example:  let a = [[a]; [a] [b] [c] [d]] let b = [[a]; [a] [c]] $a \| is-in $b |
@@ -426,6 +427,7 @@ These custom functions offer enhanced directory navigation capabilities. They al
 | `rm-pipe` | rm trough pipe  Example ls *.txt \| first 5 \| rm-pipe |
 | `rml` | rm last |
 | `rmount` | mount fuse drive via rclone  possible drives: - box - gdrive - onedrive - yandex - mega |
+| `roblox` | Alias for sober (Roblox) |
 | `run-private-gpt` | No description provided. |
 | `s` | No description provided. |
 | `save-credential` | save credentials |
@@ -438,6 +440,8 @@ These custom functions offer enhanced directory navigation capabilities. They al
 | `show_banner` | nushell banner |
 | `show-ips` | show stored ips |
 | `show-prompts` | show system prompts and pre-prompts definitions |
+| `sober` | Run Sober (Roblox player on Linux via Flatpak) |
+| `sober-update` | Update Sober (Roblox player) Flatpak package (alias: `apps-update sober`) |
 | `speedtest-plot` | plot download-upload speed |
 | `ssh-sin-pass` | enable ssh without password |
 | `stable_diffusion` | No description provided. |
