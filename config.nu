@@ -70,7 +70,7 @@ let hooks = {
                         "CentOs" => {"f304"},
                         "RedHat" => {"ef5d"},
                         "Rocky Linux" => {"f32b"},
-                        $p if ($p =~ "(?i)cachyos") => {"f0979"},
+                        $p if ($p =~ "(?i)cachyos") => {"f385"},
                         $p if ($p =~ "(?i)arch") => {"f303"},
                         _ => {"e712"}
                     } 

@@ -431,27 +431,74 @@ export def update-nu-config [] {
   }
 }
 
-#patch font with nerd font
-export def patch-font [file? = "Monocraft.ttc"] {
-  let nerd_font = "~/software/nerd-fonts"
-  let folder = $env.MY_ENV_VARS.appImages
-  let font_folder = $env.MY_ENV_VARS.linux_backup
+# update nerd-fonts repo (sparse checkout with latest font-patcher and glyphs)
+export def "patch-font update-repo" [] {
+  let nerd_font = ("~/software/nerd-fonts" | path expand)
+  print (echo-g "Checking / updating nerd-fonts repository...")
+  if not ($nerd_font | path exists) or not (($nerd_font | path join ".git") | path exists) {
+    print "Cloning sparse nerd-fonts repository (shallow)..."
+    mkdir ("~/software" | path expand)
+    cd ("~/software" | path expand)
+    try { rm -rf nerd-fonts } catch {}
+    ^git clone --depth 1 --filter=blob:none --sparse https://github.com/ryanoasis/nerd-fonts.git nerd-fonts
+    cd nerd-fonts
+    ^git sparse-checkout init --no-cone
+    ^git sparse-checkout set font-patcher "src/glyphs/*" "bin/scripts/*" glyphnames.json package.json 10-nerd-font-symbols.conf
+  } else {
+    print "Pulling latest changes from nerd-fonts origin..."
+    cd $nerd_font
+    try { ^git pull origin master } catch {}
+  }
+  print (echo-g "✓ nerd-fonts repository is up to date.")
+}
+
+# patch font with nerd font
+export def patch-font [file? = "Monocraft.ttc", --no-update(-n)] {
+  let nerd_font = ("~/software/nerd-fonts" | path expand)
+  let folder = ($env.MY_ENV_VARS?.appImages? | default ("~/Yandex.Disk/Backups/appimages" | path expand))
+  let font_folder = ($env.MY_ENV_VARS?.linux_backup? | default ("~/Yandex.Disk/Backups/linux" | path expand))
+  
+  if not $no_update {
+    patch-font update-repo
+  }
   
   cd $folder
  
-  cp ($font_folder | path join "Monocraft.ttc" | path expand) .
+  let src_file = ($font_folder | path join $file | path expand)
+  if ($src_file | path exists) {
+    cp -f $src_file .
+  }
  
-  ./fontforge.AppImage -script ([$nerd_font font-patcher] | path join | path expand) ([$env.PWD $file] | path join) --complete --careful --output "Monocraft_updated.ttc" --outputdir $env.PWD
+  let patcher = ($nerd_font | path join "font-patcher")
+  let target = ($env.PWD | path join $file)
+  print (echo-g $"Running font-patcher on ($file)...")
+  with-env { PYTHONIOENCODING: "utf-8", LANG: "en_US.UTF-8", LC_ALL: "en_US.UTF-8" } {
+    ./fontforge.AppImage -script $patcher $target --complete --careful --outputdir $env.PWD
+  }
  
-  mv -f (ls *.ttc | sort-by modified | last | get name) $"($file | path parse | get stem)-nerd-fonts-patched_by_me.ttc"
-  cp -f $"($file | path parse | get stem)-nerd-fonts-patched_by_me.ttc" ($font_folder | path expand)
-  mv -f $"($file | path parse | get stem)-nerd-fonts-patched_by_me.ttc" $file
+  let latest_ttc = (try { 
+    ls *.ttc | where name !~ "-nerd-fonts-patched_by_me" and name != $target | sort-by modified | last | get name 
+  } catch { "" })
+  if ($latest_ttc | is-not-empty) {
+    let patched_name = $"($file | path parse | get stem)-nerd-fonts-patched_by_me.ttc"
+    mv -f $latest_ttc $patched_name
+    cp -f $patched_name ($font_folder | path expand)
  
-  sudo mv -f $file /usr/local/share/fonts
-  fc-cache -fv;sudo fc-cache -fv
+    try { sudo cp -f $patched_name /usr/local/share/fonts/Monocraft.ttc } catch {}
+    try {
+      mkdir ("~/.local/share/fonts" | path expand)
+      cp -f $patched_name ("~/.local/share/fonts/Monocraft.ttc" | path expand)
+    } catch {}
+    fc-cache -fv; try { sudo fc-cache -fv } catch {}
+  }
+  try { rm -f $target } catch {}
+
+  # Clean up nerd-fonts temporary files
+  try { nerd-fonts-clean } catch {}
   
-  print (echo-g "Now run patch-font in other machines or run!")
-  print (echo-g "cp Monocraft-nerd-fonts-patched_by_me.ttc ~/Downloads/Monocraft.ttc;cd ~/Downloads;install-font Monocraft.ttc")
+  print (echo-g "✓ Font patching and cache rebuild complete.")
+  print (echo-g "To deploy on remote machines, copy:")
+  print (echo-g $"cp ($font_folder)/Monocraft-nerd-fonts-patched_by_me.ttc ~/.local/share/fonts/Monocraft.ttc; fc-cache -fv")
 }
 
 #update-upgrade system
@@ -1250,9 +1297,24 @@ export def pip3-upgrade [] {
 }
 
 #install font
-export def install-font [file] {
-  sudo cp -f $file /usr/local/share/fonts
-  fc-cache -fv;sudo fc-cache -fv
+export def install-font [file: string] {
+  let font_path = ($file | path expand)
+  if not ($font_path | path exists) {
+    print (echo-r $"Font file not found: ($font_path)")
+    return
+  }
+  print (echo-g $"Installing font ($font_path)...")
+  try {
+    mkdir ("~/.local/share/fonts" | path expand)
+    cp -f $font_path ("~/.local/share/fonts/" | path expand)
+  } catch {}
+  try {
+    sudo mkdir -p /usr/local/share/fonts
+    sudo cp -f $font_path /usr/local/share/fonts/
+  } catch {}
+  fc-cache -fv
+  try { sudo fc-cache -fv } catch {}
+  print (echo-g "✓ Font installed and font cache updated successfully.")
 }
 
 #update maestral

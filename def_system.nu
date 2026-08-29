@@ -88,9 +88,14 @@ export def ssh-sin-pass [
 
 #clean nerd-fonts repo
 export def nerd-fonts-clean [] {
-  cd ~/software/nerd-fonts/
-  rm -rf .git
-  rm -rf patched-fonts
+  let repo = ("~/software/nerd-fonts" | path expand)
+  if ($repo | path exists) {
+    cd $repo
+    try { rm -rf patched-fonts } catch {}
+    try { rm -f *.zip *.ttc *.ttf *.otf } catch {}
+    try { ^git clean -fd } catch {}
+    cd -
+  }
 }
 
 # Performs logical operations on multiple predicates.
