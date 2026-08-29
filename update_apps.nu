@@ -612,7 +612,7 @@ export def apps-update [] {
     print (echo-r "Datetime update failed!")
   }
   try {
-    apps-update sober
+    sober-update
   } catch {
     print (echo-r "Something went wrong with Sober (Roblox) update!")
   }
