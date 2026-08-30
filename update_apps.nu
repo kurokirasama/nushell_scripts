@@ -2045,8 +2045,131 @@ export def "apps-update markdonify-mcp" [] {
   pnpm run build
 }
 
+# Run a matlab subcommand with GNU timeout, capturing stdout.
+# Handles exit 124 (timeout) as empty string; forwards stdout on other exits for parsing.
+# timeout_sec: seconds before SIGTERM; verbose: print command, exit code, and stdout preview
+# ponytail: uses GNU timeout (coreutils) for minimal diff; pure nushell job-spawn fallback if timeout missing
+# Example: run-matlab-with-timeout ["-batch", "disp(matlabroot)"] 15 false
+export def run-matlab-with-timeout [args: list<string>, timeout_sec: int, verbose: bool] {
+  if $verbose {
+    try { print (echo-c $"  → Trying: matlab ($args | str join ' ') \(timeout ($timeout_sec)s\)" "yellow") } catch { print $"  → Trying: matlab ($args | str join ' ') \(timeout ($timeout_sec)s\)" }
+  }
+  let result = try {
+    run-external "timeout" $"($timeout_sec)s" "matlab" ...$args | complete
+  } catch {|e|
+    {stdout: "", stderr: $e.msg, exit_code: 1}
+  }
+  if $verbose {
+    print $"    exit: ($result.exit_code) stdout: ($result.stdout | str length) chars stderr: ($result.stderr | str length) chars"
+    if ($result.stdout | str trim | is-not-empty) {
+      print $"    stdout preview: ($result.stdout | str trim | lines | last | str trim)"
+    }
+  }
+  if $result.exit_code == 124 {
+    # timeout — but matlab may have printed root just before kill; check stdout
+    let maybe = $result.stdout | str trim | lines | last | default "" | str trim
+    if ($maybe | is-not-empty) and ($maybe | path exists) {
+      if $verbose { try { print (echo-c $"    timed out after ($timeout_sec)s but stdout has valid root: ($maybe) — using it" "yellow") } catch { print $"    timed out after ($timeout_sec)s but stdout has root: ($maybe)" } }
+      return $result.stdout | str trim
+    }
+    if $verbose { try { print (echo-c $"    timed out after ($timeout_sec)s" "yellow") } catch { print $"    timed out after ($timeout_sec)s" } }
+    ""
+  } else if $result.exit_code != 0 {
+    if $verbose { try { print (echo-c $"    failed exit ($result.exit_code): ($result.stderr | str trim | lines | first | default '' | str trim)" "yellow") } catch { print $"    failed exit ($result.exit_code)" } }
+    $result.stdout | str trim
+  } else {
+    $result.stdout | str trim
+  }
+}
+
+# Detect MATLAB root with timeout, retry, and fallback chain.
+# Tries: matlab -batch (timeout), retry 2x, which matlab -> realpath -> parent of bin/, common R* globs, matlab -nosplash -nodesktop (30s)
+# --matlab-timeout: seconds for first batch attempt (retry is 2x); --verbose: print each attempt and preview
+# Example: detect-matlab-root --matlab-timeout 15 --verbose
+export def detect-matlab-root [--matlab-timeout: int = 15, --verbose] {
+  # --- Attempt 1: matlab -batch with configured timeout ---
+  let batch_cmd = "setenv('SHELL','/bin/bash'); disp(matlabroot)"
+  let out1 = run-matlab-with-timeout ["-batch", $batch_cmd] $matlab_timeout $verbose
+  let root1 = if ($out1 | is-empty) { "" } else { $out1 | str trim | lines | last | str trim }
+  if ($root1 | is-not-empty) and ($root1 | path exists) {
+    if $verbose { try { print (echo-g $"  ✓ Found via batch: ($root1)") } catch { print $"  ✓ Found via batch: ($root1)" } }
+    return $root1
+  }
+  if $verbose and ($root1 | is-not-empty) {
+    try { print (echo-c $"  ⚠ Batch returned non-existent path: ($root1)" "yellow") } catch { print $"  ⚠ Batch returned non-existent path: ($root1)" }
+  }
+
+  # --- Retry: 2x timeout ---
+  let retry_timeout = $matlab_timeout * 2
+  try { print (echo-c $"  ⚠ Timeout or empty after ($matlab_timeout)s, retrying with ($retry_timeout)s..." "yellow") } catch { print $"  ⚠ Timeout or empty after ($matlab_timeout)s, retrying with ($retry_timeout)s..." }
+  let out2 = run-matlab-with-timeout ["-batch", $batch_cmd] $retry_timeout $verbose
+  let root2 = if ($out2 | is-empty) { "" } else { $out2 | str trim | lines | last | str trim }
+  if ($root2 | is-not-empty) and ($root2 | path exists) {
+    if $verbose { try { print (echo-g $"  ✓ Found via batch retry: ($root2)") } catch { print $"  ✓ Found via batch retry: ($root2)" } }
+    return $root2
+  }
+
+  # --- Fallback 1: which matlab -> resolve symlink -> parent of bin/ ---
+  if $verbose { try { print (echo-c "  → Fallback: which matlab" "yellow") } catch { print "  → Fallback: which matlab" } }
+  let matlab_path = try { which matlab | get path.0 | str trim } catch { "" }
+  if ($matlab_path | is-not-empty) {
+    if $verbose { print $"    which: ($matlab_path)" }
+    let real = try { run-external "realpath" $matlab_path | complete | get stdout | str trim } catch { $matlab_path }
+    let real_trim = if ($real | is-empty) { $matlab_path } else { $real | str trim }
+    if $verbose { print $"    realpath: ($real_trim)" }
+    let candidate = ($real_trim | path dirname | path dirname)
+    if $verbose { print $"    candidate root: ($candidate)" }
+    if ($candidate | path exists) and (($candidate | path join "bin/matlab" | path exists) or ($candidate | path join "bin/glnxa64/MATLAB" | path exists)) {
+      if $verbose { try { print (echo-g $"  ✓ Found via which: ($candidate)") } catch { print $"  ✓ Found via which: ($candidate)" } } else { try { print (echo-c $"  ⚠ Batch failed, using fallback which → ($candidate)" "yellow") } catch { print $"  ⚠ Batch failed, using fallback which → ($candidate)" } }
+      return $candidate
+    }
+    # also try direct parent without realpath (in case realpath failed)
+    let candidate2 = ($matlab_path | path dirname | path dirname)
+    if ($candidate2 != $candidate) and ($candidate2 | path exists) and (($candidate2 | path join "bin/matlab" | path exists)) {
+      if $verbose { try { print (echo-g $"  ✓ Found via which (direct): ($candidate2)") } catch { print $"  ✓ Found via which (direct): ($candidate2)" } } else { try { print (echo-c $"  ⚠ Batch failed, using fallback which → ($candidate2)" "yellow") } catch { print $"  ⚠ Batch failed, using fallback which → ($candidate2)" } }
+      return $candidate2
+    }
+  } else {
+    if $verbose { try { print (echo-c "    which matlab: not found" "yellow") } catch { print "    which matlab: not found" } }
+  }
+
+  # --- Fallback 2: common install paths + glob for any R* ---
+  if $verbose { try { print (echo-c "  → Fallback: common install paths" "yellow") } catch { print "  → Fallback: common install paths" } }
+  mut candidates = [
+    ("/usr/local/MATLAB/R2026a" | path expand)
+    ("/opt/MATLAB/R2026a" | path expand)
+    ("~/MATLAB/R2026a" | path expand)
+  ]
+  for g in ["/usr/local/MATLAB/R*", "/opt/MATLAB/R*", "~/MATLAB/R*"] {
+    try {
+      let expanded = glob ($g | path expand) | where {|p| ($p | path join "bin/matlab" | path exists) } | sort | reverse
+      for p in $expanded { if $p not-in $candidates { $candidates = $candidates | append $p } }
+    } catch {}
+  }
+  for c in $candidates {
+    if $verbose { print $"    checking: ($c)" }
+    if ($c | path exists) and ($c | path join "bin/matlab" | path exists) {
+      if $verbose { try { print (echo-g $"  ✓ Found via common path: ($c)") } catch { print $"  ✓ Found via common path: ($c)" } } else { try { print (echo-c $"  ⚠ Batch failed, using fallback path → ($c)" "yellow") } catch { print $"  ⚠ Batch failed, using fallback path → ($c)" } }
+      return $c
+    }
+  }
+
+  # --- Fallback 3: matlab -nosplash -nodesktop -r with longer timeout ---
+  if $verbose { try { print (echo-c "  → Fallback: matlab -nosplash -nodesktop (30s)" "yellow") } catch { print "  → Fallback: matlab -nosplash -nodesktop (30s)" } } else { try { print (echo-c "  → Fallback: matlab -nosplash -nodesktop..." "yellow") } catch { print "  → Fallback: matlab -nosplash -nodesktop..." } }
+  let r_cmd = "setenv('SHELL','/bin/bash'); disp(matlabroot); quit"
+  let out3 = run-matlab-with-timeout ["-nosplash", "-nodesktop", "-r", $r_cmd] 30 $verbose
+  let root3 = if ($out3 | is-empty) { "" } else { $out3 | str trim | lines | last | str trim }
+  if ($root3 | is-not-empty) and ($root3 | path exists) {
+    if $verbose { try { print (echo-g $"  ✓ Found via nosplash: ($root3)") } catch { print $"  ✓ Found via nosplash: ($root3)" } } else { try { print (echo-g $"  ✓ Found via nosplash fallback: ($root3)") } catch { print $"  ✓ Found via nosplash fallback: ($root3)" } }
+    return $root3
+  }
+
+  # --- All failed ---
+  ""
+}
+
 #update/install matlab-agentic-toolkit (new method: agenticToolkitInstaller.mltbx)
-export def "apps-update matlab-agentic-toolkit" [] {
+export def "apps-update matlab-agentic-toolkit" [--matlab-timeout: int = 15, --verbose(-v)] {
 	let linux_backup = $env.MY_ENV_VARS.linux_backup
 	let mcp_bin_dir      = ("~/.matlab/agentic-toolkits/bin" | path expand)
 	let mcp_binary       = ($mcp_bin_dir | path join "matlab-mcp-server")
@@ -2067,16 +2190,17 @@ export def "apps-update matlab-agentic-toolkit" [] {
 		{file: "settings_opencode.json",    style: "mcp"}
 	]
 
-	# --- FR1: Dynamic MATLAB root detection ---
+	# --- FR1: Dynamic MATLAB root detection (with timeout, retry, fallback) ---
 	print (echo-c "\n⚙  Detecting MATLAB root..." "cyan")
-	let matlab_root = try {
-		# Use `lines | last` to strip any MATLAB startup warning lines above the actual path
-		matlab -batch "setenv('SHELL','/bin/bash'); disp(matlabroot)" | complete | get stdout | str trim | lines | last
-	} catch {
-		return-error "MATLAB not found or failed! Ensure 'matlab' is in PATH."
+	if $verbose { print (echo-c $"  timeout: ($matlab_timeout)s, verbose: on" "cyan") }
+	let matlab_root = if $verbose {
+	  detect-matlab-root --matlab-timeout $matlab_timeout --verbose
+	} else {
+	  detect-matlab-root --matlab-timeout $matlab_timeout
 	}
 	if ($matlab_root | is-empty) {
-		return-error "Could not detect MATLAB root (empty output from matlabroot)."
+		let t2 = $matlab_timeout * 2
+		return-error $"MATLAB root detection failed. Tried: batch 1 (($matlab_timeout)s), batch retry (($t2)s), which matlab, common paths (/usr/local/MATLAB/R*, /opt/MATLAB/R*, ~/MATLAB/R*), nosplash (30s). Check: 'matlab' in PATH, license server reachable, run 'matlab -nodesktop' manually for diagnostics. Use -v for verbose output."
 	}
 	print (echo-g $"   → MATLAB root: ($matlab_root)")
 
@@ -2199,10 +2323,10 @@ export def "apps-update matlab-agentic-toolkit" [] {
 	}
 
 	# --- FR1 (post-install): Re-detect MATLAB root in case version changed ---
-	let matlab_root_final = try {
-		matlab -batch "setenv('SHELL','/bin/bash'); disp(matlabroot)" | complete | get stdout | str trim | lines | last
-	} catch {
-		$matlab_root
+	let matlab_root_final = if $verbose {
+	  detect-matlab-root --matlab-timeout $matlab_timeout --verbose
+	} else {
+	  detect-matlab-root --matlab-timeout $matlab_timeout
 	}
 	let active_root = if ($matlab_root_final | is-empty) { $matlab_root } else { $matlab_root_final }
 
