@@ -502,50 +502,221 @@ export def patch-font [file? = "Monocraft.ttc", --no-update(-n)] {
   print (echo-g $"cp ($font_folder)/Monocraft-nerd-fonts-patched_by_me.ttc ~/.local/share/fonts/Monocraft.ttc; fc-cache -fv")
 }
 
-#update-upgrade system
-export def supgrade [--old(-o),--apps(-a),--cargo_aps(-c)] {
-  if not $old {
-    print (echo-g "updating and upgrading...")
-    sudo nala upgrade -y
-
-    print (echo-g "autoremoving...")
-    sudo nala autoremove -y
+# Detect OS via sys host, normalized to lowercase
+export def detect-os [] {
+  let os_name = sys host | get name | str lowercase
+  if ($os_name | str contains "cachyos") {
+    "cachyos"
+  } else if ($os_name | str contains "ubuntu") {
+    "ubuntu"
+  } else if ($os_name | str contains "arch") or ($os_name in ["manjaro", "endeavouros", "garuda", "artix"]) {
+    "arch"
+  } else if ($os_name in ["manjaro", "endeavouros", "garuda"]) {
+    "arch"
   } else {
-    print (echo-g "updating...")
-    sudo apt update -y
-
-    print (echo-g "upgrading...")
-    sudo apt upgrade -y
-
-    print (echo-g "autoremoving...")
-    sudo apt autoremove -y
+    "unknown"
   }
+}
 
-  print (echo-g "updating rust...")
-  rustup update
+# Return workflow record for given OS
+export def get-os-workflow [os: string] {
+  match $os {
+    "ubuntu" => {
+      name: "ubuntu",
+      update_cmd: "nala upgrade -y",
+      fallback_update_cmd: "apt update && apt upgrade -y",
+      cleanup_cmd: "nala autoremove -y",
+      fallback_cleanup_cmd: "apt autoremove -y",
+      has_nala: true,
+      has_custom_pacman: false
+    },
+    "cachyos" => {
+      name: "cachyos",
+      update_cmd: "pacman -Syu",
+      mirror_cmd: "cachy-rate-mirrors",
+      cache_cleanup_cmd: "paccache -rvk3",
+      aur_helpers: ["paru", "yay", "pamac"],
+      cleanup_cmd: "pacman -Rns (pacman -Qtdq)",
+      has_custom_pacman: true,
+      has_cachy_update: true
+    },
+    "arch" => {
+      name: "arch",
+      update_cmd: "pacman -Syu",
+      cache_cleanup_cmd: "paccache -rvk3",
+      aur_helpers: ["paru", "yay", "pamac"],
+      cleanup_cmd: "pacman -Rns (pacman -Qtdq)",
+      has_custom_pacman: false
+    },
+    _ => {
+      name: "unknown",
+      update_cmd: "",
+      fallback_update_cmd: "",
+      cleanup_cmd: "",
+      has_nala: false,
+      has_custom_pacman: false
+    }
+  }
+}
 
-  print (echo-g "updating snap packages...")
-  sudo snap refresh
+# Helper to run command with dry-run support
+def run-with-dry-run [cmd: string, dry_run: bool] {
+  if $dry_run {
+    print $"[DRY-RUN] Would execute: ($cmd)"
+    return true
+  }
+  try {
+    ^bash -c $cmd
+    true
+  } catch {|e|
+    print (echo-r $"Failed: ($cmd) - ($e.msg)")
+    false
+  }
+}
 
-  print (echo-g "updating stack...")
-  stack upgrade
+def run-ubuntu-workflow [old: bool, dry_run: bool] {
+  if $old {
+    run-with-dry-run "sudo apt update -y" $dry_run
+    run-with-dry-run "sudo apt upgrade -y" $dry_run
+  } else {
+    if (which nala | is-not-empty) {
+      run-with-dry-run "sudo nala upgrade -y" $dry_run
+    } else {
+      run-with-dry-run "sudo apt update -y" $dry_run
+      run-with-dry-run "sudo apt upgrade -y" $dry_run
+    }
+  }
+  run-with-dry-run "sudo apt autoremove -y" $dry_run
+}
 
-  print (echo-g "updating firmware...")
-  sudo fwupdmgr update
+def run-cachyos-workflow [skip_mirrors: bool, skip_cache_cleanup: bool, skip_aur: bool, dry_run: bool] {
+  if not $skip_mirrors {
+    if (which cachy-rate-mirrors | is-not-empty) {
+      run-with-dry-run "sudo cachy-rate-mirrors" $dry_run
+    }
+  }
+  run-with-dry-run "sudo pacman -Syu" $dry_run
+  if not $skip_cache_cleanup {
+    if (which paccache | is-not-empty) {
+      run-with-dry-run "sudo paccache -rvk3" $dry_run
+    }
+  }
+  if not $skip_aur {
+    for helper in ["paru", "yay", "pamac"] {
+      if (which $helper | is-not-empty) {
+        run-with-dry-run $"($helper) -Syu" $dry_run
+        break
+      }
+    }
+  }
+  if (which pacman | is-not-empty) {
+    try {
+      if $dry_run {
+        print $"[DRY-RUN] Would execute: pacman -Rns (pacman -Qtdq) [orphans]"
+      } else {
+        let orphans = ^pacman -Qtdq | complete | get stdout | str trim
+        if ($orphans | is-not-empty) {
+          ^bash -c "sudo pacman -Rns --noconfirm (pacman -Qtdq)"
+        }
+      }
+    } catch {}
+  }
+}
 
+def run-arch-workflow [skip_cache_cleanup: bool, skip_aur: bool, dry_run: bool] {
+  run-with-dry-run "sudo pacman -Syu" $dry_run
+  if not $skip_cache_cleanup {
+    if (which paccache | is-not-empty) {
+      run-with-dry-run "sudo paccache -rvk3" $dry_run
+    }
+  }
+  if not $skip_aur {
+    for helper in ["paru", "yay", "pamac"] {
+      if (which $helper | is-not-empty) {
+        run-with-dry-run $"($helper) -Syu" $dry_run
+        break
+      }
+    }
+  }
+  if (which pacman | is-not-empty) {
+    try {
+      if $dry_run {
+        print $"[DRY-RUN] Would execute: pacman -Rns (pacman -Qtdq) [orphans]"
+      } else {
+        let orphans = ^pacman -Qtdq | complete | get stdout | str trim
+        if ($orphans | is-not-empty) {
+          ^bash -c "sudo pacman -Rns --noconfirm (pacman -Qtdq)"
+        }
+      }
+    } catch {}
+  }
+}
+
+def run-common-operations [dry_run: bool, cargo_aps: bool, apps: bool] {
+  if (which snap | is-not-empty) {
+    run-with-dry-run "sudo snap refresh" $dry_run
+  }
   if (which flatpak | is-not-empty) {
-    print (echo-g "updating flatpak packages...")
-    flatpak update -y
+    run-with-dry-run "flatpak update -y" $dry_run
   }
-
+  if (which fwupdmgr | is-not-empty) {
+    run-with-dry-run "sudo fwupdmgr update" $dry_run
+  }
+  if (which rustup | is-not-empty) {
+    run-with-dry-run "rustup update" $dry_run
+  }
+  if (which stack | is-not-empty) {
+    run-with-dry-run "stack upgrade" $dry_run
+  }
   if $cargo_aps {
-    print (echo-g "updating cargo apps...")
-    cargo install-update -a
+    if (which cargo | is-not-empty) {
+      run-with-dry-run "cargo install-update -a" $dry_run
+    }
+  }
+  if $apps {
+    if $dry_run {
+      print $"[DRY-RUN] Would execute: apps-update"
+    } else {
+      apps-update
+    }
+  }
+}
+
+# Update and upgrade system packages, auto-detecting OS (Ubuntu/CachyOS/Arch) via sys host.
+# Applies the proper workflow: Ubuntu uses nala/apt, CachyOS/Arch use pacman + cachy-rate-mirrors/paccache/AUR helpers.
+# Common operations (snap, flatpak, fwupdmgr, rustup, stack, cargo, apps-update) run on all OSes.
+# Flags: --old (use apt update+upgrade), --apps (run apps-update), --cargo_aps (cargo update), --skip-mirrors/cache-cleanup/aur, --dry-run
+export def supgrade [--old(-o),--apps(-a),--cargo_aps(-c),--skip-mirrors,--skip-cache-cleanup,--skip-aur,--dry-run] {
+  let os = detect-os
+  print (echo-g $"Detected OS: ($os)")
+
+  mut workflow = get-os-workflow $os
+  if $workflow.name == "unknown" {
+    print (echo-r $"Unknown OS '($os)', falling back to ubuntu workflow")
+    $workflow = get-os-workflow "ubuntu"
   }
 
-  if $apps {
-    print (echo-g "updating off apt apps...")
-    apps-update
+  if $dry_run {
+    print (echo-g "=== DRY RUN MODE ===")
+    print (echo-g $"Would run ($workflow.name) workflow")
+  }
+
+  print (echo-g $"Using ($workflow.name) workflow...")
+
+  match $workflow.name {
+    "ubuntu" => { run-ubuntu-workflow $old $dry_run },
+    "cachyos" => { run-cachyos-workflow $skip_mirrors $skip_cache_cleanup $skip_aur $dry_run },
+    "arch" => { run-arch-workflow $skip_cache_cleanup $skip_aur $dry_run },
+    _ => { run-ubuntu-workflow $old $dry_run }
+  }
+
+  run-common-operations $dry_run $cargo_aps $apps
+
+  if not $dry_run {
+    print (echo-g "=== Upgrade Complete ===")
+    print (echo-g $"OS: ($os) via ($workflow.name) workflow")
+  } else {
+    print (echo-g "=== Dry Run Complete ===")
   }
 }
 
