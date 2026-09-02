@@ -356,3 +356,248 @@ export def "yt-dlp restore" [] {
   cd $env.MY_ENV_VARS.linux_backup
   7z x yt-dlp_config.7z -o/home/kira/.config/ -y
 }
+
+#backup antigravity (gemini cli) settings and plugins
+@category backup
+@search-terms antigravity agy gmn gemini backup
+export def "agy backup" [] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  cd $backup_dir
+
+  # 1. Back up live settings.json if present
+  let live_settings = [
+    ("~/.gemini/antigravity-cli/settings.json" | path expand),
+    ("~/.gemini/settings.json" | path expand)
+  ] | where { |p| $p | path exists }
+  if ($live_settings | is-not-empty) {
+    let src = $live_settings | first
+    cp -f $src ($backup_dir | path join "settings_antigravity.json")
+    print (echo-g $"✓ Saved live Antigravity settings to ($backup_dir)/settings_antigravity.json")
+  }
+
+  # 2. Archive plugins directory
+  let plugin_dirs = [
+    ("~/.gemini/config/plugins" | path expand),
+    ("~/.gemini/antigravity-cli/plugins" | path expand)
+  ] | where { |p| $p | path exists }
+  if ($plugin_dirs | is-not-empty) {
+    let p_src = $plugin_dirs | first
+    try { 7z max antigravity_plugins.7z $p_src } catch {}
+    print (echo-g "✓ Archived Antigravity plugins to antigravity_plugins.7z")
+  }
+
+  # 3. Conductor skills backup
+  let conductor_src = [
+    ("~/.gemini/config/plugins/conductor/skills" | path expand),
+    ("~/.gemini/antigravity-cli/plugins/conductor/skills" | path expand)
+  ] | where { |p| $p | path exists }
+  if ($conductor_src | is-not-empty) {
+    let c_dest = (try { $env.MY_ENV_VARS.llms_configs } catch { "~/Yandex.Disk/llms_configs" } | path expand | path join "conductor_skills_backup" "agy")
+    mkdir $c_dest
+    for s in (glob (($conductor_src | first) | path join "*")) {
+      cp -r $s $c_dest
+    }
+    print (echo-g "✓ Backed up Conductor AGY skills to llms_configs/conductor_skills_backup/agy")
+  }
+}
+
+#restore antigravity (gemini cli) settings and plugins
+@category backup
+@search-terms antigravity agy gmn gemini restore
+export def "agy restore" [] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  cd $backup_dir
+
+  # 1. Restore plugins archive
+  let archive = ($backup_dir | path join "antigravity_plugins.7z")
+  if ($archive | path exists) {
+    let dest1 = ("~/.gemini/config" | path expand)
+    let dest2 = ("~/.gemini/antigravity-cli" | path expand)
+    mkdir $dest1 $dest2
+    try { 7z x $archive -o($dest1) -y } catch {}
+    try { 7z x $archive -o($dest2) -y } catch {}
+    print (echo-g "✓ Restored Antigravity plugins")
+  }
+
+  # 2. Restore settings
+  let settings_src = ($backup_dir | path join "settings_antigravity.json")
+  if ($settings_src | path exists) {
+    let s_dest1 = ("~/.gemini/antigravity-cli/settings.json" | path expand)
+    let s_dest2 = ("~/.gemini/settings.json" | path expand)
+    mkdir ("~/.gemini/antigravity-cli" | path expand) ("~/.gemini" | path expand)
+    cp -f $settings_src $s_dest1
+    cp -f $settings_src $s_dest2
+    print (echo-g "✓ Restored Antigravity settings")
+  }
+
+  # 3. Synchronize skills & rules
+  try {
+    use ~/Yandex.Disk/my_scripts/nushell/def_system.nu [link-skills, update-gemini-md]
+    link-skills
+    update-gemini-md
+  } catch {}
+}
+
+# Aliases for agy backup / restore
+export alias "gmn backup" = agy backup
+export alias "gmn restore" = agy restore
+
+#backup claude code settings and config
+@category backup
+@search-terms claude cld backup
+export def "cld backup" [] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  cd $backup_dir
+
+  let live_settings = [
+    ("~/.claude/settings.json" | path expand),
+    ("~/.claude.json" | path expand)
+  ] | where { |p| $p | path exists }
+  if ($live_settings | is-not-empty) {
+    cp -f ($live_settings | first) ($backup_dir | path join "settings_claude.json")
+    print (echo-g $"✓ Saved Claude Code settings to ($backup_dir)/settings_claude.json")
+  }
+
+  let claude_dir = ("~/.claude" | path expand)
+  if ($claude_dir | path exists) {
+    try { 7z max claude_config.7z $claude_dir "-xr!skills" "-xr!agents" "-xr!tasks" "-xr!projects" "-xr!cache" "-xr!session-transcripts" "-xr!node_modules" "-xr!marketplaces" "-xr!*.log" "-xr!*.tmp" } catch {}
+    print (echo-g "✓ Archived Claude Code configuration to claude_config.7z")
+  }
+}
+
+#restore claude code settings and config
+@category backup
+@search-terms claude cld restore
+export def "cld restore" [] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  cd $backup_dir
+
+  let settings_src = ($backup_dir | path join "settings_claude.json")
+  if ($settings_src | path exists) {
+    mkdir ("~/.claude" | path expand)
+    cp -f $settings_src ("~/.claude/settings.json" | path expand)
+    cp -f $settings_src ("~/.claude.json" | path expand)
+    print (echo-g "✓ Restored Claude Code settings")
+  }
+
+  let archive = ($backup_dir | path join "claude_config.7z")
+  if ($archive | path exists) {
+    try { 7z x $archive -o($env.HOME) -y } catch {}
+  }
+
+  try {
+    use ~/Yandex.Disk/my_scripts/nushell/def_system.nu [link-skills, link-agents, update-gemini-md]
+    link-skills
+    link-agents
+    update-gemini-md
+  } catch {}
+}
+
+export alias "claude backup" = cld backup
+export alias "claude restore" = cld restore
+
+#backup opencode settings and config
+@category backup
+@search-terms opencode opn backup
+export def "opn backup" [] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  cd $backup_dir
+
+  let opencode_dir = ("~/.config/opencode" | path expand)
+  let live_config = ($opencode_dir | path join "config.json")
+  if ($live_config | path exists) {
+    cp -f $live_config ($backup_dir | path join "settings_opencode.json")
+    print (echo-g $"✓ Saved OpenCode config to ($backup_dir)/settings_opencode.json")
+  }
+
+  if ($opencode_dir | path exists) {
+    try { 7z max opencode_config.7z $opencode_dir "-xr!skills" "-xr!agents" "-xr!node_modules" "-xr!marketplaces" "-xr!*.db" "-xr!*.db-wal" "-xr!*.db-shm" "-xr!*.log" "-xr!cache" "-xr!sessions" "-xr!traces" } catch {}
+    print (echo-g "✓ Archived OpenCode configuration to opencode_config.7z")
+  }
+}
+
+#restore opencode settings and config
+@category backup
+@search-terms opencode opn restore
+export def "opn restore" [] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  cd $backup_dir
+
+  let settings_src = ($backup_dir | path join "settings_opencode.json")
+  let opencode_dir = ("~/.config/opencode" | path expand)
+  mkdir $opencode_dir
+  if ($settings_src | path exists) {
+    cp -f $settings_src ($opencode_dir | path join "config.json")
+    print (echo-g "✓ Restored OpenCode settings to config.json")
+  }
+
+  let archive = ($backup_dir | path join "opencode_config.7z")
+  if ($archive | path exists) {
+    try { 7z x $archive -o($env.HOME | path join ".config") -y } catch {}
+  }
+
+  try {
+    use ~/Yandex.Disk/my_scripts/nushell/def_system.nu [link-skills, link-agents, update-gemini-md]
+    link-skills
+    link-agents
+    update-gemini-md
+  } catch {}
+}
+
+export alias "opencode backup" = opn backup
+export alias "opencode restore" = opn restore
+
+#backup cmdg settings and credentials
+@category backup
+@search-terms cmdg backup gmail
+export def "cmdg backup" [] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  let cmdg_conf = ("~/.cmdg/cmdg.conf" | path expand)
+
+  if not ($cmdg_conf | path exists) {
+    print (echo-r $"cmdg config file not found at ($cmdg_conf)")
+    return
+  }
+
+  do {
+    cd ("~/.cmdg" | path expand)
+    nu-crypt -e -n "cmdg.conf"
+    let asc_file = ("~/.cmdg/cmdg.conf.asc" | path expand)
+    if ($asc_file | path exists) {
+      mv -f $asc_file ($backup_dir | path join "cmdg.conf.asc")
+      print (echo-g $"✓ Encrypted and backed up cmdg config to ($backup_dir)/cmdg.conf.asc")
+    }
+  }
+
+  let sig_file = ("~/.signature" | path expand)
+  if ($sig_file | path exists) {
+    cp -f $sig_file ($backup_dir | path join "cmdg_signature")
+    print (echo-g $"✓ Saved cmdg signature to ($backup_dir)/cmdg_signature")
+  }
+}
+
+#restore cmdg settings and credentials
+@category backup
+@search-terms cmdg restore gmail
+export def "cmdg restore" [] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  let backup_conf = ($backup_dir | path join "cmdg.conf.asc")
+  let target_dir = ("~/.cmdg" | path expand)
+  let target_conf = ($target_dir | path join "cmdg.conf")
+
+  if ($backup_conf | path exists) {
+    mkdir $target_dir
+    chmod 700 $target_dir
+    nu-crypt -d -n $backup_conf | save -f $target_conf
+    chmod 600 $target_conf
+    print (echo-g $"✓ Restored cmdg config to ($target_conf)")
+  } else {
+    print (echo-y $"Notice: cmdg backup not found at ($backup_conf)")
+  }
+
+  let backup_sig = ($backup_dir | path join "cmdg_signature")
+  if ($backup_sig | path exists) {
+    cp -f $backup_sig ("~/.signature" | path expand)
+    print (echo-g "✓ Restored cmdg signature to ~/.signature")
+  }
+}

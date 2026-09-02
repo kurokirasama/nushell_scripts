@@ -3,10 +3,10 @@
 # Centralized configuration for AC temperature thresholds
 export def "ghome cron-ac-config" [] {
     {
-        sunrise_on: 14.0,      # Turn on if <= this at sunrise
-        hourly_on_winter: 14.0, # Turn on if <= this (winter/season)
+        sunrise_on: 16.0,      # Turn on if <= this at sunrise
+        hourly_on_winter: 12.0, # Turn on if <= this (winter/season)
         hourly_on_summer: 20.0, # Turn on if >= this (summer/off-season)
-        hourly_off_winter: 15.0, # Turn off if >= this (winter/season)
+        hourly_off_winter: 16.0, # Turn off if >= this (winter/season)
         hourly_off_summer: 18.0  # Turn off if <= this (summer/off-season)
     }
 }

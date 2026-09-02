@@ -159,7 +159,8 @@ def patch-skill-name [skill_dir: path, target_name: string] {
 
 #link skills from yandex disk to ~/.agents/skills
 export def link-skills [] {
-    let source = ($env.MY_ENV_VARS.llms_configs | path join "skills")
+    let source = (try { $env.MY_ENV_VARS.llms_configs } catch { "~/Yandex.Disk/llms_configs" } | path expand | path join "skills")
+    let conductor_backup = (try { $env.MY_ENV_VARS.llms_configs } catch { "~/Yandex.Disk/llms_configs" } | path expand | path join "conductor_skills_backup")
     let dest1 = "~/.agents/skills" | path expand
     let dest2 = "~/.gemini/antigravity-cli/skills" | path expand
     let dest3 = "~/.claude/skills" | path expand
@@ -182,11 +183,17 @@ export def link-skills [] {
         | each { |s| $s | path basename }
         | where { |n| $n not-in $repos_to_ignore }
 
-    # Eagerly collect plugin skills so the list is reused in both cleanup and linking
-    let plugins_dir = "~/.gemini/antigravity-cli/plugins" | path expand
-    let plugin_skills = if ($plugins_dir | path exists) {
-        glob ($plugins_dir | path join "*" "skills" "*" "SKILL.md")
-    } else { [] }
+    # Eagerly collect plugin skills across all potential plugin locations
+    let candidate_plugin_dirs = [
+        ("~/.gemini/antigravity-cli/plugins" | path expand),
+        ("~/.gemini/config/plugins" | path expand),
+        ("~/.gemini/plugins" | path expand)
+    ]
+    let plugin_skills = ($candidate_plugin_dirs 
+        | where { |d| $d | path exists }
+        | each { |d| glob ($d | path join "*" "skills" "*" "SKILL.md") }
+        | flatten
+        | uniq)
 
     let plugin_skill_names = $plugin_skills | each { |skill|
         let parts = $skill | path split
@@ -195,11 +202,14 @@ export def link-skills [] {
         $"($plugin_name)-($skill_name | str lowercase)"
     }
 
-    let all_expected_names = ($standard_skill_names | append $plugin_skill_names)
+    let backup_others_skills = if (($conductor_backup | path join "others") | path exists) {
+        glob (($conductor_backup | path join "others" "*") | into string)
+    } else { [] }
+    let backup_others_names = $backup_others_skills | each { |s| $s | path basename }
+
+    let all_expected_names = ($standard_skill_names | append $plugin_skill_names | append $backup_others_names | uniq)
 
     # --- Intelligently clean dest1 and dest2 ---
-    # Remove any symlink that is either broken or no longer in the current skill batch.
-    # Non-symlink entries (manually placed real dirs) are intentionally left untouched.
     for dest in [$dest1, $dest2] {
         let items = glob ($dest | path join "*")
         for item in $items {
@@ -208,7 +218,7 @@ export def link-skills [] {
                 let is_broken = not ($item | path exists)
                 let is_stale  = $name not-in $all_expected_names
                 if $is_broken or $is_stale {
-                    rm $item
+                    try { rm -rf $item } catch {}
                 }
             }
         }
@@ -217,7 +227,7 @@ export def link-skills [] {
     # --- Full wipe for dest3 (Claude Code blocks external symlinks; always copy fresh) ---
     let items3 = glob ($dest3 | path join "*")
     for item in $items3 {
-        rm -rf $item
+        try { rm -rf $item } catch {}
     }
 
     # --- 1. Link/copy Standard Skills (from Yandex Disk) ---
@@ -227,12 +237,8 @@ export def link-skills [] {
 
         let targets = [$dest1, $dest2] | each { |d| $d | path join $name }
         for target in $targets {
-            if ($target | path type) == "symlink" {
-                rm $target
-            } else if ($target | path exists) {
-                continue
-            }
-            ^ln -s $skill $target
+            try { rm -rf $target } catch {}
+            try { ^ln -sfn $skill $target } catch {}
         }
 
         # Claude Code blocks external symlinks for security. We must copy the skills.
@@ -247,34 +253,52 @@ export def link-skills [] {
         }
     }
 
-    # --- 2. Link/copy Extension Skills (from antigravity-cli plugins) ---
-    # NOTE: $dest2 (agy) intentionally excluded — agy resolves plugin skills natively from its plugins/ dir.
+    # --- 2. Restore / Deploy Conductor Skills from Backup (for other agents: Zed, OpenCode, Claude) ---
+    for skill in $backup_others_skills {
+        let name = $skill | path basename
+        
+        # Deploy to Zed ($dest1)
+        let target_zed = $dest1 | path join $name
+        try { rm -rf $target_zed } catch {}
+        cp -r $skill $target_zed
+        patch-skill-name $target_zed $name
+
+        # Deploy to Claude Code ($dest3)
+        let target3 = $dest3 | path join $name
+        try { rm -rf $target3 } catch {}
+        cp -r $skill $target3
+        patch-skill-name $target3 $name
+    }
+
+    # --- 3. Link/copy Extension Skills (from antigravity-cli plugins) ---
     for skill in $plugin_skills {
         let parts = $skill | path split
         let plugin_name = $parts | get (($parts | length) - 4)
         let skill_name  = $parts | get (($parts | length) - 2)
         let source_dir  = $skill | path dirname
 
-        # Lowercase the skill name so the folder and SKILL.md `name:` field both satisfy Zed's
-        # validation (only lowercase letters, numbers, and hyphens allowed).
         let target_name = $"($plugin_name)-($skill_name | str lowercase)"
 
-        # Copy to Zed ($dest1) — we copy (not symlink) so we can patch the SKILL.md name field
-        # without modifying the source plugin files.
+        # Copy to Zed ($dest1)
         let target_zed = $dest1 | path join $target_name
-        if ($target_zed | path type) == "symlink" {
-            rm $target_zed
-        } else if ($target_zed | path exists) {
-            rm -rf $target_zed
-        }
+        try { rm -rf $target_zed } catch {}
         cp -r $source_dir $target_zed
         patch-skill-name $target_zed $target_name
 
-        # Copy to Claude Code ($dest3) — Claude Code blocks external symlinks
+        # Copy to Claude Code ($dest3)
         let target3 = $dest3 | path join $target_name
-        if ($target3 | path exists) { rm -rf $target3 }
+        try { rm -rf $target3 } catch {}
         cp -r $source_dir $target3
         patch-skill-name $target3 $target_name
+    }
+
+    # --- 4. Ensure AGY Conductor Plugins are present in ~/.gemini/config/plugins/conductor ---
+    let agy_plugin_dest = "~/.gemini/config/plugins/conductor" | path expand
+    let agy_backup_src = $conductor_backup | path join "agy"
+    if ($agy_backup_src | path exists) and (not ($agy_plugin_dest | path join "skills" | path exists)) {
+        mkdir ($agy_plugin_dest | path join "skills")
+        cp -r ($agy_backup_src | path join "*") ($agy_plugin_dest | path join "skills")
+        print (echo-g "✓ Restored AGY Conductor plugin skills to ~/.gemini/config/plugins/conductor")
     }
 
     print (echo-g "Skills and extension-based commands linked successfully!")
@@ -282,7 +306,7 @@ export def link-skills [] {
 
 #link agents from yandex disk to user CLI folders
 export def link-agents [] {
-    let base    = ($env.MY_ENV_VARS.llms_configs | path join "agents")
+    let base    = (try { $env.MY_ENV_VARS.llms_configs } catch { "~/Yandex.Disk/llms_configs" } | path expand | path join "agents")
     let src_ag  = ($base | path join "antigravity")
     let src_oc  = ($base | path join "opencode")
     let src_cl  = ($base | path join "claude")
@@ -320,13 +344,13 @@ export def link-agents [] {
     for item in (glob ($dest_gemini | path join "*")) {
         if ($item | path type) == "symlink" {
             let name = $item | path basename
-            if (not ($item | path exists)) or ($name not-in $ag_names) { rm $item }
+            if (not ($item | path exists)) or ($name not-in $ag_names) { try { rm -rf $item } catch {} }
         }
     }
     for agent in $ag_files {
         let target = $dest_gemini | path join ($agent | path basename)
-        if ($target | path type) == "symlink" { rm $target } else if ($target | path exists) { rm -rf $target }
-        ^ln -s $agent $target
+        try { rm -rf $target } catch {}
+        try { ^ln -sfn $agent $target } catch {}
     }
 
     # ── OpenCode ── symlink (with validation guard)
@@ -335,7 +359,7 @@ export def link-agents [] {
     for item in (glob ($dest_opencode | path join "*")) {
         if ($item | path type) == "symlink" {
             let name = $item | path basename
-            if (not ($item | path exists)) or ($name not-in $oc_names) { rm $item }
+            if (not ($item | path exists)) or ($name not-in $oc_names) { try { rm -rf $item } catch {} }
         }
     }
     for agent in $oc_files {
@@ -344,15 +368,15 @@ export def link-agents [] {
             continue
         }
         let target = $dest_opencode | path join ($agent | path basename)
-        if ($target | path type) == "symlink" { rm $target } else if ($target | path exists) { rm -rf $target }
-        ^ln -s $agent $target
+        try { rm -rf $target } catch {}
+        try { ^ln -sfn $agent $target } catch {}
     }
 
     # ── Claude Code ── copy (blocks external symlinks)
-    for item in (glob ($dest_claude | path join "*")) { rm -rf $item }
+    for item in (glob ($dest_claude | path join "*")) { try { rm -rf $item } catch {} }
     for agent in (glob ($src_cl | path join "*.md")) {
         let target = $dest_claude | path join ($agent | path basename)
-        cp $agent $target
+        try { cp -f $agent $target } catch {}
     }
 
     print (echo-g "Agent definition files linked successfully!")
@@ -373,3 +397,8 @@ export def "update-gemini-md" [] {
     }
     cp $source ($opencode_dir | path join "AGENTS.md") -f
 }
+
+def echo-g [text: string] { $"(ansi -e { fg: '#00ff00' attr: b })($text)(ansi reset)" }
+def echo-r [text: string] { $"(ansi -e { fg: '#ff0000' attr: b })($text)(ansi reset)" }
+def echo-y [text: string] { $"(ansi -e { fg: '#ffff00' attr: b })($text)(ansi reset)" }
+

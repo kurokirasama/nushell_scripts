@@ -33,3 +33,6 @@ export alias discord = oxicord
 export alias weather = linecast weather --metric
 
 # export alias s = subl
+
+# Omarchy CLI alias
+export alias om = omarchy

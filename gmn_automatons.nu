@@ -61,8 +61,9 @@ export def --env "gmn cron" [
 	gmn-cron-email $skill $output $tool
 
 	# Clean up output: extract only the JSON part
+	let discord_channel = if ($skill =~ "new") { "gemini_cli_news" } else { "gemini_cli_cron" }
 	let cleaned_stdout = _clean-output $output.stdout
-	$cleaned_stdout | to-discord -p --process -c gemini_cli_cron
+	$cleaned_stdout | to-discord -p --process -c $discord_channel
 
 	if not $dont_kill {
 		sleep 2sec

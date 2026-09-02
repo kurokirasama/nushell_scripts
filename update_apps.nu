@@ -503,16 +503,16 @@ export def patch-font [file? = "Monocraft.ttc", --no-update(-n)] {
 }
 
 # Detect OS via sys host, normalized to lowercase
-export def detect-os []: nothing -> string {
+export def detect-os [] {
   let os_name = sys host | get name | str lowercase
-  if ($os_name | str contains "cachyos") {
-    "cachyos"
-  } else if ($os_name | str contains "ubuntu") {
-    "ubuntu"
-  } else if ($os_name | str contains "arch") or ($os_name in ["manjaro", "endeavouros", "garuda", "artix"]) {
-    "arch"
-  } else {
-    "unknown"
+  match $os_name {
+    "ubuntu" => "ubuntu",
+    "cachyos" => "cachyos",
+    "arch" => "arch",
+    "manjaro" => "arch",
+    "endeavouros" => "arch",
+    "garuda" => "arch",
+    _ => "unknown"
   }
 }
 
@@ -536,8 +536,7 @@ export def get-os-workflow [os: string] {
       aur_helpers: ["paru", "yay", "pamac"],
       cleanup_cmd: "pacman -Rns (pacman -Qtdq)",
       has_custom_pacman: true,
-      has_cachy_update: true,
-      # extended_ops: ["npm-pkgs","go-pkgs","cargo-pkgs","uv-tools","git-tools","r-pkgs","git-repos","ollama-models","fonts","omarchy"] via run-cachyos-* runners (supgrade --all)
+      has_cachy_update: true
     },
     "arch" => {
       name: "arch",
@@ -651,58 +650,7 @@ def run-arch-workflow [skip_cache_cleanup: bool, skip_aur: bool, dry_run: bool] 
   }
 }
 
-# CachyOS category runners (ponytail: simple dispatch, add per-category logic if needed)
-export def run-cachyos-npm-pkgs [dry_run: bool]: nothing -> nothing {
-  for cmd in ["apps-update claude", "apps-update gemini", "apps-update mermaid-ascii", "apps-update open-codex", "apps-update mermaid-filter", "apps-update mermaid-cli", "apps-update fast-cli", "apps-update tldr", "apps-update context-mode"] {
-    if $dry_run { print $"[DRY-RUN] Would execute: ($cmd)" } else { try { bash -c $cmd | ignore } catch {|e| print (echo-y $"Warning ($cmd): ($e.msg)") } }
-  }
-  # Extra npm from install list not yet having dedicated apps-update
-  for pkg in ["subsync", "puppeteer", "@google/clasp", "pyright", "byterover-cli"] {
-    if $dry_run { print $"[DRY-RUN] Would execute: npm update -g ($pkg)" } else { try { ^npm update -g $pkg | ignore } catch {|e| print (echo-y $"Warning npm ($pkg): ($e.msg)") } }
-  }
-}
-export def run-cachyos-go-pkgs [dry_run: bool]: nothing -> nothing {
-  for cmd in ["apps-update glow", "apps-update ttt", "apps-update cariddi", "apps-update gowall", "apps-update reader", "apps-update hakrawler", "apps-update draw"] {
-    if $dry_run { print $"[DRY-RUN] Would execute: ($cmd)" } else { try { bash -c $cmd | ignore } catch {|e| print (echo-y $"Warning ($cmd): ($e.msg)") } }
-  }
-  for pkg in ["github.com/ChausseBenjamin/termpicker@latest", "github.com/ThomasHabets/cmdg/cmd/cmdg@latest", "github.com/ThomasHabets/cmdg/cmd/med@latest", "github.com/kurokirasama/cmdg-image-render/cmd/cmdg-image-render@latest"] {
-    if $dry_run { print $"[DRY-RUN] Would execute: go install ($pkg)" } else { try { go install $pkg | ignore } catch {|e| print (echo-y $"Warning go ($pkg): ($e.msg)") } }
-  }
-}
-export def run-cachyos-cargo-pkgs [dry_run: bool]: nothing -> nothing {
-  for cmd in ["apps-update termframe", "apps-update oxicord", "apps-update ox", "apps-update lstr"] {
-    if $dry_run { print $"[DRY-RUN] Would execute: ($cmd)" } else { try { bash -c $cmd | ignore } catch {|e| print (echo-y $"Warning ($cmd): ($e.msg)") } }
-  }
-  if (which cargo | is-not-empty) {
-    run-with-dry-run "cargo install-update -a" $dry_run
-    for pkg in ["toktop", "bat", "zoxide", "tokei", "bottom", "simple-http-server", "alass-cli", "cargo-update", "ht", "doxx", "xleak"] {
-      if $dry_run { print $"[DRY-RUN] Would execute: cargo install ($pkg)" } else { try { cargo install $pkg | ignore } catch {|e| print (echo-y $"Warning cargo ($pkg): ($e.msg)") } }
-    }
-  }
-}
-export def run-cachyos-uv-tools [dry_run: bool]: nothing -> nothing {
-  for cmd in ["apps-update linecast", "apps-update subliminal", "apps-update whisper", "apps-update nvitop"] {
-    if $dry_run { print $"[DRY-RUN] Would execute: ($cmd)" } else { try { bash -c $cmd | ignore } catch {|e| print (echo-y $"Warning ($cmd): ($e.msg)") } }
-  }
-  for tool in ["termdown", "tldr"] {
-    if $dry_run { print $"[DRY-RUN] Would execute: uv tool upgrade ($tool) or pipx upgrade ($tool)" } else {
-      if (which uv | is-not-empty) { try { uv tool upgrade $tool | ignore } catch {} } else if (which pipx | is-not-empty) { try { pipx upgrade $tool | ignore } catch {} }
-    }
-  }
-}
-export def run-cachyos-git-tools [dry_run: bool]: nothing -> nothing {
-  for cmd in ["apps-update ddgr", "apps-update rclone", "apps-update matlab-lsp"] {
-    if $dry_run { print $"[DRY-RUN] Would execute: ($cmd)" } else { try { bash -c $cmd | ignore } catch {|e| print (echo-y $"Warning ($cmd): ($e.msg)") } }
-  }
-}
-export def run-cachyos-language-runtimes [dry_run: bool]: nothing -> nothing {
-  if (which go | is-not-empty) { run-with-dry-run "go install golang.org/dl/go@latest" $dry_run }
-  if (which uv | is-not-empty) { run-with-dry-run "uv self update" $dry_run }
-  if (which npm | is-not-empty) { run-with-dry-run "npm update -g npm" $dry_run }
-  if (which rustup | is-not-empty) { run-with-dry-run "rustup update" $dry_run }
-}
-
-def run-common-operations [dry_run: bool, cargo_aps: bool] {
+def run-common-operations [dry_run: bool, cargo_aps: bool, apps: bool] {
   if (which snap | is-not-empty) {
     run-with-dry-run "sudo snap refresh" $dry_run
   }
@@ -723,14 +671,25 @@ def run-common-operations [dry_run: bool, cargo_aps: bool] {
       run-with-dry-run "cargo install-update -a" $dry_run
     }
   }
+  if $apps {
+    if $dry_run {
+      print $"[DRY-RUN] Would execute: apps-update"
+    } else {
+      apps-update
+    }
+  }
 }
 
-# Update and upgrade system packages, auto-detecting OS (Ubuntu/CachyOS/Arch) via sys host.
-# Applies the proper workflow: Ubuntu uses nala/apt, CachyOS/Arch use pacman + cachy-rate-mirrors/paccache/AUR helpers.
-# Common operations (snap, flatpak, fwupdmgr, rustup, stack, cargo) run on all OSes.
-# CachyOS extended: --npm-pkgs, --go-pkgs, --cargo-pkgs, --uv-tools, --git-tools, --r-pkgs, --git-repos, --ollama-models, --fonts, --omarchy, --all
-# Flags: --old (Ubuntu apt), --cargo_aps (cargo update), --skip-mirrors/cache-cleanup/aur, --dry-run, CachyOS category flags, --all
-export def supgrade [--old(-o),--cargo_aps(-c),--skip-mirrors,--skip-cache-cleanup,--skip-aur,--dry-run, --npm-pkgs, --go-pkgs, --cargo-pkgs, --uv-tools, --git-tools, --r-pkgs, --git-repos, --ollama-models, --fonts, --omarchy, --all] {
+# Update and upgrade system packages based on detected OS (Ubuntu/Debian, CachyOS, Arch)
+export def supgrade [
+  --old(-o)                 # Use legacy apt update && apt upgrade on Ubuntu
+  --apps(-a)                # Also run off-package manager apps-update
+  --cargo_aps(-c)           # Also update cargo packages via cargo-install-update
+  --skip-mirrors            # Skip cachy-rate-mirrors on CachyOS
+  --skip-cache-cleanup      # Skip package cache cleanup (paccache) on Arch/CachyOS
+  --skip-aur                # Skip AUR helper upgrade on Arch/CachyOS
+  --dry-run                 # Show commands that would be executed without running them
+] {
   let os = detect-os
   print (echo-g $"Detected OS: ($os)")
 
@@ -754,26 +713,7 @@ export def supgrade [--old(-o),--cargo_aps(-c),--skip-mirrors,--skip-cache-clean
     _ => { run-ubuntu-workflow $old $dry_run }
   }
 
-  # CachyOS extended category operations (only on cachyos workflow)
-  if $workflow.name == "cachyos" {
-    if ($all or $npm_pkgs) { print (echo-g "Running npm packages update..."); run-cachyos-npm-pkgs $dry_run }
-    if ($all or $go_pkgs) { print (echo-g "Running Go packages update..."); run-cachyos-go-pkgs $dry_run }
-    if ($all or $cargo_pkgs) { print (echo-g "Running Cargo packages update..."); run-cachyos-cargo-pkgs $dry_run }
-    if ($all or $uv_tools) { print (echo-g "Running UV tools update..."); run-cachyos-uv-tools $dry_run }
-    if ($all or $git_tools) { print (echo-g "Running Git tools update..."); run-cachyos-git-tools $dry_run }
-    if ($all or $r_pkgs) { print (echo-g "Running R packages update..."); try { if $dry_run { print "[DRY-RUN] Would execute: apps-update r-pkgs" } else { apps-update r-pkgs } } catch {|e| print (echo-y $"apps-update r-pkgs failed: ($e.msg)") } }
-    if ($all or $git_repos) { print (echo-g "Running Git repos update..."); try { if $dry_run { print "[DRY-RUN] Would execute: apps-update git-repos" } else { apps-update git-repos } } catch {|e| print (echo-y $"apps-update git-repos failed: ($e.msg)") } }
-    if ($all or $ollama_models) { print (echo-g "Running Ollama models update..."); try { if $dry_run { print "[DRY-RUN] Would execute: apps-update ollama-models" } else { apps-update ollama-models } } catch {|e| print (echo-y $"apps-update ollama-models failed: ($e.msg)") } }
-    if ($all or $fonts) { print (echo-g "Running fonts update..."); try { if $dry_run { print "[DRY-RUN] Would execute: apps-update fonts-nerd" } else { apps-update fonts-nerd } } catch {|e| print (echo-y $"apps-update fonts-nerd failed: ($e.msg)") } }
-    if ($all or $omarchy) { print (echo-g "Running Omarchy update..."); try { if $dry_run { print "[DRY-RUN] Would execute: apps-update omarchy" } else { apps-update omarchy } } catch {|e| print (echo-y $"apps-update omarchy failed: ($e.msg)") } }
-    if $all { print (echo-g "Running language runtimes update..."); run-cachyos-language-runtimes $dry_run }
-  } else {
-    if ($all or $npm_pkgs or $go_pkgs or $cargo_pkgs or $uv_tools or $git_tools or $r_pkgs or $git_repos or $ollama_models or $fonts or $omarchy) {
-      print (echo-y "Warning: CachyOS-specific flags ignored on non-CachyOS workflow")
-    }
-  }
-
-  run-common-operations $dry_run $cargo_aps
+  run-common-operations $dry_run $cargo_aps $apps
 
   if not $dry_run {
     print (echo-g "=== Upgrade Complete ===")
@@ -1736,148 +1676,6 @@ export def "apps-update rustc" [] {
 #update ollama
 export def "apps-update ollama" [] {
   curl -fsSL https://ollama.com/install.sh | sh
-}
-
-#update r packages (CRAN + GitHub from Rpackages.R)
-export def "apps-update r-pkgs" [--dry-run]: nothing -> nothing {
-  if $dry_run {
-    print "[DRY-RUN] Would update R packages from Rpackages.R and GitHub sources"
-    return
-  }
-  let candidates = [
-    ($env.MY_ENV_VARS.linux_backup? | default "~/Yandex.Disk/Backups/linux" | path expand | path join "Rpackages.R")
-    ("~/Yandex.Disk/Backups/linux/Rpackages.R" | path expand)
-    ("./Rpackages.R" | path expand)
-  ]
-  mut rpackages_file = ""
-  for c in $candidates {
-    if ($c | path exists) { $rpackages_file = $c; break }
-  }
-  if ($rpackages_file | is-empty) {
-    print (echo-y "Rpackages.R not found, skipping")
-    return
-  }
-  print (echo-g $"Updating R packages from ($rpackages_file)...")
-  try {
-    ^mkdir -p ~/R/library
-    ^R --vanilla -f $rpackages_file
-  } catch {|e| print (echo-y $"Warning R CRAN install: ($e.msg)")}
-  try {
-    R --vanilla -e ".libPaths(c('~/R/library', .libPaths())); if (!'lobstr' %in% rownames(installed.packages())) install.packages('lobstr', repos='https://cloud.r-project.org/', lib='~/R/library'); if (!'sloop' %in% rownames(installed.packages())) install.packages('sloop', repos='https://cloud.r-project.org/', lib='~/R/library')"
-  } catch {|e| print (echo-y $"Warning lobstr/sloop: ($e.msg)")}
-  for pkg in ["jeroenjanssens/rush", "coolbutuseless/devout", "coolbutuseless/miniansi", "coolbutuseless/devoutansi", "jeroenjanssens/tmuxr", "jeroenjanssens/knitractive", "jeroenjanssens/rexpect"] {
-    try {
-      let r_code = (["remotes::install_github(\"", $pkg, "\", dependencies=TRUE, force=TRUE)"] | str join)
-      ^R --vanilla -e $r_code
-    } catch {|e| print (echo-y $"Warning GitHub ($pkg): ($e.msg)")}
-  }
-  print (echo-g "R packages update complete")
-}
-
-#update git repositories (all known from install_cachyos_02.nu)
-export def "apps-update git-repos" [--dry-run]: nothing -> nothing {
-  if $dry_run {
-    print "[DRY-RUN] Would git pull all known repositories in ~/software"
-    return
-  }
-  let repos = [
-    "cachyos_semiautomatic_install", "obsidian-mcp-server", "markdownify-mcp", "dalle-mcp", "imagen-3.0-generate-google-mcp-server", "google-sheets-mcp", "google-forms-mcp", "Proton-Community-Updater", "ddgr", "pandoc-theorem", "mermaid-ascii", "ox.wiki", "nv-codec-headers", "nu-rich", "nu_plugin_file", "nu_plugin_plot", "nu_plugin_port_extension", "delogo", "Logodetect", "private-gpt", "exo", "MATLAB-language-server", "cmdg-image-render", "nerd-fonts"
-  ]
-  cd ~/software
-  for repo in $repos {
-    if ($repo | path exists) {
-      try {
-        print (echo-g $"Updating ($repo)...")
-        cd $repo; git pull; cd ~/software
-      } catch {|e| print (echo-y $"Warning pulling ($repo): ($e.msg)"); try { cd ~/software } catch {} }
-    } else {
-      print (echo-y $"Skipping ($repo): not found in ~/software")
-    }
-  }
-  # re-register nu plugins if any
-  let nu_bin = if ("~/.cargo/bin/nu" | path expand | path exists) { "~/.cargo/bin/nu" | path expand } else { which nu | get 0?.path? | default "nu" }
-  for p in (try { ls ~/.cargo/bin/nu_plugin_* | get name } catch { [] }) {
-    try { do { ^$nu_bin -c $"plugin add '($p)'" } | complete } catch {}
-  }
-  print (echo-g "Git repositories update complete")
-}
-
-#update ollama models (pull latest for each installed model)
-export def "apps-update ollama-models" [--dry-run]: nothing -> nothing {
-  if $dry_run {
-    print "[DRY-RUN] Would pull latest for all installed Ollama models"
-    return
-  }
-  if (which ollama | is-empty) { print (echo-y "ollama not installed"); return }
-  let models = try { ollama list | lines | skip 1 | each {|l| $l | split column " " --collapse-empty | get column1.0? | default "" | str trim } | where {|x| $x | is-not-empty } } catch {|e| [] }
-  if ($models | is-empty) { print (echo-y "No ollama models found"); return }
-  for m in $models {
-    try {
-      print (echo-g $"Pulling Ollama model ($m)...")
-      ollama pull $m
-    } catch {|e| print (echo-y $"Warning pulling ($m): ($e.msg)")}
-  }
-  print (echo-g "Ollama models update complete")
-}
-
-#update nerd fonts, hack, ubuntu fonts
-export def "apps-update fonts-nerd" [--dry-run]: nothing -> nothing {
-  if $dry_run {
-    print "[DRY-RUN] Would update Nerd Fonts, Hack, Ubuntu fonts and rebuild cache"
-    return
-  }
-  cd ~/software
-  if not ("nerd-fonts" | path exists) {
-    try { git clone --depth 1 https://github.com/ryanoasis/nerd-fonts.git } catch {|e| print (echo-y $"clone nerd-fonts failed: ($e.msg)")}
-  }
-  if ("nerd-fonts" | path exists) {
-    try {
-      cd nerd-fonts; git pull; chmod +x font-patcher
-      bash -c 'find . -type f \( -name "*.otf" -o -name "*Symbol*" \) -exec cp {} ~/.local/share/fonts/ \; 2>/dev/null || true'
-      cd ~/software
-    } catch {|e| print (echo-y $"nerd-fonts update failed: ($e.msg)")}
-  }
-  let backup_dir = ($env.MY_ENV_VARS.linux_backup? | default "~/Yandex.Disk/Backups/linux" | path expand)
-  if ($backup_dir | path join "Hack-Font.7z" | path exists) {
-    try { 7z x ($backup_dir | path join "Hack-Font.7z") -o($env.HOME | path join "temp_fonts") -y | ignore } catch {}
-  }
-  if ($backup_dir | path join "ubuntu-fonts.7z" | path exists) {
-    try { 7z x ($backup_dir | path join "ubuntu-fonts.7z") -o($env.HOME | path join "temp_fonts") -y | ignore } catch {}
-  }
-  if ($env.HOME | path join "temp_fonts" | path exists) {
-    bash -c "sudo mv ~/temp_fonts/* /usr/local/share/fonts/ 2>/dev/null || true; rm -rf ~/temp_fonts 2>/dev/null || true"
-  }
-  try { ^mkdir -p ~/.local/share/fonts } catch {}
-  fc-cache -fv | ignore; try { sudo fc-cache -fv | ignore } catch {}
-  if (which omarchy | is-not-empty) { try { ^omarchy font set "Monocraft Nerd Font" | ignore } catch {} }
-  print (echo-g "Fonts update complete")
-}
-
-#update omarchy framework
-export def "apps-update omarchy" [--dry-run]: nothing -> nothing {
-  if $dry_run {
-    print "[DRY-RUN] Would update Omarchy framework"
-    return
-  }
-  let omarchy_tmp = "/tmp/omarchy_cachyos"
-  try { rm -rf $omarchy_tmp } catch {}
-  try {
-    git clone https://github.com/mroboff/omarchy-on-cachyos.git $omarchy_tmp
-    cd ($omarchy_tmp | path join "bin")
-    chmod +x fetch-omarchy.sh install-omarchy-on-cachyos.sh nvidia.sh
-    bash -c "sed -i 's|\\$SCRIPT_DIR/../../omarchy|\\$SCRIPT_DIR/../omarchy|g' fetch-omarchy.sh install-omarchy-on-cachyos.sh"
-    bash -c "sed -i 's/read -r OMARCHY_USER_NAME/[ -z \"\\$OMARCHY_USER_NAME\" ] \\&\\& read -r OMARCHY_USER_NAME/' install-omarchy-on-cachyos.sh"
-    bash -c "sed -i 's/read -r OMARCHY_USER_EMAIL/[ -z \"\\$OMARCHY_USER_EMAIL\" ] \\&\\& read -r OMARCHY_USER_EMAIL/' install-omarchy-on-cachyos.sh"
-    bash -c "sed -i 's/sudo pacman -Syu/sudo pacman -Sy --noconfirm/' install-omarchy-on-cachyos.sh"
-    bash -c "printf '2\\ny\\n' | ./fetch-omarchy.sh"
-    bash -c "sed -i 's|./fetch-omarchy.sh|# ./fetch-omarchy.sh|' install-omarchy-on-cachyos.sh"
-    bash -c "sed -i 's|chmod +x install.sh|# chmod +x install.sh|' install-omarchy-on-cachyos.sh"
-    bash -c "sed -i 's|./install.sh|bash install/config/all.sh 2>/dev/null; bash install/user/all.sh 2>/dev/null|' install-omarchy-on-cachyos.sh"
-    $env.OMARCHY_USER_NAME = (try { $env.SUDO_USER } catch { $env.USER })
-    $env.OMARCHY_USER_EMAIL = "kurapika666@gmail.com"
-    bash -c "printf '\\n\\n\\n' | ./install-omarchy-on-cachyos.sh"
-    print (echo-g "Omarchy update completed")
-  } catch {|e| print (echo-r $"Omarchy update failed: ($e.msg)")}
 }
 
 #update open-code
