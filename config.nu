@@ -125,7 +125,7 @@ let hooks = {
                 
                 ## verify habitica
                 try {
-                    mut hstats = _h-user-stats
+                    mut hstats = (_h-user-stats)
                     if not $hstats.logged_in_today {
                         print (echo $"(ansi -e { fg: '#ff0000' attr: b })Not logged in to habitica yet, logging in now...(ansi reset)")
                         if ($hstats.dailys_to_complete > 0) {
@@ -138,7 +138,7 @@ let hooks = {
                         print (h ls todos -i | last 15 | get text)
 
                         #updated info after login
-                        $hstats = _h-user-stats
+                        $hstats = (_h-user-stats)
                     }
 
                     
