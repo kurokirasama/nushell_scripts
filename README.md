@@ -52,7 +52,7 @@ The AI tools are a collection of scripts that provide a comprehensive suite of t
 These scripts facilitate tasks such as transcription, summarization, image generation, text-to-speech conversion, and asynchronous background agent execution, streamlining the integration of AI capabilities into users' workflows and enhancing productivity and automation within the Nushell environment.
 
 #### Gemini Background Execution & Interaction Suite
-Google's Interactions API (`/v1beta/interactions`) allows long-running AI queries to execute asynchronously on Google's servers. This prevents standard 60-second HTTP timeouts and enables non-blocking terminal workflows for heavy tasks (such as deep reasoning with `gemini-3.7-flash` / `gemini-3.1-pro`, or analyzing large multi-thousand line documents).
+Google's Interactions API (`/v1beta/interactions`) allows long-running AI queries to execute asynchronously on Google's servers. This prevents standard 60-second HTTP timeouts and enables non-blocking terminal workflows for heavy tasks (such as deep reasoning with `gemini-3.8-flash` / `gemini-3.1-pro`, or analyzing large multi-thousand line documents).
 
 ##### When to Use Background Execution
 1. **High-Effort Reasoning**: Tasks requiring several minutes of reasoning tokens (e.g. `--thinking_level high`).
@@ -63,8 +63,8 @@ Google's Interactions API (`/v1beta/interactions`) allows long-running AI querie
 ##### Usage Examples
 
 ```nu
-# 1. Start a background reasoning task with Gemini 3.7
-google_ai "Provide a comprehensive formal proof and edge-case analysis for an asynchronous consensus protocol with dynamic validator sets" --thinking_level high -m gemini-3.7-flash -b
+# 1. Start a background reasoning task with Gemini 3.8
+google_ai "Provide a comprehensive formal proof and edge-case analysis for an asynchronous consensus protocol with dynamic validator sets" --thinking_level high -m gemini-3.8-flash -b
 
 # 2. Large document analysis in the background via askai
 askai -G --document "large_codebase_dump.txt" "Perform a thorough architectural debt audit and categorize all security anti-patterns" -b

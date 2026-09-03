@@ -1,6 +1,7 @@
-export const last_gemini_model = "gemini-3.7-flash"
-export const gemini_pro_vision = "gemini-3.7-flash"
+export const last_gemini_model = "gemini-3.8-flash"
+export const gemini_pro_vision = "gemini-3.8-flash"
 export const gemini_models = [
+  "gemini-3.8-flash"
   "gemini-3.7-flash"
   "gemini-3.6-flash"
   "gemini-3.5-flash"
@@ -26,13 +27,14 @@ def format-iso-utc [] { date now | format date "%Y-%m-%dT%H:%M:%SZ" }
 #single call to google ai LLM api wrapper and chat mode
 #
 #Available models at https://ai.google.dev/models:
-# - gemini-3.7-flash: Latest GA (Aug 2026), most intelligent Flash for coding/agents, tunable thinking (FREE TIER)
+# - gemini-3.8-flash: Latest GA (Sep 2026), most intelligent Flash for long-horizon SWE & agents, tunable thinking (FREE TIER, intro pricing thru Dec 31 2026)
+# - gemini-3.7-flash: Previous GA (Aug 2026), most intelligent Flash for coding/agents, tunable thinking (FREE TIER)
 # - gemini-3.6-flash: Complex multi-step workflows, coding, agentic tasks (GA July 2026) (FREE TIER)
 # - gemini-3.5-flash: Sustained frontier performance, agentic/coding at scale (GA May 2026) (FREE TIER)
 # - gemini-3.5-flash-lite: Cost-efficient model for high-volume tasks (GA July 2026) (FREE TIER)
 # - gemini-3.1-pro: High-capability, complex reasoning, agentic coding, 1M context (PAID ONLY)
 # - gemini-3.1-flash-lite: Fast, cost-efficient model for high-volume tasks, long-term stable (FREE TIER)
-# - gemini-pro-vision: Placeholder for image input, uses gemini-3.7-flash
+# - gemini-pro-vision: Placeholder for image input, uses gemini-3.8-flash
 # - text-embedding-004: Text embedding model
 # - aqa: Retrieval
 #
@@ -133,7 +135,7 @@ def extract-interaction-text [response: any] {
 @search-terms gemini
 export def google_ai [
     query?: string                          # the query to Gemini
-    --model(-m):string@$gemini_models = "gemini-3.7-flash" # the model gemini-3.7-flash, gemini-3.6-flash, etc
+    --model(-m):string@$gemini_models = "gemini-3.8-flash" # the model gemini-3.8-flash, gemini-3.7-flash, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9             # the temperature of the model (deprecated for Gemini 3.x)
     --thinking_level(-e): string@$thinking_levels = "medium" # thinking effort level (minimal, low, medium, high)

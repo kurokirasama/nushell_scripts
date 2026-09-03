@@ -86,7 +86,7 @@ $env.MY_ENV_VARS = $env.MY_ENV_VARS
 $env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert hosts (try { try { open $env.MY_ENV_VARS.ips | columns } catch { [] } } catch { [] })
 
 # default gemini model, initialized with default and updated dynamically by ai_google.nu export-env
-$env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert gemini_model_to_use ($env.MY_ENV_VARS.gemini_model_to_use? | default "gemini-3.7-flash")
+$env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert gemini_model_to_use ($env.MY_ENV_VARS.gemini_model_to_use? | default "gemini-3.8-flash")
 
 # NU_LIB_DIRS configuration
 let rich_dir = if $is_windows {
