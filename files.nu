@@ -199,11 +199,11 @@ export def --wrapped "7z max" [
   }
 
   if $delete {
-    7z a -t7z -sdel -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" ...$rest
+    7z a -t7z -sdel -snl -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" ...$rest
     return
   }
   
-  7z a -t7z -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" ...$rest
+  7z a -t7z -snl -m0=lzma2 -mx=9 -ms=on -mmt=on $"($filename | path parse | get stem).7z" ...$rest
 }
 
 #rm trough pipe

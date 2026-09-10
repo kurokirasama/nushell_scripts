@@ -1349,6 +1349,7 @@ export def "media crop-video" [
 }
 
 #get first frame of video
+@example "Extract a frame at 00:00:00 from all mp4 files in the current directory" { ls *.mp4 | media get-frame }
 export def "media get-frame" [
   time:string = "00:00:00" #time of the frame to extract format hh:mm:ss
   file? #file or list of files

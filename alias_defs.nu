@@ -71,10 +71,12 @@ export def --env gmail [] {
       hide-env GDK_PIXBUF_MODULE_FILE 
   }
   
-  try {
-    cmdg -image_protocol auto -shell ($env.HOME | path join ".cargo" "bin" "nu")
-  } catch {
-    cmdg -shell ($env.HOME | path join ".cargo" "bin" "nu")
+  let shell_path = ($env.HOME | path join ".cargo" "bin" "nu")
+  let has_image_protocol = (do { ^cmdg -help } | complete | get stderr | str contains "-image_protocol")
+  if $has_image_protocol {
+    cmdg -image_protocol auto -shell $shell_path
+  } else {
+    cmdg -shell $shell_path
   }
 }
 

@@ -530,21 +530,21 @@ export def get-os-workflow [os: string] {
     },
     "cachyos" => {
       name: "cachyos",
-      update_cmd: "pacman -Syu",
-      mirror_cmd: "cachy-rate-mirrors",
+      update_cmd: "pacman -Syu --noconfirm",
+      mirror_cmd: "cachyos-rate-mirrors",
       cache_cleanup_cmd: "paccache -rvk3",
       aur_helpers: ["paru", "yay", "pamac"],
-      cleanup_cmd: "pacman -Rns (pacman -Qtdq)",
+      cleanup_cmd: "pacman -Rns --noconfirm (pacman -Qtdq)",
       has_custom_pacman: true,
       has_cachy_update: true,
       # extended_ops: ["npm-pkgs","go-pkgs","cargo-pkgs","uv-tools","git-tools","r-pkgs","git-repos","ollama-models","fonts","omarchy"] via run-cachyos-* runners (supgrade --all)
     },
     "arch" => {
       name: "arch",
-      update_cmd: "pacman -Syu",
+      update_cmd: "pacman -Syu --noconfirm",
       cache_cleanup_cmd: "paccache -rvk3",
       aur_helpers: ["paru", "yay", "pamac"],
-      cleanup_cmd: "pacman -Rns (pacman -Qtdq)",
+      cleanup_cmd: "pacman -Rns --noconfirm (pacman -Qtdq)",
       has_custom_pacman: false
     },
     _ => {
@@ -590,40 +590,53 @@ def run-ubuntu-workflow [old: bool, dry_run: bool] {
 
 def run-cachyos-workflow [skip_mirrors: bool, skip_cache_cleanup: bool, skip_aur: bool, dry_run: bool] {
   if not $skip_mirrors {
-    if (which cachy-rate-mirrors | is-not-empty) {
-      run-with-dry-run "sudo cachy-rate-mirrors" $dry_run
+    let mirror_tool = if (which cachyos-rate-mirrors | is-not-empty) {
+      "cachyos-rate-mirrors"
+    } else if (which cachy-rate-mirrors | is-not-empty) {
+      "cachy-rate-mirrors"
+    } else {
+      ""
+    }
+    if ($mirror_tool | is-not-empty) {
+      run-with-dry-run $"sudo ($mirror_tool)" $dry_run
     }
   }
-  run-with-dry-run "sudo pacman -Syu" $dry_run
-  if not $skip_cache_cleanup {
-    if (which paccache | is-not-empty) {
-      run-with-dry-run "sudo paccache -rvk3" $dry_run
-    }
-  }
-  if not $skip_aur {
-    for helper in ["paru", "yay", "pamac"] {
-      if (which $helper | is-not-empty) {
-        run-with-dry-run $"($helper) -Syu" $dry_run
-        break
+
+  let has_omarchy = (which omarchy | is-not-empty)
+  if $has_omarchy {
+    run-with-dry-run "export PATH=\"/usr/share/omarchy/bin:$PATH\"; omarchy update -y" $dry_run
+  } else {
+    run-with-dry-run "sudo pacman -Syu --noconfirm" $dry_run
+    if not $skip_cache_cleanup {
+      if (which paccache | is-not-empty) {
+        run-with-dry-run "sudo paccache -rvk3" $dry_run
       }
     }
-  }
-  if (which pacman | is-not-empty) {
-    try {
-      if $dry_run {
-        print $"[DRY-RUN] Would execute: pacman -Rns (pacman -Qtdq) [orphans]"
-      } else {
-        let orphans = ^pacman -Qtdq | complete | get stdout | str trim
-        if ($orphans | is-not-empty) {
-          ^bash -c "sudo pacman -Rns --noconfirm (pacman -Qtdq)"
+    if not $skip_aur {
+      for helper in ["paru", "yay", "pamac"] {
+        if (which $helper | is-not-empty) {
+          run-with-dry-run $"($helper) -Syu --noconfirm" $dry_run
+          break
         }
       }
-    } catch {}
+    }
+    if (which pacman | is-not-empty) {
+      try {
+        if $dry_run {
+          print $"[DRY-RUN] Would execute: pacman -Rns --noconfirm (pacman -Qtdq) [orphans]"
+        } else {
+          let orphans = ^pacman -Qtdq | complete | get stdout | str trim
+          if ($orphans | is-not-empty) {
+            ^bash -c "sudo pacman -Rns --noconfirm (pacman -Qtdq)"
+          }
+        }
+      } catch {}
+    }
   }
 }
 
 def run-arch-workflow [skip_cache_cleanup: bool, skip_aur: bool, dry_run: bool] {
-  run-with-dry-run "sudo pacman -Syu" $dry_run
+  run-with-dry-run "sudo pacman -Syu --noconfirm" $dry_run
   if not $skip_cache_cleanup {
     if (which paccache | is-not-empty) {
       run-with-dry-run "sudo paccache -rvk3" $dry_run
@@ -632,7 +645,7 @@ def run-arch-workflow [skip_cache_cleanup: bool, skip_aur: bool, dry_run: bool] 
   if not $skip_aur {
     for helper in ["paru", "yay", "pamac"] {
       if (which $helper | is-not-empty) {
-        run-with-dry-run $"($helper) -Syu" $dry_run
+        run-with-dry-run $"($helper) -Syu --noconfirm" $dry_run
         break
       }
     }
@@ -640,7 +653,7 @@ def run-arch-workflow [skip_cache_cleanup: bool, skip_aur: bool, dry_run: bool] 
   if (which pacman | is-not-empty) {
     try {
       if $dry_run {
-        print $"[DRY-RUN] Would execute: pacman -Rns (pacman -Qtdq) [orphans]"
+        print $"[DRY-RUN] Would execute: pacman -Rns --noconfirm (pacman -Qtdq) [orphans]"
       } else {
         let orphans = ^pacman -Qtdq | complete | get stdout | str trim
         if ($orphans | is-not-empty) {
@@ -709,7 +722,7 @@ def run-common-operations [dry_run: bool, cargo_aps: bool]: nothing -> nothing {
     run-with-dry-run "flatpak update -y" $dry_run
   }
   if (which fwupdmgr | is-not-empty) {
-    run-with-dry-run "sudo fwupdmgr update" $dry_run
+    run-with-dry-run "sudo fwupdmgr update -y" $dry_run
   }
   if (which rustup | is-not-empty) {
     run-with-dry-run "rustup update" $dry_run
@@ -1486,7 +1499,6 @@ export def "apps-update cmdg" [
 
   let base_dir = ($env.APPS_UPDATE_SOFTWARE_DIR? | default "~/software" | path expand)
   let target_dir = ($base_dir | path join "cmdg")
-  let target_render_dir = ($base_dir | path join "cmdg-image-render")
   let repo_url = if $mine { "https://github.com/kurokirasama/cmdg" } else { "https://github.com/ThomasHabets/cmdg.git" }
   let target_sub = if $mine { "kurokirasama/cmdg" } else { "ThomasHabets/cmdg" }
 
@@ -1517,14 +1529,8 @@ export def "apps-update cmdg" [
   print (echo-g "cmdg updated.")
 
   # 2. Install or Update cmdg-image-render
-  if (not ($target_render_dir | path exists)) {
-    print (echo-g "cmdg-image-render not found, cloning and installing...")
-    cd $base_dir
-    git clone git@github.com:kurokirasama/cmdg-image-render.git
-  }
-  cd $target_render_dir
-  git pull
-  go install ./cmd/cmdg-image-render
+  print (echo-g "Updating cmdg-image-render via direct go install...")
+  go install github.com/kurokirasama/cmdg-image-render/cmd/cmdg-image-render@latest
   print (echo-g "cmdg-image-render updated.")
 }
 
@@ -1852,6 +1858,10 @@ export def "apps-update omarchy" [--dry-run]: nothing -> nothing {
     print "[DRY-RUN] Would update Omarchy framework"
     return
   }
+  if (which omarchy | is-not-empty) {
+    run-with-dry-run "export PATH=\"/usr/share/omarchy/bin:$PATH\"; omarchy update -y" false
+    return
+  }
   let omarchy_tmp = "/tmp/omarchy_cachyos"
   try { rm -rf $omarchy_tmp } catch {}
   try {
@@ -2005,11 +2015,11 @@ export def "apps-update mega-get" [] {
     let deb_file = "megacmd-xUbuntu_20.04_amd64.deb"
     if ($deb_file | path exists) or ([$env.MY_ENV_VARS.debs $deb_file] | path join | path exists) {
       print (echo-g "mega-get deb already downloaded locally, skipping download.")
-      sudo apt install ($deb_file | path expand)
+      sudo apt install -y ($deb_file | path expand)
       return
     }
     aria2c https://mega.nz/linux/repo/xUbuntu_20.04/amd64/$deb_file
-    sudo apt install ("megacmd-xUbuntu_20.04_amd64.deb" | path expand)
+    sudo apt install -y ("megacmd-xUbuntu_20.04_amd64.deb" | path expand)
     mv -u megacmd-xUbuntu_20.04_amd64.deb $env.MY_ENV_VARS.debs
 
     return
@@ -2018,11 +2028,11 @@ export def "apps-update mega-get" [] {
   let deb_file = "megacmd-xUbuntu_24.04_amd64.deb"
   if ($deb_file | path exists) or ([$env.MY_ENV_VARS.debs $deb_file] | path join | path exists) {
     print (echo-g "mega-get deb already downloaded locally, skipping download.")
-    sudo apt install ($deb_file | path expand)
+    sudo apt install -y ($deb_file | path expand)
     return
   }
   aria2c https://mega.nz/linux/repo/xUbuntu_24.04/amd64/$deb_file
-  sudo apt install ("megacmd-xUbuntu_24.04_amd64.deb" | path expand)
+  sudo apt install -y ("megacmd-xUbuntu_24.04_amd64.deb" | path expand)
   mv -u megacmd-xUbuntu_24.04_amd64.deb $env.MY_ENV_VARS.debs
 }
 

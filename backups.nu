@@ -1,3 +1,5 @@
+use crypt.nu [nu-crypt]
+
 #backup sublime settings
 @category backup
 @search-terms sublime
@@ -238,7 +240,7 @@ export def "cliamp-restore" [] {
 }
 
 def is-cachyos [] {
-    let os_id = (try { open /etc/os-release | lines | find -r '^ID=' | first | str replace 'ID=' '' | str trim -c '"' } catch { "" })
+    let os_id = (try { open /etc/os-release | lines | where {|l| $l starts-with "ID="} | first | str replace 'ID=' '' | str trim -c '"' | ansi strip } catch { "" })
     $os_id == "cachyos"
 }
 
@@ -248,11 +250,16 @@ def is-cachyos [] {
 export def "hyprlnd backup" [
     --cachyos(-c) # Backup CachyOS Hyprland & Omarchy configuration
 ] {
-    if $cachyos and not (is-cachyos) {
-        error make { msg: "Cannot use --cachyos flag on a non-CachyOS system." }
+    let is_cachy = if $cachyos {
+        if not (is-cachyos) {
+            error make { msg: "Cannot use --cachyos flag on a non-CachyOS system." }
+        }
+        true
+    } else {
+        (is-cachyos)
     }
 
-    let target_folder = if $cachyos {
+    let target_folder = if $is_cachy {
         $env.MY_ENV_VARS.linux_backup | path join "cachyos-omarchy-hyperland"
     } else {
         $env.MY_ENV_VARS.linux_backup | path join "hyprland"
@@ -261,10 +268,11 @@ export def "hyprlnd backup" [
     mkdir $target_folder
     cd ~/.config/
 
-    if $cachyos {
+    if $is_cachy {
         7z max hypr hypr/
         if ("omarchy" | path exists) { 7z max omarchy omarchy/ }
         if ("fontconfig" | path exists) { 7z max fontconfig fontconfig/ }
+        if ("wallust" | path exists) { 7z max wallust wallust/ }
         if ("eww" | path exists) { 7z max eww eww/ }
         if ("wlogout" | path exists) { 7z max wlogout wlogout/ }
         if ("waybar" | path exists) { 7z max waybar waybar/ }
@@ -272,6 +280,21 @@ export def "hyprlnd backup" [
         if ("rofi" | path exists) { 7z max rofi rofi/ }
         if ("walker" | path exists) { 7z max walker walker/ }
         if ("mako" | path exists) { 7z max mako mako/ }
+        if ("gtk-3.0" | path exists) { 7z max gtk-3.0.7z gtk-3.0/ }
+        if ("gtk-4.0" | path exists) { 7z max gtk-4.0.7z gtk-4.0/ }
+        if ("qt6ct" | path exists) { 7z max qt6ct qt6ct/ }
+        if ("qt5ct" | path exists) { 7z max qt5ct qt5ct/ }
+        if ("environment.d" | path exists) { 7z max environment.d environment.d/ }
+        let gtkrc = ($env.HOME | path join ".gtkrc-2.0")
+        if ($gtkrc | path exists) {
+            cp -f $gtkrc ($target_folder | path join ".gtkrc-2.0")
+        }
+        if ("mimeapps.list" | path exists) {
+            cp -f "mimeapps.list" ($target_folder | path join "mimeapps.list")
+        }
+        if ("xdg-terminals.list" | path exists) {
+            cp -f "xdg-terminals.list" ($target_folder | path join "xdg-terminals.list")
+        }
     } else {
         7z max waybar waybar/
         7z max hypr hypr/
@@ -290,11 +313,16 @@ export def "hyprlnd backup" [
 export def "hyprlnd restore" [
     --cachyos(-c) # Restore CachyOS Hyprland & Omarchy configuration
 ] {
-    if $cachyos and not (is-cachyos) {
-        error make { msg: "Cannot restore CachyOS Hyprland configs on a non-CachyOS system." }
+    let is_cachy = if $cachyos {
+        if not (is-cachyos) {
+            error make { msg: "Cannot restore CachyOS Hyprland configs on a non-CachyOS system." }
+        }
+        true
+    } else {
+        (is-cachyos)
     }
 
-    let source_folder = if $cachyos {
+    let source_folder = if $is_cachy {
         $env.MY_ENV_VARS.linux_backup | path join "cachyos-omarchy-hyperland"
     } else {
         $env.MY_ENV_VARS.linux_backup | path join "hyprland"
@@ -306,7 +334,28 @@ export def "hyprlnd restore" [
 
     cd $source_folder
     let target_dest = ($env.HOME | path join ".config")
-    ls *.7z | get name | each {|f| 7z x $f -o($target_dest) -y}
+    for archive in (ls *.7z | get name) {
+        try {
+            7z x -snl $archive -o($target_dest) -y
+        } catch { |err|
+            print $"Warning extracting ($archive): ($err.msg)"
+        }
+    }
+
+    let gtkrc_backup = ($source_folder | path join ".gtkrc-2.0")
+    if ($gtkrc_backup | path exists) {
+        cp -f $gtkrc_backup ($env.HOME | path join ".gtkrc-2.0")
+    }
+
+    let mimeapps = ($source_folder | path join "mimeapps.list")
+    if ($mimeapps | path exists) {
+        cp -f $mimeapps ($target_dest | path join "mimeapps.list")
+    }
+
+    let xdg_terminals = ($source_folder | path join "xdg-terminals.list")
+    if ($xdg_terminals | path exists) {
+        cp -f $xdg_terminals ($target_dest | path join "xdg-terminals.list")
+    }
 }
 
 #backup ttt settings
@@ -601,3 +650,76 @@ export def "cmdg restore" [] {
     print (echo-g "✓ Restored cmdg signature to ~/.signature")
   }
 }
+
+#backup vivaldi browser settings and extension configurations
+@category backup
+@search-terms vivaldi browser backup
+export def vivaldi-backup [] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  let vivaldi_src = ("~/.config/vivaldi" | path expand)
+
+  if not ($vivaldi_src | path exists) {
+    print (echo-r $"Vivaldi config directory not found at ($vivaldi_src)")
+    return
+  }
+
+  let archive = ($backup_dir | path join "vivaldi_config.7z")
+  print (echo-g $"Archiving Vivaldi configuration to ($archive)...")
+
+  do {
+    cd ("~/.config" | path expand)
+    ^7z a -snl -t7z -m0=lzma2 -mx=5 -ms=on -mmt=on $archive vivaldi ...[
+      "-xr!IndexedDB"
+      "-xr!Service Worker"
+      "-xr!File System"
+      "-xr!Cache"
+      "-xr!GPUCache"
+      "-xr!Code Cache"
+      "-xr!DawnWebGPUCache"
+      "-xr!Crash Reports"
+      "-xr!Singleton*"
+      "-xr!*.lock"
+      "-xr!LOCK"
+      "-xr!Login Data*"
+      "-xr!WidevineCdm"
+      "-xr!component_crx_cache"
+      "-xr!extensions_crx_cache"
+    ]
+  }
+
+  if ($archive | path exists) {
+    print (echo-g $"✓ Vivaldi configuration backed up successfully to ($archive)")
+  } else {
+    print (echo-r "Failed to create Vivaldi backup archive.")
+  }
+}
+
+#restore vivaldi browser settings and extension configurations
+@category backup
+@search-terms vivaldi browser restore
+export def vivaldi-restore [] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  let archive = ($backup_dir | path join "vivaldi_config.7z")
+
+  if not ($archive | path exists) {
+    print (echo-r $"Vivaldi backup archive not found at ($archive)")
+    return
+  }
+
+  # Close any running Vivaldi instances to prevent overwriting or lock contention
+  let running = (try { ps | where name =~ "vivaldi" } catch { [] })
+  if ($running | is-not-empty) {
+    print (echo-y "Closing running Vivaldi instances before restoring...")
+    try { ^pkill -x vivaldi-bin } catch {}
+    sleep 1sec
+  }
+
+  let dest_dir = ("~/.config" | path expand)
+  print (echo-g $"Restoring Vivaldi configuration to ($dest_dir)/vivaldi...")
+  ^7z x $archive $"-o($dest_dir)" -y
+
+  print (echo-g "✓ Vivaldi configuration restored successfully to ~/.config/vivaldi")
+}
+
+export alias "vivaldi backup" = vivaldi-backup
+export alias "vivaldi restore" = vivaldi-restore

@@ -22,6 +22,15 @@ const skills = [
 const gmn_models = ["gemini-3.5-flash", "gemini-3.1-pro", "gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.0-flash", "qwen2.5-coder:7b", "qwen2.5-coder:32b", "codestral", "llama3.1"]
 const profiles = ["no-mcp", "minimal", "standard", "webdev", "research", "googlesuit", "imagen", "websearch", "ollama", "full"]
 
+# Resolve the Discord channel for a cron skill.
+# News-type skills (name contains "new", e.g. cron-news-feed) go to
+# gemini_cli_news; everything else goes to gemini_cli_cron.
+# Parameters: skill: string - cron skill name (from the `skills` const)
+# Example: cron-discord-channel cron-news-feed  # => gemini_cli_news
+export def cron-discord-channel [skill: string] {
+  if ($skill =~ "new") { "gemini_cli_news" } else { "gemini_cli_cron" }
+}
+
 #run cron gemini skills
 export def --env "gmn cron" [
 	skill: string@$skills
@@ -61,7 +70,7 @@ export def --env "gmn cron" [
 	gmn-cron-email $skill $output $tool
 
 	# Clean up output: extract only the JSON part
-	let discord_channel = if ($skill =~ "new") { "gemini_cli_news" } else { "gemini_cli_cron" }
+	let discord_channel = cron-discord-channel $skill
 	let cleaned_stdout = _clean-output $output.stdout
 	$cleaned_stdout | to-discord -p --process -c $discord_channel
 
@@ -71,9 +80,8 @@ export def --env "gmn cron" [
 	}
 }
 
-# Free OpenCode Zen model names for --model completions
+# Free OpenCode Zen and Go model names for --model completions
 const opn_normal_models = [
-  "opencode-go/ox-alpha-free"
   "opencode/mimo-v2.5-free"
   "opencode/nemotron-3.5-lightning-free"
   "opencode/muse-spark-1.2-contributor-free"
@@ -82,6 +90,8 @@ const opn_normal_models = [
   "opencode/big-pickle"
   "opencode/deepseek-v4-flash"
   "opencode/deepseek-v4-pro"
+  "opencode-go/deepseek-v4-pro"
+  "opencode-go/deepseek-v4-flash"
   "opencode-go/qwen3.7-max"
   "opencode-go/qwen3.7-plus"
 ]
@@ -101,7 +111,7 @@ export def --env "opn cron" [
 
   # Resolve model before profile call so it can be forwarded
   let actual_model = if (not $ollama) and ($model | is-empty) {
-    "opencode-go/ox-alpha-free"
+    "opencode/muse-spark-1.2-contributor-free"
   } else if ($model | is-not-empty) {
     $model
   } else {
@@ -130,7 +140,7 @@ export def --env "opn cron" [
 
   # Clean up and post stdout to Discord
   let cleaned_stdout = _clean-output $output.stdout
-  $cleaned_stdout | to-discord -p --process -c gemini_cli_cron
+  $cleaned_stdout | to-discord -p --process -c (cron-discord-channel $skill)
 
   if not $dont_kill {
     sleep 2sec
