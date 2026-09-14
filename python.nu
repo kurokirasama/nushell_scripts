@@ -121,13 +121,23 @@ export def activate [] {
   "overlay use venv/bin/activate.nu" | copy
 }
 
-#jdown.py wrapper
+#jdown.py wrapper — always use the venv python3 (myjdapi lives there, not in the global interpreter)
+# NOTE: `path expand --no-symlink` is required; plain `path expand` canonicalizes the venv symlink
+# to /usr/bin/python3.x (global python, which lacks myjdapi).
 export def jdown [
   --ubb(-b):string = "0"
 ] {
-  let venv_py = ("~/Yandex.Disk/my_scripts/python/venv/bin/python3" | path expand)
-  let py_exec = if ($venv_py | path exists) { $venv_py } else { "python3" }
+  let venv_py = try {
+    ("~/Yandex.Disk/my_scripts/python/venv/bin/python3" | path expand --no-symlink)
+  } catch {
+    ("~/Yandex.Disk/my_scripts/python/venv/bin/python3" | path expand)
+  }
   let py_dir = ($env.MY_ENV_VARS?.python_scripts? | default ("~/Yandex.Disk/my_scripts/python" | path expand))
   let script = ([$py_dir "jdown.py"] | path join)
-  ^$py_exec $script -b $ubb
+
+  if not ($venv_py | path exists) {
+    return-error ("venv python not found at " + $venv_py + ". Recreate it: python3 -m venv ~/Yandex.Disk/my_scripts/python/venv && " + $venv_py + " -m pip install -r ~/Yandex.Disk/my_scripts/python/requirements.txt")
+  }
+
+  ^$venv_py $script -b $ubb
 }

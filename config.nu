@@ -163,6 +163,10 @@ let hooks = {
 
                 print (echo $"(ansi -e { fg: '#00ff00' attr: b })Checking pending software updates...(ansi reset)")
                 apps-update from-todos 
+
+                # Check YouTube API OAuth token status for both accounts
+                try { yt-api status | ignore } catch { }
+                try { yt-api status --ies | ignore } catch { }
             }
         }
     ]
