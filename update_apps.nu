@@ -516,6 +516,31 @@ export def detect-os []: nothing -> string {
   }
 }
 
+export def is-cachyos []: nothing -> bool {
+  (detect-os) == "cachyos"
+}
+
+export def is-ubuntu []: nothing -> bool {
+  (detect-os) == "ubuntu"
+}
+
+export def is-arch-family []: nothing -> bool {
+  let os = (detect-os)
+  ($os == "cachyos") or ($os == "arch")
+}
+
+# Run npm with automatic --allow-remote=all flag if running under npm >= 12
+export def --wrapped run-npm [...args: string] {
+  let npm_ver = (try { do { ^npm --version } | complete | get stdout | ansi strip | str trim } catch { "" })
+  let is_npm_12_plus = if ($npm_ver | is-not-empty) {
+    try { (($npm_ver | parse -r '(?P<major>\d+)').0.major | into int) >= 12 } catch { false }
+  } else {
+    false
+  }
+  let remote_flag = if $is_npm_12_plus { ["--allow-remote=all"] } else { [] }
+  ^npm ...$remote_flag ...$args
+}
+
 # Return workflow record for given OS
 export def get-os-workflow [os: string] {
   match $os {
@@ -667,10 +692,10 @@ def run-arch-workflow [skip_cache_cleanup: bool, skip_aur: bool, dry_run: bool] 
 # CachyOS category runners (ponytail: simple dispatch, add per-category logic if needed)
 export def run-cachyos-npm-pkgs [dry_run: bool]: nothing -> nothing {
   for cmd in ["apps-update claude", "apps-update gemini", "apps-update mermaid-ascii", "apps-update mermaid-filter", "apps-update mermaid-cli", "apps-update fast-cli", "apps-update tldr", "apps-update context-mode"] {
-    if $dry_run { print $"[DRY-RUN] Would execute: ($cmd)" } else { try { bash -c $cmd | ignore } catch {|e| print (echo-y $"Warning ($cmd): ($e.msg)") } }
+    if $dry_run { print $"[DRY-RUN] Would execute: ($cmd)" } else { try { nu -c $cmd | ignore } catch {|e| print (echo-y $"Warning ($cmd): ($e.msg)") } }
   }
   for pkg in ["subsync", "puppeteer", "@google/clasp", "pyright", "byterover-cli"] {
-    if $dry_run { print $"[DRY-RUN] Would execute: npm update -g ($pkg)" } else { try { ^npm update -g $pkg | ignore } catch {|e| print (echo-y $"Warning npm ($pkg): ($e.msg)") } }
+    if $dry_run { print $"[DRY-RUN] Would execute: npm update -g ($pkg)" } else { try { run-npm update -g $pkg | ignore } catch {|e| print (echo-y $"Warning npm ($pkg): ($e.msg)") } }
   }
 }
 export def run-cachyos-go-pkgs [dry_run: bool]: nothing -> nothing {
@@ -948,16 +973,30 @@ export def is-system-up-to-date [sys_ver: string, new_ver: string] {
 
 # Retrieve the installed package/binary version for a given application.
 export def get-system-app-version [app: string] {
-  let dpkg_res = (do { dpkg-query -W -f='${Version}' $app } | complete)
-  if $dpkg_res.exit_code == 0 and ($dpkg_res.stdout | is-not-empty) {
-    return ($dpkg_res.stdout | ansi strip | str trim)
+  let os = (detect-os)
+  if ($os == "cachyos") or ($os == "arch") {
+    # Check pacman query first on Arch/CachyOS
+    let pacman_res = (try { do { ^pacman -Q $app } | complete } catch { { exit_code: 1, stdout: "", stderr: "" } })
+    if $pacman_res.exit_code == 0 and ($pacman_res.stdout | is-not-empty) {
+      let parts = ($pacman_res.stdout | ansi strip | str trim | split row " ")
+      if ($parts | length) >= 2 {
+        return ($parts | get 1)
+      }
+    }
+  } else {
+    # On Debian/Ubuntu safely check dpkg-query if available
+    if (which dpkg-query | is-not-empty) {
+      let dpkg_res = (try { do { ^dpkg-query -W -f='${Version}' $app } | complete } catch { { exit_code: 1, stdout: "", stderr: "" } })
+      if $dpkg_res.exit_code == 0 and ($dpkg_res.stdout | is-not-empty) {
+        return ($dpkg_res.stdout | ansi strip | str trim)
+      }
+    }
   }
   
-  let which_res = (do { which $app } | complete)
-  if $which_res.exit_code == 0 and ($which_res.stdout | is-not-empty) {
-    let ver_res = (do { nu -c $"($app) --version" } | complete)
+  if (which $app | is-not-empty) {
+    let ver_res = (try { do { ^$app --version } | complete } catch { try { do { nu -c $"($app) --version" } | complete } catch { { exit_code: 1, stdout: "", stderr: "" } } })
     if $ver_res.exit_code == 0 and ($ver_res.stdout | is-not-empty) {
-      let line = ($ver_res.stdout | lines | get 0 | ansi strip | str trim)
+      let line = ($ver_res.stdout | lines | get 0? | default "" | ansi strip | str trim)
       let match = ($line | parse -r '(?P<ver>\d+(\.\d+)+)')
       if ($match | is-not-empty) {
         return ($match.0.ver)
@@ -1148,23 +1187,41 @@ export def github-app-update [
 
 
 
-#update pandoc deb
+#update pandoc
 export def "apps-update pandoc" [] {
-  github-app-update jgm pandoc
+  if (is-arch-family) {
+    print (echo-g "Updating pandoc on Arch/CachyOS via paru/pacman...")
+    if (which paru | is-not-empty) {
+      ^paru -S --needed --noconfirm pandoc-cli
+    } else {
+      ^sudo pacman -S --needed --noconfirm pandoc-cli
+    }
+  } else {
+    github-app-update jgm pandoc
+  }
 }
 
 #update pandoc cross-ref
 export def "apps-update pandoc-cross-ref" [] {
-  cd ~/software/pandoc-crossref
-  try {
-    git pull
-    stack install
-  } catch {
-    cd ~/software
-    rm -rf pandoc-crossref
-    git clone https://github.com/lierdakil/pandoc-crossref.git
-    cd pandoc-crossref
-    stack install
+  if (is-arch-family) {
+    print (echo-g "Updating pandoc-crossref on Arch/CachyOS via paru/pacman...")
+    if (which paru | is-not-empty) {
+      ^paru -S --needed --noconfirm pandoc-crossref
+    } else {
+      ^sudo pacman -S --needed --noconfirm pandoc-crossref
+    }
+  } else {
+    cd ~/software/pandoc-crossref
+    try {
+      git pull
+      stack install
+    } catch {
+      cd ~/software
+      rm -rf pandoc-crossref
+      git clone https://github.com/lierdakil/pandoc-crossref.git
+      cd pandoc-crossref
+      stack install
+    }
   }
 }
 
@@ -1206,8 +1263,18 @@ export def "apps-update monocraft" [
   }
 }
 
-#update chrome deb
+#update chrome
 export def "apps-update chrome" [] {
+  if (is-arch-family) {
+    print (echo-g "Updating google-chrome on Arch/CachyOS via paru...")
+    if (which paru | is-not-empty) {
+      ^paru -S --needed --noconfirm google-chrome
+    } else {
+      print (echo-y "Please install google-chrome via paru on Arch/CachyOS")
+    }
+    return
+  }
+
   cd $env.MY_ENV_VARS.debs
 
   if (ls *.deb | find chrome | length) > 0 {
@@ -1219,9 +1286,19 @@ export def "apps-update chrome" [] {
   aria2c --download-result=hide https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 }
 
-#update google earth deb
+#update google earth
 @category sudo
 export def "apps-update earth" [] {
+  if (is-arch-family) {
+    print (echo-g "Updating google-earth-pro on Arch/CachyOS via paru...")
+    if (which paru | is-not-empty) {
+      ^paru -S --needed --noconfirm google-earth-pro
+    } else {
+      print (echo-y "Please install google-earth-pro via paru on Arch/CachyOS")
+    }
+    return
+  }
+
   cd $env.MY_ENV_VARS.debs
 
   let new_version = try {
@@ -1251,9 +1328,19 @@ export def "apps-update earth" [] {
   sudo gdebi -n google-earth-pro-stable_current_amd64.deb
 }
 
-#update yandex deb
+#update yandex disk
 @category sudo
 export def "apps-update yandex" [] {
+  if (is-arch-family) {
+    print (echo-g "Updating yandex-disk on Arch/CachyOS via paru...")
+    if (which paru | is-not-empty) {
+      ^paru -S --needed --noconfirm yandex-disk
+    } else {
+      print (echo-y "Please install yandex-disk via paru on Arch/CachyOS")
+    }
+    return
+  }
+
   cd $env.MY_ENV_VARS.debs
 
   let file = [$env.MY_ENV_VARS.debs yandex.json] | path join
@@ -1437,6 +1524,16 @@ export def "apps-update ttyplot" [] {
 
 #update vivaldi
 export def "apps-update vivaldi" [] {
+  if (is-arch-family) {
+    print (echo-g "Updating vivaldi on Arch/CachyOS via paru/pacman...")
+    if (which paru | is-not-empty) {
+      ^paru -S --needed --noconfirm vivaldi vivaldi-ffmpeg-codecs
+    } else {
+      ^sudo pacman -S --needed --noconfirm vivaldi vivaldi-ffmpeg-codecs
+    }
+    return
+  }
+
   cd $env.MY_ENV_VARS.debs
   
   let release_url = try {
@@ -1635,32 +1732,32 @@ export def "apps-update myffmpeg" [--force(-f)] {
 
 #update claude cli
 export def "apps-update claude" [] {
-  npm update -g @anthropic-ai/claude-code
+  run-npm update -g @anthropic-ai/claude-code
 }
 
 #update mermaid-ascii
 export def "apps-update mermaid-ascii" [] {
-  npm update -g mermaid-ascii
+  run-npm update -g mermaid-ascii
 }
 
 #update mermaid filter
 export def "apps-update mermaid-filter" [] {
-  npm install --global mermaid-filter
+  run-npm install --global mermaid-filter
 }
 
 #update mermaid-cli
 export def "apps-update mermaid-cli" [] {
-  npm update -g @mermaid-js/mermaid-cli
+  run-npm update -g @mermaid-js/mermaid-cli
 }
 
 #update fast-cli
 export def "apps-update fast-cli" [] {
-  npm update -g fast-cli
+  run-npm update -g fast-cli
 }
 
 #update tldr
 export def "apps-update tldr" [] {
-  npm update -g tldr
+  run-npm update -g tldr
 }
 
 #update ddgr (gg)
@@ -2217,7 +2314,7 @@ WantedBy=timers.target
 
 #update gemini-cli
 export def "apps-update gemini" [] {
-  npm install --engine-strict -g @google/gemini-cli@latest
+  run-npm install --engine-strict -g @google/gemini-cli@latest
 }
 
 #update cariddi
@@ -2267,6 +2364,153 @@ export def "apps-update zed-windows" [] {
 export def "apps-update cliamp" [] {
         sudo cliamp upgrade
 }
+
+#update zed editor
+export def "apps-update zed" [] {
+  if (is-arch-family) {
+    print (echo-g "Updating zed on Arch/CachyOS via paru/pacman...")
+    if (which paru | is-not-empty) {
+      ^paru -S --needed --noconfirm zed
+    } else {
+      ^sudo pacman -S --needed --noconfirm zed
+    }
+  } else {
+    print (echo-g "Updating zed via official curl installer...")
+    do { ^curl -f https://zed.dev/install.sh | sh } | complete
+  }
+}
+
+#update ghostty terminal
+export def "apps-update ghostty" [] {
+  if (is-arch-family) {
+    print (echo-g "Updating ghostty on Arch/CachyOS via paru/pacman...")
+    if (which paru | is-not-empty) {
+      ^paru -S --needed --noconfirm ghostty
+    } else {
+      ^sudo pacman -S --needed --noconfirm ghostty
+    }
+  } else {
+    print (echo-y "Ghostty on Ubuntu is managed via custom binary or build.")
+  }
+}
+
+#update wallust
+export def "apps-update wallust" [] {
+  if (is-arch-family) {
+    print (echo-g "Updating wallust on Arch/CachyOS via paru/pacman...")
+    if (which paru | is-not-empty) {
+      ^paru -S --needed --noconfirm wallust
+    } else {
+      ^sudo pacman -S --needed --noconfirm wallust
+    }
+  } else {
+    print (echo-g "Updating wallust via cargo...")
+    cargo install --locked wallust
+  }
+}
+
+#update hyprlock
+export def "apps-update hyprlock" [] {
+  if (is-arch-family) {
+    print (echo-g "Updating hyprlock on Arch/CachyOS via paru/pacman...")
+    if (which paru | is-not-empty) {
+      ^paru -S --needed --noconfirm hyprlock
+    } else {
+      ^sudo pacman -S --needed --noconfirm hyprlock
+    }
+  } else {
+    print (echo-y "Hyprlock is an Arch/CachyOS Wayland package.")
+  }
+}
+
+#update awww wallpaper daemon
+export def "apps-update awww" [] {
+  if (is-arch-family) {
+    print (echo-g "Updating awww on Arch/CachyOS via paru/pacman...")
+    if (which paru | is-not-empty) {
+      ^paru -S --needed --noconfirm awww
+    } else {
+      ^sudo pacman -S --needed --noconfirm awww
+    }
+  } else {
+    print (echo-y "awww is a Wayland wallpaper daemon package for Arch/CachyOS.")
+  }
+}
+
+#update cachyos_semiautomatic_install repo
+export def "apps-update cachyos_semiautomatic_install" [] {
+  let paths = [
+    ("~/software/cachyos_semiautomatic_install" | path expand),
+    ("~/Downloads/linux_backup_and_install" | path expand),
+    ($env.MY_ENV_VARS.linux_backup? | default "")
+  ]
+  let target = ($paths | where { |p| ($p | is-not-empty) and ($p | path exists) and (($p | path join ".git") | path exists) } | first)
+  if ($target | is-not-empty) {
+    print (echo-g $"Updating cachyos_semiautomatic_install in ($target)...")
+    cd $target
+    git pull
+  } else {
+    print (echo-y "cachyos_semiautomatic_install repository not found in standard locations.")
+  }
+}
+
+#update cachyos-installer alias
+export def "apps-update cachyos-semiautomatic-install" [] {
+  apps-update cachyos_semiautomatic_install
+}
+
+#update ripgrep
+export def "apps-update ripgrep" [] {
+  if (is-arch-family) {
+    if (which paru | is-not-empty) {
+      ^paru -S --needed --noconfirm ripgrep
+    } else {
+      ^sudo pacman -S --needed --noconfirm ripgrep
+    }
+  } else {
+    cargo install ripgrep
+  }
+}
+
+#update bat
+export def "apps-update bat" [] {
+  if (is-arch-family) {
+    if (which paru | is-not-empty) {
+      ^paru -S --needed --noconfirm bat
+    } else {
+      ^sudo pacman -S --needed --noconfirm bat
+    }
+  } else {
+    cargo install --locked bat
+  }
+}
+
+#update fd
+export def "apps-update fd" [] {
+  if (is-arch-family) {
+    if (which paru | is-not-empty) {
+      ^paru -S --needed --noconfirm fd
+    } else {
+      ^sudo pacman -S --needed --noconfirm fd
+    }
+  } else {
+    cargo install fd-find
+  }
+}
+
+#update eza
+export def "apps-update eza" [] {
+  if (is-arch-family) {
+    if (which paru | is-not-empty) {
+      ^paru -S --needed --noconfirm eza
+    } else {
+      ^sudo pacman -S --needed --noconfirm eza
+    }
+  } else {
+    cargo install eza
+  }
+}
+
 
 # Check if context-mode plugin is installed in Claude Code.
 # Returns `true` if installed, `false` otherwise.
@@ -2320,7 +2564,7 @@ export def "apps-update context-mode" [] {
     print (echo-g "context-mode plugin is already installed in Claude Code.")
   }
 
-  npm update -g context-mode
+  run-npm update -g context-mode
 
   # Update/Reinstall context-mode plugin for agy (Antigravity CLI)
   if (which agy | is-not-empty) {
@@ -2912,6 +3156,16 @@ def is-app-installed [app_name: string] {
     agy: ["agy", "antigravity", "antigravity-cli"]
     agy-daemon: ["agy-daemon", "agy-remote-control"]
     rtk: ["rtk"]
+    pandoc: ["pandoc", "pandoc-cli"]
+    ripgrep: ["rg", "ripgrep"]
+    fd: ["fd", "fdfind"]
+    bat: ["bat", "batcat"]
+    eza: ["eza"]
+    zed: ["zed", "zed-editor"]
+    ghostty: ["ghostty"]
+    wallust: ["wallust"]
+    hyprlock: ["hyprlock"]
+    awww: ["awww"]
   }
 
   if $app_name == "agy-daemon" or $app_name == "agy-remote-control" {
