@@ -2200,13 +2200,31 @@ export def "apps-update agy" [] {
 # 3. The token is saved to `~/.gemini/jetski-standalone-oauth-token` and your machine appears on https://antigravity.google.com.
 # 4. Restart or manage the background service via `apps-update agy-daemon`.
 export def "apps-update agy-daemon" [
-  --install(-i) #install and configure systemd user service if missing or requested
+  --install(-i)   # install and configure systemd user service if missing or requested
+  --uninstall(-u) # stop, disable, and uninstall systemd user service and daemon files
 ] {
   let service_file = ("~/.config/systemd/user/agy-remote-control.service" | path expand)
   let wrapper_file = ("~/.antigravity/bin/run_agy_remote_control.sh" | path expand)
   let timer_file = ("~/.config/systemd/user/agy-remote-control-update.timer" | path expand)
   let update_svc_file = ("~/.config/systemd/user/agy-remote-control-update.service" | path expand)
   let token_file = ("~/.gemini/jetski-standalone-oauth-token" | path expand)
+
+  if $uninstall {
+    try { rich rule "Uninstalling Antigravity Remote Control Daemon" --style "bold cyan" } catch { print (echo-g "==> Uninstalling Antigravity Remote Control Headless Daemon...") }
+    do { ^systemctl --user stop agy-remote-control.service } | complete | ignore
+    do { ^systemctl --user stop agy-remote-control-update.timer } | complete | ignore
+    do { ^systemctl --user stop agy-remote-control-update.service } | complete | ignore
+    do { ^systemctl --user disable agy-remote-control.service } | complete | ignore
+    do { ^systemctl --user disable agy-remote-control-update.timer } | complete | ignore
+    rm -f $service_file
+    rm -f $update_svc_file
+    rm -f $timer_file
+    rm -rf ("~/.antigravity" | path expand)
+    do { ^systemctl --user daemon-reload } | complete | ignore
+    do { ^systemctl --user reset-failed } | complete | ignore
+    try { rich print "[bold green]✓ agy-daemon stopped, disabled, and uninstalled successfully![/]" } catch { print (echo-g "✓ agy-daemon stopped, disabled, and uninstalled successfully!") }
+    return
+  }
 
   let is_installed = ($service_file | path exists) and ($wrapper_file | path exists)
 
