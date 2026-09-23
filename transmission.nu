@@ -1,4 +1,7 @@
 #transmission wrapper
+use ./table_manipulation.nu default-table
+use /home/kira/software/nu-rich/rich *
+
 export def "t help" [] {
   try { rich rule "Transmission CLI Commands" --style "bold cyan" } catch { print "transmission-daemon wrapper\n" }
   let commands = [
@@ -30,22 +33,27 @@ export def "t help" [] {
 
 #transmission start
 export def "t start" [] {
-  sudo service transmission-daemon start
+  sudo systemctl start transmission-daemon
 }
 
 #transmission stop
 export def "t stop" [] {
-  sudo service transmission-daemon stop
+  sudo systemctl stop transmission-daemon
 }
 
 #transmission reload
 export def "t reload" [] {
-  sudo service transmission-daemon reload
+  sudo systemctl reload-or-restart transmission-daemon
 }
 
 #transmission list
 export def "t list" [] {
-  transmission-remote -n 'transmission:transmission' -l 
+  let res = (do { transmission-remote -n 'transmission:transmission' -l } | complete)
+  if $res.exit_code != 0 {
+    print $"(ansi red)Transmission daemon is not responding. Ensure it is started via 't start'.(ansi reset)"
+    return []
+  }
+  $res.stdout 
   | from ssv 
   | default-table 
   | drop
@@ -110,9 +118,10 @@ export def "t full-stats" [] {
 }
 
 #open transmission tui
-export def "t ui" [] {
-  let ip = get-ips | get internal
-  tremc -c $"transmission:transmission@($ip):9091"
+export def "t ui" [
+  host?: string = "127.0.0.1"  # host or ip address to connect to (default: 127.0.0.1)
+] {
+  tremc -c $"transmission:transmission@($host):9091"
 }
 
 #add file to transmission download queue

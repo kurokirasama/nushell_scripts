@@ -84,7 +84,7 @@ export def --env "gmn cron" [
 const opn_normal_models = [
   "opencode/mimo-v2.5-free"
   "opencode/nemotron-3.5-lightning-free"
-  "opencode/muse-spark-1.2-contributor-free"
+  "opencode/muse-spark-1.3-contributor-free"
   "opencode/hy3-free"
   "opencode/nemotron-3-ultra-free"
   "opencode/big-pickle"
@@ -111,7 +111,7 @@ export def --env "opn cron" [
 
   # Resolve model before profile call so it can be forwarded
   let actual_model = if (not $ollama) and ($model | is-empty) {
-    "opencode/muse-spark-1.2-contributor-free"
+    "opencode/muse-spark-1.3-contributor-free"
   } else if ($model | is-not-empty) {
     $model
   } else {

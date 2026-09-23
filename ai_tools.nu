@@ -384,8 +384,15 @@ export def "ai git-push" [
 
   let model = if $gemini {"gemini"} else if $claude {"claude"} else {"chatgpt"}
 
+  let changes = git status --porcelain | str trim
+  if ($changes | is-empty) {
+    print (echo-g "no changes to commit!")
+    return
+  }
+
+  git add -A
   print (echo-g $"asking ($model) to summarize the differences in the repository...")
-  let question = git diff | str replace "\"" "'" -a
+  let question = git diff --cached | str replace "\"" "'" -a
   let prompt = $question | str truncate -m $max_words
   let prompt_short = $question | str truncate -m $max_words_short
 
@@ -431,6 +438,7 @@ export def "ai git-push" [
   
 
   if ($commit | is-empty) {
+    git restore --staged .
     return-error "Execution stopped by the user!"
   }
 
@@ -442,6 +450,7 @@ export def "ai git-push" [
   }
 
   if ($final_commit | is-empty) {
+    git restore --staged .
     return-error "Execution stopped by the user!"
   }
 
@@ -451,7 +460,10 @@ export def "ai git-push" [
     let choice = input (echo-g "Approve (y), Edit (e), or Cancel (n)? [y/e/n]: ")
     
     match $choice {
-      "n" => { return-error "Push cancelled by user." },
+      "n" => {
+        git restore --staged .
+        return-error "Push cancelled by user."
+      },
       "e" | "edit" => { $final_commit = input (echo-g "Enter new commit message: ") },
     }
   }
@@ -469,7 +481,7 @@ export def "ai git-push" [
 
   git add -A
   git status
-  git commit -am $final_commit
+  git commit -m $final_commit
 
   try {
     git push origin $branch

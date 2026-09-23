@@ -157,7 +157,7 @@ export def google_ai [
     --paid(-P) = false	  	  #use the billing api for greater limits
     --background(-b) = false  #execute the prompt in the background (asynchronous Interaction)
 ] {
-  let query = get-input $in $query
+  let query = (get-input $in $query | default "")
 
   #api parameters
   let apikey = if $paid {
@@ -269,16 +269,17 @@ export def google_ai [
   }
 
   #build prompt
+  let query_str = ($query | default "")
   let prompt = if ($document | is-not-empty) {
-      $preprompt + "\n# DOCUMENT\n\n" + (open --raw $document) + "\n\n# INPUT\n\n'''\n" + $query + "\n'''" 
+      $preprompt + "\n# DOCUMENT\n\n" + (open --raw $document) + "\n\n# INPUT\n\n'''\n" + $query_str + "\n'''" 
     } else if ($preprompt | is-empty) and $delim_with_backquotes {
-      "'''" + "\n" + $query + "\n" + "'''"
+      "'''\n" + $query_str + "\n'''"
     } else if ($preprompt | is-empty) {
-      $query
+      $query_str
     } else if $delim_with_backquotes {
-      $preprompt + "\n" + "'''" + "\n" + $query + "\n" + "'''"
+      $preprompt + "\n'''\n" + $query_str + "\n'''"
     } else {
-      $preprompt + $query
+      $preprompt + $query_str
     } 
 
   # helper to convert contents to interaction steps

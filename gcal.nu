@@ -42,7 +42,7 @@ export def "gcal add" [
       | rich panel --title "Google Calendar Event" --box rounded --border-style green
   } catch { }
 
-  gcalcli --calendar $"($calendar)" add --title $"($title)" --when $"($when)" --where $"($where)" --duration $"($duration)" --default-reminders
+  run-gcalcli --calendar $"($calendar)" add --title $"($title)" --when $"($when)" --where $"($where)" --duration $"($duration)" --default-reminders
 }
 
 #show gcal agenda in selected calendars
@@ -58,7 +58,7 @@ export def --wrapped "gcal agenda" [
 ] {
   let calendars = gcal list -R (not $full) -f $full| str join "|"
 
-  gcalcli --calendar $"($calendars)" agenda --military ...$rest
+  run-gcalcli --calendar $"($calendars)" agenda --military ...$rest
 }
 
 #show gcal week in selected calendards
@@ -74,7 +74,7 @@ export def --wrapped "gcal semana" [
 ] {
   let calendars = gcal list -R (not $full) -f $full | str join "|"
 
-  gcalcli --calendar $"($calendars)" calw ...$rest --military --monday
+  run-gcalcli --calendar $"($calendars)" calw ...$rest --military --monday
 }
 
 #show gcal month in selected calendards
@@ -90,7 +90,30 @@ export def --wrapped "gcal mes" [
 ] {
   let calendars = gcal list -R (not $full) -f $full | str join "|"
 
-  gcalcli --calendar $"($calendars)" calm ...$rest --military --monday
+  run-gcalcli --calendar $"($calendars)" calm ...$rest --military --monday
+}
+
+# Ensure ~/.config/gcalcli/config.toml exists with personal client-id
+def ensure-gcalcli-config [] {
+  let config_file = ($env.HOME | path join ".config" "gcalcli" "config.toml")
+  if not ($config_file | path exists) {
+    let cid = (try { get-api-key "google.calendar.client_id" } catch { "" })
+    if ($cid | is-not-empty) {
+      ^mkdir -p ($env.HOME | path join ".config" "gcalcli")
+      $"[auth]\nclient-id = \"($cid)\"\n" | save -f $config_file
+    }
+  }
+}
+
+# Internal wrapper for gcalcli ensuring personal client-secret and config are applied
+def --wrapped run-gcalcli [...args: string] {
+  ensure-gcalcli-config
+  let secret = (try { get-api-key "google.calendar.client_secret" } catch { "" })
+  if ($secret | is-not-empty) {
+    ^gcalcli --client-secret $secret ...$args
+  } else {
+    ^gcalcli ...$args
+  }
 }
 
 #list available calendars
@@ -99,7 +122,7 @@ export def "gcal list" [
   --readers_bool(-R) = false #same as -r, but bool flag
   --full(-f) = true  #if false, filter not wanted calendars
 ] {
-  gcalcli list
+  run-gcalcli list
   | ansi strip
   | lines
   | skip 2
@@ -110,8 +133,20 @@ export def "gcal list" [
   | str trim
 }
 
-#re-authenticate gcalcli
+#re-authenticate gcalcli with personal credentials
 export def "gcal reauth" [] {
-  rm ~/.gcalcli* -f
-  gcalcli --client-id (get-api-key "google.calendar.client_id") --client-secret (get-api-key "google.calendar.client_secret") --noauth_local_webserver list
+  let cid = (get-api-key "google.calendar.client_id")
+  let csecret = (get-api-key "google.calendar.client_secret")
+
+  # Ensure config.toml is provisioned with personal client-id
+  let config_dir = ($env.HOME | path join ".config" "gcalcli")
+  ^mkdir -p $config_dir
+  $"[auth]\nclient-id = \"($cid)\"\n" | save -f ($config_dir | path join "config.toml")
+
+  # Clean stale token caches (both legacy ~/.gcalcli* and modern ~/.local/share/gcalcli/oauth)
+  try { rm ($env.HOME | path join ".gcalcli*") -f } catch {}
+  try { rm ($env.HOME | path join ".local" "share" "gcalcli" "oauth") -f } catch {}
+
+  print (echo-g "Starting gcalcli authentication with personal API credentials...")
+  ^gcalcli --client-id $cid --client-secret $csecret init
 }

@@ -3,12 +3,24 @@
 # Centralized configuration for AC temperature thresholds
 export def "ghome cron-ac-config" [] {
     {
-        sunrise_on: 16.0,      # Turn on if <= this at sunrise
-        hourly_on_winter: 12.0, # Turn on if <= this (winter/season)
-        hourly_on_summer: 20.0, # Turn on if >= this (summer/off-season)
+        sunrise_on: 16.0,        # Turn on if <= this at sunrise
+        hourly_on_winter: 12.0,  # Turn on if <= this (winter/season)
+        hourly_on_summer: 20.0,  # Turn on if >= this (summer/off-season)
         hourly_off_winter: 16.0, # Turn off if >= this (winter/season)
-        hourly_off_summer: 18.0  # Turn off if <= this (summer/off-season)
+        hourly_off_summer: 18.0, # Turn off if <= this (summer/off-season)
+        winter_start: "03-21",   # Season start (MM-DD)
+        winter_end: "10-01"      # Season end (MM-DD)
     }
+}
+
+# Determine if a given datetime falls within the winter (in-season) window
+export def "ghome cron-is-winter" [date_time?: datetime]: nothing -> bool {
+    let dt = ($date_time | default (date now))
+    let year = ($dt | format date %Y)
+    let config = (ghome cron-ac-config)
+    let winter_start = $"($year)-($config.winter_start)" | into datetime
+    let winter_end = $"($year)-($config.winter_end) 23:59:59" | into datetime
+    ($dt >= $winter_start) and ($dt <= $winter_end)
 }
 
 # Fetch weather and turn ON AC if cold at sunrise
@@ -33,11 +45,9 @@ export def "ghome cron-ac-on-sunrise" [--dry-run] {
     let today = date now
     let config = ghome cron-ac-config
     
-    # march 21 to sept 21
-    let march_21 = $"($today | format date %Y)-03-21" | into datetime
-    let sept_21 = $"($today | format date %Y)-09-21" | into datetime
+    let is_winter = ghome cron-is-winter $today
     
-    if ($temp <= $config.sunrise_on) and ($today >= $march_21) and ($today <= $sept_21) {
+    if ($temp <= $config.sunrise_on) and $is_winter {
         if $dry_run {
             print $"Dry run: Turning ON AC at sunrise \(temp ($temp) <= ($config.sunrise_on)\)"
         } else {
@@ -57,19 +67,16 @@ export def "ghome cron-ac-on-hourly" [
     sunset: datetime,
     --dry-run
 ] {
-    let year = $date_time | format date %Y
     let config = ghome cron-ac-config
+    let is_winter = ghome cron-is-winter $date_time
+    let is_summer = not $is_winter
     
-    # Condition A: march 21 to sept 21, temp <= 18, time between sunrise+4 and sunset+2
-    let march_21 = $"($year)-03-21" | into datetime
-    let sept_21 = $"($year)-09-21" | into datetime
-    let range_a = ($date_time >= $march_21) and ($date_time <= $sept_21)
-    
+    # Condition A (Winter): temp <= hourly_on_winter, time between sunrise+3 and sunset+4
     let sunrise_plus_4 = $sunrise + 3hr
     let sunset_plus_2 = $sunset + 4hr
     let time_range_a = ($date_time >= $sunrise_plus_4) and ($date_time <= $sunset_plus_2)
     
-    if $range_a and ($temperature <= $config.hourly_on_winter) and $time_range_a {
+    if $is_winter and ($temperature <= $config.hourly_on_winter) and $time_range_a {
         if $dry_run {
             print $"Dry run: Turning ON AC \(Condition A, temp ($temperature) <= ($config.hourly_on_winter)\)"
         } else {
@@ -80,20 +87,15 @@ export def "ghome cron-ac-on-hourly" [
         return true
     }
     
-    # Condition B: sept 22 to march 20 (next year if needed), temp >= 22, time between sunrise+5 and sunset
-    let sept_22 = $"($year)-09-22" | into datetime
-    let march_20_this = $"($year)-03-20" | into datetime
-    
-    let range_b = ($date_time >= $sept_22) or ($date_time <= $march_20_this)
-    
+    # Condition B (Summer): temp >= hourly_on_summer, time between sunrise+5 and sunset
     let sunrise_plus_5 = $sunrise + 5hr
     let time_range_b = ($date_time >= $sunrise_plus_5) and ($date_time <= $sunset)
     
-    if $range_b and ($temperature >= $config.hourly_on_summer) and $time_range_b {
+    if $is_summer and ($temperature >= $config.hourly_on_summer) and $time_range_b {
         if $dry_run {
-            print $"Dry run: Turning ON AC (Condition B, temp ($temperature) >= ($config.hourly_on_summer))"
+            print $"Dry run: Turning ON AC \(Condition B, temp ($temperature) >= ($config.hourly_on_summer)\)"
         } else {
-            print $"Executing: Turning ON AC (Condition B, temp ($temperature) >= ($config.hourly_on_summer))"
+            print $"Executing: Turning ON AC \(Condition B, temp ($temperature) >= ($config.hourly_on_summer)\)"
             ghome device "aire acondicionado" on
             #send-gmail $env.MY_ENV_VARS.mail "Log: ac on" --body "ac on"
         }
@@ -111,15 +113,11 @@ export def "ghome cron-ac-off-hourly" [
     date_time: datetime,
     --dry-run
 ] {
-    let year = $date_time | format date %Y
     let config = ghome cron-ac-config
-    let march_21 = $"($year)-03-21" | into datetime
-    let sept_21 = $"($year)-09-21" | into datetime
+    let is_winter = ghome cron-is-winter $date_time
+    let is_summer = not $is_winter
     
-    let range_a = ($date_time >= $march_21) and ($date_time <= $sept_21)
-    let range_b = not $range_a
-    
-    if $range_a and ($temperature >= $config.hourly_off_winter) {
+    if $is_winter and ($temperature >= $config.hourly_off_winter) {
         if $dry_run {
             print $"Dry run: Turning OFF AC \(Condition A, temp ($temperature) >= ($config.hourly_off_winter)\)"
         } else {
@@ -130,7 +128,7 @@ export def "ghome cron-ac-off-hourly" [
         return true
     }
     
-    if $range_b and ($temperature <= $config.hourly_off_summer) {
+    if $is_summer and ($temperature <= $config.hourly_off_summer) {
         if $dry_run {
             print $"Dry run: Turning OFF AC \(Condition B, temp ($temperature) <= ($config.hourly_off_summer)\)"
         } else {

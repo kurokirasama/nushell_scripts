@@ -529,7 +529,7 @@ export def is-arch-family []: nothing -> bool {
   ($os == "cachyos") or ($os == "arch")
 }
 
-# Run npm with automatic --allow-remote=all flag if running under npm >= 12
+# Run npm with automatic --allow-remote=all and --dangerously-allow-all-scripts flags if running under npm >= 12
 export def --wrapped run-npm [...args: string] {
   let npm_ver = (try { do { ^npm --version } | complete | get stdout | ansi strip | str trim } catch { "" })
   let is_npm_12_plus = if ($npm_ver | is-not-empty) {
@@ -537,8 +537,8 @@ export def --wrapped run-npm [...args: string] {
   } else {
     false
   }
-  let remote_flag = if $is_npm_12_plus { ["--allow-remote=all"] } else { [] }
-  ^npm ...$remote_flag ...$args
+  let npm_12_flags = if $is_npm_12_plus { ["--allow-remote=all", "--dangerously-allow-all-scripts"] } else { [] }
+  ^npm ...$npm_12_flags ...$args
 }
 
 # Return workflow record for given OS
@@ -598,6 +598,118 @@ def run-with-dry-run [cmd: string, dry_run: bool] {
   }
 }
 
+# Classify the outcome of an omarchy update run and inspect its pty log for step failures.
+# Parameters:
+#   exit_code - process exit status (negative when killed by a signal)
+#   signal    - signal name from omarchy-signal-name ("" when the run was not signal-killed)
+#   log_path  - omarchy's pty log (defaults to the fixed path its update wrapper uses)
+# Example: (omarchy-update-diagnosis 1 "" "/tmp/omarchy-update.log").failed
+export def omarchy-update-diagnosis [
+  exit_code: int
+  signal: string = ""
+  log_path: string = "/tmp/omarchy-update.log"
+]: nothing -> record {
+  let log_text = if ($log_path | path exists) { open --raw $log_path } else { "" }
+  let interrupted = ($signal | is-not-empty)
+  let failed = (not $interrupted) and ($exit_code != 0)
+  let summary = if $interrupted {
+    $"omarchy update interrupted by ($signal) \(system state unknown\) - see ($log_path)"
+  } else if $failed {
+    $"omarchy update failed \(exit ($exit_code)\) - see ($log_path)"
+  } else {
+    "omarchy update completed"
+  }
+  # Scope the hook-failure check to the keyring step: its output sits after the
+  # "Update Arch signing keys" header and before the system-packages step, so hook
+  # failures in later steps are not misattributed to the keyring.
+  let keyring_section = (if ($log_text | str contains "Update Arch signing keys") {
+    $log_text | split row "Update Arch signing keys" | get 1 | split row "Update system packages" | first
+  } else {
+    ""
+  })
+  {
+    interrupted: $interrupted
+    failed: $failed
+    keyring_failed: ($keyring_section | str contains "command failed to execute correctly")
+    summary: $summary
+    log_path: $log_path
+  }
+}
+
+# Map an exit status / error message to the interrupting signal name ("" when not signal-killed).
+# Example: (omarchy-signal-name -2 "External command was terminated by a signal") -> "SIGINT"
+export def omarchy-signal-name [exit_code: int, msg: string = ""]: nothing -> string {
+  let terminated = (($exit_code < 0) or ($msg | str contains "terminated by a signal"))
+  if not $terminated {
+    ""
+  } else if $exit_code == -15 {
+    "SIGTERM"
+  } else if $exit_code < 0 and $exit_code != -2 {
+    ["SIG(" (($exit_code * -1) | into string) ")"] | str join
+  } else {
+    "SIGINT"
+  }
+}
+
+# Decide where the single omarchy update invocation runs (workflow vs extended installer).
+# Parameters:
+#   has_omarchy  - whether the omarchy command is installed
+#   all          - supgrade --all flag
+#   omarchy_flag - supgrade --omarchy flag
+# The workflow performs the update whenever omarchy is installed; the extended section
+# only needs its installer fallback when omarchy is missing, so --all/--omarchy can never
+# trigger a second update (and the system upgrade keeps running first).
+export def omarchy-step-plan [has_omarchy: bool, all: bool, omarchy_flag: bool]: nothing -> record {
+  {
+    workflow_omarchy: $has_omarchy
+    extended_omarchy: ((not $has_omarchy) and ($all or $omarchy_flag))
+  }
+}
+
+# Print the halt banner and return true when a diagnosis reports an interrupted update.
+# Example: (omarchy-halt-needed (omarchy-update-diagnosis 254 "SIGINT"))
+export def omarchy-halt-needed [result: any]: nothing -> bool {
+  # Optional access keeps this safe for null/non-record results (e.g. ubuntu/arch workflows).
+  if not ($result.interrupted? | default false) { return false }
+  let message = "Omarchy update was interrupted; halting supgrade - system state unknown. Review /tmp/omarchy-update.log and reboot if the system looks degraded."
+  # echo-r may be absent in minimal/headless contexts (e.g. standalone test runs).
+  print (try { echo-r $message } catch { $message })
+  true
+}
+
+# Run `omarchy update -y` with live output and report per the continue-always policy.
+# Returns the diagnosis record (null in dry-run). Callers halt only on interrupts.
+def run-omarchy-update [dry_run: bool]: nothing -> any {
+  let cmd = "export PATH=\"/usr/share/omarchy/bin:$PATH\"; omarchy update -y"
+  if $dry_run {
+    print $"[DRY-RUN] Would execute: ($cmd)"
+    return null
+  }
+  let result = (try {
+    ^bash -c $cmd
+    {exit_code: 0, msg: ""}
+  } catch {|e|
+    let raw = (try { $env.LAST_EXIT_CODE } catch { 1 }) | default 1
+    # We are inside catch, so an error occurred: a zero or absent code means the
+    # command never ran cleanly (e.g. bash missing) - report it as a failure.
+    let code = (if $raw == 0 { 1 } else { $raw })
+    {exit_code: $code, msg: ($e.msg | default "")}
+  })
+  let diag = omarchy-update-diagnosis $result.exit_code (omarchy-signal-name $result.exit_code $result.msg)
+  if $diag.interrupted {
+    print (echo-r $diag.summary)
+  } else if $diag.failed {
+    print (echo-r $diag.summary)
+    print (echo-y "Continuing with the remaining upgrade steps (continue-always policy).")
+  } else {
+    print (echo-g "omarchy update completed.")
+  }
+  if $diag.keyring_failed {
+    print (echo-y "Warning: ALPM/systemd hooks reported errors ('command failed to execute correctly'). The keyring package may have upgraded while the hooks still failed - inspect the log and reboot if systemd was unreachable.")
+  }
+  $diag
+}
+
 def run-ubuntu-workflow [old: bool, dry_run: bool] {
   if $old {
     run-with-dry-run "sudo apt update -y" $dry_run
@@ -613,7 +725,7 @@ def run-ubuntu-workflow [old: bool, dry_run: bool] {
   run-with-dry-run "sudo apt autoremove -y" $dry_run
 }
 
-def run-cachyos-workflow [skip_mirrors: bool, skip_cache_cleanup: bool, skip_aur: bool, dry_run: bool] {
+def run-cachyos-workflow [skip_mirrors: bool, skip_cache_cleanup: bool, skip_aur: bool, dry_run: bool]: nothing -> any {
   if not $skip_mirrors {
     let mirror_tool = if (which cachyos-rate-mirrors | is-not-empty) {
       "cachyos-rate-mirrors"
@@ -629,7 +741,7 @@ def run-cachyos-workflow [skip_mirrors: bool, skip_cache_cleanup: bool, skip_aur
 
   let has_omarchy = (which omarchy | is-not-empty)
   if $has_omarchy {
-    run-with-dry-run "export PATH=\"/usr/share/omarchy/bin:$PATH\"; omarchy update -y" $dry_run
+    run-omarchy-update $dry_run
   } else {
     run-with-dry-run "sudo pacman -Syu --noconfirm" $dry_run
     if not $skip_cache_cleanup {
@@ -784,12 +896,14 @@ export def supgrade [--old(-o),--cargo_aps(-c),--skip-mirrors,--skip-cache-clean
 
   print (echo-g $"Using ($workflow.name) workflow...")
 
-  match $workflow.name {
-    "ubuntu" => { run-ubuntu-workflow $old $dry_run },
+  let workflow_result = (match $workflow.name {
+    "ubuntu" => { run-ubuntu-workflow $old $dry_run; null },
     "cachyos" => { run-cachyos-workflow $skip_mirrors $skip_cache_cleanup $skip_aur $dry_run },
-    "arch" => { run-arch-workflow $skip_cache_cleanup $skip_aur $dry_run },
-    _ => { run-ubuntu-workflow $old $dry_run }
-  }
+    "arch" => { run-arch-workflow $skip_cache_cleanup $skip_aur $dry_run; null },
+    _ => { run-ubuntu-workflow $old $dry_run; null }
+  })
+
+  if (omarchy-halt-needed $workflow_result) { return }
 
   # CachyOS extended category operations (only on cachyos workflow)
   if $workflow.name == "cachyos" {
@@ -802,7 +916,17 @@ export def supgrade [--old(-o),--cargo_aps(-c),--skip-mirrors,--skip-cache-clean
     if ($all or $git_repos) { print (echo-g "Running Git repos update..."); try { if $dry_run { print "[DRY-RUN] Would execute: apps-update git-repos" } else { apps-update git-repos } } catch {|e| print (echo-y $"apps-update git-repos failed: ($e.msg)") } }
     if ($all or $ollama_models) { print (echo-g "Running Ollama models update..."); try { if $dry_run { print "[DRY-RUN] Would execute: apps-update ollama-models" } else { apps-update ollama-models } } catch {|e| print (echo-y $"apps-update ollama-models failed: ($e.msg)") } }
     if ($all or $fonts) { print (echo-g "Running fonts update..."); try { if $dry_run { print "[DRY-RUN] Would execute: apps-update fonts-nerd" } else { apps-update fonts-nerd } } catch {|e| print (echo-y $"apps-update fonts-nerd failed: ($e.msg)") } }
-    if ($all or $omarchy) { print (echo-g "Running Omarchy update..."); try { if $dry_run { print "[DRY-RUN] Would execute: apps-update omarchy" } else { apps-update omarchy } } catch {|e| print (echo-y $"apps-update omarchy failed: ($e.msg)") } }
+    let omarchy_plan = omarchy-step-plan (which omarchy | is-not-empty) $all $omarchy
+    if $omarchy_plan.extended_omarchy {
+      print (echo-g "Installing Omarchy (fallback installer)...")
+      let omarchy_result = (if $dry_run {
+        print "[DRY-RUN] Would execute: apps-update omarchy"
+        null
+      } else {
+        try { apps-update omarchy } catch {|e| print (echo-y $"apps-update omarchy failed: ($e.msg)"); null }
+      })
+      if (omarchy-halt-needed $omarchy_result) { return }
+    }
     if $all { print (echo-g "Running language runtimes update..."); run-cachyos-language-runtimes $dry_run }
   } else {
     if ($all or $npm_pkgs or $go_pkgs or $cargo_pkgs or $uv_tools or $git_tools or $r_pkgs or $git_repos or $ollama_models or $fonts or $omarchy) {
@@ -1950,14 +2074,13 @@ export def "apps-update fonts-nerd" [--dry-run]: nothing -> nothing {
 }
 
 #update omarchy framework
-export def "apps-update omarchy" [--dry-run]: nothing -> nothing {
+export def "apps-update omarchy" [--dry-run]: nothing -> any {
   if $dry_run {
     print "[DRY-RUN] Would update Omarchy framework"
-    return
+    return null
   }
   if (which omarchy | is-not-empty) {
-    run-with-dry-run "export PATH=\"/usr/share/omarchy/bin:$PATH\"; omarchy update -y" false
-    return
+    return (run-omarchy-update false)
   }
   let omarchy_tmp = "/tmp/omarchy_cachyos"
   try { rm -rf $omarchy_tmp } catch {}
