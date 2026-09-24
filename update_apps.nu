@@ -1916,10 +1916,15 @@ export def "apps-update matlab-lsp" [] {
   cd ~/software/MATLAB-language-server
   git reset --hard
   git pull 
-  npm install
+  if ("build/projectInstall.js" | path exists) {
+    npm run project-install
+  } else {
+    npm install
+  }
   npm run compile
   npm run package
 }
+
 
 #update glow
 export def "apps-update glow" [] {
@@ -3284,11 +3289,12 @@ def get-app-name-from-todo [text: string] {
 }
 
 # Check if an app is installed on the system
-def is-app-installed [app_name: string] {
+# Exported for testability (used by apps-update from-todos and tests).
+export def is-app-installed [app_name: string]: nothing -> bool {
   let mappings = {
     chrome: ["google-chrome", "google-chrome-stable", "chrome"]
     earth: ["google-earth-pro", "google-earth"]
-    nushell: ["nu"]
+    nushell: ["nu", "nushell"]
     yandex: ["yandex-disk", "yandex-browser", "yandex"]
     taskerpermissions: ["adb"]
     myffmpeg: ["ffmpeg"]
@@ -3307,6 +3313,44 @@ def is-app-installed [app_name: string] {
     wallust: ["wallust"]
     hyprlock: ["hyprlock"]
     awww: ["awww"]
+    "open-code": ["opencode", "open-code"]
+    "mermaid-cli": ["mmdc", "mermaid-cli"]
+    "mermaid-ascii": ["mermaid-ascii", "mmdc"]
+    "pandoc-cross-ref": ["pandoc-crossref", "pandoc-cross-ref"]
+    "ollama-models": ["ollama"]
+    "fast-cli": ["fast"]
+    mpris: ["playerctl", "mpris"]
+    matlab: ["matlab"]
+    "matlab-lsp": ["matlab_ls", "matlab-lsp", "mlsp"]
+    scrcpy: ["scrcpy"]
+    ddgr: ["ddgr"]
+    rclone: ["rclone"]
+    fzf: ["fzf"]
+    glow: ["glow"]
+    tldr: ["tldr", "tealdeer"]
+    ttyplot: ["ttyplot"]
+    obsidian: ["obsidian"]
+    ox: ["ox"]
+    ollama: ["ollama"]
+    timg: ["timg"]
+    cariddi: ["cariddi"]
+    gowall: ["gowall"]
+    linecast: ["linecast"]
+    nvitop: ["nvitop"]
+    termframe: ["termframe"]
+    vivaldi: ["vivaldi", "vivaldi-stable"]
+    cliamp: ["cliamp"]
+    sejda: ["sejda-console", "sejda"]
+    cmdg: ["cmdg"]
+    reader: ["reader"]
+    subliminal: ["subliminal"]
+    yewtube: ["yt", "yewtube"]
+    maestral: ["maestral"]
+    nchat: ["nchat"]
+    oxicord: ["oxicord"]
+    "context-mode": ["ctx", "context-mode"]
+    "markdonify-mcp": ["markdonify", "markdonify-mcp"]
+    "matlab-agentic-toolkit": ["mat", "matlab-agentic-toolkit"]
   }
 
   if $app_name == "agy-daemon" or $app_name == "agy-remote-control" {
@@ -3331,6 +3375,10 @@ def is-app-installed [app_name: string] {
     if (help commands | get name | find $c | is-not-empty) {
       return true
     }
+  }
+
+  if $app_name == "matlab-lsp" and ("~/software/MATLAB-language-server" | path exists) {
+    return true
   }
 
   false
@@ -3442,10 +3490,15 @@ export def "apps-update from-todos" [--dry-run] {
   mut results = []
   for todo in $matched {
     print $"(ansi green)Updating ($todo.update_command)...(ansi reset)"
-    let temp_file = (mktemp)
-    let update_cmd = ("nu --config ~/.config/nushell/config.nu --env-config ~/.config/nushell/env.nu -c \"apps-update " + $todo.update_command + "\"; echo $? > " + $temp_file)
+    let temp_file = mktemp
+    # Wrap the apps-update call with try/catch and explicit exit so the nu process
+    # exit code reliably reflects success (0) or failure (1). Without this, the
+    # nu process may exit non-zero even after a successful update when the last
+    # external command in the subcommand returns a non-zero status code.
+    let nu_script = ("try { apps-update " + $todo.update_command + "; exit 0 } catch { exit 1 }")
+    let update_cmd = ("nu --config ~/.config/nushell/config.nu --env-config ~/.config/nushell/env.nu -c '" + $nu_script + "'; echo $? > " + $temp_file)
     run-external "bash" "-c" $update_cmd
-    let exit_code = (try { open $temp_file | str trim | into int } catch { 1 })
+    let exit_code = try { open $temp_file | str trim | into int } catch { 1 }
     try { rm -f $temp_file } catch {}
 
     if $exit_code == 0 {
