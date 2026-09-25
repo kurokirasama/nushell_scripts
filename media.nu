@@ -316,14 +316,28 @@ export def resolve-screen-record-audio [] {
   mut source_input = "@DEFAULT_SOURCE@"
   mut sink_name = ""
 
-  try {
-    let raw_sink = (pactl get-default-sink | str trim)
-    if ($raw_sink | is-not-empty) {
-      $sink_name = $raw_sink
-      $sink_monitor = $"($raw_sink).monitor"
+  # Proactively detect connected Bluetooth audio output sinks
+  let bluez_sink = try {
+    let sinks = (pactl list short sinks | lines | split column "\t" id name driver sample state)
+    $sinks
+    | where name =~ "^bluez_output"
+    | sort-by { |it| if ($it.state == "RUNNING") { 0 } else { 1 } }
+    | get -o 0.name
+  } catch { null }
+
+  if ($bluez_sink | is-not-empty) {
+    $sink_name = $bluez_sink
+    $sink_monitor = $"($bluez_sink).monitor"
+  } else {
+    try {
+      let raw_sink = (pactl get-default-sink | str trim)
+      if ($raw_sink | is-not-empty) {
+        $sink_name = $raw_sink
+        $sink_monitor = $"($raw_sink).monitor"
+      }
+    } catch {
+      # Fallback to virtual alias @DEFAULT_SINK@.monitor
     }
-  } catch {
-    # Fallback to virtual alias @DEFAULT_SINK@.monitor
   }
 
   try {
@@ -479,22 +493,49 @@ export def "media screen-record" [
         # Microphone only
         wf-recorder ...$output_args $"--audio=($audio_info.source_input)" -C aac -P b=192k -x yuv420p -f $"($file).mp4"
       } else {
+        if $separate_tracks {
+          print (echo-y "[screen-record] Notice: wf-recorder on Wayland encodes a single audio stream; mixing audio into stereo AAC.")
+        }
+        # Proactively clean up any stale screen-record mix modules from previous interrupted sessions
+        let stale_mods = try {
+          pactl list short modules
+          | lines
+          | where { |l| $l =~ "sr_mix_" }
+          | each { |l| $l | split row "\t" | get 0 }
+        } catch { [] }
+        for m in ($stale_mods | default []) {
+          try { pactl unload-module $m } catch {}
+        }
+
         # Dual audio: mix sink monitor and microphone via dynamic PipeWire null-sink
         let mix_name = $"sr_mix_(random chars -l 6)"
-        let sink_mod = (pactl load-module module-null-sink $"sink_name=($mix_name)" | str trim)
-        let lb_sink_mod = (pactl load-module module-loopback $"source=($audio_info.sink_monitor)" $"sink=($mix_name)" latency_msec=20 | str trim)
-        let lb_src_mod = (pactl load-module module-loopback $"source=($audio_info.source_input)" $"sink=($mix_name)" latency_msec=20 | str trim)
+        let sink_mod = try { pactl load-module module-null-sink $"sink_name=($mix_name)" | str trim } catch { "" }
+        let lb_sink_mod = try { pactl load-module module-loopback $"source=($audio_info.sink_monitor)" $"sink=($mix_name)" | str trim } catch { "" }
+        let lb_src_mod = try { pactl load-module module-loopback $"source=($audio_info.source_input)" $"sink=($mix_name)" | str trim } catch { "" }
 
-        try {
-          wf-recorder ...$output_args $"--audio=($mix_name).monitor" -C aac -P b=192k -x yuv420p -f $"($file).mp4"
-        } catch { |e|
-          # recording completed or interrupted by Ctrl+C
+        let sink_ok = ($sink_mod =~ '^[0-9]+$')
+        let lb_sink_ok = ($lb_sink_mod =~ '^[0-9]+$')
+        let lb_src_ok = ($lb_src_mod =~ '^[0-9]+$')
+
+        if ($sink_ok and $lb_sink_ok and $lb_src_ok) {
+          # Brief sync window to allow WirePlumber to establish graph connections before recording
+          sleep 100ms
+          try {
+            wf-recorder ...$output_args $"--audio=($mix_name).monitor" -C aac -P b=192k -x yuv420p -f $"($file).mp4"
+          } catch { |e|
+            # recording completed or interrupted by Ctrl+C
+          }
+        } else {
+          print (echo-y "[screen-record] Warning: PipeWire loopback mixing setup incomplete, falling back to direct sink monitor capture...")
+          try {
+            wf-recorder ...$output_args $"--audio=($audio_info.sink_monitor)" -C aac -P b=192k -x yuv420p -f $"($file).mp4"
+          } catch { |e| }
         }
 
         # Cleanup PipeWire modules
-        try { pactl unload-module $lb_src_mod } catch {}
-        try { pactl unload-module $lb_sink_mod } catch {}
-        try { pactl unload-module $sink_mod } catch {}
+        if $lb_src_ok { try { pactl unload-module $lb_src_mod } catch {} }
+        if $lb_sink_ok { try { pactl unload-module $lb_sink_mod } catch {} }
+        if $sink_ok { try { pactl unload-module $sink_mod } catch {} }
       }
     } else {
       print (echo-g "recording screen without audio for Hyprland...")
