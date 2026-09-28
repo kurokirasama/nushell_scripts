@@ -307,24 +307,57 @@ export def set-screen [
   }
 }
 
-#umount all drives 
+# Pick the right unmount tool for one sys disks row: udisks-managed
+# mounts go through udisksctl (no sudo, daemon-side cleanup), the rest
+# through plain umount. Pass tools explicitly only in tests.
+# Example: _umount-tool {device: "/dev/sda1", mount: "/run/media/kira/disk"} "kira"
+export def _umount-tool [
+  row: record<device: string, mount: string>
+  user: string
+  tools: list<string> = []
+] {
+  let available = if ($tools | is-empty) {
+    [udisksctl umount] | where {|t| which $t | is-not-empty }
+  } else {
+    $tools
+  }
+  let is_udisks = [$"/run/media/($user)" $"/media/($user)"]
+    | any {|p| $row.mount | str starts-with $p }
+  if $is_udisks and ("udisksctl" in $available) {
+    "udisks"
+  } else {
+    "umount"
+  }
+}
+
+# Unmount all user drives, auto-selecting udisksctl vs umount per mount,
+# with sudo umount as last-resort fallback.
+# Example: umall
 export def umall [user?] {
   let user = get-input $env.USER $user
+  let targets = sys disks
+    | where {|r| $r.mount | str contains $"/media/($user)" }
+    | select device mount
+    | uniq
 
-  try {
-    sys disks 
-    | find -n $"/media/($user)" & mounts
-    | get mount
-    | each {|drive| 
-        print (echo-g $"umounting ($drive)...")
-        try {
-          umount -q $drive
-        } catch {
-          sudo umount -q $drive
-        }
+  if ($targets | is-empty) {
+    return-error "no mounted drives found!"
+  }
+
+  $targets | each {|t|
+    print (echo-g $"unmounting ($t.mount)...")
+    try {
+      match (_umount-tool $t $user) {
+        "udisks" => { udisksctl unmount -b $t.device },
+        _ => { umount $t.mount }
       }
-  } catch {
-    return-error "device is busy!"
+    } catch {
+      try {
+        sudo umount $t.mount
+      } catch {
+        return-error $"failed to unmount ($t.mount), device is busy!"
+      }
+    }
   }
 }
 

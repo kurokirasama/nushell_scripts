@@ -1814,15 +1814,101 @@ export def "apps-update yt-dlp" [] {
 
 #update nchat (wsp)
 @category sudo
-export def "apps-update nchat" [] {
-  try {sudo rm (which nchat | get path | get 0)}
-  cd ~/software/nchat
-  git pull
-  
-  ^mkdir -p build; cd build; cmake -DHAS_WHATSAPP=ON -DHAS_TELEGRAM=OFF ..; make -s
-  sudo make install
-  cd ~/software/nchat
-  sudo rm -rf build/
+export def "apps-update nchat" [
+  --force(-f)    # force reinstall even if up to date
+  --dry-run      # simulate execution without making changes
+] {
+  if (is-arch-family) {
+    let helper = if (which paru | is-not-empty) {
+      "paru"
+    } else if (which yay | is-not-empty) {
+      "yay"
+    } else {
+      "pacman"
+    }
+
+    # Determine pkg: prefer currently installed package or default to nchat
+    let pkg = if (try { do { ^pacman -Q nchat-bin } | complete | get exit_code } catch { 1 }) == 0 {
+      "nchat-bin"
+    } else {
+      "nchat"
+    }
+
+    let install_flag = if $force { "-S --noconfirm" } else { "-S --needed --noconfirm" }
+    let cmd = $"($helper) ($install_flag) ($pkg)"
+
+    if $dry_run {
+      print $"[DRY-RUN] Would execute: ($cmd)"
+      return
+    }
+
+    print (echo-g $"Updating ($pkg) via ($helper)...")
+    let res = do { ^$helper ...($install_flag | split row " ") $pkg } | complete
+    if $res.exit_code == 0 {
+      print (echo-g $"✓ Successfully updated ($pkg)")
+    } else {
+      return-error $"Failed to update ($pkg): ($res.stderr)"
+    }
+  } else {
+    # Debian/Ubuntu or other source-build systems
+    let software_dir = ("~/software" | path expand)
+    let nchat_dir = ($software_dir | path join "nchat")
+
+    if $dry_run {
+      print $"[DRY-RUN] Would update/build nchat from source in ($nchat_dir)"
+      return
+    }
+
+    if not ($nchat_dir | path exists) {
+      if not ($software_dir | path exists) {
+        mkdir $software_dir
+      }
+      print (echo-g "Cloning nchat repository...")
+      let clone_res = do { ^git clone https://github.com/d99kris/nchat.git $nchat_dir } | complete
+      if $clone_res.exit_code != 0 {
+        return-error $"Failed to clone nchat: ($clone_res.stderr)"
+      }
+    }
+
+    cd $nchat_dir
+    print (echo-g "Pulling latest changes for nchat...")
+    do { ^git pull } | complete | ignore
+
+    let build_script = ($nchat_dir | path join "make.sh")
+    if ($build_script | path exists) {
+      print (echo-g "Building nchat via make.sh...")
+      do { ^bash $build_script deps } | complete | ignore
+      let build_res = do { ^bash $build_script build } | complete
+      if $build_res.exit_code != 0 {
+        return-error $"Failed to build nchat: ($build_res.stderr)"
+      }
+      let install_res = do { sudo bash $build_script install } | complete
+      if $install_res.exit_code != 0 {
+        return-error $"Failed to install nchat: ($install_res.stderr)"
+      }
+    } else {
+      print (echo-g "Building nchat via cmake...")
+      ^mkdir -p build
+      cd build
+      let cmake_res = do { ^cmake -DHAS_WHATSAPP=ON -DHAS_TELEGRAM=OFF .. } | complete
+      if $cmake_res.exit_code != 0 {
+        cd $nchat_dir
+        return-error $"CMake configuration failed: ($cmake_res.stderr)"
+      }
+      let make_res = do { ^make -s } | complete
+      if $make_res.exit_code != 0 {
+        cd $nchat_dir
+        return-error $"Make build failed: ($make_res.stderr)"
+      }
+      let install_res = do { sudo make install } | complete
+      cd $nchat_dir
+      try { sudo rm -rf build/ } catch {}
+      if $install_res.exit_code != 0 {
+        return-error $"Failed to install nchat: ($install_res.stderr)"
+      }
+    }
+    print (echo-g "✓ nchat updated and installed successfully")
+  }
 }
 
 #update ffmpeg with cuda and nv-codec-headers
