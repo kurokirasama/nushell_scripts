@@ -823,7 +823,9 @@ export def run-cachyos-cargo-pkgs [dry_run: bool]: nothing -> nothing {
     if $dry_run { print $"[DRY-RUN] Would execute: ($cmd)" } else { try { bash -c $cmd | ignore } catch {|e| print (echo-y $"Warning ($cmd): ($e.msg)") } }
   }
   if (which cargo | is-not-empty) {
-    run-with-dry-run "cargo install-update -a" $dry_run
+    if (which cargo-install-update | is-not-empty) {
+      run-with-dry-run "cargo install-update -a" $dry_run
+    }
     for pkg in ["toktop", "bat", "zoxide", "tokei", "bottom", "simple-http-server", "alass-cli", "cargo-update", "ht", "doxx", "xleak"] {
       if $dry_run { print $"[DRY-RUN] Would execute: cargo install ($pkg)" } else { try { cargo install $pkg | ignore } catch {|e| print (echo-y $"Warning cargo ($pkg): ($e.msg)") } }
     }
@@ -859,7 +861,7 @@ def run-common-operations [dry_run: bool, cargo_aps: bool]: nothing -> nothing {
     run-with-dry-run "flatpak update -y" $dry_run
   }
   if (which fwupdmgr | is-not-empty) {
-    run-with-dry-run "sudo fwupdmgr update -y" $dry_run
+    run-with-dry-run "sudo fwupdmgr update -y || [ $? -eq 2 ]" $dry_run
   }
   if (which rustup | is-not-empty) {
     run-with-dry-run "rustup update" $dry_run
@@ -868,7 +870,7 @@ def run-common-operations [dry_run: bool, cargo_aps: bool]: nothing -> nothing {
     run-with-dry-run "stack upgrade" $dry_run
   }
   if $cargo_aps {
-    if (which cargo | is-not-empty) {
+    if (which cargo-install-update | is-not-empty) {
       run-with-dry-run "cargo install-update -a" $dry_run
     }
   }
