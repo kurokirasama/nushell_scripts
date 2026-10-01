@@ -244,11 +244,317 @@ def is-cachyos [] {
     $os_id == "cachyos"
 }
 
+def echo-g [str: string] { $"(ansi -e { fg: '#00ff00' attr: b })($str)(ansi reset)" }
+def echo-y [str: string] { $"(ansi -e { fg: '#ffff00' attr: b })($str)(ansi reset)" }
+def echo-r [str: string] { $"(ansi -e { fg: '#ff0000' attr: b })($str)(ansi reset)" }
+
+# Internal helper for modular and testable Hyprland backup
+export def perform-hyprland-backup [
+    --source-dir: string = ""
+    --target-dir: string = ""
+    --cachyos
+    --dry-run
+] {
+    let src_dir = if ($source_dir | is-empty) { ($env.HOME | path join ".config") } else { $source_dir }
+    let linux_backup = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+    let dst_dir = if ($target_dir | is-empty) {
+        if $cachyos {
+            $linux_backup | path join "cachyos-omarchy-hyperland"
+        } else {
+            $linux_backup | path join "hyprland"
+        }
+    } else {
+        $target_dir
+    }
+
+    if $dry_run {
+        print (echo-g $"[DRY-RUN] Would backup Hyprland configurations from ($src_dir) to ($dst_dir)")
+        if $cachyos {
+            print "  Directories: hypr, omarchy, fontconfig, wallust, eww, wlogout, waybar, swaync, rofi, walker, mako, gtk-3.0, gtk-4.0, qt6ct, qt5ct, environment.d, ghostty, xkb, voxtype"
+            print "  Standalone files: .gtkrc-2.0, mimeapps.list, xdg-terminals.list, screensaver.txt, sync-bar-theming.sh, hypridle.conf, voxtype_config.toml, auto-power-profile, greeter.toml, sync.toml"
+        } else {
+            print "  Directories: waybar, hypr, wlogout, swaync, rofi, wallust"
+        }
+        return
+    }
+
+    mkdir $dst_dir
+    let staging_dir = (mktemp -d -t cachy_hypr_backup_XXXXXX)
+
+    if $cachyos {
+        let cachy_dirs = [
+            { dir: "hypr", arch: "hypr" },
+            { dir: "omarchy", arch: "omarchy" },
+            { dir: "fontconfig", arch: "fontconfig" },
+            { dir: "wallust", arch: "wallust" },
+            { dir: "eww", arch: "eww" },
+            { dir: "wlogout", arch: "wlogout" },
+            { dir: "waybar", arch: "waybar" },
+            { dir: "swaync", arch: "swaync" },
+            { dir: "rofi", arch: "rofi" },
+            { dir: "walker", arch: "walker" },
+            { dir: "mako", arch: "mako" },
+            { dir: "gtk-3.0", arch: "gtk-3.0" },
+            { dir: "gtk-4.0", arch: "gtk-4.0" },
+            { dir: "qt6ct", arch: "qt6ct" },
+            { dir: "qt5ct", arch: "qt5ct" },
+            { dir: "environment.d", arch: "environment" },
+            { dir: "ghostty", arch: "ghostty" },
+            { dir: "xkb", arch: "xkb" },
+            { dir: "voxtype", arch: "voxtype" }
+        ]
+
+        for item in $cachy_dirs {
+            let comp_path = ($src_dir | path join $item.dir)
+            if ($comp_path | path exists) {
+                let arch_file = ($staging_dir | path join $"($item.arch).7z")
+                try {
+                    do { ^7z a -t7z -snl -m0=lzma2 -mx=9 -ms=on -mmt=on $arch_file $comp_path } | complete
+                    mv -f $arch_file ($dst_dir | path join $"($item.arch).7z")
+                } catch { |err|
+                    print $"Warning archiving ($item.dir): ($err.msg)"
+                }
+            }
+        }
+
+        # Standalone files
+        let gtkrc_src = if ($source_dir | is-empty) { ($env.HOME | path join ".gtkrc-2.0") } else { ($src_dir | path join ".gtkrc-2.0") }
+        if ($gtkrc_src | path exists) {
+            cp -f $gtkrc_src ($dst_dir | path join ".gtkrc-2.0")
+        }
+
+        let mime_src = ($src_dir | path join "mimeapps.list")
+        if ($mime_src | path exists) {
+            cp -f $mime_src ($dst_dir | path join "mimeapps.list")
+        }
+
+        let xdg_src = ($src_dir | path join "xdg-terminals.list")
+        if ($xdg_src | path exists) {
+            cp -f $xdg_src ($dst_dir | path join "xdg-terminals.list")
+        }
+
+        let screensaver_candidates = [
+            ($src_dir | path join "omarchy" "screensaver.txt"),
+            ($src_dir | path join "screensaver.txt")
+        ]
+        for c in $screensaver_candidates {
+            if ($c | path exists) {
+                cp -f $c ($dst_dir | path join "screensaver.txt")
+                break
+            }
+        }
+
+        let sync_bar_candidates = [
+            ($src_dir | path join "omarchy" "hooks" "theme-set.d" "sync-bar-theming.sh"),
+            ($src_dir | path join "sync-bar-theming.sh")
+        ]
+        for c in $sync_bar_candidates {
+            if ($c | path exists) {
+                cp -f $c ($dst_dir | path join "sync-bar-theming.sh")
+                break
+            }
+        }
+
+        let hypridle_candidates = [
+            ($src_dir | path join "hypr" "hypridle.conf"),
+            ($src_dir | path join "hypridle.conf")
+        ]
+        for c in $hypridle_candidates {
+            if ($c | path exists) {
+                cp -f $c ($dst_dir | path join "hypridle.conf")
+                break
+            }
+        }
+
+        let voxtype_candidates = [
+            ($src_dir | path join "voxtype" "config.toml"),
+            ($src_dir | path join "voxtype_config.toml")
+        ]
+        for c in $voxtype_candidates {
+            if ($c | path exists) {
+                cp -f $c ($dst_dir | path join "voxtype_config.toml")
+                break
+            }
+        }
+
+        # System files (if present and readable)
+        if ("/usr/local/bin/auto-power-profile" | path exists) {
+            try { cp -f "/usr/local/bin/auto-power-profile" ($dst_dir | path join "auto-power-profile") } catch {}
+        }
+        if ("/etc/greetd/hyprland.toml" | path exists) {
+            try { cp -f "/etc/greetd/hyprland.toml" ($dst_dir | path join "greeter.toml") } catch {}
+        } else if ("/etc/greetd/greeter.toml" | path exists) {
+            try { cp -f "/etc/greetd/greeter.toml" ($dst_dir | path join "greeter.toml") } catch {}
+        }
+        if ("/etc/greetd/sync.toml" | path exists) {
+            try { cp -f "/etc/greetd/sync.toml" ($dst_dir | path join "sync.toml") } catch {}
+        }
+    } else {
+        let ubu_dirs = ["waybar", "hypr", "wlogout", "swaync", "rofi", "wallust"]
+        for dir_name in $ubu_dirs {
+            let comp_path = ($src_dir | path join $dir_name)
+            if ($comp_path | path exists) {
+                let arch_file = ($staging_dir | path join $"($dir_name).7z")
+                try {
+                    do { ^7z a -t7z -snl -m0=lzma2 -mx=9 -ms=on -mmt=on $arch_file $comp_path } | complete
+                    mv -f $arch_file ($dst_dir | path join $"($dir_name).7z")
+                } catch { |err|
+                    print $"Warning archiving ($dir_name): ($err.msg)"
+                }
+            }
+        }
+    }
+
+    try { rm -rf $staging_dir } catch {}
+}
+
+# Internal helper for modular and testable Hyprland restore
+export def perform-hyprland-restore [
+    --source-dir: string = ""
+    --target-dir: string = ""
+    --cachyos
+    --dry-run
+] {
+    let linux_backup = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+    let src_dir = if ($source_dir | is-empty) {
+        if $cachyos {
+            $linux_backup | path join "cachyos-omarchy-hyperland"
+        } else {
+            $linux_backup | path join "hyprland"
+        }
+    } else {
+        $source_dir
+    }
+    let dst_dir = if ($target_dir | is-empty) { ($env.HOME | path join ".config") } else { $target_dir }
+
+    if not ($src_dir | path exists) {
+        error make { msg: $"Backup folder ($src_dir) does not exist." }
+    }
+
+    if $dry_run {
+        print (echo-g $"[DRY-RUN] Would restore Hyprland configurations from ($src_dir) to ($dst_dir)")
+        let archives = (glob ($src_dir | path join "*.7z"))
+        print $"  Found ($archives | length) archives in ($src_dir)"
+        return
+    }
+
+    mkdir $dst_dir
+
+    for archive in (glob ($src_dir | path join "*.7z")) {
+        try {
+            do { ^7z x -snl $archive $"-o($dst_dir)" -y } | complete
+        } catch { |err|
+            print $"Warning extracting ($archive): ($err.msg)"
+        }
+    }
+
+    # Restore standalone files
+    let gtkrc_b = ($src_dir | path join ".gtkrc-2.0")
+    if ($gtkrc_b | path exists) {
+        if ($target_dir | is-empty) {
+            try { cp -f $gtkrc_b ($env.HOME | path join ".gtkrc-2.0") } catch {}
+        } else {
+            try { cp -f $gtkrc_b ($dst_dir | path join ".gtkrc-2.0") } catch {}
+        }
+    }
+
+    let mimeapps = ($src_dir | path join "mimeapps.list")
+    if ($mimeapps | path exists) {
+        try { cp -f $mimeapps ($dst_dir | path join "mimeapps.list") } catch {}
+    }
+
+    let xdg_terminals = ($src_dir | path join "xdg-terminals.list")
+    if ($xdg_terminals | path exists) {
+        try { cp -f $xdg_terminals ($dst_dir | path join "xdg-terminals.list") } catch {}
+    }
+
+    let screensaver = ($src_dir | path join "screensaver.txt")
+    if ($screensaver | path exists) {
+        let omarchy_dest = ($dst_dir | path join "omarchy")
+        mkdir $omarchy_dest
+        try { cp -f $screensaver ($omarchy_dest | path join "screensaver.txt") } catch {}
+        if ($target_dir | is-not-empty) {
+            try { cp -f $screensaver ($dst_dir | path join "screensaver.txt") } catch {}
+        }
+    }
+
+    let sync_bar = ($src_dir | path join "sync-bar-theming.sh")
+    if ($sync_bar | path exists) {
+        let sync_hook_dir = ($dst_dir | path join "omarchy" "hooks" "theme-set.d")
+        mkdir $sync_hook_dir
+        let sync_hook_dst = ($sync_hook_dir | path join "sync-bar-theming.sh")
+        try {
+            cp -f $sync_bar $sync_hook_dst
+            chmod +x $sync_hook_dst
+        } catch {}
+    }
+
+    let hypridle = ($src_dir | path join "hypridle.conf")
+    if ($hypridle | path exists) {
+        let hypr_dest = ($dst_dir | path join "hypr")
+        mkdir $hypr_dest
+        try { cp -f $hypridle ($hypr_dest | path join "hypridle.conf") } catch {}
+    }
+
+    let voxtype_cfg = ($src_dir | path join "voxtype_config.toml")
+    if ($voxtype_cfg | path exists) {
+        let voxtype_dest = ($dst_dir | path join "voxtype")
+        mkdir $voxtype_dest
+        try { cp -f $voxtype_cfg ($voxtype_dest | path join "config.toml") } catch {}
+    }
+
+    # Restore system files if running system-wide
+    if ($target_dir | is-empty) {
+        let auto_power = ($src_dir | path join "auto-power-profile")
+        if ($auto_power | path exists) {
+            try {
+                sudo cp -f $auto_power /usr/local/bin/auto-power-profile
+                sudo chmod +x /usr/local/bin/auto-power-profile
+            } catch {
+                print (echo-y "Notice: /usr/local/bin/auto-power-profile could not be restored automatically without sudo.")
+            }
+        }
+
+        let greeter = ($src_dir | path join "greeter.toml")
+        if ($greeter | path exists) and ("/etc/greetd" | path exists) {
+            try {
+                sudo cp -f $greeter /etc/greetd/hyprland.toml
+            } catch {
+                print (echo-y "Notice: /etc/greetd/hyprland.toml could not be restored automatically without sudo.")
+            }
+        }
+
+        let sync_toml = ($src_dir | path join "sync.toml")
+        if ($sync_toml | path exists) and ("/etc/greetd" | path exists) {
+            try {
+                sudo cp -f $sync_toml /etc/greetd/sync.toml
+            } catch {
+                print (echo-y "Notice: /etc/greetd/sync.toml could not be restored automatically without sudo.")
+            }
+        }
+    }
+
+    # Permissions enforcement on scripts
+    for script_file in (glob ($dst_dir | path join "hypr" "scripts" "*.nu")) {
+        try { chmod +x $script_file } catch {}
+    }
+    for script_file in (glob ($dst_dir | path join "hypr" "scripts" "*.sh")) {
+        try { chmod +x $script_file } catch {}
+    }
+    for hook_file in (glob ($dst_dir | path join "omarchy" "hooks" "*" "*.sh")) {
+        try { chmod +x $hook_file } catch {}
+    }
+    for plugin_script in (glob ($dst_dir | path join "omarchy" "plugins" "*" "scripts" "*")) {
+        try { chmod +x $plugin_script } catch {}
+    }
+}
+
 #backup hyprland configs
 @category backup
 @search-terms hyprland backup
 export def "hyprlnd backup" [
     --cachyos(-c) # Backup CachyOS Hyprland & Omarchy configuration
+    --dry-run     # Preview actions without modifying filesystem
 ] {
     let is_cachy = if $cachyos {
         if not (is-cachyos) {
@@ -259,52 +565,7 @@ export def "hyprlnd backup" [
         (is-cachyos)
     }
 
-    let target_folder = if $is_cachy {
-        $env.MY_ENV_VARS.linux_backup | path join "cachyos-omarchy-hyperland"
-    } else {
-        $env.MY_ENV_VARS.linux_backup | path join "hyprland"
-    }
-
-    mkdir $target_folder
-    cd ~/.config/
-
-    if $is_cachy {
-        7z max hypr hypr/
-        if ("omarchy" | path exists) { 7z max omarchy omarchy/ }
-        if ("fontconfig" | path exists) { 7z max fontconfig fontconfig/ }
-        if ("wallust" | path exists) { 7z max wallust wallust/ }
-        if ("eww" | path exists) { 7z max eww eww/ }
-        if ("wlogout" | path exists) { 7z max wlogout wlogout/ }
-        if ("waybar" | path exists) { 7z max waybar waybar/ }
-        if ("swaync" | path exists) { 7z max swaync swaync/ }
-        if ("rofi" | path exists) { 7z max rofi rofi/ }
-        if ("walker" | path exists) { 7z max walker walker/ }
-        if ("mako" | path exists) { 7z max mako mako/ }
-        if ("gtk-3.0" | path exists) { 7z max gtk-3.0.7z gtk-3.0/ }
-        if ("gtk-4.0" | path exists) { 7z max gtk-4.0.7z gtk-4.0/ }
-        if ("qt6ct" | path exists) { 7z max qt6ct qt6ct/ }
-        if ("qt5ct" | path exists) { 7z max qt5ct qt5ct/ }
-        if ("environment.d" | path exists) { 7z max environment.d environment.d/ }
-        let gtkrc = ($env.HOME | path join ".gtkrc-2.0")
-        if ($gtkrc | path exists) {
-            cp -f $gtkrc ($target_folder | path join ".gtkrc-2.0")
-        }
-        if ("mimeapps.list" | path exists) {
-            cp -f "mimeapps.list" ($target_folder | path join "mimeapps.list")
-        }
-        if ("xdg-terminals.list" | path exists) {
-            cp -f "xdg-terminals.list" ($target_folder | path join "xdg-terminals.list")
-        }
-    } else {
-        7z max waybar waybar/
-        7z max hypr hypr/
-        7z max wlogout wlogout/
-        7z max swaync swaync/
-        7z max rofi rofi/
-        7z max wallust wallust/
-    }
-    
-    mv *.7z $target_folder
+    perform-hyprland-backup --cachyos=$is_cachy --dry-run=$dry_run
 }
 
 #restore hyprland configs
@@ -312,6 +573,7 @@ export def "hyprlnd backup" [
 @search-terms hyprland restore
 export def "hyprlnd restore" [
     --cachyos(-c) # Restore CachyOS Hyprland & Omarchy configuration
+    --dry-run     # Preview actions without modifying filesystem
 ] {
     let is_cachy = if $cachyos {
         if not (is-cachyos) {
@@ -322,40 +584,7 @@ export def "hyprlnd restore" [
         (is-cachyos)
     }
 
-    let source_folder = if $is_cachy {
-        $env.MY_ENV_VARS.linux_backup | path join "cachyos-omarchy-hyperland"
-    } else {
-        $env.MY_ENV_VARS.linux_backup | path join "hyprland"
-    }
-
-    if not ($source_folder | path exists) {
-        error make { msg: $"Backup folder ($source_folder) does not exist." }
-    }
-
-    cd $source_folder
-    let target_dest = ($env.HOME | path join ".config")
-    for archive in (ls *.7z | get name) {
-        try {
-            7z x -snl $archive -o($target_dest) -y
-        } catch { |err|
-            print $"Warning extracting ($archive): ($err.msg)"
-        }
-    }
-
-    let gtkrc_backup = ($source_folder | path join ".gtkrc-2.0")
-    if ($gtkrc_backup | path exists) {
-        cp -f $gtkrc_backup ($env.HOME | path join ".gtkrc-2.0")
-    }
-
-    let mimeapps = ($source_folder | path join "mimeapps.list")
-    if ($mimeapps | path exists) {
-        cp -f $mimeapps ($target_dest | path join "mimeapps.list")
-    }
-
-    let xdg_terminals = ($source_folder | path join "xdg-terminals.list")
-    if ($xdg_terminals | path exists) {
-        cp -f $xdg_terminals ($target_dest | path join "xdg-terminals.list")
-    }
+    perform-hyprland-restore --cachyos=$is_cachy --dry-run=$dry_run
 }
 
 #backup ttt settings

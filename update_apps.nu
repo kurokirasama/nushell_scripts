@@ -955,7 +955,16 @@ export def supgrade [--old(-o),--cargo_aps(-c),--skip-mirrors,--skip-cache-clean
 }
 
 #update off-package manager apps
-export def apps-update [] {
+export def apps-update [
+  --dry-run # Preview updates without executing
+] {
+  if $dry_run {
+    print (echo-g "[DRY-RUN] Would run full suite of apps-update subcommands:")
+    for cmd in ["sejda" "ttyplot" "pandoc" "taskerpermissions" "mpris" "monocraft" "yandex" "earth" "vivaldi" "chrome" "rtk" "datetime" "sober-update"] {
+      print $"  - apps-update ($cmd)"
+    }
+    return
+  }
   try {
     apps-update sejda
   } catch {
@@ -1322,8 +1331,14 @@ export def github-app-update [
 
 
 #update pandoc
-export def "apps-update pandoc" [] {
+export def "apps-update pandoc" [
+  --dry-run # Preview update without executing
+] {
   if (is-arch-family) {
+    if $dry_run {
+      print (echo-g "[DRY-RUN] Would run: paru -S --needed --noconfirm pandoc-cli")
+      return
+    }
     print (echo-g "Updating pandoc on Arch/CachyOS via paru/pacman...")
     if (which paru | is-not-empty) {
       ^paru -S --needed --noconfirm pandoc-cli
@@ -1331,13 +1346,23 @@ export def "apps-update pandoc" [] {
       ^sudo pacman -S --needed --noconfirm pandoc-cli
     }
   } else {
+    if $dry_run {
+      print (echo-g "[DRY-RUN] Would run: github-app-update jgm pandoc")
+      return
+    }
     github-app-update jgm pandoc
   }
 }
 
 #update pandoc cross-ref
-export def "apps-update pandoc-cross-ref" [] {
+export def "apps-update pandoc-cross-ref" [
+  --dry-run # Preview update without executing
+] {
   if (is-arch-family) {
+    if $dry_run {
+      print (echo-g "[DRY-RUN] Would run: paru -S --needed --noconfirm pandoc-crossref")
+      return
+    }
     print (echo-g "Updating pandoc-crossref on Arch/CachyOS via paru/pacman...")
     if (which paru | is-not-empty) {
       ^paru -S --needed --noconfirm pandoc-crossref
@@ -1345,6 +1370,10 @@ export def "apps-update pandoc-cross-ref" [] {
       ^sudo pacman -S --needed --noconfirm pandoc-crossref
     }
   } else {
+    if $dry_run {
+      print (echo-g "[DRY-RUN] Would compile pandoc-crossref via stack install")
+      return
+    }
     cd ~/software/pandoc-crossref
     try {
       git pull
@@ -1360,7 +1389,21 @@ export def "apps-update pandoc-cross-ref" [] {
 }
 
 #update tasker helper deb
-export def "apps-update taskerpermissions" [] {
+export def "apps-update taskerpermissions" [
+  --dry-run # Preview update without executing
+] {
+  if (is-arch-family) {
+    if $dry_run {
+      print (echo-g "[DRY-RUN] Tasker-Permissions deb is only applicable to Ubuntu/Debian; skipping on Arch/CachyOS.")
+      return
+    }
+    print (echo-y "Tasker-Permissions deb is only applicable to Ubuntu/Debian; skipping on Arch/CachyOS.")
+    return
+  }
+  if $dry_run {
+    print (echo-g "[DRY-RUN] Would run: github-app-update joaomgcd Tasker-Permissions -a taskerpermissions")
+    return
+  }
   github-app-update joaomgcd Tasker-Permissions -a taskerpermissions
 }
 
@@ -1525,7 +1568,28 @@ export def "apps-update yandex" [] {
 
 #update sejda deb
 @category sudo
-export def "apps-update sejda" [] {
+export def "apps-update sejda" [
+  --dry-run # Preview update without executing
+] {
+  if (is-arch-family) {
+    if $dry_run {
+      print (echo-g "[DRY-RUN] Would run: paru -S --needed --noconfirm sejda-desktop")
+      return
+    }
+    print (echo-g "Updating sejda on Arch/CachyOS via paru...")
+    if (which paru | is-not-empty) {
+      ^paru -S --needed --noconfirm sejda-desktop
+    } else {
+      print (echo-y "paru not found, please install sejda-desktop manually")
+    }
+    return
+  }
+
+  if $dry_run {
+    print (echo-g "[DRY-RUN] Would fetch and install latest sejda deb")
+    return
+  }
+
   cd $env.MY_ENV_VARS.debs
 
   let new_file = http get https://www.sejda.com/es/desktop 
@@ -1593,7 +1657,30 @@ export def "apps-update sejda" [] {
 
 #update ttyplot
 @category sudo
-export def "apps-update ttyplot" [] {
+export def "apps-update ttyplot" [
+  --dry-run # Preview update without executing
+] {
+  if (is-arch-family) {
+    if $dry_run {
+      print (echo-g "[DRY-RUN] Would run: paru -S --needed --noconfirm ttyplot")
+      return
+    }
+    print (echo-g "Updating ttyplot on Arch/CachyOS via paru...")
+    if (which paru | is-not-empty) {
+      ^paru -S --needed --noconfirm ttyplot
+    } else if (which pacman | is-not-empty) {
+      ^sudo pacman -S --needed --noconfirm ttyplot
+    } else {
+      print (echo-y "paru/pacman not found, please install ttyplot manually")
+    }
+    return
+  }
+
+  if $dry_run {
+    print (echo-g "[DRY-RUN] Would scrape and install latest ttyplot deb")
+    return
+  }
+
   cd $env.MY_ENV_VARS.debs
 
   let existing_files = ls | find -n tty | get name
@@ -2394,7 +2481,28 @@ export def "apps-update reader" [] {
 
 #update mega-get
 @category sudo
-export def "apps-update mega-get" [] {
+export def "apps-update mega-get" [
+  --dry-run # Preview update without executing
+] {
+  if (is-arch-family) {
+    if $dry_run {
+      print (echo-g "[DRY-RUN] Would run: paru -S --needed --noconfirm megacmd-bin")
+      return
+    }
+    print (echo-g "Updating mega-get on Arch/CachyOS via paru...")
+    if (which paru | is-not-empty) {
+      ^paru -S --needed --noconfirm megacmd-bin
+    } else {
+      print (echo-y "paru not found, please install megacmd-bin manually")
+    }
+    return
+  }
+
+  if $dry_run {
+    print (echo-g "[DRY-RUN] Would download and install mega-get deb")
+    return
+  }
+
   cd ~/Downloads/
   if (sys host | get os_version) == "20.04" {
     let deb_file = "megacmd-xUbuntu_20.04_amd64.deb"
