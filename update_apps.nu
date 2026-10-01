@@ -397,10 +397,14 @@ export def update-nu-config [] {
 
   if ($default_config | path exists) {
     cp -f $default_config $nu.config-path
+  } else {
+    config nu --default | save -f $nu.config-path
   }
 
   if ($default_env | path exists) {
     cp -f $default_env $nu.env-path
+  } else {
+    config env --default | save -f $nu.env-path
   }
 
   # Generate bootstrap lines directly without external file dependency
@@ -422,7 +426,11 @@ export def update-nu-config [] {
     ]
   } | str join "\n"
 
-  $"\n($nu_lines)\n" | save --append $nu.config-path
+  let existing_config = if ($nu.config-path | path exists) { open --raw $nu.config-path } else { "" }
+  let target_check = if $is_windows { ($nu_scripts | path join "config_win.nu") } else { ($nu_scripts | path join "all.nu") }
+  if not ($existing_config | str contains $target_check) {
+    $"\n($nu_lines)\n" | save --append $nu.config-path
+  }
 
   try {
     rich print "  [bold green]✓[/] Nushell configuration updated successfully."
@@ -1910,6 +1918,70 @@ export def "apps-update nchat" [
       }
     }
     print (echo-g "✓ nchat updated and installed successfully")
+  }
+}
+
+#update yt-x (YouTube TUI player)
+export def "apps-update yt-x" [
+  --force(-f)    # force reinstall even if up to date
+  --dry-run      # simulate execution without making changes
+] {
+  if (is-arch-family) {
+    let helper = if (which paru | is-not-empty) {
+      "paru"
+    } else if (which yay | is-not-empty) {
+      "yay"
+    } else {
+      "pacman"
+    }
+
+    # Determine pkg: prefer currently installed package or default to yt-x-git
+    let pkg = if (try { do { ^pacman -Q yt-x-git } | complete | get exit_code } catch { 1 }) == 0 {
+      "yt-x-git"
+    } else if (try { do { ^pacman -Q yt-x } | complete | get exit_code } catch { 1 }) == 0 {
+      "yt-x"
+    } else {
+      "yt-x-git"
+    }
+
+    let install_flag = if $force { "-S --noconfirm" } else { "-S --needed --noconfirm" }
+    let cmd = $"($helper) ($install_flag) ($pkg)"
+
+    if $dry_run {
+      print $"[DRY-RUN] Would execute: ($cmd)"
+      return
+    }
+
+    print (echo-g $"Updating ($pkg) via ($helper)...")
+    let res = do { ^$helper ...($install_flag | split row " ") $pkg } | complete
+    if $res.exit_code == 0 {
+      print (echo-g $"✓ Successfully updated ($pkg)")
+    } else {
+      return-error $"Failed to update ($pkg): ($res.stderr)"
+    }
+  } else {
+    # Debian/Ubuntu or standalone release download
+    let local_bin = ("~/.local/bin" | path expand)
+    let ytx_bin = ($local_bin | path join "yt-x")
+
+    if $dry_run {
+      print $"[DRY-RUN] Would download latest yt-x release to ($ytx_bin)"
+      return
+    }
+
+    if not ($local_bin | path exists) {
+      mkdir $local_bin
+    }
+
+    print (echo-g "Fetching latest yt-x release from GitHub...")
+    let download_url = "https://github.com/Benexl/yt-x/releases/latest/download/yt-x"
+    let curl_res = do { ^curl -sL $download_url -o $ytx_bin } | complete
+    if $curl_res.exit_code != 0 {
+      return-error $"Failed to download yt-x: ($curl_res.stderr)"
+    }
+
+    chmod +x $ytx_bin
+    print (echo-g $"✓ Successfully installed latest yt-x to ($ytx_bin)")
   }
 }
 
@@ -3439,6 +3511,7 @@ export def is-app-installed [app_name: string]: nothing -> bool {
     "context-mode": ["ctx", "context-mode"]
     "markdonify-mcp": ["markdonify", "markdonify-mcp"]
     "matlab-agentic-toolkit": ["mat", "matlab-agentic-toolkit"]
+    "yt-x": ["yt-x", "ytx"]
   }
 
   if $app_name == "agy-daemon" or $app_name == "agy-remote-control" {

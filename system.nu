@@ -48,7 +48,13 @@ export def usage [ cmd: string, --no-ansi(-A), --update(-u) ] {
 
 # get the version information formatting the plugins
 export def ver [] { 
-    let plugin_modified = plugin list | insert last_modified { |plug| ls $plug.filename | get 0?.modified? } | select name last_modified
+    let plugin_modified = plugin list | insert last_modified { |plug|
+        if ($plug.filename? | default "" | path exists) {
+            ls $plug.filename | get 0?.modified?
+        } else {
+            null
+        }
+    } | select name last_modified
 
     let ver = version | upsert installed_plugins {|v| $v | 
         get installed_plugins | 

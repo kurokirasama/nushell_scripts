@@ -17,14 +17,14 @@ export def --env --wrapped zi [...rest:string@"__z_complete"] {
 }
 
 # completion
-def "__z_complete" [line : string, pos: int] {
-  let prefix =  $line | str trim | split row ' ' | append ' ' | skip 1 | get 0
-  let data = ^zoxide query $prefix --list | lines
+def "__z_complete" [token: record] {
+  let prefix = $token.text | default ""
+  let data = try { ^zoxide query $prefix --list | lines } catch { [] }
   {
-    completions : $data,
-                options: {
-                 completion_algorithm: "fuzzy",
-                 positional: false
-                }
+    completions: $data,
+    options: {
+      completion_algorithm: "fuzzy",
+      positional: false
+    }
   }
 }

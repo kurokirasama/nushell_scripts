@@ -52,6 +52,12 @@ $env.config.table.missing_value_symbol = (char -u e374)
 let hooks = {
     pre_prompt: [
         {||
+            if not ($env.__NU_STARTUP_SHOWN? | default false) and (($nu.startup-time? | default 0ns) > 0ns) {
+                $env.__NU_STARTUP_SHOWN = true
+                rich print $"[green]⚡ Startup time:[/] [bold cyan]($nu.startup-time)[/]"
+            }
+        },
+        {||
             $env.CLOUD = if $env.PWD like "rclone/" {
                     match ($env.PWD | split row "/rclone/" | get 1 | split row "/" | get 0) {
                         $s if ($s | str starts-with "g") => {"f2df"},
@@ -461,3 +467,4 @@ let new_keybinds = [
 ]
 
 $env.config.keybindings = $env.config.keybindings | where name not-in $new_keybinds_names | append $new_keybinds
+
