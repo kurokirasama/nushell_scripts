@@ -26,6 +26,7 @@ export use ./habitica.nu *
 export use ./network.nu *
 export use ./backups.nu *
 export use ./update_apps.nu *
+export use ./cachyos_drift_auditor.nu *
 export use ./transmission.nu *
 export use ./yandex.nu *
 export use ./yt_api.nu *

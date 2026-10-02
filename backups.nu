@@ -270,7 +270,7 @@ export def perform-hyprland-backup [
     if $dry_run {
         print (echo-g $"[DRY-RUN] Would backup Hyprland configurations from ($src_dir) to ($dst_dir)")
         if $cachyos {
-            print "  Directories: hypr, omarchy, fontconfig, wallust, eww, wlogout, waybar, swaync, rofi, walker, mako, gtk-3.0, gtk-4.0, qt6ct, qt5ct, environment.d, ghostty, xkb, voxtype"
+            print "  Directories: hypr, omarchy, fontconfig, wallust, eww, wlogout, waybar, swaync, rofi, walker, mako, gtk-3.0, gtk-4.0, qt6ct, qt5ct, environment.d, ghostty, xkb, voxtype, zathura"
             print "  Standalone files: .gtkrc-2.0, mimeapps.list, xdg-terminals.list, screensaver.txt, sync-bar-theming.sh, hypridle.conf, voxtype_config.toml, auto-power-profile, greeter.toml, sync.toml"
         } else {
             print "  Directories: waybar, hypr, wlogout, swaync, rofi, wallust"
@@ -301,7 +301,8 @@ export def perform-hyprland-backup [
             { dir: "environment.d", arch: "environment" },
             { dir: "ghostty", arch: "ghostty" },
             { dir: "xkb", arch: "xkb" },
-            { dir: "voxtype", arch: "voxtype" }
+            { dir: "voxtype", arch: "voxtype" },
+            { dir: "zathura", arch: "zathura" }
         ]
 
         for item in $cachy_dirs {
