@@ -18,6 +18,10 @@ def get-default-package-lists-path []: nothing -> string {
     [(get-default-backups-dir) "conductor" "package_lists.json"] | path join
 }
 
+def get-default-base-packages-path []: nothing -> string {
+    [(get-default-backups-dir) "conductor" "base_packages.json"] | path join
+}
+
 def get-default-rejected-path []: nothing -> string {
     [(get-default-backups-dir) "conductor" "rejected_drift.json"] | path join
 }
@@ -116,7 +120,7 @@ export def get-local-packages []: nothing -> record<official: list<string>, aur:
     })
 
     let aur_explicit = (try {
-        ^pacman -Qqm | lines | each { |l| $l | str trim } | where { |l| ($l | str length) > 0 }
+        ^pacman -Qqem | lines | each { |l| $l | str trim } | where { |l| ($l | str length) > 0 }
     } catch {
         []
     })
@@ -134,15 +138,18 @@ export def get-local-packages []: nothing -> record<official: list<string>, aur:
 # Parameters:
 #   --package-lists-path: Path to package_lists.json (defaults to /home/kira/Yandex.Disk/Backups/linux/conductor/package_lists.json)
 #   --rejected-drift-path: Path to rejected_drift.json (defaults to Backups/linux/conductor/rejected_drift.json)
+#   --base-packages-path: Path to base_packages.json (defaults to Backups/linux/conductor/base_packages.json)
 #   --mock-system: Optional mock system record for testing
 # Example: audit-system-drift --package-lists-path "custom.json"
 export def audit-system-drift [
     --package-lists-path: string
     --rejected-drift-path: string
+    --base-packages-path: string
     --mock-system: record
 ]: nothing -> record {
     let pkg_file = if ($package_lists_path != null) { $package_lists_path } else { get-default-package-lists-path }
     let rej_file = if ($rejected_drift_path != null) { $rejected_drift_path } else { get-default-rejected-path }
+    let base_file = if ($base_packages_path != null) { $base_packages_path } else { get-default-base-packages-path }
     let current_host = (detect-host-name)
 
     let repo_data = if ($pkg_file | path exists) {
@@ -178,6 +185,14 @@ export def audit-system-drift [
     let rej_official = ($rejected_data.official? | default [])
     let rej_aur = ($rejected_data.aur? | default [])
 
+    let base_data = if ($base_file | path exists) {
+        try { open $base_file } catch { { official: [], aur: [] } }
+    } else {
+        { official: [], aur: [] }
+    }
+    let base_official = ($base_data.official? | default [])
+    let base_aur = ($base_data.aur? | default [])
+
     let sys_packages = if ($mock_system != null) {
         $mock_system
     } else {
@@ -202,15 +217,46 @@ export def audit-system-drift [
     let unrejected_sys_off = ($sys_official | where not ($it in $rej_official))
     let unrejected_sys_aur = ($sys_aur | where not ($it in $rej_aur))
 
-    # Calculate differences against expected (shared + current host)
-    let new_official = ($unrejected_sys_off | where not ($it in $expected_official) | sort | uniq)
-    let new_aur = ($unrejected_sys_aur | where not ($it in $expected_aur) | sort | uniq)
+    # All expected packages across both categories to reconcile cross-category shifts
+    let all_expected_packages = ($expected_official | append $expected_aur | uniq)
 
-    let missing_official = ($expected_official | where not ($it in $all_installed_sys) | sort | uniq)
-    let missing_aur = ($expected_aur | where not ($it in $all_installed_sys) | sort | uniq)
+    # Calculate base-suppressed packages (installed, not expected in manifest, not rejected, but in base_packages.json)
+    let base_suppressed_official = ($unrejected_sys_off | where ($it in $base_official) and not ($it in $all_expected_packages) | sort | uniq)
+    let base_suppressed_aur = ($unrejected_sys_aur | where ($it in $base_aur) and not ($it in $all_expected_packages) | sort | uniq)
+    let base_suppressed_count = (($base_suppressed_official | length) + ($base_suppressed_aur | length))
 
-    let suppressed_official = ($sys_official | where ($it in $rej_official) and not ($it in $expected_official) | sort | uniq)
-    let suppressed_aur = ($sys_aur | where ($it in $rej_aur) and not ($it in $expected_aur) | sort | uniq)
+    # Calculate differences against expected (cross-category reconciled) and base OS
+    let new_official = ($unrejected_sys_off | where not ($it in $all_expected_packages) and not ($it in $base_official) | sort | uniq)
+    let new_aur = ($unrejected_sys_aur | where not ($it in $all_expected_packages) and not ($it in $base_aur) | sort | uniq)
+
+    let missing_official = if ($mock_system != null) {
+        ($expected_official | where not ($it in $all_installed_sys) | sort | uniq)
+    } else {
+        try {
+            if ($expected_official | is-empty) { [] } else {
+                let res = (^pacman -T ...$expected_official | complete)
+                ($res.stdout | lines | each { |l| $l | str trim } | where { |l| ($l | str length) > 0 } | sort | uniq)
+            }
+        } catch {
+            ($expected_official | where not ($it in $all_installed_sys) | sort | uniq)
+        }
+    }
+
+    let missing_aur = if ($mock_system != null) {
+        ($expected_aur | where not ($it in $all_installed_sys) | sort | uniq)
+    } else {
+        try {
+            if ($expected_aur | is-empty) { [] } else {
+                let res = (^pacman -T ...$expected_aur | complete)
+                ($res.stdout | lines | each { |l| $l | str trim } | where { |l| ($l | str length) > 0 } | sort | uniq)
+            }
+        } catch {
+            ($expected_aur | where not ($it in $all_installed_sys) | sort | uniq)
+        }
+    }
+
+    let suppressed_official = ($sys_official | where ($it in $rej_official) and not ($it in $all_expected_packages) | sort | uniq)
+    let suppressed_aur = ($sys_aur | where ($it in $rej_aur) and not ($it in $all_expected_packages) | sort | uniq)
 
     let suppressed_count = (($suppressed_official | length) + ($suppressed_aur | length))
     let total_drift = (($new_official | length) + ($new_aur | length) + ($missing_official | length) + ($missing_aur | length))
@@ -221,12 +267,14 @@ export def audit-system-drift [
         mode: "local",
         package_lists_path: $pkg_file,
         rejected_drift_path: $rej_file,
+        base_packages_path: $base_file,
         counts: {
             new_official: ($new_official | length),
             new_aur: ($new_aur | length),
             missing_official: ($missing_official | length),
             missing_aur: ($missing_aur | length),
             suppressed: $suppressed_count,
+            base_suppressed: $base_suppressed_count,
             total_drift: $total_drift
         },
         drift: {
@@ -235,7 +283,9 @@ export def audit-system-drift [
             missing_official: $missing_official,
             missing_aur: $missing_aur,
             suppressed_official: $suppressed_official,
-            suppressed_aur: $suppressed_aur
+            suppressed_aur: $suppressed_aur,
+            base_suppressed_official: $base_suppressed_official,
+            base_suppressed_aur: $base_suppressed_aur
         }
     }
 }
@@ -275,6 +325,7 @@ export def format-drift-markdown [
         $"- New AUR Packages: ($counts.new_aur)",
         $"- Missing / Uninstalled Packages: ($missing_total)",
         ("- Suppressed [Rejected] Packages: " + ($counts.suppressed | into string)),
+        ("- Base OS Packages Suppressed: " + (($counts.base_suppressed? | default 0) | into string)),
         $"- Total Actionable Items: ($actionable_total)",
         ""
     ]
@@ -400,7 +451,8 @@ export def write-drift-draft [
         }
     }
 
-    let draft_filename = $"($d).md"
+    let host = ($audit_res.target_host? | default (detect-host-name))
+    let draft_filename = $"($d)_($host).md"
     let draft_path = $"($target_dir)/($draft_filename)"
 
     if $dry_run {
@@ -409,22 +461,28 @@ export def write-drift-draft [
             dry_run: true,
             path: $draft_path,
             date: $d,
+            target_host: $host,
             counts: $audit_res.counts,
             message: ("(DRY-RUN) Draft would be written to " + $draft_path)
         }
     }
 
-    if ($draft_path | path exists) and (not $force) {
-        let existing_content = (open --raw $draft_path)
+    # Check for implemented draft to avoid overwriting an archived or completed record
+    let legacy_path = $"($target_dir)/($d).md"
+    let check_path = if ($draft_path | path exists) { $draft_path } else if ($legacy_path | path exists) { $legacy_path } else { null }
+
+    if ($check_path != null) and (not $force) {
+        let existing_content = (open --raw $check_path)
         if ($existing_content =~ "implemented: true") {
             let timestamp_suffix = (date now | format date "%H%M%S")
-            let suffixed_path = $"($target_dir)/($d)_($timestamp_suffix).md"
+            let suffixed_path = $"($target_dir)/($d)_($host)_($timestamp_suffix).md"
             let content = (format-drift-markdown $audit_res --date $d)
             $content | save -f $suffixed_path
             return {
                 created: true,
                 path: $suffixed_path,
                 date: $d,
+                target_host: $host,
                 counts: $audit_res.counts,
                 message: $"Draft created at ($suffixed_path)"
             }
@@ -440,6 +498,7 @@ export def write-drift-draft [
         created: true,
         path: $draft_path,
         date: $d,
+        target_host: $host,
         counts: $audit_res.counts,
         message: $"Draft successfully written to ($draft_path)"
     }
@@ -511,8 +570,14 @@ export def notify-drift-habitica [
         h add todos --text $todo_text --notes $notes --priority 1 --due '' --checklist $checklist --tag-name [$habitica_tag]
         { exit_code: 0, stdout: "Habitica task created", stderr: "" }
     } catch { |err|
-        { exit_code: 1, stdout: "", stderr: ($err | into string) }
+        { exit_code: 1, stdout: "", stderr: ($err.msg? | default ($err | to nuon)) }
     })
+
+    let msg = if ($call_res.exit_code == 0) {
+        $"Habitica todo created: '($todo_text)' with tag '($habitica_tag)' and ($checklist | length) items."
+    } else {
+        $"Failed to create Habitica todo: ($call_res.stderr | str trim)"
+    }
 
     {
         success: ($call_res.exit_code == 0),
@@ -521,7 +586,105 @@ export def notify-drift-habitica [
         tag: $habitica_tag,
         checklist_count: ($checklist | length),
         output: ($call_res.stdout | str trim),
-        error: ($call_res.stderr | str trim)
+        error: ($call_res.stderr | str trim),
+        message: $msg
+    }
+}
+
+# 6b. complete-drift-habitica
+# Summary: Finds and marks completed the pending Habitica review todo corresponding to a processed draft.
+# Parameters:
+#   draft_date: Draft date string (YYYY-MM-DD)
+#   draft_host: Optional host name to match
+#   --mock-todos: In-memory list of todos for testing without network
+#   --dry-run: Simulate without scoring task on Habitica
+# Example: complete-drift-habitica "2026-10-02" "lgomez-hpnote" --dry-run
+export def complete-drift-habitica [
+    draft_date: string
+    draft_host?: string
+    --mock-todos: list
+    --dry-run
+]: nothing -> record {
+    let host = if ($draft_host != null and $draft_host != "") { $draft_host } else { detect-host-name }
+
+    let pending_todos = if ($mock_todos != null) {
+        $mock_todos
+    } else {
+        try {
+            h ls todos | where completed == false
+        } catch {
+            []
+        }
+    }
+
+    if ($pending_todos | is-empty) {
+        return {
+            success: true,
+            completed: false,
+            count: 0,
+            todo_ids: [],
+            message: ("No pending Habitica todos found to match draft " + $draft_date + " (" + $host + ").")
+        }
+    }
+
+    let matching = ($pending_todos | where {|it|
+        let text = ($it.text? | default "")
+        let has_prefix = ($text | str contains $"Review CachyOS Drift Draft ($draft_date)")
+        if not $has_prefix {
+            false
+        } else if ($host != null and $host != "") {
+            # Matches specific host in parentheses/brackets or legacy un-scoped title
+            (($text | str contains $host) or not (($text | str contains "(") or ($text | str contains "[")))
+        } else {
+            true
+        }
+    })
+
+    if ($matching | is-empty) {
+        return {
+            success: true,
+            completed: false,
+            count: 0,
+            todo_ids: [],
+            message: ("No matching Habitica todo found for draft " + $draft_date + " (" + $host + ").")
+        }
+    }
+
+    let matching_ids = ($matching | get _id)
+
+    if $dry_run {
+        return {
+            success: true,
+            completed: true,
+            dry_run: true,
+            count: ($matching | length),
+            todo_ids: $matching_ids,
+            message: ("[DRY-RUN] Would mark " + ($matching | length | into string) + " Habitica todo(s) completed for draft " + $draft_date + " (" + $host + ").")
+        }
+    }
+
+    let call_res = (try {
+        h complete-todos --ids $matching_ids
+        { exit_code: 0, stdout: "Completed", stderr: "" }
+    } catch { |err|
+        { exit_code: 1, stdout: "", stderr: ($err.msg? | default ($err | to nuon)) }
+    })
+
+    let is_ok = ($call_res.exit_code == 0)
+    let msg = if $is_ok {
+        ("Successfully marked " + ($matching | length | into string) + " Habitica todo(s) as completed for draft " + $draft_date + " (" + $host + ").")
+    } else {
+        ("Failed to complete Habitica todo for draft " + $draft_date + ": " + ($call_res.stderr | str trim))
+    }
+
+    {
+        success: $is_ok,
+        completed: $is_ok,
+        count: ($matching | length),
+        todo_ids: $matching_ids,
+        output: ($call_res.stdout | str trim),
+        error: ($call_res.stderr | str trim),
+        message: $msg
     }
 }
 
@@ -625,9 +788,12 @@ export def apply-drift-draft [
     --package-lists-path: string
     --rejected-drift-path: string
     --processed-dir: string
+    --target-host: string
     --dry-run
     --no-push
     --skip-install
+    --skip-habitica
+    --mock-habitica-todos: list
 ]: nothing -> record {
     let pkg_file = if ($package_lists_path != null) { $package_lists_path } else { get-default-package-lists-path }
     let rej_file = if ($rejected_drift_path != null) { $rejected_drift_path } else { get-default-rejected-path }
@@ -639,6 +805,8 @@ export def apply-drift-draft [
 
     let parsed = (parse-drift-draft $draft_path)
     let draft_host = $parsed.target_host
+    let current_host = if ($target_host != null) { $target_host } else { detect-host-name }
+    let is_local_host = ($draft_host == null or $draft_host == "" or $draft_host == $current_host)
     let items = $parsed.items
 
     let approved_items = ($items | where decision == "approved")
@@ -823,13 +991,15 @@ export def apply-drift-draft [
     }
 
     # 3. Local package installation for install_local
-    if ($all_to_install | is-not-empty) and (not $dry_run) and (not $skip_install) {
+    if $is_local_host and ($all_to_install | is-not-empty) and (not $dry_run) and (not $skip_install) {
         try {
-            print $"Installing ($all_to_install | length) missing packages locally via paru..."
+            print $"Installing ($all_to_install | length) missing packages locally on ($current_host) via paru..."
             ^paru -S --needed --noconfirm ...$all_to_install
         } catch { |err|
             print $"Warning: Failed to install packages via paru: ($err)"
         }
+    } else if (not $is_local_host) and ($all_to_install | is-not-empty) {
+        print $"Skipping local installation of ($all_to_install | length) packages: draft targets '($draft_host)', but current host is '($current_host)'."
     }
 
     if $dry_run {
@@ -849,10 +1019,15 @@ export def apply-drift-draft [
             added_shared_aur: $add_shared_aur,
             added_host_official: $add_host_off,
             added_host_aur: $add_host_aur,
-            installed_local: $all_to_install,
+            installed_local: (if $is_local_host { $all_to_install } else { [] }),
             rejected_official: $reject_off,
             rejected_aur: $reject_aur,
-            archived: (($unresolved_items | length) == 0)
+            archived: ((($unresolved_items | length) == 0) and ($is_local_host or ($all_to_install | is-empty))),
+            habitica_completed: (if ((($unresolved_items | length) == 0) and ($is_local_host or ($all_to_install | is-empty)) and (not $skip_habitica)) {
+                (complete-drift-habitica $parsed.date $draft_host --mock-todos $mock_habitica_todos --dry-run)
+            } else {
+                null
+            })
         }
     }
 
@@ -860,9 +1035,10 @@ export def apply-drift-draft [
     $updated_pkg_data | to json --indent 2 | save -f $pkg_file
     $updated_rej_data | to json --indent 2 | save -f $rej_file
 
-    # If all items resolved, archive draft
+    # If all items resolved, archive draft (only if local host, or no pending local installs)
     mut archived = false
-    if ($unresolved_items | length) == 0 {
+    let has_pending_local_install = ((not $is_local_host) and ($all_to_install | is-not-empty))
+    if (($unresolved_items | length) == 0) and (not $has_pending_local_install) {
         if not ($proc_dir | path exists) {
             mkdir $proc_dir
         }
@@ -876,6 +1052,15 @@ export def apply-drift-draft [
         $archived = true
     }
 
+    # Complete corresponding Habitica task upon successful archival
+    mut habitica_res: any = null
+    if $archived and (not $skip_habitica) {
+        $habitica_res = (complete-drift-habitica $parsed.date $draft_host --mock-todos $mock_habitica_todos)
+        if ($habitica_res.completed? | default false) {
+            print $"  ✓ ($habitica_res.message)"
+        }
+    }
+
     # Commit and push package_lists.json using ai git-push -G by default
     mut commit_hash: any = null
     if (not $no_push) {
@@ -883,12 +1068,17 @@ export def apply-drift-draft [
         if ($pkg_file | str starts-with $repo_dir) and ([$repo_dir ".git"] | path join | path exists) {
             try {
                 do {
-                    cd $repo_dir
-                    ai git-push -G
+                    try {
+                        ai git-push -G
+                    } catch {
+                        ^git -C $repo_dir add -A conductor/
+                        ^git -C $repo_dir commit -m "feat(packages): apply approved drift updates"
+                        try { ^git -C $repo_dir push } catch {}
+                    }
                 }
                 $commit_hash = (try { ^git -C $repo_dir log -1 --format="%h" | str trim } catch { null })
             } catch { |err|
-                print $"Warning: ai git-push -G failed: ($err)"
+                print $"Warning: git push failed: ($err)"
             }
         }
     }
@@ -909,10 +1099,11 @@ export def apply-drift-draft [
         added_shared_aur: $add_shared_aur,
         added_host_official: $add_host_off,
         added_host_aur: $add_host_aur,
-        installed_local: $all_to_install,
+        installed_local: (if $is_local_host { $all_to_install } else { [] }),
         rejected_official: $reject_off,
         rejected_aur: $reject_aur,
         archived: $archived,
+        habitica_completed: $habitica_res,
         commit_hash: $commit_hash
     }
 }
@@ -929,9 +1120,13 @@ export def process-all-drift-drafts [
     --package-lists-path: string
     --rejected-drift-path: string
     --processed-dir: string
+    --target-host: string
+    --all-hosts
     --dry-run
     --no-push
     --skip-install
+    --skip-habitica
+    --mock-habitica-todos: list
 ]: nothing -> list {
     let d_dir = if ($drafts_dir != null) { $drafts_dir } else { get-default-drafts-dir }
     if not ($d_dir | path exists) {
@@ -943,15 +1138,28 @@ export def process-all-drift-drafts [
         return []
     }
 
+    let current_host = if ($target_host != null) { $target_host } else { detect-host-name }
+
     mut results = []
     for f in $draft_files {
+        let parsed = (try { parse-drift-draft $f } catch { null })
+        if ($parsed == null) { continue }
+
+        # Guard: Only process drafts targeting this host unless --all-hosts is explicitly given
+        if (not $all_hosts) and ($parsed.target_host != null) and ($parsed.target_host != "") and ($parsed.target_host != $current_host) {
+            continue
+        }
+
         let r = (apply-drift-draft $f
             --package-lists-path $package_lists_path
             --rejected-drift-path $rejected_drift_path
             --processed-dir $processed_dir
+            --target-host $current_host
             --dry-run=($dry_run)
             --no-push=($no_push)
             --skip-install=($skip_install)
+            --skip-habitica=($skip_habitica)
+            --mock-habitica-todos $mock_habitica_todos
         )
         $results = ($results | append $r)
     }
@@ -1001,6 +1209,7 @@ export def cachyos-drift-auditor [
     --date: string                         # Override audit date (defaults to today YYYY-MM-DD)
     --package-lists-path: string           # Path to package_lists.json (defaults to $env.MY_ENV_VARS.linux_backup)
     --rejected-drift-path: string          # Path to rejected_drift.json
+    --base-packages-path: string           # Path to base_packages.json (defaults to Backups/linux/conductor/base_packages.json)
     --drafts-dir: string                   # Path to _drafts_drifts directory
     --processed-dir: string                # Path to processed_drafts directory
     --force(-f)                            # Force regenerate draft even if one exists for the current date
@@ -1024,9 +1233,11 @@ export def cachyos-drift-auditor [
             --package-lists-path $package_lists_path
             --rejected-drift-path $rejected_drift_path
             --processed-dir $processed_dir
+            --target-host $host
             --dry-run=($dry_run)
             --no-push=($no_push)
             --skip-install=($skip_install)
+            --skip-habitica=($skip_notify)
         )
         let resolved_count = ($applied_drafts | where processed and (($it.approved_count > 0) or ($it.rejected_count > 0)) | length)
         print-rich $"  [green]✓[/] Processed [bold]($applied_drafts | length)[/] existing draft files [bold]\(($resolved_count) resolved\)[/]."
@@ -1043,6 +1254,7 @@ export def cachyos-drift-auditor [
     let audit_res = (audit-system-drift
         --package-lists-path $package_lists_path
         --rejected-drift-path $rejected_drift_path
+        --base-packages-path $base_packages_path
     )
 
     if ($audit_res.is_new_host? | default false) {
@@ -1064,7 +1276,7 @@ export def cachyos-drift-auditor [
     let missing_sum = (($counts.missing_official) + ($counts.missing_aur))
     print-rich $"  [bold]Target Host:[/] [green]($audit_res.target_host)[/]"
     print-rich $"  [bold]New Official:[/] ($counts.new_official), [bold]New AUR:[/] ($counts.new_aur)"
-    print-rich $"  [bold]Missing:[/] ($missing_sum), [bold]Suppressed:[/] ($counts.suppressed)"
+    print-rich $"  [bold]Missing:[/] ($missing_sum), [bold]Suppressed:[/] ($counts.suppressed), [bold]Base Suppressed:[/] ($counts.base_suppressed)"
     print-rich $"  [bold yellow]Total Actionable Drift:[/] ($counts.total_drift)"
 
     # Step 3: If drift detected, generate review draft and dispatch Habitica todo
@@ -1084,7 +1296,8 @@ export def cachyos-drift-auditor [
         if not $skip_notify {
             print-rich "[cyan]── Step 4: Dispatching Habitica notification ──[/]"
             $notif_res = (notify-drift-habitica $draft_res $audit_res --dry-run=($dry_run))
-            print-rich $"  [green]✓[/] ($notif_res.message)"
+            let n_msg = ($notif_res.message? | default "Habitica notification dispatched.")
+            print-rich $"  [green]✓[/] ($n_msg)"
         }
 
         if (not $dry_run) and (not $skip_log) {
