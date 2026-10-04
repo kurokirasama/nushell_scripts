@@ -21,7 +21,7 @@ export use ./system.nu *
 export use ./gcal.nu *
 export use ./media.nu *
 export use ./apis.nu *
-export use ./obsidian.nu *
+export use ./obsidian_utils.nu *
 export use ./habitica.nu *
 export use ./network.nu *
 export use ./backups.nu *
