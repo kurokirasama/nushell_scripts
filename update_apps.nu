@@ -2476,7 +2476,7 @@ export def "apps-update rtk" [
 
 #update reader
 export def "apps-update reader" [] {
-  go install github.com/mrusme/reader@latest
+  try { go install xn--gckvb8fzb.com/reader@latest } catch {|e| print (echo-r $"reader update failed: ($e.msg)") }
 }
 
 #update mega-get
