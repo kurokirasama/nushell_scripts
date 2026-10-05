@@ -2554,6 +2554,11 @@ export def "apps-update nvitop" [] {
 #update scrcpy
 @category sudo
 export def "apps-update scrcpy" [] {
+  # CachyOS: native package (cachyos-extra-v3 ships 4.1); no source build needed
+  if (is-cachyos) {
+    ^paru -S --needed --noconfirm scrcpy
+    return
+  }
   cd ~/software/scrcpy
   git pull
 

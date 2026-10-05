@@ -9,7 +9,7 @@ export def "ghome cron-ac-config" [] {
         hourly_off_winter: 16.0, # Turn off if >= this (winter/season)
         hourly_off_summer: 18.0, # Turn off if <= this (summer/off-season)
         winter_start: "03-21",   # Season start (MM-DD)
-        winter_end: "10-01"      # Season end (MM-DD)
+        winter_end: "10-21"      # Season end (MM-DD)
     }
 }
 
