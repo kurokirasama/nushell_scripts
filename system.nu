@@ -1057,6 +1057,63 @@ export def update-agy-trusted-folders [
     
     $settings = ($settings | upsert trustedWorkspaces $new_trusted)
     $settings | save -f $settings_file
-    
+
     print (echo-g "Successfully updated trustedWorkspaces in settings_antigravity.json")
+}
+
+# Mount an unmounted USB partition by its volume label under ~/media.
+# Repairs dirty NTFS volumes with ntfsfix then retries with a force mount.
+# Example: mount-usb "Seagate Portable Drive"
+export def mount-usb [
+  label?: string # volume label as shown by lsblk; fuzzy picker when empty
+  --device(-d): string # explicit partition like /dev/sda1, overrides label lookup
+  --mount-base(-m): string = "~/media" # base dir for label folder (~/media -> /run/media/kira)
+]: nothing -> record {
+  let base = $mount_base | path expand
+  let all_parts = ^lsblk -J -o PATH,FSTYPE,LABEL,MOUNTPOINT
+    | from json
+    | get blockdevices
+    | each {|d| [$d] ++ ($d.children? | default []) }
+    | flatten
+    | where path =~ "^/dev/sd" or path =~ "^/dev/nvme" or path =~ "^/dev/vd"
+    | where fstype != null and fstype != "swap"
+
+  let part = if ($device | is-not-empty) {
+    $all_parts | where path == $device | get 0?
+  } else if ($label | is-not-empty) {
+    $all_parts | where label == $label | get 0?
+  } else {
+    let pick = $all_parts | get label | str join (char newline) | ^fzf --prompt "USB label> " | str trim
+    if ($pick | is-empty) { return-error "no label selected" }
+    $all_parts | where label == $pick | get 0?
+  }
+
+  if $part == null { return-error "partition not found, check lsblk -o PATH,LABEL" }
+  if ($part.mountpoint? | default "" | is-not-empty) { return-error $"already mounted at ($part.mountpoint)" }
+
+  let vol_label = $part.label? | default ($part.path | path basename)
+  let target = $base | path join $vol_label
+
+  # udisks has no force flag, so dirty NTFS always fails here -> fallback below.
+  # complete captures exit_code since piped ignore swallows failures.
+  let res = udisksctl mount -b $part.path o+e>| complete
+  if $res.exit_code != 0 {
+    # ~/media is udisks-managed (root-owned), manual fallback needs sudo mkdir
+    sudo mkdir -p $target
+    try {
+      sudo ntfsfix $part.path o+e>| ignore
+    } catch {
+      return-error $"ntfsfix failed on ($part.path), run chkdsk on Windows"
+    }
+    let uid = id -u | str trim
+    let gid = id -g | str trim
+    try {
+      sudo mount -t ntfs3 -o $"force,uid=($uid),gid=($gid)" $part.path $target
+    } catch {
+      return-error $"mount failed for ($part.path), run chkdsk on Windows"
+    }
+  }
+
+  let mountpoint = sys disks | where device == $part.path | get mount.0? | default $target
+  {device: $part.path, label: $vol_label, mount: $mountpoint}
 }
