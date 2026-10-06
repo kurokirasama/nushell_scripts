@@ -2190,7 +2190,20 @@ export def "apps-update ttt" [] {
 
 #update obsidian
 export def "apps-update obsidian" [] {
-  github-app-update obsidianmd obsidian-releases -a obsidian
+  if (is-arch-family) {
+    print (echo-g "Updating obsidian on Arch/CachyOS via paru/pacman...")
+    try {
+      if (which paru | is-not-empty) {
+        ^paru -S --needed --noconfirm obsidian
+      } else {
+        ^sudo pacman -S --needed --noconfirm obsidian
+      }
+    } catch {|e|
+      return-error $"obsidian update failed: ($e.msg)"
+    }
+  } else {
+    github-app-update obsidianmd obsidian-releases -a obsidian
+  }
 }
 
 #update ox

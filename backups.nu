@@ -272,6 +272,10 @@ export def perform-hyprland-backup [
         if $cachyos {
             print "  Directories: hypr, omarchy, fontconfig, wallust, eww, wlogout, waybar, swaync, rofi, walker, mako, gtk-3.0, gtk-4.0, qt6ct, qt5ct, environment.d, ghostty, xkb, voxtype, zathura"
             print "  Standalone files: .gtkrc-2.0, mimeapps.list, xdg-terminals.list, screensaver.txt, sync-bar-theming.sh, hypridle.conf, voxtype_config.toml, auto-power-profile, greeter.toml, sync.toml"
+            if (($src_dir | path join "hyprmoncfg") | path exists) {
+                let hostname = (sys host | get hostname)
+                print $"  Machine-specific: hyprmoncfg/($hostname).7z - display profiles stored host-keyed"
+            }
         } else {
             print "  Directories: waybar, hypr, wlogout, swaync, rofi, wallust"
         }
@@ -315,6 +319,22 @@ export def perform-hyprland-backup [
                 } catch { |err|
                     print $"Warning archiving ($item.dir): ($err.msg)"
                 }
+            }
+        }
+
+        # Machine-specific hyprmoncfg display profiles (host-keyed archive)
+        let hmc_src = ($src_dir | path join "hyprmoncfg")
+        if ($hmc_src | path exists) {
+            let hostname = (sys host | get hostname)
+            let hmc_dst_dir = ($dst_dir | path join "hyprmoncfg")
+            mkdir $hmc_dst_dir
+            let arch_file = ($staging_dir | path join $"($hostname).7z")
+            try {
+                do { ^7z a -t7z -snl -m0=lzma2 -mx=9 -ms=on -mmt=on $arch_file $hmc_src } | complete
+                mv -f $arch_file ($hmc_dst_dir | path join $"($hostname).7z")
+                print (echo-g $"✓ Backed up hyprmoncfg profiles -> hyprmoncfg/($hostname).7z")
+            } catch { |err|
+                print $"Warning archiving hyprmoncfg: ($err.msg)"
             }
         }
 
@@ -436,6 +456,10 @@ export def perform-hyprland-restore [
         print (echo-g $"[DRY-RUN] Would restore Hyprland configurations from ($src_dir) to ($dst_dir)")
         let archives = (glob ($src_dir | path join "*.7z"))
         print $"  Found ($archives | length) archives in ($src_dir)"
+        let hmc_hostname = (sys host | get hostname)
+        let hmc_arch = ($src_dir | path join "hyprmoncfg" $"($hmc_hostname).7z")
+        let hmc_state = if ($hmc_arch | path exists) { "present" } else { "absent" }
+        print $"  Machine-specific archive: hyprmoncfg/($hmc_hostname).7z - ($hmc_state)"
         return
     }
 
@@ -446,6 +470,22 @@ export def perform-hyprland-restore [
             do { ^7z x -snl $archive $"-o($dst_dir)" -y } | complete
         } catch { |err|
             print $"Warning extracting ($archive): ($err.msg)"
+        }
+    }
+
+    # Machine-specific hyprmoncfg display profiles (host-keyed restore; CachyOS only)
+    if $cachyos {
+        let hmc_restore_hostname = (sys host | get hostname)
+        let hmc_restore_arch = ($src_dir | path join "hyprmoncfg" $"($hmc_restore_hostname).7z")
+        if ($hmc_restore_arch | path exists) {
+            try {
+                do { ^7z x -snl $hmc_restore_arch $"-o($dst_dir)" -y } | complete
+                print (echo-g $"✓ Restored machine-specific hyprmoncfg profiles for ($hmc_restore_hostname)")
+            } catch { |err|
+                print (echo-y $"Warning restoring hyprmoncfg profiles: ($err.msg)")
+            }
+        } else {
+            print (echo-y $"Notice: no machine-specific hyprmoncfg archive for ($hmc_restore_hostname) - skipping")
         }
     }
 
