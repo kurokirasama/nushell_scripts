@@ -244,12 +244,13 @@ $env.MY_ENV_VARS.NETWORK.color = '#00ff00'
 ##green over black
 $env.PROMPT_COMMAND_RIGHT = {||
   if (term size).columns >= 80 {
+    let wp = (get-weather-prompt)
     [(if TERMINUS_SUBLIME in $env {
-          (ansi -e { fg: $env.MY_ENV_VARS.NETWORK.color})
+          (ansi -e { fg: $wp.color})
       } else {
-          (ansi -e { fg: $env.MY_ENV_VARS.NETWORK.color attr: b})
+          (ansi -e { fg: $wp.color attr: b})
       })
-    $"(get_weather_by_interval 30min)"
+    $wp.weather
     (ansi reset)
     (ansi -e { fg: '#00ff00'})
     (char -u e0b3)
