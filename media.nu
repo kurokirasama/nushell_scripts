@@ -21,6 +21,7 @@ export def "media help" [] {
       "- media myt"
       "- media delete-mps"
       "- media crop-video"
+      "- media scale-video"
       "- media auto-remove-logo"
       "- media repeat"
       "- media add-audio"
@@ -2326,4 +2327,118 @@ export def resolve-subtitle-track [info: record, subtitle_track: any = null] {
   let streams = get-subtitle-streams $info
   if ($streams | length) < 2 { return null }
   select-track $streams "Select subtitle track:"
+}
+
+# Predefined values for `media scale-video` flag completions (const: parse-time).
+const scale_aspect_ratios = ["1:1", "9:16", "16:9", "4:3", "free"]
+const scale_modes = ["fit", "fill", "crop"]
+const scale_pad_modes = ["black", "blur", "color"]
+
+# Scale a video to a target aspect ratio and resolution.
+# Modes: fit (scale + pad, default blur), fill (stretch), crop (center-crop).
+# Parameters: video input path; flags select aspect, mode, padding, size and output.
+# Example: media scale-video input.mp4 --aspect-ratio 9:16 --pad-mode blur --size 1080:1920
+export def "media scale-video" [
+    video: string                                             # input video file
+    --aspect-ratio(-a): string@$scale_aspect_ratios = "1:1"    # target aspect ratio
+    --scale-mode(-m): string@$scale_modes = "fit"              # fit, fill or crop
+    --pad-mode(-p): string@$scale_pad_modes = "blur"           # padding for fit: black, blur or color
+    --pad-color(-c): string = "#000000"                       # padding color when pad-mode is color
+    --size(-s): string                                        # target resolution "W:H" or single dimension
+    --output(-o): string                                      # custom output path
+    --dry-run                                                 # print ffmpeg command without executing
+    --notify(-n)                                              # notify to android via join/tasker
+] {
+    let stem = ($video | path parse | get stem)
+    mut ext = ($video | path parse | get extension)
+    if ($ext | is-empty) { $ext = "mp4" }
+
+    let out_name = if ($output | is-empty) {
+        ($stem + "_scaled_" + ($aspect_ratio | str replace ":" "_") + "." + $ext)
+    } else {
+        $output
+    }
+
+    # Resolve target resolution.
+    let target_res = if ($size | is-empty) {
+        match $aspect_ratio {
+            "1:1" => "720:720",
+            "9:16" => "1080:1920",
+            "16:9" => "1920:1080",
+            "4:3" => "960:720",
+            "free" => "720:720",
+            _ => "720:720"
+        }
+    } else if ($size | str contains ":") {
+        $size
+    } else {
+        if ($aspect_ratio == "free") {
+            return-error "For 'free' aspect ratio, --size must be W:H format"
+        }
+        let parts = ($aspect_ratio | split row ":")
+        let ar_w = ($parts.0 | into int)
+        let ar_h = ($parts.1 | into int)
+        let short = ($size | into int)
+        if ($ar_w >= $ar_h) {
+            ((($short * $ar_w) // $ar_h) | into string) + ":" + ($short | into string)
+        } else {
+            ($short | into string) + ":" + ((($short * $ar_h) // $ar_w) | into string)
+        }
+    }
+    let target = ($target_res | split row ":" | into int)
+    let target_w = ($target.0 | into string)
+    let target_h = ($target.1 | into string)
+
+    # Build the ffmpeg filter with concatenation (ffmpeg vars must not interpolate).
+    let filter = if ($scale_mode == "crop") {
+        let info = (media video-info $video | get streams.0 | select width height)
+        let src_w = ($info.width | into int)
+        let src_h = ($info.height | into int)
+        let side = (if $src_w < $src_h { $src_w } else { $src_h })
+        let x = (($src_w - $side) // 2)
+        let y = (($src_h - $side) // 2)
+        "crop=" + ($side | into string) + ":" + ($side | into string) + ":" + ($x | into string) + ":" + ($y | into string) + ",scale=" + $target_w + ":" + $target_h + ",format=yuv420p"
+    } else if ($scale_mode == "fill") {
+        "scale=" + $target_w + ":" + $target_h + ",format=yuv420p"
+    } else {
+        let base = "scale=" + $target_w + ":" + $target_h + ":force_original_aspect_ratio=decrease"
+        let pad = if ($pad_mode == "blur") {
+            "[0:v]scale=" + $target_w + ":" + $target_h + ":force_original_aspect_ratio=increase,crop=" + $target_w + ":" + $target_h + ",boxblur=20:5[bg];[0:v]scale=" + $target_w + ":" + $target_h + ":force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,format=yuv420p"
+        } else if ($pad_mode == "color") {
+            "pad=" + $target_w + ":" + $target_h + ":(ow-iw)/2:(oh-ih)/2:color=" + $pad_color + ",format=yuv420p"
+        } else {
+            "pad=" + $target_w + ":" + $target_h + ":(ow-iw)/2:(oh-ih)/2:color=black,format=yuv420p"
+        }
+        if ($pad_mode == "blur") { $pad } else { $base + "," + $pad }
+    }
+
+    # Blur needs -filter_complex (multi-input graph); single-filter paths use -vf.
+    let is_complex = ($scale_mode == "fit") and ($pad_mode == "blur")
+    let run_filter = if $is_complex { $filter + "[v]" } else { $filter }
+
+    if $dry_run {
+        if $is_complex {
+            print ("[DRY-RUN] ffmpeg -i " + $video + " -filter_complex " + $run_filter + " -map [v] -map 0:a? -c:a copy " + $out_name)
+        } else {
+            print ("[DRY-RUN] ffmpeg -i " + $video + " -vf " + $run_filter + " -c:a copy " + $out_name)
+        }
+        return
+    }
+
+    print ("Scaling video to " + $target_res + " with mode=" + $scale_mode + " pad=" + $pad_mode + "...")
+    try {
+        if $is_complex {
+            my-ffmpeg -i $video -filter_complex $run_filter -map "[v]" -map 0:a? -c:a copy $out_name
+        } else {
+            my-ffmpeg -i $video -vf $run_filter -c:a copy $out_name
+        }
+    } catch {
+        if $is_complex {
+            ffmpeg -i $video -filter_complex $run_filter -map "[v]" -map 0:a? -c:a copy $out_name
+        } else {
+            ffmpeg -i $video -vf $run_filter -c:a copy $out_name
+        }
+    }
+    print ("Output: " + $out_name)
+    if $notify { "scaling finished!" | tasker send-notification }
 }

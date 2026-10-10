@@ -160,7 +160,6 @@ def patch-skill-name [skill_dir: path, target_name: string] {
 #link skills from yandex disk to ~/.agents/skills
 export def link-skills [] {
     let source = (try { $env.MY_ENV_VARS.llms_configs } catch { "~/Yandex.Disk/llms_configs" } | path expand | path join "skills")
-    let conductor_backup = (try { $env.MY_ENV_VARS.llms_configs } catch { "~/Yandex.Disk/llms_configs" } | path expand | path join "conductor_skills_backup")
     let dest1 = "~/.agents/skills" | path expand
     let dest2 = "~/.gemini/antigravity-cli/skills" | path expand
     let dest3 = "~/.claude/skills" | path expand
@@ -183,6 +182,17 @@ export def link-skills [] {
         | each { |s| $s | path basename }
         | where { |n| $n not-in $repos_to_ignore }
 
+    # Conductor aliases for 100% backward compatibility with legacy slash commands and prompts
+    let conductor_aliases = [
+        { alias: "implement", canonical: "conductor-implement" },
+        { alias: "newTrack",  canonical: "conductor-new-track" },
+        { alias: "revert",    canonical: "conductor-revert" },
+        { alias: "review",    canonical: "conductor-review" },
+        { alias: "setup",     canonical: "conductor-setup" },
+        { alias: "status",    canonical: "conductor-status" },
+    ]
+    let conductor_alias_names = $conductor_aliases | each { |a| $a.alias }
+
     # Eagerly collect plugin skills across all potential plugin locations
     let candidate_plugin_dirs = [
         ("~/.gemini/antigravity-cli/plugins" | path expand),
@@ -198,28 +208,22 @@ export def link-skills [] {
     let plugin_skill_names = $plugin_skills | each { |skill|
         let parts = $skill | path split
         let plugin_name = $parts | get (($parts | length) - 4)
+        if $plugin_name == "conductor" { return null }
         let skill_name  = $parts | get (($parts | length) - 2)
         $"($plugin_name)-($skill_name | str lowercase)"
-    }
+    } | compact
 
-    let backup_others_skills = if (($conductor_backup | path join "others") | path exists) {
-        glob (($conductor_backup | path join "others" "*") | into string)
-    } else { [] }
-    let backup_others_names = $backup_others_skills | each { |s| $s | path basename }
-
-    let all_expected_names = ($standard_skill_names | append $plugin_skill_names | append $backup_others_names | uniq)
+    let all_expected_names = ($standard_skill_names | append $plugin_skill_names | append $conductor_alias_names | uniq)
 
     # --- Intelligently clean dest1 and dest2 ---
     for dest in [$dest1, $dest2] {
         let items = glob ($dest | path join "*")
         for item in $items {
-            if ($item | path type) == "symlink" {
-                let name     = $item | path basename
-                let is_broken = not ($item | path exists)
-                let is_stale  = $name not-in $all_expected_names
-                if $is_broken or $is_stale {
-                    try { rm -rf $item } catch {}
-                }
+            let name     = $item | path basename
+            let is_broken = not ($item | path exists)
+            let is_stale  = $name not-in $all_expected_names
+            if $is_broken or $is_stale {
+                try { rm -rf $item } catch {}
             }
         }
     }
@@ -253,27 +257,24 @@ export def link-skills [] {
         }
     }
 
-    # --- 2. Restore / Deploy Conductor Skills from Backup (for other agents: Zed, OpenCode, Claude) ---
-    for skill in $backup_others_skills {
-        let name = $skill | path basename
-        
-        # Deploy to Zed ($dest1)
-        let target_zed = $dest1 | path join $name
-        try { rm -rf $target_zed } catch {}
-        cp -r $skill $target_zed
-        patch-skill-name $target_zed $name
+    # --- 2. Deploy Conductor Aliases for Backward Compatibility ---
+    for ca in $conductor_aliases {
+        let src_canonical = $source | path join $ca.canonical
+        if not ($src_canonical | path exists) { continue }
 
-        # Deploy to Claude Code ($dest3)
-        let target3 = $dest3 | path join $name
-        try { rm -rf $target3 } catch {}
-        cp -r $skill $target3
-        patch-skill-name $target3 $name
+        for dest in [$dest1, $dest2, $dest3] {
+            let target = $dest | path join $ca.alias
+            try { rm -rf $target } catch {}
+            cp -r $src_canonical $target
+            patch-skill-name $target $ca.alias
+        }
     }
 
-    # --- 3. Link/copy Extension Skills (from antigravity-cli plugins) ---
+    # --- 3. Link/copy Extension Skills (from non-conductor antigravity-cli plugins) ---
     for skill in $plugin_skills {
         let parts = $skill | path split
         let plugin_name = $parts | get (($parts | length) - 4)
+        if $plugin_name == "conductor" { continue }
         let skill_name  = $parts | get (($parts | length) - 2)
         let source_dir  = $skill | path dirname
 
@@ -290,15 +291,6 @@ export def link-skills [] {
         try { rm -rf $target3 } catch {}
         cp -r $source_dir $target3
         patch-skill-name $target3 $target_name
-    }
-
-    # --- 4. Ensure AGY Conductor Plugins are present in ~/.gemini/config/plugins/conductor ---
-    let agy_plugin_dest = "~/.gemini/config/plugins/conductor" | path expand
-    let agy_backup_src = $conductor_backup | path join "agy"
-    if ($agy_backup_src | path exists) and (not ($agy_plugin_dest | path join "skills" | path exists)) {
-        mkdir ($agy_plugin_dest | path join "skills")
-        cp -r ($agy_backup_src | path join "*") ($agy_plugin_dest | path join "skills")
-        print (echo-g "✓ Restored AGY Conductor plugin skills to ~/.gemini/config/plugins/conductor")
     }
 
     print (echo-g "Skills and extension-based commands linked successfully!")

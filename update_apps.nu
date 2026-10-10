@@ -618,20 +618,48 @@ export def omarchy-update-diagnosis [
   log_path: string = "/tmp/omarchy-update.log"
 ]: nothing -> record {
   let log_text = if ($log_path | path exists) { open --raw $log_path } else { "" }
+  let clean_log = ($log_text | ansi strip)
   let interrupted = ($signal | is-not-empty)
   let failed = (not $interrupted) and ($exit_code != 0)
+
+  mut failing_migration = ""
+  mut failure_detail = ""
+  if $failed and ($clean_log | is-not-empty) {
+    let mig_matches = ($clean_log | parse -r 'Running migration \((?P<mig>[^)]+)\)')
+    if not ($mig_matches | is-empty) {
+      $failing_migration = ($mig_matches | last | get mig)
+      let after_mig = ($clean_log | split row $"Running migration \(($failing_migration)\)" | last)
+      let error_section = ($after_mig | split row "Something went wrong during the update!" | first | str trim)
+      let candidate_lines = ($error_section | lines | where not ($it | str trim | is-empty))
+      $failure_detail = if ($candidate_lines | is-not-empty) {
+        $candidate_lines | last 5 | str join "\n"
+      } else {
+        ""
+      }
+    } else {
+      let err_lines = ($clean_log | lines | where $it =~ "(?i)(error:|failed|failure)" | last 3 | str join "\n")
+      if ($err_lines | is-not-empty) {
+        $failure_detail = $err_lines
+      }
+    }
+  }
+
   let summary = if $interrupted {
     $"omarchy update interrupted by ($signal) \(system state unknown\) - see ($log_path)"
   } else if $failed {
-    $"omarchy update failed \(exit ($exit_code)\) - see ($log_path)"
+    if ($failing_migration | is-not-empty) {
+      $"omarchy update failed on migration ($failing_migration) \(exit ($exit_code)\) - see ($log_path)"
+    } else {
+      $"omarchy update failed \(exit ($exit_code)\) - see ($log_path)"
+    }
   } else {
     "omarchy update completed"
   }
   # Scope the hook-failure check to the keyring step: its output sits after the
   # "Update Arch signing keys" header and before the system-packages step, so hook
   # failures in later steps are not misattributed to the keyring.
-  let keyring_section = (if ($log_text | str contains "Update Arch signing keys") {
-    $log_text | split row "Update Arch signing keys" | get 1 | split row "Update system packages" | first
+  let keyring_section = (if ($clean_log | str contains "Update Arch signing keys") {
+    $clean_log | split row "Update Arch signing keys" | get 1 | split row "Update system packages" | first
   } else {
     ""
   })
@@ -641,6 +669,54 @@ export def omarchy-update-diagnosis [
     keyring_failed: ($keyring_section | str contains "command failed to execute correctly")
     summary: $summary
     log_path: $log_path
+    failing_migration: $failing_migration
+    failure_detail: $failure_detail
+  }
+}
+
+# Parse quickshell --private-check-compat exit code and output
+export def parse-quickshell-compat-output [exit_code: int, output: string]: nothing -> record {
+  let trimmed = ($output | ansi strip | str trim)
+  let is_compat = ($exit_code == 0) and not ($trimmed =~ "(?i)compatibility warning")
+  {
+    compatible: $is_compat
+    warning: (if $is_compat { "" } else { $trimmed })
+  }
+}
+
+# Verify Quickshell Qt ABI compatibility
+export def check-quickshell-compat []: nothing -> record {
+  if (which quickshell | is-empty) {
+    return { installed: false, compatible: true, warning: "" }
+  }
+  let res = (do { ^quickshell --private-check-compat } | complete)
+  let combined = $"($res.stdout)\n($res.stderr)" | ansi strip | str trim
+  let parsed = (parse-quickshell-compat-output $res.exit_code $combined)
+  {
+    installed: true
+    compatible: $parsed.compatible
+    warning: $parsed.warning
+  }
+}
+
+# Check if a reboot is recommended based on log inspection and system markers
+export def check-reboot-needed [log_path: string = "/tmp/omarchy-update.log"]: nothing -> record {
+  mut needed = false
+  mut reasons = []
+  if ("/var/run/reboot-required" | path exists) {
+    $needed = true
+    $reasons = ($reasons | append "System marker /var/run/reboot-required exists")
+  }
+  if ($log_path | path exists) {
+    let log_text = (open --raw $log_path | ansi strip)
+    if ($log_text =~ "(?i)(upgraded linux-cachyos|upgraded linux-lts|upgraded linux |reboot is recommended|system reboot is required)") {
+      $needed = true
+      $reasons = ($reasons | append "Kernel or core system packages were upgraded")
+    }
+  }
+  {
+    needed: $needed
+    reasons: $reasons
   }
 }
 
@@ -708,6 +784,12 @@ def run-omarchy-update [dry_run: bool]: nothing -> any {
     print (echo-r $diag.summary)
   } else if $diag.failed {
     print (echo-r $diag.summary)
+    if ($diag.failing_migration | is-not-empty) {
+      print (echo-r $"Failed migration: ($diag.failing_migration)")
+    }
+    if ($diag.failure_detail | is-not-empty) {
+      print (echo-r $"Error details:\n($diag.failure_detail)")
+    }
     print (echo-y "Continuing with the remaining upgrade steps (continue-always policy).")
   } else {
     print (echo-g "omarchy update completed.")
@@ -947,6 +1029,16 @@ export def supgrade [--old(-o),--cargo_aps(-c),--skip-mirrors,--skip-cache-clean
   run-common-operations $dry_run $cargo_aps
 
   if not $dry_run {
+    # Post-upgrade health checks (Quickshell compatibility and reboot recommendations)
+    let qs = (check-quickshell-compat)
+    if $qs.installed and (not $qs.compatible) {
+      print (echo-r $"COMPATIBILITY WARNING: ($qs.warning)")
+      print (echo-y "Quickshell ABI is incompatible with current Qt. Rebuild or update the package: 'sudo pacman -S extra/quickshell'")
+    }
+    let reboot = (check-reboot-needed)
+    if $reboot.needed {
+      print (echo-y $"Reboot recommendation: ($reboot.reasons | str join '; '). Please consider rebooting your system.")
+    }
     print (echo-g "=== Upgrade Complete ===")
     print (echo-g $"OS: ($os) via ($workflow.name) workflow")
   } else {
@@ -3865,7 +3957,18 @@ export def "apps-update ponytail" [] {
   if (which gemini | is-not-empty) {
     print (echo-g "Updating Ponytail for Gemini CLI / agy...")
     try {
-      ^gemini extensions install https://github.com/DietrichGebert/ponytail
+      let is_installed = ("~/.gemini/extensions/ponytail" | path expand | path exists)
+      if $is_installed {
+        try {
+          "Y\n" | ^gemini extensions update ponytail
+        } catch {
+          let integrity = "~/.gemini/extension_integrity.json" | path expand
+          if ($integrity | path exists) { rm -f $integrity }
+          "Y\n" | ^gemini extensions update ponytail
+        }
+      } else {
+        "Y\n" | ^gemini extensions install https://github.com/DietrichGebert/ponytail
+      }
       print (echo-g "Gemini/agy Ponytail update complete.")
     } catch { |err|
       print (echo-r $"Failed to update Ponytail for Gemini/agy: ($err.msg)")
@@ -3878,8 +3981,17 @@ export def "apps-update ponytail" [] {
   if (which claude | is-not-empty) {
     print (echo-g "Updating Ponytail for Claude Code...")
     try {
-      ^claude plugin marketplace add DietrichGebert/ponytail
-      ^claude plugin install ponytail@ponytail
+      let claude_installed = try {
+        let plugins = do { ^claude plugin list } | complete
+        ($plugins.stdout | str contains "ponytail@ponytail") or ($plugins.stderr | str contains "ponytail@ponytail")
+      } catch { false }
+
+      if $claude_installed {
+        ^claude plugin update ponytail@ponytail
+      } else {
+        try { ^claude plugin marketplace add DietrichGebert/ponytail } catch {}
+        ^claude plugin install ponytail@ponytail
+      }
       print (echo-g "Claude Code Ponytail update complete.")
     } catch { |err|
       print (echo-r $"Failed to update Ponytail for Claude Code: ($err.msg)")
@@ -3913,7 +4025,7 @@ export def "apps-update ponytail" [] {
 
 # Install Sober (Roblox player) Flatpak on Ubuntu or CachyOS
 export def install-sober [] {
-  let is_cachyos = (try { open /etc/os-release | lines | find -r '^ID=' | first | str replace 'ID=' '' | str trim -c '"' } catch { "" }) == "cachyos"
+  let is_cachyos = is-cachyos
   if $is_cachyos {
     print (echo-g "Installing flatpak via pacman...")
     sudo pacman -S --noconfirm --needed flatpak

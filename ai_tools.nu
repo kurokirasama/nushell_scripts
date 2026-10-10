@@ -539,16 +539,38 @@ export def "ai audio2text" [
 @category ai
 @search-terms video text transcription whisper
 export def "ai video2text" [
-  file?:any                #video file name with extension
-  --language(-l):string = "Spanish"  #language of audio file
-  --filter_noise(-f) = false  #filter audio noise
-  --notify(-n)                #notify to android via join/tasker
+  file?:any                                          #video file name with extension
+  --language(-l):string = "Spanish"                  #language of audio file
+  --output_format(-o):string@$output_formats = "txt" #output format: txt, vtt, srt, tsv, json, all
+  --srt(-s)                                          #output transcript in srt format with timestamps
+  --filter_noise(-f) = false                         #filter audio noise
+  --notify(-n)                                       #notify to android via join/tasker
 ] {
   let file = get-input $in $file -n
 
+  let resolved_format = if $srt { "srt" } else { $output_format }
+  let stem = $file | path parse | get stem
+
   media extract-audio $file
 
-  ai audio2text $"($file | path parse | get stem).mp3" -l $language -f $filter_noise
+  ai audio2text $"($stem).mp3" -l $language -f $filter_noise -o $resolved_format
+
+  # Ensure target format file is named without -clean suffix if whisper created it
+  if $resolved_format == "all" {
+    for fmt in ["txt", "vtt", "srt", "tsv", "json"] {
+      let clean_output = $"($stem)-clean.($fmt)"
+      let final_output = $"($stem).($fmt)"
+      if ($clean_output | path exists) {
+        mv -f $clean_output $final_output
+      }
+    }
+  } else {
+    let clean_output = $"($stem)-clean.($resolved_format)"
+    let final_output = $"($stem).($resolved_format)"
+    if ($clean_output | path exists) {
+      mv -f $clean_output $final_output
+    }
+  }
 
   if $notify {"audio extracted!" | tasker send-notification}
 }
@@ -617,11 +639,27 @@ export def "ai media-summary" [
 
   if $upload and $media_type in ["video" "audio" "url"] {
     print (echo-g $"uploading audio file...")
-    cp $"($title)-clean.mp3" $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory
+    let audio_file = if ($"($title)-clean.mp3" | path exists) {
+      $"($title)-clean.mp3"
+    } else if ($"($title).mp3" | path exists) {
+      $"($title).mp3"
+    } else {
+      null
+    }
+    if $audio_file != null {
+      cp $audio_file $env.MY_ENV_VARS.gdriveTranscriptionSummaryDirectory
+    }
   }
 
-  print (echo-g $"transcription file saved as ($title)-clean.txt")
-  let the_subtitle = $"($title)-clean.txt"
+  let the_subtitle = if ($"($title).txt" | path exists) {
+    $"($title).txt"
+  } else if ($"($title)-clean.txt" | path exists) {
+    $"($title)-clean.txt"
+  } else {
+    return-error $"Transcript not found for ($title)"
+  }
+
+  print (echo-g $"transcription file saved as ($the_subtitle)")
 
   #removing existing temp files
   ls | where name like "split|summaries" | rm-pipe

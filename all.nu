@@ -24,8 +24,10 @@ export use ./apis.nu *
 export use ./obsidian_utils.nu *
 export use ./habitica.nu *
 export use ./network.nu *
-export use ./backups.nu *
+# update_apps.nu must load before backups.nu: backups.nu resolves the shared OS-detection
+# helpers (is-cachyos) at parse time, so they have to be in scope when it is parsed.
 export use ./update_apps.nu *
+export use ./backups.nu *
 export use ./cachyos_drift_auditor.nu *
 export use ./transmission.nu *
 export use ./yandex.nu *

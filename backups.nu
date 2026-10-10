@@ -239,11 +239,6 @@ export def "cliamp-restore" [] {
   7z x cliamp_config.7z -o/home/kira/.config/ -y
 }
 
-def is-cachyos [] {
-    let os_id = (try { open /etc/os-release | lines | where {|l| $l starts-with "ID="} | first | str replace 'ID=' '' | str trim -c '"' | ansi strip } catch { "" })
-    $os_id == "cachyos"
-}
-
 def echo-g [str: string] { $"(ansi -e { fg: '#00ff00' attr: b })($str)(ansi reset)" }
 def echo-y [str: string] { $"(ansi -e { fg: '#ffff00' attr: b })($str)(ansi reset)" }
 def echo-r [str: string] { $"(ansi -e { fg: '#ff0000' attr: b })($str)(ansi reset)" }
@@ -252,9 +247,9 @@ def echo-r [str: string] { $"(ansi -e { fg: '#ff0000' attr: b })($str)(ansi rese
 export def perform-hyprland-backup [
     --source-dir: string = ""
     --target-dir: string = ""
-    --cachyos
     --dry-run
 ] {
+    let cachyos = is-cachyos
     let src_dir = if ($source_dir | is-empty) { ($env.HOME | path join ".config") } else { $source_dir }
     let linux_backup = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
     let dst_dir = if ($target_dir | is-empty) {
@@ -314,7 +309,7 @@ export def perform-hyprland-backup [
             if ($comp_path | path exists) {
                 let arch_file = ($staging_dir | path join $"($item.arch).7z")
                 try {
-                    do { ^7z a -t7z -snl -m0=lzma2 -mx=9 -ms=on -mmt=on $arch_file $comp_path } | complete
+                    do { ^7z a -t7z -snl -m0=lzma2 -mx=9 -ms=on -mmt=on "-xr!*.bak" $arch_file $comp_path } | complete
                     mv -f $arch_file ($dst_dir | path join $"($item.arch).7z")
                 } catch { |err|
                     print $"Warning archiving ($item.dir): ($err.msg)"
@@ -433,9 +428,9 @@ export def perform-hyprland-backup [
 export def perform-hyprland-restore [
     --source-dir: string = ""
     --target-dir: string = ""
-    --cachyos
     --dry-run
 ] {
+    let cachyos = is-cachyos
     let linux_backup = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
     let src_dir = if ($source_dir | is-empty) {
         if $cachyos {
@@ -594,38 +589,18 @@ export def perform-hyprland-restore [
 @category backup
 @search-terms hyprland backup
 export def "hyprlnd backup" [
-    --cachyos(-c) # Backup CachyOS Hyprland & Omarchy configuration
     --dry-run     # Preview actions without modifying filesystem
 ] {
-    let is_cachy = if $cachyos {
-        if not (is-cachyos) {
-            error make { msg: "Cannot use --cachyos flag on a non-CachyOS system." }
-        }
-        true
-    } else {
-        (is-cachyos)
-    }
-
-    perform-hyprland-backup --cachyos=$is_cachy --dry-run=$dry_run
+    perform-hyprland-backup --dry-run=$dry_run
 }
 
 #restore hyprland configs
 @category backup
 @search-terms hyprland restore
 export def "hyprlnd restore" [
-    --cachyos(-c) # Restore CachyOS Hyprland & Omarchy configuration
     --dry-run     # Preview actions without modifying filesystem
 ] {
-    let is_cachy = if $cachyos {
-        if not (is-cachyos) {
-            error make { msg: "Cannot restore CachyOS Hyprland configs on a non-CachyOS system." }
-        }
-        true
-    } else {
-        (is-cachyos)
-    }
-
-    perform-hyprland-restore --cachyos=$is_cachy --dry-run=$dry_run
+    perform-hyprland-restore --dry-run=$dry_run
 }
 
 #backup ttt settings
