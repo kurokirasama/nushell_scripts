@@ -3,8 +3,7 @@
 # 1. autolister (12h-gated)
 # 2. IP addresses update
 # 3. Habitica background maintenance (login, auto-quest, mark-dailys-done, stats sync)
-# 4. apps-update from-todos --skip-sudo
-# 5. YouTube API OAuth token health checks (silent on valid tokens, alerts on missing/expired)
+# 4. YouTube API OAuth token health checks (silent on valid tokens, alerts on missing/expired)
 export def "periodic-maintenance" [] {
     let now = (date now)
 
@@ -78,14 +77,7 @@ export def "periodic-maintenance" [] {
         print -e $"[Habitica] Maintenance warning: ($err.msg)"
     }
 
-    # 4. Apps update (non-sudo only for cron safety)
-    try {
-        apps-update from-todos --skip-sudo
-    } catch { |err|
-        print -e $"[apps-update] Update warning: ($err.msg)"
-    }
-
-    # 5. YouTube API status checks (silent on valid, action-required alert on missing/expired)
+    # 4. YouTube API status checks (silent on valid, action-required alert on missing/expired)
     try {
         let yt_status = (yt-api status)
         if ($yt_status.valid? != true) {
