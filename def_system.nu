@@ -182,17 +182,6 @@ export def link-skills [] {
         | each { |s| $s | path basename }
         | where { |n| $n not-in $repos_to_ignore }
 
-    # Conductor aliases for 100% backward compatibility with legacy slash commands and prompts
-    let conductor_aliases = [
-        { alias: "implement", canonical: "conductor-implement" },
-        { alias: "newTrack",  canonical: "conductor-new-track" },
-        { alias: "revert",    canonical: "conductor-revert" },
-        { alias: "review",    canonical: "conductor-review" },
-        { alias: "setup",     canonical: "conductor-setup" },
-        { alias: "status",    canonical: "conductor-status" },
-    ]
-    let conductor_alias_names = $conductor_aliases | each { |a| $a.alias }
-
     # Eagerly collect plugin skills across all potential plugin locations
     let candidate_plugin_dirs = [
         ("~/.gemini/antigravity-cli/plugins" | path expand),
@@ -213,7 +202,7 @@ export def link-skills [] {
         $"($plugin_name)-($skill_name | str lowercase)"
     } | compact
 
-    let all_expected_names = ($standard_skill_names | append $plugin_skill_names | append $conductor_alias_names | uniq)
+    let all_expected_names = ($standard_skill_names | append $plugin_skill_names | uniq)
 
     # --- Intelligently clean dest1 and dest2 ---
     for dest in [$dest1, $dest2] {
@@ -254,19 +243,6 @@ export def link-skills [] {
         } else {
             mkdir $target3
             cp $skill ($target3 | path join "SKILL.md")
-        }
-    }
-
-    # --- 2. Deploy Conductor Aliases for Backward Compatibility ---
-    for ca in $conductor_aliases {
-        let src_canonical = $source | path join $ca.canonical
-        if not ($src_canonical | path exists) { continue }
-
-        for dest in [$dest1, $dest2, $dest3] {
-            let target = $dest | path join $ca.alias
-            try { rm -rf $target } catch {}
-            cp -r $src_canonical $target
-            patch-skill-name $target $ca.alias
         }
     }
 

@@ -93,86 +93,44 @@ let hooks = {
     ]
     pre_execution: [
         {||
-            let autolister_path = ($env.HOME | path join ".autolister.json")
-            #checking existence of data file
-            if not ($autolister_path | path exists) {
-                if (($env.MY_ENV_VARS.linux_backup? | default "" | path join autolister.json) | path exists) {
-                    cp ($env.MY_ENV_VARS.linux_backup | path join autolister.json) $autolister_path
-                }
+            let maintenance_path = ($env.HOME | path join ".pre_execution_maintenance.json")
+            let interval = 12hr
+            let now = (date now)
+            let maintenance_content = if ($maintenance_path | path exists) {
+                try { open $maintenance_path | default {} } catch { {} }
+            } else {
+                {}
             }
-            
-            #checking conditions
-            let interval = 12hr 
-            let now = date now
-            let autolister_content = open $autolister_path | default {}
-            let update = ($autolister_content | get updated | into datetime) + $interval < $now
-            
+            let update = try {
+                (($maintenance_content | get updated? | default "1970-01-01" | into datetime) + $interval) < $now
+            } catch {
+                true
+            }
+
             if $update and ((sys host | get hostname) != "rayen") {
-                ## list mounted drives and download directory
-                try {
-                    nu ($env.MY_ENV_VARS.nu_scripts | path join autolister.nu)
-                }
-                
-                $autolister_content
+                $maintenance_content
                 | upsert updated $now
-                | save -f $autolister_path
-            
-                ## update ip
-                print (echo $"(ansi -e { fg: '#00ff00' attr: b })getting device ips...(ansi reset)")
-                let host = sys host | get hostname
-                let ips_file = $env.MY_ENV_VARS.ips
-                let ips_content = open $ips_file
-                let ips = nu ($env.MY_ENV_VARS.nu_scripts | path join get-ips.nu) ...$env.MY_ENV_VARS.hosts
+                | save -f $maintenance_path
 
-            
-                $ips_content
-                | upsert $host ($ips | from json)
-                | save -f $ips_file
-                
-                ## verify habitica
                 try {
-                    mut hstats = (_h-user-stats)
-                    if not $hstats.logged_in_today {
-                        print (echo $"(ansi -e { fg: '#ff0000' attr: b })Not logged in to habitica yet, logging in now...(ansi reset)")
-                        if ($hstats.dailys_to_complete > 0) {
-                            print (echo $"(ansi -e { fg: '#FF0000' attr: b })You had ($hstats.dailys_to_complete) dailys to complete yesterday, completing them now...(ansi reset)")
-                        }
-                        h login
-                        print (echo $"(ansi -e { fg: '#00ff00' attr: b })These are today's dailys:(ansi reset)")
-                        print (h ls dailys -pi | get text)
-                        print (echo $"(ansi -e { fg: '#00ff00' attr: b })These are latest todos:(ansi reset)")
-                        print (h ls todos -i | last 15 | get text)
+                    print (echo $"(ansi -e { fg: '#00ff00' attr: b })These are today's dailys:(ansi reset)")
+                    print (h ls dailys -pi | get text)
+                    print (echo $"(ansi -e { fg: '#00ff00' attr: b })These are latest todos:(ansi reset)")
+                    print (h ls todos -i | last 15 | get text)
 
-                        #updated info after login
-                        $hstats = (_h-user-stats)
-                    }
-
-                    
-                    if $hstats.pending_quest {
-                        print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have a pending quest invitation, accepting it now...(ansi reset)")
-                        h auto-quest 
-                    }
-                    
-                    if ($hstats.dailys_to_complete > 0) {
-                        print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have ($hstats.dailys_to_complete) dailys to complete today, completing them now...(ansi reset)")
-                        h mark-dailys-done
-                    }
-                    
                     if (h ls dailys -ni | where text =~ supgrade | length) > 0 {
                         print (echo $"(ansi -e { fg: '#FFA500' attr: b })You have to upgrade your system today!(ansi reset)")
                     }
-                    
-                    h stats
                 } catch { |err|
-                    print (echo-r $"[Habitica] Startup check warning: ($err.msg)")
+                    print (echo-r $"[Habitica] Reminder check warning: ($err.msg)")
                 }
 
-                print (echo $"(ansi -e { fg: '#00ff00' attr: b })Checking pending software updates...(ansi reset)")
-                apps-update from-todos 
-
-                # Check YouTube API OAuth token status for both accounts
-                try { yt-api status | ignore } catch { }
-                try { yt-api status --ies | ignore } catch { }
+                try {
+                    print (echo $"(ansi -e { fg: '#00ff00' attr: b })Checking pending software updates...(ansi reset)")
+                    apps-update from-todos
+                } catch { |err|
+                    print (echo-r $"[apps-update] Software updates check warning: ($err.msg)")
+                }
             }
         }
     ]

@@ -32,6 +32,7 @@ export use ./cachyos_drift_auditor.nu *
 export use ./transmission.nu *
 export use ./yandex.nu *
 export use ./yt_api.nu *
+export use ./periodic_maintenance.nu *
 export use ./plots.nu *
 export use ./zoxide.nu *
 export use ./weather_tomorrow.nu *

@@ -3764,7 +3764,7 @@ export def is-app-installed [app_name: string]: nothing -> bool {
 }
 
 #update apps from habitica todos
-export def "apps-update from-todos" [--dry-run] {
+export def "apps-update from-todos" [--dry-run, --skip-sudo] {
   let hostname = sys host | get hostname
   let label = $"software-updates-($hostname)"
 
@@ -3848,6 +3848,14 @@ export def "apps-update from-todos" [--dry-run] {
   }
 
   $matched = $matched | uniq-by update_command
+
+  if $skip_sudo {
+    let sudo_cmds = (help commands
+      | where {|c| ($c.name =~ '^apps-update ') and (($c.category? | default '') == 'sudo')}
+      | get name
+      | each {|n| $n | str replace 'apps-update ' ''})
+    $matched = ($matched | where update_command not-in $sudo_cmds)
+  }
 
   if ($matched | is-empty) {
     if ($unmatched_installed | is-not-empty) {
