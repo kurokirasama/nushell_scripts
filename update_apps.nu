@@ -2648,7 +2648,25 @@ export def "apps-update timg" [] {
 
 #update subliminal
 export def "apps-update subliminal" [] {
-  pipx upgrade subliminal
+  let uv_installed = (if (which uv | is-not-empty) {
+    try { (uv tool list | lines | any { $in =~ "^subliminal " }) } catch { false }
+  } else { false })
+
+  let pipx_installed = (if (which pipx | is-not-empty) {
+    try { (pipx list --short | lines | any { $in =~ "^subliminal " }) } catch { false }
+  } else { false })
+
+  if $uv_installed {
+    uv tool upgrade subliminal
+  } else if $pipx_installed {
+    pipx upgrade subliminal
+  } else if (which uv | is-not-empty) {
+    uv tool upgrade subliminal
+  } else if (which pipx | is-not-empty) {
+    pipx upgrade subliminal
+  } else {
+    pip install -U subliminal
+  }
 }
 
 #update nvitop
