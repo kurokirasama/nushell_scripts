@@ -162,11 +162,6 @@ export def "apps-update nushell-plugins" [
   }
 
   $plugins | each {|p| register-nu-plugin $p }
-  
-  if not $server {
-    print (echo-g "Regenerating polars aliases...")
-    try { apps-update nushell-polars }
-  }
 
   print (echo-g "✓ Official nushell plugins updated and registered successfully!")
 }
@@ -346,23 +341,6 @@ export def "apps-update nushell-plugins-external" [
 
 #alias for apps-update nushell-plugins-external
 export alias "apps-update nushell-external-plugins" = apps-update nushell-plugins-external
-
-
-#update polars aliases
-export def "apps-update nushell-polars" [] {
-    rm -f ($env.MY_ENV_VARS.nu_scripts | path join "polars_aliases.nu")
-    touch ($env.MY_ENV_VARS.nu_scripts | path join "polars_aliases.nu")
-    
-    scope commands 
-    | where name like "polars" 
-    | where type == "plugin"
-    | get name 
-    | skip
-    | each {|p| 
-        $"export alias \"($p | str replace 'polars' 'pl')\" = ($p)\n" 
-        | save -a ($env.MY_ENV_VARS.nu_scripts | path join "polars_aliases.nu")
-    }
-}
 
 #update nu-datetime module (date_formats.nu)
 export def "apps-update datetime" [--force(-f)] {
