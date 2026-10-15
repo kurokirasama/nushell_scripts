@@ -1,13 +1,12 @@
-export const last_gemini_model = "gemini-3.8-flash"
-export const gemini_pro_vision = "gemini-3.8-flash"
+export const last_gemini_model = "gemini-4-argon"
+export const gemini_pro_vision = "gemini-4-argon"
 export const gemini_models = [
+  "gemini-4-argon"
   "gemini-3.8-flash"
   "gemini-3.7-flash"
   "gemini-3.6-flash"
-  "gemini-3.5-flash"
   "gemini-3.5-flash-lite"
   "gemini-3.1-pro"
-  "gemini-3.1-flash-lite"
   "gemini-pro-vision"
 ]
 
@@ -27,18 +26,17 @@ def format-iso-utc [] { date now | format date "%Y-%m-%dT%H:%M:%SZ" }
 #single call to google ai LLM api wrapper and chat mode
 #
 #Available models at https://ai.google.dev/models:
-# - gemini-3.8-flash: Latest GA (Sep 2026), most intelligent Flash for long-horizon SWE & agents, tunable thinking (FREE TIER, intro pricing thru Dec 31 2026)
+# - gemini-4-argon: Latest Flagship Frontier (Oct 2026), deep reasoning, coding, 1M context, tunable thinking
+# - gemini-3.8-flash: Latest Flash GA (Sep 2026), most intelligent Flash for long-horizon SWE & agents, tunable thinking (FREE TIER)
 # - gemini-3.7-flash: Previous GA (Aug 2026), most intelligent Flash for coding/agents, tunable thinking (FREE TIER)
 # - gemini-3.6-flash: Complex multi-step workflows, coding, agentic tasks (GA July 2026) (FREE TIER)
-# - gemini-3.5-flash: Sustained frontier performance, agentic/coding at scale (GA May 2026) (FREE TIER)
 # - gemini-3.5-flash-lite: Cost-efficient model for high-volume tasks (GA July 2026) (FREE TIER)
 # - gemini-3.1-pro: High-capability, complex reasoning, agentic coding, 1M context (PAID ONLY)
-# - gemini-3.1-flash-lite: Fast, cost-efficient model for high-volume tasks, long-term stable (FREE TIER)
-# - gemini-pro-vision: Placeholder for image input, uses gemini-3.8-flash
+# - gemini-pro-vision: Placeholder for image input, uses gemini-4-argon
 # - text-embedding-004: Text embedding model
 # - aqa: Retrieval
 #
-# IMPORTANT: For Gemini 3.x models, use --thinking_level (minimal|low|medium|high) instead of --temp/--top_p/--top_k
+# IMPORTANT: For Gemini 3.x and 4 models, use --thinking_level (minimal|low|medium|high) instead of --temp/--top_p/--top_k
 # Deprecated parameters (temperature, top_p, top_k, thinking_budget) are ignored and will return HTTP 400 in future versions.
 #
 #system messages are available in:
@@ -135,9 +133,9 @@ def extract-interaction-text [response: any] {
 @search-terms gemini
 export def google_ai [
     query?: string                          # the query to Gemini
-    --model(-m):string@$gemini_models = "gemini-3.8-flash" # the model gemini-3.8-flash, gemini-3.7-flash, etc
+    --model(-m):string@$gemini_models = "gemini-4-argon" # the model gemini-4-argon, gemini-3.8-flash, etc
     --system(-s):string = "You are a helpful assistant." # system message
-    --temp(-t): float = 0.9             # the temperature of the model (deprecated for Gemini 3.x)
+    --temp(-t): float = 0.9             # the temperature of the model (deprecated for Gemini 3.x and 4)
     --thinking_level(-e): string@$thinking_levels = "medium" # thinking effort level (minimal, low, medium, high)
     --image(-i):any                     # filepath of image file (or list of files) for gemini-pro-vision
     --list_system(-l) = false           # select system message from list
@@ -179,12 +177,13 @@ export def google_ai [
     }
 
   let max_output_tokens = match $model {
+    $m if ($m =~ "gemini-4") => 64000
+    $m if ($m =~ "gemini-3.8") => 64000
     $m if ($m =~ "gemini-3.7") => 64000
     $m if ($m =~ "gemini-3.6") => 64000
     $m if ($m =~ "gemini-3.5") => 64000
     $m if ($m =~ "gemini-3.1") => 64000
     $m if ($m =~ "gemini-3") => 64000
-    $m if ($m =~ "gemini-2.5") => 64000
     $m if ($m =~ "gemini-pro-vision") => 64000
     _ => 8192
   }
@@ -192,25 +191,27 @@ export def google_ai [
   let input_model = $model
   let model = match $model {
     "gemini-pro-vision" => $gemini_pro_vision
+    "gemini-4" => "gemini-4-argon"
+    "gemini-3.8" => "gemini-3.8-flash"
     "gemini-3.7" => "gemini-3.7-flash"
     "gemini-3.6" => "gemini-3.6-flash"
-    "gemini-3.5" => "gemini-3.5-flash"
+    "gemini-3.5" => "gemini-3.5-flash-lite"
     "gemini-3.1" => "gemini-3.1-pro"
-    "gemini-3.0" | "gemini-3" => $last_gemini_model
+    "gemini-3.0" | "gemini-3" => "gemini-3.8-flash"
     _ => $model
   }  
 
-  if ($temp != 0.9) and ($model =~ "gemini-3") {
-    print (echo-y "Warning: --temp is deprecated for Gemini 3.x models and will be ignored. Use --thinking_level instead.")
+  if ($temp != 0.9) and ($model =~ "gemini-3" or $model =~ "gemini-4") {
+    print (echo-y "Warning: --temp is deprecated for Gemini 3.x and 4 models and will be ignored. Use --thinking_level instead.")
   }
 
-  let thinking_level_val = if ($model =~ "gemini-3") {
+  let thinking_level_val = if ($model =~ "gemini-3" or $model =~ "gemini-4") {
     $thinking_level
   } else {
     ""
   }
 
-  let gen_config = if ($model =~ "gemini-3") {
+  let gen_config = if ($model =~ "gemini-3" or $model =~ "gemini-4") {
     let base = { max_output_tokens: $max_output_tokens }
     if ($thinking_level_val | is-not-empty) {
       $base | insert thinking_level $thinking_level_val

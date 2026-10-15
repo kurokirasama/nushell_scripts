@@ -59,7 +59,13 @@ export def network-switcher [] {
 export def wifi-info [
   --wifi_id(-w)
 ] {
-  let info = nmcli -t dev wifi
+  let raw = (try { nmcli -t dev wifi } catch { "" })
+  if ($raw | is-empty) {
+    if $wifi_id { return "" }
+    return "no wifi connected!"
+  }
+
+  let info = $raw
     | lines 
     | str replace -a '\:' '|' 
     | str replace -a ':' '#' 
@@ -67,23 +73,31 @@ export def wifi-info [
     | str replace "*" "❱" 
     | split column '#' 
     | rename in-use mac ssid mode channel rate signal bars security
-    | indexify
-  
+    | enumerate
+    | flatten
 
   if ($info | is-empty) {
+    if $wifi_id { return "" }
     return "no wifi connected!"
   }
 
   let the_row = $info | where in-use == "❱"
-  let the_row_index = $the_row | get index.0
-  let the_row = $the_row | update cells {|value| 
-              [(ansi -e { fg: '#00ff00' attr: b }) $value] | str join 
-            }
+  if ($the_row | is-empty) {
+    if $wifi_id { return "" }
+    return "no wifi connected!"
+  }
 
   if $wifi_id {
-    return ($the_row | get ssid.0? | ansi strip)
-  } 
-  return ($info | reject $the_row_index | append $the_row | sort-by rate | reject in-use)
+    let active_ssid = try { $the_row | get 0.ssid | default "" | ansi strip } catch { "" }
+    return $active_ssid
+  }
+
+  let the_row_index = $the_row | get 0.index
+  let the_row_styled = $the_row | update cells {|value| 
+    [(ansi -e { fg: '#00ff00' attr: b }) $value] | str join 
+  }
+
+  return ($info | where index != $the_row_index | append $the_row_styled | sort-by rate | reject in-use)
 }
 
 #list used network sockets

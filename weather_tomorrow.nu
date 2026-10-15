@@ -64,13 +64,40 @@ export def --env get_weather_by_interval [
     if ($weather_runtime_file | path exists) {
         let last_runtime_data = open $weather_runtime_file
         let LAST_WEATHER_TIME = try { $last_runtime_data | get last_weather_time } catch { "1970-01-01 00:00:00 +00:00" }
-        let not_update = try {
+
+        let loc = if ($address | is-not-empty) {
+            let coords = (maps loc-from-address $address | get 0 | get lat lng | str join ",")
+            let parts = ($coords | split row ",")
+            { coords: $coords, name: $address, latitude: ($parts.0 | into float), longitude: ($parts.1 | into float) }
+        } else {
+            get_location
+        }
+
+        let loc_rec = if ($loc | describe) =~ "record" {
+            $loc
+        } else {
+            let parts = ($loc | into string | split row ",")
+            let lat = try { $parts.0 | into float } catch { 0.0 }
+            let lon = try { $parts.1 | into float } catch { 0.0 }
+            { coords: ($loc | into string), name: "Unknown", latitude: $lat, longitude: $lon }
+        }
+
+        let loc_changed = try {
+            let cached_loc = ($last_runtime_data | get location)
+            ($cached_loc.name != $loc_rec.name) or (($cached_loc.latitude | into float) != ($loc_rec.latitude | into float)) or (($cached_loc.longitude | into float) != ($loc_rec.longitude | into float)) or ($cached_loc.name == "Vilcun")
+        } catch {
+            true
+        }
+
+        let time_not_expired = try {
             (($LAST_WEATHER_TIME | into datetime) + ($interval_weather | into duration)) >= (date now)
         } catch {
             false
         }
 
-        # Check network connectivity when cache expired
+        let not_update = ($time_not_expired and (not $loc_changed))
+
+        # Check network connectivity when cache expired or location changed
         let net_status = if not $not_update {
             try {
                 http get https://www.google.com | ignore; true
@@ -91,12 +118,11 @@ export def --env get_weather_by_interval [
         # If not updating or offline, return cached weather (ensuring location/network are preserved/upserted)
         if not $net_status or $not_update {
             let w = try { $last_runtime_data | get weather } catch { "⛅ --°C" }
-            if not ("location" in ($last_runtime_data | columns)) or not ("network" in ($last_runtime_data | columns)) {
-                let existing_loc = try {
-                    $last_runtime_data.location
-                } catch {
-                    let loc_res = get_location
-                    { name: $loc_res.name, latitude: $loc_res.latitude, longitude: $loc_res.longitude }
+            if not ("location" in ($last_runtime_data | columns)) or not ("network" in ($last_runtime_data | columns)) or ($last_runtime_data.location.name? == "Vilcun") {
+                let existing_loc = if ($last_runtime_data.location.name? == "Vilcun") {
+                    $loc_rec
+                } else {
+                    try { $last_runtime_data.location } catch { $loc_rec }
                 }
                 $last_runtime_data
                 | upsert location $existing_loc
@@ -104,23 +130,6 @@ export def --env get_weather_by_interval [
                 | save -f $weather_runtime_file
             }
             return (if ($w | describe) =~ "record" { $"($w.Icon) ($w.Temperature)" } else { $w })
-        } 
-    
-        let loc = if ($address | is-not-empty) {
-            let coords = (maps loc-from-address $address | get 0 | get lat lng | str join ",")
-            let parts = ($coords | split row ",")
-            { coords: $coords, name: $address, latitude: ($parts.0 | into float), longitude: ($parts.1 | into float) }
-        } else {
-            get_location
-        }
-
-        let loc_rec = if ($loc | describe) =~ "record" {
-            $loc
-        } else {
-            let parts = ($loc | into string | split row ",")
-            let lat = try { $parts.0 | into float } catch { 0.0 }
-            let lon = try { $parts.1 | into float } catch { 0.0 }
-            { coords: ($loc | into string), name: "Unknown", latitude: $lat, longitude: $lon }
         }
 
         let WEATHER = get_weather_for_prompt $loc_rec.coords
@@ -241,9 +250,19 @@ export def get_location [--home(-h),--ubb(-b)] {
     let work_wifi_name = try { $env.MY_ENV_VARS.work_wifi } catch { null }
     let home_coords = try { $env.MY_ENV_VARS.home_loc } catch { null }
     let work_coords = try { $env.MY_ENV_VARS.work_loc } catch { null }
+    let home_name = try { $env.MY_ENV_VARS.home_name } catch { "San Pedro de la Paz" }
+    let work_name = try { $env.MY_ENV_VARS.work_name } catch { "Concepción" }
 
-    let is_home = ($home or (($home_wifi_name != null) and ($wifi | is-not-empty) and ($wifi like $home_wifi_name)))
-    let is_work = ($ubb or (($work_wifi_name != null) and ($wifi | is-not-empty) and ($wifi like $work_wifi_name)))
+    let is_home = if $ubb {
+        false
+    } else {
+        ($home or (($home_wifi_name != null) and ($wifi | is-not-empty) and ($wifi like $home_wifi_name)))
+    }
+    let is_work = if $home {
+        false
+    } else {
+        ($ubb or (($work_wifi_name != null) and ($wifi | is-not-empty) and ($wifi like $work_wifi_name)))
+    }
 
     # Closure for lazy IP lookup
     let fetch_ip = {||
@@ -276,30 +295,18 @@ export def get_location [--home(-h),--ubb(-b)] {
     }
 
     if ($is_home and ($home_coords != null)) {
-        let city = if ($last_loc != null and ($last_loc.name | is-not-empty) and ($last_loc.name != "Unknown")) {
-            $last_loc.name
-        } else {
-            let ip = (do $fetch_ip)
-            if ($ip != null and ($ip.city | is-not-empty)) { $ip.city } else { "Unknown" }
-        }
         let parts = ($home_coords | split row ",")
         {
             coords: $home_coords,
-            name: $city,
+            name: $home_name,
             latitude: ($parts.0 | into float),
             longitude: ($parts.1 | into float)
         }
     } else if ($is_work and ($work_coords != null)) {
-        let city = if ($last_loc != null and ($last_loc.name | is-not-empty) and ($last_loc.name != "Unknown")) {
-            $last_loc.name
-        } else {
-            let ip = (do $fetch_ip)
-            if ($ip != null and ($ip.city | is-not-empty)) { $ip.city } else { "Unknown" }
-        }
         let parts = ($work_coords | split row ",")
         {
             coords: $work_coords,
-            name: $city,
+            name: $work_name,
             latitude: ($parts.0 | into float),
             longitude: ($parts.1 | into float)
         }
@@ -313,10 +320,10 @@ export def get_location [--home(-h),--ubb(-b)] {
                 latitude: $ip_info.lat,
                 longitude: $ip_info.lon
             }
-        } else if ($last_loc != null) {
+        } else if ($last_loc != null and ($last_loc.name | is-not-empty) and ($last_loc.name != "Vilcun") and ($last_loc.name != "Unknown")) {
             {
                 coords: $"($last_loc.latitude),($last_loc.longitude)",
-                name: (if ($last_loc.name | is-not-empty) { $last_loc.name } else { "Unknown" }),
+                name: $last_loc.name,
                 latitude: ($last_loc.latitude | into float),
                 longitude: ($last_loc.longitude | into float)
             }
@@ -324,7 +331,7 @@ export def get_location [--home(-h),--ubb(-b)] {
             let parts = ($home_coords | split row ",")
             {
                 coords: $home_coords,
-                name: "Unknown",
+                name: $home_name,
                 latitude: ($parts.0 | into float),
                 longitude: ($parts.1 | into float)
             }

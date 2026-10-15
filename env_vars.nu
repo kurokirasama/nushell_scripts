@@ -51,8 +51,10 @@ $env.MY_ENV_VARS = $env.MY_ENV_VARS
   | upsert ips ($base_linux | path join "ips.json")
   | upsert home_wifi "Home_WiFi"
   | upsert home_loc "0.000000,0.000000"
+  | upsert home_name "San Pedro de la Paz"
   | upsert work_wifi "Work_WiFi"
   | upsert work_loc "0.000000,0.000000"
+  | upsert work_name "Concepción"
   | upsert not_home_wifi "Mobile_Hotspot"
   | upsert mail "user@example.com"
   | upsert mail_ubb "user_work@example.com"
@@ -86,7 +88,7 @@ $env.MY_ENV_VARS = $env.MY_ENV_VARS
 $env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert hosts (try { try { open $env.MY_ENV_VARS.ips | columns } catch { [] } } catch { [] })
 
 # default gemini model, initialized with default and updated dynamically by ai_google.nu export-env
-$env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert gemini_model_to_use ($env.MY_ENV_VARS.gemini_model_to_use? | default "gemini-3.8-flash")
+$env.MY_ENV_VARS = $env.MY_ENV_VARS | upsert gemini_model_to_use ($env.MY_ENV_VARS.gemini_model_to_use? | default "gemini-4-argon")
 
 # NU_LIB_DIRS configuration
 let rich_dir = if $is_windows {
