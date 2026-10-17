@@ -13,6 +13,7 @@ const skills = [
 	"cron-email-summaries",
 	"cron-habitica-todos-summary",
 	"cron-manga-download-checker",
+	"cron-mpro-seguro-updates",
 	"cron-news-feed",
 	"cron-nnet-ga-researcher",
 	"cron-nvidia-kernel-audit",
@@ -82,11 +83,11 @@ export def --env "gmn cron" [
 
 # Free OpenCode Zen and Go model names for --model completions
 const opn_normal_models = [
-  "opencode/mimo-v2.5-free"
+  "opencode/deepseek-v4.1-flash-free"
+  "opencode/mimo-v2.6-flash-free"
   "opencode/nemotron-3.5-lightning-free"
-  "opencode/muse-spark-1.3-contributor-free"
-  "opencode/hy3-free"
   "opencode/nemotron-3-ultra-free"
+  "opencode/space-bunny-free"
   "opencode/big-pickle"
   "opencode/deepseek-v4-flash"
   "opencode/deepseek-v4-pro"
@@ -111,7 +112,7 @@ export def --env "opn cron" [
 
   # Resolve model before profile call so it can be forwarded
   let actual_model = if (not $ollama) and ($model | is-empty) {
-    "opencode/muse-spark-1.3-contributor-free"
+    "opencode/deepseek-v4.1-flash-free"
   } else if ($model | is-not-empty) {
     $model
   } else {
