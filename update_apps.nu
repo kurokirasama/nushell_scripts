@@ -2885,21 +2885,6 @@ export def "apps-update cliamp" [] {
         sudo cliamp upgrade
 }
 
-#update zed editor
-export def "apps-update zed" [] {
-  if (is-arch-family) {
-    print (echo-g "Updating zed on Arch/CachyOS via paru/pacman...")
-    if (which paru | is-not-empty) {
-      ^paru -S --needed --noconfirm zed
-    } else {
-      ^sudo pacman -S --needed --noconfirm zed
-    }
-  } else {
-    print (echo-g "Updating zed via official curl installer...")
-    do { ^curl -f https://zed.dev/install.sh | sh } | complete
-  }
-}
-
 #update ghostty terminal
 export def "apps-update ghostty" [] {
   if (is-arch-family) {
