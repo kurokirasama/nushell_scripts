@@ -673,7 +673,8 @@ let fzf_external_completer = {|place|
 
 # Guard against re-sourcing: wrapping the completer multiple times would
 # nest wrappers and grow the call chain on every reload.
-if ($env.__fzf_completer_registered? | default false) != true {
+let fzf_registered = ($env.__fzf_completer_registered? | default false | into bool --relaxed)
+if (not $fzf_registered) {
 
   # Get the currently configured external completer, if any exists
   let previous_external_completer = $env.config? | get completions? | get external? | get completer?

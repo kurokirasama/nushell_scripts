@@ -52,7 +52,8 @@ $env.config.table.missing_value_symbol = (char -u e374)
 let hooks = {
     pre_prompt: [
         {||
-            if not ($env.__NU_STARTUP_SHOWN? | default false) and (($nu.startup-time? | default 0ns) > 0ns) {
+            let startup_shown = ($env.__NU_STARTUP_SHOWN? | default false | into bool --relaxed)
+            if (not $startup_shown) and (($nu.startup-time? | default 0ns) > 0ns) {
                 $env.__NU_STARTUP_SHOWN = true
                 rich print $"[green]⚡ Startup time:[/] [bold cyan]($nu.startup-time)[/]"
             }
@@ -130,6 +131,18 @@ let hooks = {
                     apps-update from-todos
                 } catch { |err|
                     print (echo-r $"[apps-update] Software updates check warning: ($err.msg)")
+                }
+
+                for account in ["iesubb" "kurokirasama"] {
+                    try {
+                        let health = (check-token-health $account)
+                        if not ($health.valid? | default false) {
+                            print (echo-r $"[YouTube OAuth] ($health.message)")
+                            yt-oauth-login $account
+                        }
+                    } catch { |err|
+                        print (echo-r $"[YouTube OAuth] ($account) check warning: ($err.msg)")
+                    }
                 }
             }
         }

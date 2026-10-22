@@ -73,7 +73,7 @@ export def "vm-cachyos run" [
     }
 
     print $"Booting CachyOS VM from disk ($disk)..."
-    print $"Configuration: ($ram) RAM, ($cores) CPU Cores, VirtIO-GPU (GL On)"
+    print $"Configuration: ($ram) RAM, ($cores) CPU Cores, VirtIO-GPU \(GL On\)"
 
     let args = [
         "-enable-kvm",

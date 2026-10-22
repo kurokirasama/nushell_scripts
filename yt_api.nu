@@ -586,6 +586,17 @@ def yt-oauth-refresh-token [refresh_token: string, account: string = "default"] 
     $full_tokens
 }
 
+# Human-readable label for a YouTube account identifier.
+# Parameters: account - account key ("default"/"kurokirasama" for the personal channel).
+# Example: (yt-account-label "iesubb") -> "iesubb (Channel)"
+export def yt-account-label [account: string = "default"]: nothing -> string {
+    if ($account in ["default" "kurokirasama" ""]) {
+        "kurokirasama (Personal)"
+    } else {
+        $"($account) \(Channel\)"
+    }
+}
+
 # Initiates interactive OAuth login and token exchange for a specified YouTube account.
 #
 # Examples:
@@ -594,7 +605,7 @@ def yt-oauth-refresh-token [refresh_token: string, account: string = "default"] 
 export def yt-oauth-login [
     account: string = "default" # Target account identifier (default: "default")
 ] {
-    let account_label = if ($account == "default" or $account == "kurokirasama") { "kurokirasama (Personal)" } else { $"($account) (Channel)" }
+    let account_label = yt-account-label $account
     try {
         rich rule $"YouTube OAuth Login: [bold magenta]($account_label)[/]" --style "bold cyan"
     } catch {
@@ -747,4 +758,50 @@ export def "yt-api status" [
             action_required: $"Run: ($login_cmd)"
         }
     }
+}
+# Pure decision record for a token-health check.
+# Parameters: account - account key; status_valid - result of yt-api status; refresh_ok - unattended refresh succeeded.
+# Example: (token-health-record "iesubb" false true).valid -> true
+export def token-health-record [account: string, status_valid: bool, refresh_ok: bool]: nothing -> record {
+    if $status_valid {
+        { valid: true, account: $account, message: $"OAuth token for '($account)' is valid." }
+    } else if $refresh_ok {
+        { valid: true, account: $account, message: $"OAuth token for '($account)' was expired and has been refreshed." }
+    } else {
+        { valid: false, account: $account, message: $"OAuth token for '($account)' is expired or missing, and unattended renewal failed." }
+    }
+}
+
+# Checks YouTube OAuth token health for an account, refreshing unattended when possible.
+# Parameters: account - "iesubb" checks the channel account; any other value checks the personal (default) token.
+# Example: check-token-health iesubb
+export def check-token-health [account: string = "iesubb"]: nothing -> record {
+    let stat = try {
+        if $account == "iesubb" {
+            yt-api status --ies
+        } else {
+            yt-api status
+        }
+    } catch { |err|
+        { valid: false, error: ($err | to nuon) }
+    }
+
+    let status_valid = ($stat.valid? | default false)
+    # Strictly unattended: refresh via the refresh token only, never the
+    # interactive authorization fallback (yt-get-access-token may prompt).
+    let refresh_ok = if $status_valid or not ($stat.exists? | default false) {
+        false
+    } else {
+        try {
+            let tokens = (load-tokens $account)
+            if ("refresh_token" in $tokens) and not ($tokens.refresh_token | is-empty) {
+                let refreshed = (yt-oauth-refresh-token $tokens.refresh_token $account)
+                ($refreshed != null) and ("access_token" in $refreshed)
+            } else {
+                false
+            }
+        } catch { false }
+    }
+
+    token-health-record $account $status_valid $refresh_ok
 }

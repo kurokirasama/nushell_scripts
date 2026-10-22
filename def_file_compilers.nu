@@ -72,11 +72,18 @@ export def my-pandoc [
 ] {
   let file_name = get-input $in $file -n
   let file_base_name = $file_name | path parse | get stem
+  let nu_xml = [$env.MY_ENV_VARS.linux_backup "nu.xml"] | path join
+  let nushell_xml = [$env.MY_ENV_VARS.linux_backup "nushell.xml"] | path join
+  let syntax_args = if ($nu_xml | path exists) and ($nushell_xml | path exists) {
+    [--syntax-definition $nu_xml --syntax-definition $nushell_xml]
+  } else {
+    []
+  }
 
   if $pandoc_cross_ref {
-      pandoc --quiet $file_name -o $"($file_base_name).pdf" --pdf-engine=/usr/bin/xelatex -F mermaid-filter -F pandoc-crossref --number-sections --syntax-highlighting $env.MY_ENV_VARS.pandoc_theme
+      pandoc --quiet $file_name -o $"($file_base_name).pdf" --pdf-engine=/usr/bin/xelatex -F mermaid-filter -F pandoc-crossref --number-sections ...$syntax_args --syntax-highlighting $env.MY_ENV_VARS.pandoc_theme
   } else {
-      pandoc --quiet $file_name -o $"($file_base_name).pdf" --pdf-engine=/usr/bin/xelatex -F mermaid-filter --number-sections --syntax-highlighting $env.MY_ENV_VARS.pandoc_theme
+      pandoc --quiet $file_name -o $"($file_base_name).pdf" --pdf-engine=/usr/bin/xelatex -F mermaid-filter --number-sections ...$syntax_args --syntax-highlighting $env.MY_ENV_VARS.pandoc_theme
   }
 
   if $open {

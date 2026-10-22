@@ -127,6 +127,14 @@ export def "apps-update nushell" [
   try { update-nu-config } catch { }
 
   try {
+    let syntax_script = "/home/kira/Dropbox/Documentos/Clases/UBB/DataScienceAtNushell/scripts/generate_nu_syntax.nu"
+    if ($syntax_script | path exists) {
+      try { rich print "[cyan]Updating Pandoc Nushell syntax definitions...[/]" } catch { print (echo-g "\nUpdating Pandoc Nushell syntax definitions...") }
+      ^nu $syntax_script
+    }
+  } catch { }
+
+  try {
     "✓ Nushell binary, official plugins, and external modules updated and registered headlessly!\nNew terminal windows will immediately run the updated version with all plugins loaded."
       | rich panel --title "Nushell Update Complete" --box rounded --border-style green
   } catch {
@@ -1401,6 +1409,7 @@ export def github-app-update [
 
 
 #update pandoc
+@category sudo
 export def "apps-update pandoc" [
   --dry-run # Preview update without executing
 ] {
@@ -1425,6 +1434,7 @@ export def "apps-update pandoc" [
 }
 
 #update pandoc cross-ref
+@category sudo
 export def "apps-update pandoc-cross-ref" [
   --dry-run # Preview update without executing
 ] {
@@ -1511,6 +1521,7 @@ export def "apps-update monocraft" [
 }
 
 #update chrome
+@category sudo
 export def "apps-update chrome" [] {
   if (is-arch-family) {
     print (echo-g "Updating google-chrome on Arch/CachyOS via paru...")
@@ -1814,6 +1825,7 @@ export def "apps-update ttyplot" [
 }
 
 #update vivaldi
+@category sudo
 export def "apps-update vivaldi" [] {
   if (is-arch-family) {
     print (echo-g "Updating vivaldi on Arch/CachyOS via paru/pacman...")
@@ -1975,8 +1987,35 @@ export def "apps-update yewtube" [] {
 }
 
 #update yt-dlp (youtube-dl fork)
+@category sudo
 export def "apps-update yt-dlp" [] {
-  pipx upgrade yt-dlp
+  if (is-arch-family) {
+    let helper = if (which paru | is-not-empty) { "paru" } else { "pacman" }
+    let flags = ("-S --needed --noconfirm" | split row " ")
+    print (echo-g $"Updating yt-dlp on Arch/CachyOS via ($helper)...")
+    try {
+      if $helper == "paru" {
+        ^paru ...$flags yt-dlp
+      } else {
+        ^sudo pacman ...$flags yt-dlp
+      }
+    } catch {|e|
+      return-error $"yt-dlp update failed: ($e.msg)"
+    }
+    # The CachyOS installer exposes ~/.local/bin/yt-dlp for mpv's ytdl_hook;
+    # repair the symlink if it went missing (user-level, no sudo). Prefer the
+    # system binary, excluding the user's own ~/.local/bin entry.
+    let link = ($env.HOME | path join ".local" "bin" "yt-dlp")
+    let local_bin = ($env.HOME | path join ".local" "bin")
+    let candidates = (which yt-dlp | where {|c| ($c.path | path dirname) != $local_bin })
+    let system_bin = if ($candidates | is-empty) { "" } else { $candidates | get 0.path }
+    if not ($link | path exists) and ($system_bin | is-not-empty) {
+      mkdir ($link | path dirname)
+      ^ln -sf $system_bin $link
+    }
+  } else {
+    pipx upgrade yt-dlp
+  }
 }
 
 #update nchat (wsp)
@@ -2079,6 +2118,7 @@ export def "apps-update nchat" [
 }
 
 #update yt-x (YouTube TUI player)
+@category sudo
 export def "apps-update yt-x" [
   --force(-f)    # force reinstall even if up to date
   --dry-run      # simulate execution without making changes
@@ -2259,6 +2299,7 @@ export def "apps-update ttt" [] {
 }
 
 #update obsidian
+@category sudo
 export def "apps-update obsidian" [] {
   if (is-arch-family) {
     print (echo-g "Updating obsidian on Arch/CachyOS via paru/pacman...")
@@ -2376,6 +2417,7 @@ export def "apps-update ollama-models" [--dry-run]: nothing -> nothing {
 }
 
 #update nerd fonts, hack, ubuntu fonts
+@category sudo
 export def "apps-update fonts-nerd" [--dry-run]: nothing -> nothing {
   if $dry_run {
     print "[DRY-RUN] Would update Nerd Fonts, Hack, Ubuntu fonts and rebuild cache"
@@ -2409,6 +2451,7 @@ export def "apps-update fonts-nerd" [--dry-run]: nothing -> nothing {
 }
 
 #update omarchy framework
+@category sudo
 export def "apps-update omarchy" [--dry-run]: nothing -> any {
   if $dry_run {
     print "[DRY-RUN] Would update Omarchy framework"
@@ -2886,6 +2929,7 @@ export def "apps-update cliamp" [] {
 }
 
 #update ghostty terminal
+@category sudo
 export def "apps-update ghostty" [] {
   if (is-arch-family) {
     print (echo-g "Updating ghostty on Arch/CachyOS via paru/pacman...")
@@ -2900,13 +2944,17 @@ export def "apps-update ghostty" [] {
 }
 
 #update wallust
+@category sudo
 export def "apps-update wallust" [] {
   if (is-arch-family) {
-    print (echo-g "Updating wallust on Arch/CachyOS via paru/pacman...")
+    # the CachyOS install scripts use the AUR wallust-git variant; keep whichever is installed
+    let git_installed = (^pacman -Q wallust-git | complete | get exit_code) == 0
+    let pkg = if $git_installed { "wallust-git" } else { "wallust" }
+    print (echo-g $"Updating ($pkg) on Arch/CachyOS via paru/pacman...")
     if (which paru | is-not-empty) {
-      ^paru -S --needed --noconfirm wallust
+      ^paru -S --needed --noconfirm $pkg
     } else {
-      ^sudo pacman -S --needed --noconfirm wallust
+      ^sudo pacman -S --needed --noconfirm $pkg
     }
   } else {
     print (echo-g "Updating wallust via cargo...")
@@ -2915,6 +2963,7 @@ export def "apps-update wallust" [] {
 }
 
 #update hyprlock
+@category sudo
 export def "apps-update hyprlock" [] {
   if (is-arch-family) {
     print (echo-g "Updating hyprlock on Arch/CachyOS via paru/pacman...")
@@ -2929,6 +2978,7 @@ export def "apps-update hyprlock" [] {
 }
 
 #update awww wallpaper daemon
+@category sudo
 export def "apps-update awww" [] {
   if (is-arch-family) {
     print (echo-g "Updating awww on Arch/CachyOS via paru/pacman...")
@@ -2965,6 +3015,7 @@ export def "apps-update cachyos-semiautomatic-install" [] {
 }
 
 #update ripgrep
+@category sudo
 export def "apps-update ripgrep" [] {
   if (is-arch-family) {
     if (which paru | is-not-empty) {
@@ -2978,9 +3029,14 @@ export def "apps-update ripgrep" [] {
 }
 
 #update bat
+@category sudo
 export def "apps-update bat" [] {
   if (is-arch-family) {
-    if (which paru | is-not-empty) {
+    # the CachyOS install scripts install bat via cargo; ~/.cargo/bin shadows /usr/bin
+    if ("~/.cargo/bin/bat" | path expand | path exists) {
+      print (echo-g "Updating bat via cargo (cargo-installed binary detected)...")
+      cargo install --locked bat
+    } else if (which paru | is-not-empty) {
       ^paru -S --needed --noconfirm bat
     } else {
       ^sudo pacman -S --needed --noconfirm bat
@@ -2991,6 +3047,7 @@ export def "apps-update bat" [] {
 }
 
 #update fd
+@category sudo
 export def "apps-update fd" [] {
   if (is-arch-family) {
     if (which paru | is-not-empty) {
@@ -3004,6 +3061,7 @@ export def "apps-update fd" [] {
 }
 
 #update eza
+@category sudo
 export def "apps-update eza" [] {
   if (is-arch-family) {
     if (which paru | is-not-empty) {

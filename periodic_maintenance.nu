@@ -93,6 +93,6 @@ export def "periodic-maintenance" [] {
             print -e $"[YouTube OAuth Alert] Account: ($yt_ies_status.account? | default 'iesubb') - Action Required: ($yt_ies_status.action_required? | default 'Run yt-oauth-login iesubb to authenticate.')"
         }
     } catch { |err|
-        print -e $"[YouTube OAuth] Check warning (IES): ($err.msg)"
+        print -e $"[YouTube OAuth] Check warning \(IES\): ($err.msg)"
     }
 }

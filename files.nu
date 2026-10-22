@@ -328,16 +328,40 @@ export def lg [
 }
 
 #ls sorted by name
-export def l [--du(-d),--sort_by_size(-s)] {
-  if $du {
-    if $sort_by_size {
-      ls --du | sort-by -i type name | sort-by size
+export def l [
+  pattern?: glob
+  --all(-a)
+  --du(-d)
+  --sort_by_size(-s)
+] {
+  (if ($pattern | is-empty) {
+    if $all and $du {
+      ls -a --du
+    } else if $all {
+      ls -a
+    } else if $du {
+      ls --du
     } else {
-      ls --du | sort-by -i type name
+      ls
     }
   } else {
-    ls | sort-by -i type name 
-  }
+    if $all and $du {
+      ls -a --du $pattern
+    } else if $all {
+      ls -a $pattern
+    } else if $du {
+      ls --du $pattern
+    } else {
+      ls $pattern
+    }
+  })
+  | if ($du and $sort_by_size) {
+      sort-by -i type name | sort-by size
+    } else if $sort_by_size {
+      sort-by size
+    } else {
+      sort-by -i type name
+    }
 }
 
 export def lc [] {
