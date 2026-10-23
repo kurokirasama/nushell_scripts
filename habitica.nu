@@ -1104,7 +1104,7 @@ export def "h complete-todos" [
 
     if ($todos | is-empty) {
         try { rich print "[dim]No incomplete todo tasks found to complete.[/]" } catch { print (echo-r "No incomplete todo tasks found to complete.") }
-        return
+        return {completed: 0, failed: 0, total: 0}
     }
 
     let selected_todos = if ($ids != null) {
@@ -1152,6 +1152,8 @@ export def "h complete-todos" [
                 | rich panel --title "Habitica To-Dos Complete" --border-style green
         } catch { }
     }
+
+    {completed: $final_completed, failed: $final_failed, total: $total_selected}
 }
 
 # Define the function to score habits

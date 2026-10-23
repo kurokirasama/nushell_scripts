@@ -3790,7 +3790,7 @@ export def is-app-installed [app_name: string]: nothing -> bool {
   }
 
   for c in $candidates {
-    if (help commands | get name | find $c | is-not-empty) {
+    if (help commands | get name | where {|n| ($n == $c) and (not ($n | str starts-with "apps-update "))} | is-not-empty) {
       return true
     }
   }
@@ -3800,6 +3800,31 @@ export def is-app-installed [app_name: string]: nothing -> bool {
   }
 
   false
+}
+
+# Patterns that mean an update failed because the app (or a prerequisite) is absent.
+# Keep these specific: a bare "not installed" also appears in install attempts that
+# later fail for unrelated reasons (e.g. "ttt is not installed. Installing...").
+const NOT_INSTALLED_SIGNATURES = [
+  "unable to locate package"
+  "has no installation candidate"
+  "no installation candidate"
+  "target not found"
+  "package not found"
+  "could not find package"
+  "no such package"
+  "cannot find package"
+  "could not find `"
+  "could not find a version that satisfies"
+  "not found - get"
+  "command not found"
+  "matlab root detection failed"
+]
+
+# Returns the matched not-installed signature (audit trail) or "" when unrelated.
+export def not-installed-failure [log: string]: nothing -> string {
+  let haystack = ($log | str lowercase)
+  $NOT_INSTALLED_SIGNATURES | where {|sig| $haystack | str contains $sig } | first | default ""
 }
 
 #update apps from habitica todos
@@ -3917,30 +3942,54 @@ export def "apps-update from-todos" [--dry-run, --skip-sudo] {
   for todo in $matched {
     print $"(ansi green)Updating ($todo.update_command)...(ansi reset)"
     let temp_file = mktemp
+    let log_file = mktemp
     # Wrap the apps-update call with try/catch and explicit exit so the nu process
     # exit code reliably reflects success (0) or failure (1). Without this, the
     # nu process may exit non-zero even after a successful update when the last
     # external command in the subcommand returns a non-zero status code.
     let nu_script = ("try { apps-update " + $todo.update_command + "; exit 0 } catch { exit 1 }")
-    let update_cmd = ("nu --config ~/.config/nushell/config.nu --env-config ~/.config/nushell/env.nu -c '" + $nu_script + "'; echo $? > " + $temp_file)
+    # tee keeps the live output while capturing it for failure classification;
+    # ${PIPESTATUS[0]} preserves the nu exit code ($? would be tee's status).
+    let update_cmd = ("nu --config ~/.config/nushell/config.nu --env-config ~/.config/nushell/env.nu -c '" + $nu_script + "' 2>&1 | tee " + $log_file + "; echo ${PIPESTATUS[0]} > " + $temp_file)
     run-external "bash" "-c" $update_cmd
     let exit_code = try { open $temp_file | str trim | into int } catch { 1 }
-    try { rm -f $temp_file } catch {}
+    let failure_log = if $exit_code == 0 { "" } else { try { open --raw $log_file } catch { "" } }
+    try { rm -f $temp_file $log_file } catch {}
 
     if $exit_code == 0 {
-      h complete-todos --ids [$todo.todo_id]
+      let marked = (h complete-todos --ids [$todo.todo_id])
+      let todo_done = (($marked | get -o failed | default 0) == 0)
+      if not $todo_done { print ((ansi red) + "warning: update succeeded but the todo could not be completed" + (ansi reset)) }
       print "done"
-      $results = $results | append {todo_text: $todo.todo_text, update_command: $todo.update_command, status: "completed"}
+      $results = $results | append {todo_text: $todo.todo_text, update_command: $todo.update_command, status: "completed", todo_completed: $todo_done}
     } else {
-      print $"(ansi red)failed(ansi reset)"
-      $results = $results | append {todo_text: $todo.todo_text, update_command: $todo.update_command, status: "failed"}
+      let reason = (not-installed-failure $failure_log)
+      if ($reason | is-not-empty) {
+        let marked = (h complete-todos --ids [$todo.todo_id])
+        let todo_done = (($marked | get -o failed | default 0) == 0)
+        if not $todo_done { print ((ansi red) + "warning: the todo could not be completed" + (ansi reset)) }
+        print ((ansi yellow) + "Not installed (" + $reason + "). Todo completed." + (ansi reset))
+        $results = $results | append {todo_text: $todo.todo_text, update_command: $todo.update_command, status: "not-installed", todo_completed: $todo_done}
+      } else {
+        print $"(ansi red)failed(ansi reset)"
+        $results = $results | append {todo_text: $todo.todo_text, update_command: $todo.update_command, status: "failed"}
+      }
     }
   }
 
   let completed = $results | where status == "completed" | length
+  let not_installed = $results | where status == "not-installed" | length
   let failed = $results | where status == "failed" | length
+  let completion_failures = $results | where {|r| ($r.todo_completed? | default true) == false } | length
 
-  print $"\nSummary: ($completed) completed, ($failed) failed"
+  print $"\nSummary: ($completed) completed, ($not_installed) not installed (completed), ($failed) failed"
+  if $completion_failures > 0 {
+    print $"(ansi red)($completion_failures) update(s) succeeded but their Habitica todos could not be completed.(ansi reset)"
+  }
+  if $not_installed > 0 {
+    print "\nNot installed (todos completed):"
+    print ($results | where status == "not-installed" | select todo_text update_command | table)
+  }
   if $failed > 0 {
     print "\nFailed updates:"
     print ($results | where status == "failed" | select todo_text update_command | table)
