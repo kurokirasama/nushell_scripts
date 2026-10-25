@@ -1061,11 +1061,20 @@ export def update-agy-trusted-folders [
     print (echo-g "Successfully updated trustedWorkspaces in settings_antigravity.json")
 }
 
+# Render a partition for the mount-usb picker: "<label> (<path>)".
+export def usb-partition-display [part: record]: nothing -> string {
+  let raw = ($part.label? | default "")
+  let label = if ($raw | is-empty) { "" } else { $raw | into string | str trim }
+  let shown = if ($label | is-empty) { "<no label>" } else { $label }
+  $shown + " (" + $part.path + ")"
+}
+
 # Mount an unmounted USB partition by its volume label under ~/media.
 # Repairs dirty NTFS volumes with ntfsfix then retries with a force mount.
+# With no label or --device, picks from a native fuzzy `input list` (no fzf).
 # Example: mount-usb "Seagate Portable Drive"
 export def mount-usb [
-  label?: string # volume label as shown by lsblk; fuzzy picker when empty
+  label?: string # volume label as shown by lsblk; interactive picker when empty
   --device(-d): string # explicit partition like /dev/sda1, overrides label lookup
   --mount-base(-m): string = "~/media" # base dir for label folder (~/media -> /run/media/kira)
 ]: nothing -> record {
@@ -1083,9 +1092,14 @@ export def mount-usb [
   } else if ($label | is-not-empty) {
     $all_parts | where label == $label | get 0?
   } else {
-    let pick = $all_parts | get label | str join (char newline) | ^fzf --prompt "USB label> " | str trim
-    if ($pick | is-empty) { return-error "no label selected" }
-    $all_parts | where label == $pick | get 0?
+    if ($all_parts | is-empty) { return-error "no removable partitions found" }
+    let pick = try {
+      $all_parts | input list --fuzzy --display {|p| usb-partition-display $p } "USB drive> "
+    } catch {
+      return-error "interactive picker unavailable; pass --device /dev/sdXN"
+    }
+    if ($pick | is-empty) { return-error "no drive selected; pass --device /dev/sdXN" }
+    $pick
   }
 
   if $part == null { return-error "partition not found, check lsblk -o PATH,LABEL" }
