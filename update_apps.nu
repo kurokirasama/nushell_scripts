@@ -418,6 +418,13 @@ export def update-nu-config [] {
     $"\n($nu_lines)\n" | save --append $nu.config-path
   }
 
+  if not $is_windows {
+    let carapace_installer = ($nu_scripts | path join "install_carapace_init.nu")
+    if ($carapace_installer | path exists) {
+      try { ^nu $carapace_installer } catch { }
+    }
+  }
+
   try {
     rich print "  [bold green]✓[/] Nushell configuration updated successfully."
   } catch {
@@ -4022,6 +4029,24 @@ export def "apps-update fzf" [] {
   print (echo-g "installing fzf...")
   cd $fzf_dir
   ./install --all
+}
+
+#update carapace completer
+export def "apps-update carapace" [] {
+  let is_windows = (sys host | get name | str lowercase) == "windows"
+  if $is_windows {
+    return
+  }
+  let default_scripts_dir = ("~/Yandex.Disk/my_scripts/nushell" | path expand)
+  let nu_scripts = ($env.MY_ENV_VARS?.nu_scripts? | default $default_scripts_dir)
+  let installer = ($nu_scripts | path join "install_carapace_init.nu")
+  if ($installer | path exists) {
+    try {
+      ^nu $installer
+    } catch {|e|
+      print (echo-r $"Failed to update carapace init: ($e.msg)")
+    }
+  }
 }
 
 #update oxicord
