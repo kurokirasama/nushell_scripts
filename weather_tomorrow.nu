@@ -53,6 +53,35 @@ export def get-weather-prompt [
     }
 }
 
+# True when cached weather is still within its refresh interval.
+# The 60s tolerance matters: last_weather_time is stamped after the fetch completes,
+# so a cron run at the exact interval boundary (e.g. 15:00:00 with a 14:30:05 cache)
+# would otherwise see the cache as still fresh and skip, halving the refresh rate.
+export def weather-cache-fresh [
+    last_weather_time: datetime,
+    interval: duration,
+    --now: datetime
+]: nothing -> bool {
+    let reference = ($now | default (date now))
+    ($last_weather_time + $interval - 60sec) >= $reference
+}
+
+# Persist a weather cache record with provenance.
+# `hostname` is always set; `address` only when the caller supplied --address.
+export def weather-save-cache [
+    file: string,
+    address?: string
+]: record -> nothing {
+    let rec = $in
+    let with_host = ($rec | upsert hostname (sys host | get hostname))
+    let with_addr = if ($address | is-not-empty) {
+        $with_host | upsert address $address
+    } else {
+        $with_host
+    }
+    $with_addr | save -f $file
+}
+
 # Get weather for right command prompt and system widgets
 export def --env get_weather_by_interval [
     interval_weather:duration, 
@@ -90,7 +119,7 @@ export def --env get_weather_by_interval [
         }
 
         let time_not_expired = try {
-            (($LAST_WEATHER_TIME | into datetime) + ($interval_weather | into duration)) >= (date now)
+            weather-cache-fresh ($LAST_WEATHER_TIME | into datetime) $interval_weather
         } catch {
             false
         }
@@ -127,7 +156,7 @@ export def --env get_weather_by_interval [
                 $last_runtime_data
                 | upsert location $existing_loc
                 | upsert network { status: $net_status, color: $net_color }
-                | save -f $weather_runtime_file
+                | weather-save-cache $weather_runtime_file $address
             }
             return (if ($w | describe) =~ "record" { $"($w.Icon) ($w.Temperature)" } else { $w })
         }
@@ -138,7 +167,7 @@ export def --env get_weather_by_interval [
             let w = try { $last_runtime_data | get weather } catch { "⛅ --°C" }
             $last_runtime_data
             | upsert network { status: $net_status, color: $net_color }
-            | save -f $weather_runtime_file
+            | weather-save-cache $weather_runtime_file $address
             return (if ($w | describe) =~ "record" { $"($w.Icon) ($w.Temperature)" } else { $w })
         }
         
@@ -160,7 +189,7 @@ export def --env get_weather_by_interval [
             status: $net_status,
             color: $net_color
         }
-        | save -f $weather_runtime_file
+        | weather-save-cache $weather_runtime_file $address
     
         return $formatted_weather
     } else {
@@ -220,7 +249,7 @@ export def --env get_weather_by_interval [
             }
         } 
     
-        $WEATHER_DATA | save -f $weather_runtime_file
+        $WEATHER_DATA | weather-save-cache $weather_runtime_file $address
         return $formatted_weather
     }
 }
