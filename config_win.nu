@@ -274,6 +274,7 @@ let new_keybinds_names = ["alias_menu"
     "copy_command"
     "select_file"
     "select_file_recursive"
+    "select_file_recursive_alt_f"
     "change_dir"
     "history_search"
     "delete_one_word_backward"
@@ -395,8 +396,20 @@ let new_keybinds = [
     },
     {
         name: select_file_recursive
-        modifier: control
-        keycode: char_t
+        modifier: alt_shift
+        keycode: char_f
+        mode: [emacs, vi_normal, vi_insert]
+        event: [
+            {
+                send: executehostcommand
+                cmd: "let f = (keybind-list-files-recursive | input list -f (echo-g 'Select file (recursive):')); if ($f | is-not-empty) { commandline edit --append (keybind-format-arg $f); commandline set-cursor --end }"
+            }
+        ]
+    },
+    {
+        name: select_file_recursive_alt_f
+        modifier: alt
+        keycode: char_F
         mode: [emacs, vi_normal, vi_insert]
         event: [
             {
