@@ -59,3 +59,4 @@ export use ./agents_longterm_memory.nu *
 export use ./tv_calendar.nu *
 export use ./linecast_completions.nu *
 export use ./manga.nu *
+export use ./keybinding_helpers.nu *

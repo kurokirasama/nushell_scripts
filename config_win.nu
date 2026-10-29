@@ -272,8 +272,10 @@ let new_keybinds_names = ["alias_menu"
     "completion_menu" 
     "ide_completion_menu" 
     "copy_command"
-    "change_dir_with_fzf"
-    "select_file_fzf"
+    "select_file"
+    "select_file_recursive"
+    "change_dir"
+    "history_search"
     "delete_one_word_backward"
     "insert_view_code"
     "insert_let"
@@ -380,26 +382,48 @@ let new_keybinds = [
         }
     },
     {
-        name: change_dir_with_fzf
+        name: select_file
+        modifier: alt
+        keycode: char_f
+        mode: [emacs, vi_normal, vi_insert]
+        event: [
+            {
+                send: executehostcommand
+                cmd: "let f = (keybind-list-files | input list -f (echo-g 'Select file:')); if ($f | is-not-empty) { commandline edit --append (keybind-format-arg $f); commandline set-cursor --end }"
+            }
+        ]
+    },
+    {
+        name: select_file_recursive
+        modifier: control
+        keycode: char_t
+        mode: [emacs, vi_normal, vi_insert]
+        event: [
+            {
+                send: executehostcommand
+                cmd: "let f = (keybind-list-files-recursive | input list -f (echo-g 'Select file (recursive):')); if ($f | is-not-empty) { commandline edit --append (keybind-format-arg $f); commandline set-cursor --end }"
+            }
+        ]
+    },
+    {
+        name: change_dir
         modifier: alt
         keycode: char_c
-        mode: emacs
+        mode: [emacs, vi_normal, vi_insert]
         event: {
-          send: executehostcommand,
-          cmd: "cd (ls | where type == dir | each { |item| $item.name | str prepend (ansi -e { fg: '#5555FF' attr: b})} | input list -f (echo-g 'Select dir:'))"
+            send: executehostcommand
+            cmd: "let d = (keybind-list-dirs | input list -f (echo-g 'Select dir:')); if ($d | is-not-empty) { cd $d }"
         }
     },
     {
-        name: select_file_fzf
-        modifier: alt
-        keycode: char_f
-        mode: emacs
-        event: [
-          {
+        name: history_search
+        modifier: control
+        keycode: char_r
+        mode: [emacs, vi_normal, vi_insert]
+        event: {
             send: executehostcommand
-            cmd: "let file = ls | where type == file | sort-by name | get name | input list -f (echo-g 'Select file:');commandline edit --append $'\'($file)\'';commandline set-cursor --end"
-          }
-        ]
+            cmd: "let c = (keybind-list-history | input list -f (echo-g 'Search history:')); if ($c | is-not-empty) { commandline edit --replace $c; commandline set-cursor --end }"
+        }
     },
     {
         name: delete_one_word_backward

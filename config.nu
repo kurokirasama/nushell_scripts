@@ -271,6 +271,10 @@ let new_keybinds_names = ["alias_menu"
     "completion_menu" 
     "ide_completion_menu"
     "copy_command"
+    "select_file"
+    "select_file_recursive"
+    "change_dir"
+    "history_search"
     "delete_one_word_backward"
     "insert_view_code"
     "insert_let"
@@ -377,6 +381,50 @@ let new_keybinds = [
         event: {
             send: executehostcommand
             cmd: "commandline | copy; commandline edit --append ' # copied'"
+        }
+    },
+    {
+        name: select_file
+        modifier: alt
+        keycode: char_f
+        mode: [emacs, vi_normal, vi_insert]
+        event: [
+            {
+                send: executehostcommand
+                cmd: "let f = (keybind-list-files | input list -f (echo-g 'Select file:')); if ($f | is-not-empty) { commandline edit --append (keybind-format-arg $f); commandline set-cursor --end }"
+            }
+        ]
+    },
+    {
+        name: select_file_recursive
+        modifier: control
+        keycode: char_t
+        mode: [emacs, vi_normal, vi_insert]
+        event: [
+            {
+                send: executehostcommand
+                cmd: "let f = (keybind-list-files-recursive | input list -f (echo-g 'Select file (recursive):')); if ($f | is-not-empty) { commandline edit --append (keybind-format-arg $f); commandline set-cursor --end }"
+            }
+        ]
+    },
+    {
+        name: change_dir
+        modifier: alt
+        keycode: char_c
+        mode: [emacs, vi_normal, vi_insert]
+        event: {
+            send: executehostcommand
+            cmd: "let d = (keybind-list-dirs | input list -f (echo-g 'Select dir:')); if ($d | is-not-empty) { cd $d }"
+        }
+    },
+    {
+        name: history_search
+        modifier: control
+        keycode: char_r
+        mode: [emacs, vi_normal, vi_insert]
+        event: {
+            send: executehostcommand
+            cmd: "let c = (keybind-list-history | input list -f (echo-g 'Search history:')); if ($c | is-not-empty) { commandline edit --replace $c; commandline set-cursor --end }"
         }
     },
     {

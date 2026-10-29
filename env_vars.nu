@@ -169,6 +169,11 @@ $env.PATH = (
 
 $env.PATH = $env.PATH | uniq | where {path exists}
 
+# Disarm _fzf_integration.nu keybindings in favor of native input list keybindings
+$env.FZF_CTRL_T_COMMAND = ""
+$env.FZF_CTRL_R_COMMAND = ""
+$env.FZF_ALT_C_COMMAND = ""
+
 $env.PWD_SIZE = ""
 $env.GIT_STATUS = 0
 
