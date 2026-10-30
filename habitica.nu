@@ -1004,7 +1004,7 @@ export def "h add" [
             }
         } else {
             for $day in $days_of_week {
-                let repeat_day = input $"Repeat on ($day)? (y/n): "
+                let repeat_day = input $"Repeat on ($day)? \(y/n\): "
                 if ($repeat_day == "y") {
                     $repeats = ($repeats | upsert $day true)
                 } else {

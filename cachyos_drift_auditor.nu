@@ -1265,7 +1265,7 @@ export def cachyos-drift-auditor [
         )
         if ($reg_res.registered? | default false) {
             if $dry_run {
-                print-rich $"  [yellow]![/] (DRY-RUN) Would auto-register new host profile: [bold]($audit_res.target_host)[/] in package_lists.json"
+                print-rich $"  [yellow]![/] \(DRY-RUN\) Would auto-register new host profile: [bold]($audit_res.target_host)[/] in package_lists.json"
             } else {
                 print-rich $"  [green]✓[/] Auto-registered new host profile: [bold]($audit_res.target_host)[/] in package_lists.json"
             }

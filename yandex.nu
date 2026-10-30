@@ -243,7 +243,7 @@ def _ydx-resolve-path [path: string] {
     
     let resolved = (try {
         let relative = $expanded | path relative-to $root
-        $"(/$relative)"
+        ("/" + $relative)
     } catch {
         $path
     })

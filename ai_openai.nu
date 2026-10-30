@@ -368,7 +368,7 @@ export def dall_e [
           }
       },
     
-    _ => {return-error $"$(task) not available!!!"}
+    _ => {return-error $"($task) not available!!!"}
   }
 }
 

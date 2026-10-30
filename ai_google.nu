@@ -1121,7 +1121,7 @@ export def "ai google-interaction watch" [
         $selection.id
     }
 
-    print (echo-g $"Watching interaction ($interaction_id)... (Polling every ($interval)s)")
+    print (echo-g $"Watching interaction ($interaction_id)... \(Polling every ($interval)s\)")
     mut current_status = "in_progress"
     mut response: any = null
 

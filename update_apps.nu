@@ -843,7 +843,7 @@ def run-cachyos-workflow [skip_mirrors: bool, skip_cache_cleanup: bool, skip_aur
     if (which pacman | is-not-empty) {
       try {
         if $dry_run {
-          print $"[DRY-RUN] Would execute: pacman -Rns --noconfirm (pacman -Qtdq) [orphans]"
+          print $"[DRY-RUN] Would execute: pacman -Rns --noconfirm \(pacman -Qtdq\) [orphans]"
         } else {
           let orphans = ^pacman -Qtdq | complete | get stdout | str trim
           if ($orphans | is-not-empty) {
@@ -873,7 +873,7 @@ def run-arch-workflow [skip_cache_cleanup: bool, skip_aur: bool, dry_run: bool] 
   if (which pacman | is-not-empty) {
     try {
       if $dry_run {
-        print $"[DRY-RUN] Would execute: pacman -Rns --noconfirm (pacman -Qtdq) [orphans]"
+        print $"[DRY-RUN] Would execute: pacman -Rns --noconfirm \(pacman -Qtdq\) [orphans]"
       } else {
         let orphans = ^pacman -Qtdq | complete | get stdout | str trim
         if ($orphans | is-not-empty) {
@@ -3319,7 +3319,7 @@ export def detect-matlab-root [--matlab-timeout: int = 15, --verbose] {
     # also try direct parent without realpath (in case realpath failed)
     let candidate2 = ($matlab_path | path dirname | path dirname)
     if ($candidate2 != $candidate) and ($candidate2 | path exists) and (($candidate2 | path join "bin/matlab" | path exists)) {
-      if $verbose { try { print (echo-g $"  ✓ Found via which (direct): ($candidate2)") } catch { print $"  ✓ Found via which (direct): ($candidate2)" } } else { try { print (echo-c $"  ⚠ Batch failed, using fallback which → ($candidate2)" "yellow") } catch { print $"  ⚠ Batch failed, using fallback which → ($candidate2)" } }
+      if $verbose { try { print (echo-g $"  ✓ Found via which \(direct\): ($candidate2)") } catch { print $"  ✓ Found via which \(direct\): ($candidate2)" } } else { try { print (echo-c $"  ⚠ Batch failed, using fallback which → ($candidate2)" "yellow") } catch { print $"  ⚠ Batch failed, using fallback which → ($candidate2)" } }
       return $candidate2
     }
   } else {
@@ -3394,7 +3394,7 @@ export def "apps-update matlab-agentic-toolkit" [--matlab-timeout: int = 15, --n
 	}
 	if ($matlab_root | is-empty) {
 		let t2 = $matlab_timeout * 2
-		return-error $"MATLAB root detection failed. Tried: batch 1 (($matlab_timeout)s), batch retry (($t2)s), which matlab, common paths (/usr/local/MATLAB/R*, /opt/MATLAB/R*, ~/MATLAB/R*), nosplash (30s). Check: 'matlab' in PATH, license server reachable, run 'matlab -nodesktop' manually for diagnostics. Use -v for verbose output."
+		return-error $"MATLAB root detection failed. Tried: batch 1 (($matlab_timeout)s), batch retry (($t2)s), which matlab, common paths \(/usr/local/MATLAB/R*, /opt/MATLAB/R*, ~/MATLAB/R*\), nosplash \(30s\). Check: 'matlab' in PATH, license server reachable, run 'matlab -nodesktop' manually for diagnostics. Use -v for verbose output."
 	}
 	print (echo-g $"   → MATLAB root: ($matlab_root)")
 
@@ -3989,9 +3989,9 @@ export def "apps-update from-todos" [--dry-run, --skip-sudo] {
   let failed = $results | where status == "failed" | length
   let completion_failures = $results | where {|r| ($r.todo_completed? | default true) == false } | length
 
-  print $"\nSummary: ($completed) completed, ($not_installed) not installed (completed), ($failed) failed"
+  print $"\nSummary: ($completed) completed, ($not_installed) not installed \(completed\), ($failed) failed"
   if $completion_failures > 0 {
-    print $"(ansi red)($completion_failures) update(s) succeeded but their Habitica todos could not be completed.(ansi reset)"
+    print $"(ansi red)($completion_failures) update\(s\) succeeded but their Habitica todos could not be completed.(ansi reset)"
   }
   if $not_installed > 0 {
     print "\nNot installed (todos completed):"

@@ -617,7 +617,7 @@ export def yt-oauth-login [
     let token_file = (get-token-file $account)
 
     try {
-        $"[bold green]✓ Successfully authenticated account:[/] [bold magenta]($account_label)[/]\nToken file: [cyan]($token_file)[/]\nAccess token valid for: [bold yellow]1 hour[/] (auto-refreshes seamlessly via refresh token)"
+        $"[bold green]✓ Successfully authenticated account:[/] [bold magenta]($account_label)[/]\nToken file: [cyan]($token_file)[/]\nAccess token valid for: [bold yellow]1 hour[/] \(auto-refreshes seamlessly via refresh token\)"
         | rich panel --title $"OAuth Login Complete: ($account)" --box rounded --border-style green
     } catch {
         print $"(ansi green_bold)✓ Successfully logged in and saved tokens for account: (ansi magenta_bold)($account_label)(ansi reset)"
@@ -725,7 +725,7 @@ export def "yt-api status" [
 
     if $is_valid {
         try {
-            $"[bold green]✓ Account authenticated and valid:[/] [bold magenta]($account_label)[/]\nToken file: [dim]($token_file)[/]\nAccess token expires at: [yellow]($expires_at)[/]\n[dim green]Status: Ready for YouTube Data API v3 operations (auto-refreshes seamlessly)[/]"
+            $"[bold green]✓ Account authenticated and valid:[/] [bold magenta]($account_label)[/]\nToken file: [dim]($token_file)[/]\nAccess token expires at: [yellow]($expires_at)[/]\n[dim green]Status: Ready for YouTube Data API v3 operations \(auto-refreshes seamlessly\)[/]"
             | rich panel --title $"YouTube OAuth: ($account_label)" --box rounded --border-style green
         } catch {
             print $"(ansi green_bold)✓ YouTube OAuth: Account '(ansi magenta_bold)($account_label)(ansi green_bold)' is authenticated and valid.(ansi reset)"

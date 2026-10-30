@@ -171,6 +171,6 @@ export def stable_diffusion [
   #         }
   #     },
     
-  #   _ => {return-error $"$(task) not available!!!"}
+  #   _ => {return-error $"($task) not available!!!"}
   }
 }

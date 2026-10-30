@@ -905,7 +905,7 @@ export def system-cleanup [
         try { rich rule "3. Docker" --align left --style "bold cyan" } catch { print "\n--- 3. Docker ---" }
         let prune_cmd = if $aggressive { "docker system prune -a --volumes -f" } else { "docker system prune -f" }
         if $dry_run {
-            try { rich print $"  [yellow]DRY RUN:[/] Would run '($prune_cmd)' (requires sudo)" } catch { print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would run '($prune_cmd)' - requires sudo") }
+            try { rich print $"  [yellow]DRY RUN:[/] Would run '($prune_cmd)' \(requires sudo\)" } catch { print ((echo-c 'DRY RUN:' 'yellow' -b) + $" Would run '($prune_cmd)' - requires sudo") }
         } else {
             try { rich print $"  [red]Running:[/] ($prune_cmd)" } catch { print ((echo-r 'Running:') + $" ($prune_cmd)") }
             ^sudo bash -c $prune_cmd
