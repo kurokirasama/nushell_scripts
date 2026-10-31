@@ -196,7 +196,8 @@ export def "zoxide backup" [] {
 @search-terms zed backup
 export def "zed-backup" [] {
   cd $env.MY_ENV_VARS.debs
-  7z max zed_config ("~/.config/zed" | path expand)
+  try { rm -f zed_config.7z }
+  7z max zed_config ("~/.config/zed" | path expand) "-xr!context-mode" "-xr!*.bak" "-xr!*backup*"
 }
 
 #restore zed settings
