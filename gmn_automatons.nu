@@ -94,6 +94,7 @@ const opn_normal_models = [
   "opencode/deepseek-v4-pro"
   "opencode-go/deepseek-v4-pro"
   "opencode-go/deepseek-v4-flash"
+  "opencode-go/deepseek-v4.1-flash"
   "opencode-go/qwen3.7-max"
   "opencode-go/qwen3.7-plus"
 ]
