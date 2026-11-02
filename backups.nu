@@ -1,9 +1,31 @@
 use crypt.nu [nu-crypt]
 
+def echo-g [str: string] { $"(ansi -e { fg: '#00ff00' attr: b })($str)(ansi reset)" }
+def echo-y [str: string] { $"(ansi -e { fg: '#ffff00' attr: b })($str)(ansi reset)" }
+def echo-r [str: string] { $"(ansi -e { fg: '#ff0000' attr: b })($str)(ansi reset)" }
+
+# Resolve target operating system (cachyos vs ubuntu) with explicit override or auto-detection
+export def resolve-backup-os [explicit_os: string = ""]: nothing -> string {
+  if ($explicit_os | is-not-empty) {
+    let normalized = ($explicit_os | str lowercase | str trim)
+    if $normalized in ["cachyos", "cachy", "arch"] {
+      "cachyos"
+    } else if $normalized in ["ubuntu", "debian"] {
+      "ubuntu"
+    } else {
+      $normalized
+    }
+  } else if (is-cachyos) {
+    "cachyos"
+  } else {
+    "ubuntu"
+  }
+}
+
 #backup sublime settings
 @category backup
 @search-terms sublime
-export def "subl backup" [] {
+export def "subl backup" [--os: string = ""] {
   cd $env.MY_ENV_VARS.linux_backup
 
   let source_dir = "~/.config/sublime-text"
@@ -15,17 +37,19 @@ export def "subl backup" [] {
 #restore sublime settings
 @category backup
 @search-terms sublime
-export def "subl restore" [] {
+export def "subl restore" [--os: string = ""] {
   cd $env.MY_ENV_VARS.linux_backup
 
-  7z x sublime-installedPackages.7z -o/home/kira/.config/sublime-text/
-  7z x sublime-Packages.7z -o/home/kira/.config/sublime-text/
+  let dest = ($env.HOME | path join ".config" "sublime-text")
+  mkdir $dest
+  7z x sublime-installedPackages.7z $"-o($dest)/" -y
+  7z x sublime-Packages.7z $"-o($dest)/" -y
 }
 
 #backup nchat settings
 @category backup
 @search-terms nchat
-export def "nchat backup" [] {
+export def "nchat backup" [--os: string = ""] {
   cd $env.MY_ENV_VARS.linux_backup
 
   let source_dir = "~/.nchat" | path expand
@@ -36,40 +60,91 @@ export def "nchat backup" [] {
 #restore nchat settings
 @category backup
 @search-terms nchat
-export def "nchat restore" [] {
+export def "nchat restore" [--os: string = ""] {
   cd $env.MY_ENV_VARS.linux_backup
 
-  7z x nchat_config.7z -o/home/kira/.nchat
+  let dest = ($env.HOME | path join ".nchat")
+  mkdir $dest
+  7z x nchat_config.7z $"-o($dest)" -y
 }
 
 #backup gnome extensions settings
 @category backup
 @search-terms gnome
-export def "gnome-extensions backup" [output_file:string = "gnome_shell_extensions_backup_24.04.txt"] {
-  let file = $env.MY_ENV_VARS.linux_backup | path join extensions | path join 24.04 | path join $output_file
+export def "gnome-extensions backup" [
+  output_file: string = "gnome_shell_extensions_backup_24.04.txt"
+  --os: string = ""
+] {
+  let target_os = (resolve-backup-os $os)
+  if $target_os == "cachyos" {
+    let has_gnome = (which gnome-shell | is-not-empty)
+    if not $has_gnome {
+      print (echo-y "Notice: GNOME Shell is not active. On CachyOS with Hyprland/Omarchy, use 'hyprlnd backup'. Skipping.")
+      return
+    }
+  }
+
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  let file = ($backup_dir | path join extensions | path join 24.04 | path join $output_file)
+  mkdir ($file | path dirname)
   dconf dump /org/gnome/shell/extensions/ | save -f $file
+  print (echo-g $"✓ Saved GNOME extensions to ($file)")
 }
 
 #restore gnome extensions settings
 @category backup
 @search-terms gnome
-export def "gnome-extensions restore" [output_file:string = "gnome_shell_extensions_backup_24.04.txt"] {
-  let file = $env.MY_ENV_VARS.linux_backup | path join extensions | path join 24.04 | path join $output_file
-  bash -c $"dconf load /org/gnome/shell/extensions/ < ($file)"
+export def "gnome-extensions restore" [
+  output_file: string = "gnome_shell_extensions_backup_24.04.txt"
+  --os: string = ""
+] {
+  let target_os = (resolve-backup-os $os)
+  if $target_os == "cachyos" {
+    let has_gnome = (which gnome-shell | is-not-empty)
+    if not $has_gnome {
+      print (echo-y "Notice: GNOME Shell is not active. On CachyOS with Hyprland/Omarchy, use 'hyprlnd restore'. Skipping.")
+      return
+    }
+  }
+
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  let file = ($backup_dir | path join extensions | path join 24.04 | path join $output_file)
+  if ($file | path exists) {
+    bash -c $"dconf load /org/gnome/shell/extensions/ < ($file)"
+    print (echo-g "✓ Restored GNOME extensions")
+  } else {
+    print (echo-y $"Notice: extensions backup not found at ($file)")
+  }
 }
 
 #backup libre office settings
 @category backup
 @search-terms libreoffice
-export def "libreoff backup" [] {
-  cp -r ~/.config/libreoffice/* ([$env.MY_ENV_VARS.linux_backup libreoffice] | path join)
+export def "libreoff backup" [--os: string = ""] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  let src = ($env.HOME | path join ".config" "libreoffice")
+  let dst = ($backup_dir | path join "libreoffice")
+  mkdir $dst
+  if ($src | path exists) {
+    try { cp -r ($src | path join "*") $dst } catch { cp -r $src $backup_dir }
+    print (echo-g "✓ LibreOffice settings backed up")
+  }
 }
 
 #restore libre office settings
 @category backup
 @search-terms libreoffice
-export def "libreoff restore" [] {
-  cp -r ($env.MY_ENV_VARS.linux_backup + "/libreoffice/*") ~/.config/libreoffice/
+export def "libreoff restore" [--os: string = ""] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  let src = ($backup_dir | path join "libreoffice")
+  let dest = ($env.HOME | path join ".config" "libreoffice")
+  if ($src | path exists) {
+    mkdir $dest
+    try { cp -r ($src | path join "*") $dest } catch { cp -r $src ($env.HOME | path join ".config") }
+    print (echo-g "✓ Restored LibreOffice configuration")
+  } else {
+    print (echo-y $"Notice: LibreOffice backup not found at ($src)")
+  }
 }
 
 #filter commands for sublime syntax file
@@ -147,9 +222,30 @@ export def "nushell-syntax-2-sublime" [
 @category backup
 @search-terms history backup
 export def "history backup" [
-  output?:string = "hist" #output filename
+  output?: string = "hist" #output filename
+  --os: string = ""
 ] {
-  open $nu.history-path | query db $"vacuum main into '($output).db'"
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  let target = ($backup_dir | path join $"($output).db")
+  open $nu.history-path | query db $"vacuum main into '($target)'"
+  print (echo-g $"✓ Backed up Nushell history to ($target)")
+}
+
+#restore nushell history
+@category backup
+@search-terms history restore
+export def "history restore" [
+  input?: string = "hist" #input filename stem
+  --os: string = ""
+] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  let src = ($backup_dir | path join $"($input).db")
+  if ($src | path exists) {
+    cp -f $src $nu.history-path
+    print (echo-g $"✓ Restored Nushell history from ($src)")
+  } else {
+    print (echo-y $"Notice: history database not found at ($src)")
+  }
 }
 
 #export rclone config
@@ -173,55 +269,167 @@ export def "rclone import" [] {
 #backup guake settings
 @category backup
 @search-terms guake backup
-export def "guake backup" [] {
-  guake --save-preferences ($env.MY_ENV_VARS.linux_backup | path join guakesettings.txt)
+export def "guake backup" [--os: string = ""] {
+  let target_os = (resolve-backup-os $os)
+  if $target_os == "cachyos" {
+    let has_guake = (which guake | is-not-empty)
+    if not $has_guake {
+      print (echo-y "Notice: Guake is not installed. On CachyOS with Hyprland/Omarchy, terminal configuration is managed via ghostty. Skipping.")
+      return
+    }
+  }
+
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  guake --save-preferences ($backup_dir | path join guakesettings.txt)
+  print (echo-g "✓ Guake preferences backed up")
 }
 
 #restore guake settings
 @category backup
 @search-terms guake restore
-export def "guake restore" [] {
-  guake --restore-preferences ($env.MY_ENV_VARS.linux_backup | path join guakesettings.txt)
+export def "guake restore" [--os: string = ""] {
+  let target_os = (resolve-backup-os $os)
+  if $target_os == "cachyos" {
+    let has_guake = (which guake | is-not-empty)
+    if not $has_guake {
+      print (echo-y "Notice: Guake is not installed. On CachyOS with Hyprland/Omarchy, terminal configuration is managed via ghostty. Skipping.")
+      return
+    }
+  }
+
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  let target_file = ($backup_dir | path join guakesettings.txt)
+  if ($target_file | path exists) {
+    guake --restore-preferences $target_file
+    print (echo-g "✓ Guake preferences restored")
+  } else {
+    print (echo-y $"Notice: Guake preferences backup not found at ($target_file)")
+  }
 }
 
 #export zoxide database
 @category backup
 @search-terms zoxide backup
-export def "zoxide backup" [] {
-  cp ~/.local/share/zoxide/db.zo $env.MY_ENV_VARS.linux_backup
+export def "zoxide backup" [--os: string = ""] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  let src = ($env.HOME | path join ".local" "share" "zoxide" "db.zo")
+  if ($src | path exists) {
+    cp -f $src $backup_dir
+    print (echo-g $"✓ Saved zoxide database to ($backup_dir)/db.zo")
+  } else {
+    print (echo-y $"Notice: zoxide database not found at ($src)")
+  }
+}
+
+#restore zoxide database
+@category backup
+@search-terms zoxide restore
+export def "zoxide restore" [--os: string = ""] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  let src = ($backup_dir | path join "db.zo")
+  let dst_dir = ($env.HOME | path join ".local" "share" "zoxide")
+  if ($src | path exists) {
+    mkdir $dst_dir
+    cp -f $src ($dst_dir | path join "db.zo")
+    print (echo-g $"✓ Restored zoxide database to ($dst_dir)/db.zo")
+  } else {
+    print (echo-y $"Notice: zoxide backup not found at ($src)")
+  }
 }
 
 #backup zed settings
 @category backup
 @search-terms zed backup
-export def "zed-backup" [] {
-  cd $env.MY_ENV_VARS.linux_backup
+export def "zed-backup" [--os: string = ""] {
+  let target_os = (resolve-backup-os $os)
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  cd $backup_dir
   try { rm -f zed_config.7z }
   7z max zed_config ("~/.config/zed" | path expand) "-xr!context-mode" "-xr!*.bak" "-xr!*backup*"
+  print (echo-g "✓ Archived Zed configuration to zed_config.7z")
+
+  if $target_os == "cachyos" {
+    let hypr_dir = ($backup_dir | path join "cachyos-omarchy-hyperland")
+    if ($hypr_dir | path exists) and (($backup_dir | path join "zed_config.7z") | path exists) {
+      cp -f ($backup_dir | path join "zed_config.7z") ($hypr_dir | path join "zed.7z")
+      print (echo-g "✓ Synchronized zed.7z to cachyos-omarchy-hyperland")
+    }
+  }
 }
 
 #restore zed settings
 @category backup
 @search-terms zed restore
-export def "zed-restore" [] {
-  cd $env.MY_ENV_VARS.linux_backup
-  7z x zed_config.7z -o/home/kira/.config/ -y
+export def "zed-restore" [--os: string = ""] {
+  let target_os = (resolve-backup-os $os)
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  cd $backup_dir
+  let dest = ($env.HOME | path join ".config")
+  7z x zed_config.7z $"-o($dest)/" -y
+  print (echo-g "✓ Restored Zed configuration to ~/.config/zed")
+
+  if $target_os == "cachyos" {
+    let zed_settings = ($dest | path join "zed" "settings.json")
+    if ($zed_settings | path exists) {
+      try {
+        let conf = (open $zed_settings)
+        let current_opencode = ($conf | get -o agent_servers.opencode)
+        if ($current_opencode | is-empty) or ($current_opencode | get -o type) != "custom" {
+          let opencode_bin = ($env.HOME | path join ".local" "bin" "opencode")
+          if ($opencode_bin | path exists) {
+            let updated = ($conf | upsert agent_servers.opencode {
+              type: "custom",
+              command: $opencode_bin,
+              args: ["acp"]
+            })
+            $updated | save -f $zed_settings
+            print (echo-g "✓ Configured custom opencode agent server in Zed settings (CachyOS)")
+          }
+        }
+      } catch {}
+    }
+  }
 }
 
 #backup ghostty settings
 @category backup
 @search-terms ghostty backup
-export def "ghostty backup" [] {
-  cd $env.MY_ENV_VARS.linux_backup
+export def "ghostty backup" [--os: string = ""] {
+  let target_os = (resolve-backup-os $os)
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  cd $backup_dir
   7z max ghostty_config ("~/.config/ghostty" | path expand)
+  print (echo-g "✓ Archived Ghostty configuration to ghostty_config.7z")
+
+  if $target_os == "cachyos" {
+    let hypr_dir = ($backup_dir | path join "cachyos-omarchy-hyperland")
+    if ($hypr_dir | path exists) and (($backup_dir | path join "ghostty_config.7z") | path exists) {
+      cp -f ($backup_dir | path join "ghostty_config.7z") ($hypr_dir | path join "ghostty.7z")
+      print (echo-g "✓ Synchronized ghostty.7z to cachyos-omarchy-hyperland")
+    }
+  }
 }
 
 #restore ghostty settings
 @category backup
 @search-terms ghostty restore
-export def "ghostty restore" [] {
-  cd $env.MY_ENV_VARS.linux_backup
-  7z x ghostty_config.7z -o/home/kira/.config/ -y
+export def "ghostty restore" [--os: string = ""] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  cd $backup_dir
+  let dest = ($env.HOME | path join ".config")
+  let archive = if (($backup_dir | path join "ghostty_config.7z") | path exists) {
+    $backup_dir | path join "ghostty_config.7z"
+  } else if (($backup_dir | path join "cachyos-omarchy-hyperland" "ghostty.7z") | path exists) {
+    $backup_dir | path join "cachyos-omarchy-hyperland" "ghostty.7z"
+  } else {
+    ""
+  }
+  if ($archive | is-not-empty) and ($archive | path exists) {
+    7z x $archive $"-o($dest)/" -y
+    print (echo-g "✓ Restored Ghostty configuration to ~/.config/ghostty")
+  } else {
+    print (echo-y $"Notice: ghostty archive not found in ($backup_dir)")
+  }
 }
 
 #backup cliamp settings
@@ -235,14 +443,36 @@ export def "cliamp-backup" [] {
 #restore cliamp settings
 @category backup
 @search-terms cliamp restore
-export def "cliamp-restore" [] {
-  cd $env.MY_ENV_VARS.linux_backup
-  7z x cliamp_config.7z -o/home/kira/.config/ -y
-}
+export def "cliamp-restore" [--os: string = ""] {
+  let target_os = (resolve-backup-os $os)
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  let cliamp_7z = if (($backup_dir | path join "cliamp_config.7z") | path exists) {
+    $backup_dir | path join "cliamp_config.7z"
+  } else if (($backup_dir | path join "cliamp.7z") | path exists) {
+    $backup_dir | path join "cliamp.7z"
+  } else {
+    ""
+  }
 
-def echo-g [str: string] { $"(ansi -e { fg: '#00ff00' attr: b })($str)(ansi reset)" }
-def echo-y [str: string] { $"(ansi -e { fg: '#ffff00' attr: b })($str)(ansi reset)" }
-def echo-r [str: string] { $"(ansi -e { fg: '#ff0000' attr: b })($str)(ansi reset)" }
+  let dest = ($env.HOME | path join ".config")
+  mkdir ($dest | path join "cliamp")
+  if ($cliamp_7z | is-not-empty) and ($cliamp_7z | path exists) {
+    7z x $cliamp_7z $"-o($dest)/" -y
+    print (echo-g "✓ Restored cliamp configuration")
+  } else {
+    print (echo-y $"Notice: cliamp archive not found in ($backup_dir)")
+  }
+
+  if $target_os == "cachyos" {
+    let wrapper_dir = ($env.HOME | path join ".local" "bin")
+    mkdir $wrapper_dir
+    let wrapper_script = "#!/bin/bash\nexport PATH=\"$HOME/.config/cliamp/bin:$PATH\"\nexec /usr/local/bin/cliamp \"$@\"\n"
+    let wrapper_path = ($wrapper_dir | path join "cliamp-wrapper")
+    $wrapper_script | save -f $wrapper_path
+    try { chmod +x $wrapper_path } catch {}
+    print (echo-g "✓ Deployed ~/.local/bin/cliamp-wrapper for CachyOS")
+  }
+}
 
 # Internal helper for modular and testable Hyprland backup
 export def perform-hyprland-backup [
@@ -607,55 +837,119 @@ export def "hyprlnd restore" [
 #backup ttt settings
 @category backup
 @search-terms ttt backup
-export def "ttt-backup" [] {
-  cd $env.MY_ENV_VARS.linux_backup
+export def "ttt-backup" [--os: string = ""] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  cd $backup_dir
   7z max ttt_config ("~/.config/ttt" | path expand)
 }
 
 #restore ttt settings
 @category backup
 @search-terms ttt restore
-export def "ttt-restore" [] {
-  cd $env.MY_ENV_VARS.linux_backup
-  7z x ttt_config.7z -o/home/kira/.config/ -y
+export def "ttt-restore" [--os: string = ""] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  cd $backup_dir
+  let dest = ($env.HOME | path join ".config")
+  let archive = ($backup_dir | path join "ttt_config.7z")
+  if ($archive | path exists) {
+    7z x $archive $"-o($dest)/" -y
+    print (echo-g "✓ Restored ttt configuration")
+  } else {
+    print (echo-y $"Notice: ttt archive not found at ($archive)")
+  }
 }
 
 #backup yt-x settings
 @category backup
 @search-terms yt-x backup
-export def "yt-x backup" [] {
-  cd $env.MY_ENV_VARS.linux_backup
+export def "yt-x backup" [--os: string = ""] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  cd $backup_dir
   7z max yt-x_config.7z ("~/.config/yt-x" | path expand)
 }
 
 #restore yt-x settings
 @category backup
 @search-terms yt-x restore
-export def "yt-x restore" [] {
-  cd $env.MY_ENV_VARS.linux_backup
-  7z x yt-x_config.7z -o/home/kira/.config/ -y
+export def "yt-x restore" [--os: string = ""] {
+  let target_os = (resolve-backup-os $os)
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  cd $backup_dir
+  let dest = ($env.HOME | path join ".config")
+  let archive = ($backup_dir | path join "yt-x_config.7z")
+  if ($archive | path exists) {
+    7z x $archive $"-o($dest)/" -y
+    print (echo-g "✓ Restored yt-x configuration")
+  } else {
+    print (echo-y $"Notice: yt-x archive not found at ($archive)")
+  }
+
+  if $target_os == "cachyos" {
+    # Ensure mpv.conf has dynamic ytdl_hook path and ~/.local/bin/yt-dlp symlink exists
+    try {
+      let mpv_conf = ($env.HOME | path join ".config" "mpv" "mpv.conf")
+      if ($mpv_conf | path exists) {
+        let mpv_text = (open --raw $mpv_conf)
+        if ($mpv_text =~ "ytdl_hook-ytdl_path=") and not ($mpv_text =~ "ytdl_hook-ytdl_path=yt-dlp") {
+          $mpv_text | str replace -r 'script-opts=ytdl_hook-ytdl_path=.*' 'script-opts=ytdl_hook-ytdl_path=yt-dlp' | save -f $mpv_conf
+          print (echo-g "✓ Updated mpv.conf ytdl_hook path to yt-dlp")
+        }
+      }
+      let ytdlp_symlink = ($env.HOME | path join ".local" "bin" "yt-dlp")
+      if not ($ytdlp_symlink | path exists) {
+        let ytdlp_sys = (which yt-dlp | get 0?.path? | default "")
+        if ($ytdlp_sys | is-not-empty) {
+          mkdir ($env.HOME | path join ".local" "bin")
+          ln -sf $ytdlp_sys $ytdlp_symlink
+          print (echo-g $"✓ Created yt-dlp symlink at ($ytdlp_symlink)")
+        }
+      }
+    } catch {}
+  }
 }
 
 #backup yt-dlp settings
 @category backup
 @search-terms yt-dlp backup
-export def "yt-dlp backup" [] {
-  cd $env.MY_ENV_VARS.linux_backup
+export def "yt-dlp backup" [--os: string = ""] {
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  cd $backup_dir
   7z max yt-dlp_config.7z ("~/.config/yt-dlp" | path expand)
 }
 
 #restore yt-dlp settings
 @category backup
 @search-terms yt-dlp restore
-export def "yt-dlp restore" [] {
-  cd $env.MY_ENV_VARS.linux_backup
-  7z x yt-dlp_config.7z -o/home/kira/.config/ -y
+export def "yt-dlp restore" [--os: string = ""] {
+  let target_os = (resolve-backup-os $os)
+  let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
+  cd $backup_dir
+  let dest = ($env.HOME | path join ".config")
+  let archive = ($backup_dir | path join "yt-dlp_config.7z")
+  if ($archive | path exists) {
+    7z x $archive $"-o($dest)/" -y
+    print (echo-g "✓ Restored yt-dlp configuration")
+  } else {
+    print (echo-y $"Notice: yt-dlp archive not found at ($archive)")
+  }
+
+  if $target_os == "cachyos" {
+    let ytdlp_symlink = ($env.HOME | path join ".local" "bin" "yt-dlp")
+    if not ($ytdlp_symlink | path exists) {
+      let ytdlp_sys = (which yt-dlp | get 0?.path? | default "")
+      if ($ytdlp_sys | is-not-empty) {
+        mkdir ($env.HOME | path join ".local" "bin")
+        ln -sf $ytdlp_sys $ytdlp_symlink
+        print (echo-g $"✓ Created yt-dlp symlink at ($ytdlp_symlink)")
+      }
+    }
+  }
 }
 
 #backup antigravity (gemini cli) settings and plugins
 @category backup
 @search-terms antigravity agy gmn gemini backup
-export def "agy backup" [] {
+export def "agy backup" [--os: string = ""] {
   let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
   cd $backup_dir
 
@@ -699,7 +993,7 @@ export def "agy backup" [] {
 #restore antigravity (gemini cli) settings and plugins
 @category backup
 @search-terms antigravity agy gmn gemini restore
-export def "agy restore" [] {
+export def "agy restore" [--os: string = ""] {
   let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
   cd $backup_dir
 
@@ -740,7 +1034,7 @@ export alias "gmn restore" = agy restore
 #backup claude code settings and config
 @category backup
 @search-terms claude cld backup
-export def "cld backup" [] {
+export def "cld backup" [--os: string = ""] {
   let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
   cd $backup_dir
 
@@ -763,7 +1057,7 @@ export def "cld backup" [] {
 #restore claude code settings and config
 @category backup
 @search-terms claude cld restore
-export def "cld restore" [] {
+export def "cld restore" [--os: string = ""] {
   let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
   cd $backup_dir
 
@@ -794,15 +1088,26 @@ export alias "claude restore" = cld restore
 #backup opencode settings and config
 @category backup
 @search-terms opencode opn backup
-export def "opn backup" [] {
+export def "opn backup" [--os: string = ""] {
+  let target_os = (resolve-backup-os $os)
   let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
   cd $backup_dir
 
   let opencode_dir = ("~/.config/opencode" | path expand)
-  let live_config = ($opencode_dir | path join "config.json")
-  if ($live_config | path exists) {
+  let opencode_json = ($opencode_dir | path join "opencode.json")
+  let legacy_config = ($opencode_dir | path join "config.json")
+
+  let live_config = if ($opencode_json | path exists) {
+    $opencode_json
+  } else if ($legacy_config | path exists) {
+    $legacy_config
+  } else {
+    ""
+  }
+
+  if ($live_config | is-not-empty) and ($live_config | path exists) {
     cp -f $live_config ($backup_dir | path join "settings_opencode.json")
-    print (echo-g $"✓ Saved OpenCode config to ($backup_dir)/settings_opencode.json")
+    print (echo-g $"✓ Saved OpenCode config from ($live_config | path basename) to ($backup_dir)/settings_opencode.json")
   }
 
   if ($opencode_dir | path exists) {
@@ -814,21 +1119,37 @@ export def "opn backup" [] {
 #restore opencode settings and config
 @category backup
 @search-terms opencode opn restore
-export def "opn restore" [] {
+export def "opn restore" [--os: string = ""] {
+  let target_os = (resolve-backup-os $os)
   let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
   cd $backup_dir
 
   let settings_src = ($backup_dir | path join "settings_opencode.json")
   let opencode_dir = ("~/.config/opencode" | path expand)
   mkdir $opencode_dir
+
   if ($settings_src | path exists) {
-    cp -f $settings_src ($opencode_dir | path join "config.json")
-    print (echo-g "✓ Restored OpenCode settings to config.json")
+    if $target_os == "cachyos" {
+      cp -f $settings_src ($opencode_dir | path join "opencode.json")
+      try { rm -f ($opencode_dir | path join "config.json") } catch {}
+      print (echo-g "✓ Restored OpenCode settings to opencode.json (CachyOS format)")
+    } else {
+      cp -f $settings_src ($opencode_dir | path join "config.json")
+      print (echo-g "✓ Restored OpenCode settings to config.json (Ubuntu format)")
+    }
   }
 
   let archive = ($backup_dir | path join "opencode_config.7z")
   if ($archive | path exists) {
     try { 7z x $archive -o($env.HOME | path join ".config") -y } catch {}
+  }
+
+  if $target_os == "cachyos" {
+    let user_opencode = ("~/.opencode/bin/opencode" | path expand)
+    if ($user_opencode | path exists) {
+      mkdir ($env.HOME | path join ".local" "bin")
+      try { ln -sf $user_opencode ("~/.local/bin/opencode" | path expand) } catch {}
+    }
   }
 
   try {
@@ -845,7 +1166,7 @@ export alias "opencode restore" = opn restore
 #backup cmdg settings and credentials
 @category backup
 @search-terms cmdg backup gmail
-export def "cmdg backup" [] {
+export def "cmdg backup" [--os: string = ""] {
   let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
   let cmdg_conf = ("~/.cmdg/cmdg.conf" | path expand)
 
@@ -874,7 +1195,7 @@ export def "cmdg backup" [] {
 #restore cmdg settings and credentials
 @category backup
 @search-terms cmdg restore gmail
-export def "cmdg restore" [] {
+export def "cmdg restore" [--os: string = ""] {
   let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
   let backup_conf = ($backup_dir | path join "cmdg.conf.asc")
   let target_dir = ("~/.cmdg" | path expand)
@@ -900,7 +1221,7 @@ export def "cmdg restore" [] {
 #backup vivaldi browser settings and extension configurations
 @category backup
 @search-terms vivaldi browser backup
-export def vivaldi-backup [] {
+export def vivaldi-backup [--os: string = ""] {
   let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
   let vivaldi_src = ("~/.config/vivaldi" | path expand)
 
@@ -943,7 +1264,8 @@ export def vivaldi-backup [] {
 #restore vivaldi browser settings and extension configurations
 @category backup
 @search-terms vivaldi browser restore
-export def vivaldi-restore [] {
+export def vivaldi-restore [--os: string = ""] {
+  let target_os = (resolve-backup-os $os)
   let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
   let archive = ($backup_dir | path join "vivaldi_config.7z")
 
@@ -963,6 +1285,27 @@ export def vivaldi-restore [] {
   let dest_dir = ("~/.config" | path expand)
   print (echo-g $"Restoring Vivaldi configuration to ($dest_dir)/vivaldi...")
   ^7z x $archive $"-o($dest_dir)" -y
+
+  if $target_os == "cachyos" {
+    # Ensure Vivaldi uses GNOME Keyring under Hyprland (fixes secure keystore dialog)
+    try {
+      let vivaldi_conf = ($env.HOME | path join ".config" "vivaldi-stable.conf")
+      let conf_content = if ($vivaldi_conf | path exists) { open $vivaldi_conf | into string } else { "" }
+      if not ($conf_content =~ "password-store=gnome-libsecret") {
+        ($conf_content | str trim) + "\n--password-store=gnome-libsecret\n" | save -f $vivaldi_conf
+        print (echo-g "✓ Configured --password-store=gnome-libsecret in vivaldi-stable.conf")
+      }
+
+      # Deploy desktop launcher with --password-store=gnome-libsecret
+      let vivaldi_desktop = ($backup_dir | path join "vivaldi-stable.desktop")
+      if ($vivaldi_desktop | path exists) {
+        let apps_dir = ($env.HOME | path join ".local" "share" "applications")
+        mkdir $apps_dir
+        cp -f $vivaldi_desktop ($apps_dir | path join "vivaldi-stable.desktop")
+        print (echo-g "✓ Deployed vivaldi-stable.desktop launcher for CachyOS")
+      }
+    } catch { |err| print (echo-y $"Notice Vivaldi keyring integration: ($err.msg)") }
+  }
 
   print (echo-g "✓ Vivaldi configuration restored successfully to ~/.config/vivaldi")
 }
