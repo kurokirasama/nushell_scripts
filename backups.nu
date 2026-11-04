@@ -365,28 +365,55 @@ export def "zed-restore" [--os: string = ""] {
   let backup_dir = (try { $env.MY_ENV_VARS.linux_backup } catch { "~/Yandex.Disk/Backups/linux" } | path expand)
   cd $backup_dir
   let dest = ($env.HOME | path join ".config")
-  7z x zed_config.7z $"-o($dest)/" -y
-  print (echo-g "✓ Restored Zed configuration to ~/.config/zed")
+  let archive = if $target_os == "cachyos" and not (($backup_dir | path join "zed_config.7z") | path exists) and (($backup_dir | path join "cachyos-omarchy-hyperland" "zed.7z") | path exists) {
+    $backup_dir | path join "cachyos-omarchy-hyperland" "zed.7z"
+  } else {
+    $backup_dir | path join "zed_config.7z"
+  }
+  if ($archive | path exists) {
+    7z x $archive $"-o($dest)/" -y
+    print (echo-g "✓ Restored Zed configuration to ~/.config/zed")
+  } else {
+    print (echo-y $"Notice: zed archive not found at ($archive)")
+  }
 
-  if $target_os == "cachyos" {
-    let zed_settings = ($dest | path join "zed" "settings.json")
-    if ($zed_settings | path exists) {
-      try {
-        let conf = (open $zed_settings)
-        let current_opencode = ($conf | get -o agent_servers.opencode)
-        if ($current_opencode | is-empty) or ($current_opencode | get -o type) != "custom" {
-          let opencode_bin = ($env.HOME | path join ".local" "bin" "opencode")
-          if ($opencode_bin | path exists) {
-            let updated = ($conf | upsert agent_servers.opencode {
-              type: "custom",
-              command: $opencode_bin,
-              args: ["acp"]
-            })
-            $updated | save -f $zed_settings
-            print (echo-g "✓ Configured custom opencode agent server in Zed settings (CachyOS)")
-          }
+  # Ensure ~/.local/bin/opencode exists if ~/.opencode/bin/opencode is present
+  let user_opencode = ($env.HOME | path join ".opencode" "bin" "opencode")
+  let local_bin_opencode = ($env.HOME | path join ".local" "bin" "opencode")
+  if ($user_opencode | path exists) and not ($local_bin_opencode | path exists) {
+    let local_bin_dir = ($env.HOME | path join ".local" "bin")
+    if not ($local_bin_dir | path exists) {
+      mkdir $local_bin_dir
+    }
+    try { ln -sf $user_opencode $local_bin_opencode } catch {}
+    print (echo-g "✓ Created ~/.local/bin/opencode symlink")
+  }
+
+  let zed_settings = ($dest | path join "zed" "settings.json")
+  if ($zed_settings | path exists) {
+    try {
+      let conf = (open $zed_settings)
+      let current_opencode = ($conf | get -o agent_servers.opencode)
+      let opencode_bin = if ($local_bin_opencode | path exists) {
+        $local_bin_opencode
+      } else if ($user_opencode | path exists) {
+        $user_opencode
+      } else {
+        ""
+      }
+      if ($opencode_bin | is-not-empty) {
+        if ($current_opencode | is-empty) or ($current_opencode | get -o type) != "custom" or ($current_opencode | get -o command) != $opencode_bin {
+          let updated = ($conf | upsert agent_servers.opencode {
+            type: "custom",
+            command: $opencode_bin,
+            args: ["acp"]
+          })
+          $updated | save -f $zed_settings
+          print (echo-g $"✓ Configured custom opencode agent server in Zed settings \(($target_os)\)")
         }
-      } catch {}
+      }
+    } catch { |err|
+      print (echo-y $"Notice configuring Zed OpenCode agent: ($err.msg)")
     }
   }
 }

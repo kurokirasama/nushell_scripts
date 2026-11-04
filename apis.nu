@@ -195,7 +195,8 @@ export def "maps eta" [
       } 
       | url join
       | http get $in
-      | get results.formatted_address.0
+      | get -o results.0.formatted_address
+      | default $origin
     } else {
       $origin
     } 
@@ -214,43 +215,61 @@ export def "maps eta" [
       } 
       | url join
       | http get $in 
-      | get results.formatted_address.0 
+      | get -o results.0.formatted_address
+      | default $destination
     } else {
       $destination
     }
   
 
-  let avoid_option = if $avoid {"&avoid=highways"} else {""} 
+  let base_params = {
+    origin: $origin
+    destination: $destination
+    mode: $mode
+    departure_time: "now"
+    sensor: "true"
+    key: $apikey
+  }
+  let params = if $avoid {
+    $base_params | insert avoid "highways"
+  } else {
+    $base_params
+  }
 
-  let response = {
-      scheme: "https",
-      host: "maps.googleapis.com",
-      path: "/maps/api/directions/json",
-      params: {
-        origin: ($origin | url encode),
-        destination: ($destination | url encode),
-        mode: $mode,
-        departure_time: "now",
-        sensor: "true",
-        key: $apikey
-      }
-    } 
-    | url join 
-    | $in + $avoid_option
-    | http get $in
+  let url = {
+    scheme: "https"
+    host: "maps.googleapis.com"
+    path: "/maps/api/directions/json"
+    params: $params
+  } | url join
 
-  let distance = $response.routes.legs.0.distance.text.0
-  let steps = $response.routes.legs.0.steps
-  let duration = $response.routes.legs.0.duration.text.0
+  let response = http get $url
 
-  let directions_steps = $steps.0.html_instructions 
-      | each {|g| $g | html2text} 
-      | str trim
-      | wrap directions 
-      | polars into-df 
-      | polars append ($steps.0.duration.text | wrap duration | polars into-df) 
-      | polars into-nu
-  
+  if ($response | get -o status) != "OK" or ($response.routes | is-empty) {
+    let err_msg = ($response | get -o error_message)
+    let detail = if ($err_msg | is-not-empty) { $" - ($err_msg)" } else { "" }
+    let status_str = ($response | get -o status | default "UNKNOWN")
+    return-error $"Google Maps Directions API error: ($status_str)($detail)"
+  }
+
+  let route = $response.routes.0
+  let leg = $route.legs.0
+  let distance = $leg.distance.text
+  let duration = $leg.duration.text
+
+  let has_html2text = (which html2text | is-not-empty)
+  let directions_steps = $leg.steps | each { |step|
+    let clean_instruction = if $has_html2text {
+      $step.html_instructions | html2text | str trim
+    } else {
+      $step.html_instructions | str replace -a -r '<[^>]+>' '' | str trim
+    }
+    {
+      direction: $clean_instruction
+      duration: $step.duration.text
+      distance: $step.distance.text
+    }
+  }
 
   let info = { 
     origin: $origin_address,
