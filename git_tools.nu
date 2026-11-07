@@ -72,7 +72,9 @@ export def get-git-metrics [] {
         }
     }
     
-    let status = do -i { ^git status --porcelain=v2 --branch } | complete
+    let status = do -i {
+        with-env { GIT_OPTIONAL_LOCKS: "0" } { ^git status --porcelain=v2 --branch }
+    } | complete
     if $status.exit_code != 0 {
         return {
             branch: ""
@@ -86,4 +88,16 @@ export def get-git-metrics [] {
     }
     
     parse-git-status-v2 $status.stdout
+}
+
+# Return git metrics, reusing the same-PWD result for two seconds.
+export def --env get-git-metrics-cached [] {
+    let now = (date now)
+    let cache = $env.GIT_METRICS_CACHE?
+    if ($cache | is-not-empty) and ($cache.pwd == $env.PWD) and ((($now - $cache.ts) / 1sec) < 2) {
+        return $cache.metrics
+    }
+    let metrics = (get-git-metrics)
+    $env.GIT_METRICS_CACHE = {pwd: $env.PWD, ts: $now, metrics: $metrics}
+    $metrics
 }

@@ -366,6 +366,26 @@ export def "update-gemini-md" [] {
     cp $source ($opencode_dir | path join "AGENTS.md") -f
 }
 
+# Update a directory size record without blocking the shell prompt.
+export def update-pwd-size-async [pwd: path, pwd_sizes_path: path] {
+    try {
+        let size = (du $pwd --exclude *rclone* | get apparent | get 0 | into string | str replace " " "")
+        let now = (date now)
+        let rows = if ($pwd_sizes_path | path exists) {
+            open $pwd_sizes_path | default []
+        } else {
+            []
+        }
+        let tmp = $"($pwd_sizes_path).tmp.(random uuid)"
+        $rows
+            | where directory != $pwd
+            | append {directory: $pwd, size: $size, updated: $now}
+            | to json
+            | save -f $tmp
+        mv -f $tmp $pwd_sizes_path
+    } catch {}
+}
+
 def echo-g [text: string] { $"(ansi -e { fg: '#00ff00' attr: b })($text)(ansi reset)" }
 def echo-r [text: string] { $"(ansi -e { fg: '#ff0000' attr: b })($text)(ansi reset)" }
 def echo-y [text: string] { $"(ansi -e { fg: '#ffff00' attr: b })($text)(ansi reset)" }

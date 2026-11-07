@@ -59,6 +59,17 @@ let hooks = {
             }
         },
         {||
+            let pending = ($env.PWD_SIZE_PENDING? | default "")
+            if ($pending | is-not-empty) and ($pending == $env.PWD) {
+                let pwd_sizes_path = ($env.HOME | path join ".pwd_sizes.json")
+                let rec = (try { open $pwd_sizes_path } catch { [] } | where directory == $env.PWD | last)
+                if ($rec | is-not-empty) {
+                    $env.PWD_SIZE = $rec.size
+                    $env.PWD_SIZE_PENDING = ""
+                }
+            }
+        },
+        {||
             $env.CLOUD = if $env.PWD like "rclone/" {
                     match ($env.PWD | split row "/rclone/" | get 1 | split row "/" | get 0) {
                         $s if ($s | str starts-with "g") => {"f2df"},
@@ -85,7 +96,7 @@ let hooks = {
         },
         {
             condition: {".git" | path exists},
-            code: "let m = (get-git-metrics); $env.GIT_BRANCH = $m.branch; $env.GIT_AHEAD = $m.ahead; $env.GIT_BEHIND = $m.behind; $env.GIT_STAGED = $m.staged; $env.GIT_MODIFIED = $m.modified; $env.GIT_DELETED = $m.deleted; $env.GIT_UNTRACKED = $m.untracked"
+            code: "let m = (get-git-metrics-cached); $env.GIT_BRANCH = $m.branch; $env.GIT_AHEAD = $m.ahead; $env.GIT_BEHIND = $m.behind; $env.GIT_STAGED = $m.staged; $env.GIT_MODIFIED = $m.modified; $env.GIT_DELETED = $m.deleted; $env.GIT_UNTRACKED = $m.untracked"
         },
         {
             condition: {not (".git" | path exists)},
@@ -157,55 +168,36 @@ let hooks = {
                     cp ($env.MY_ENV_VARS.linux_backup | path join pwd_sizes.json) $pwd_sizes_path
                 }
             }
-            
-            #checking conditions
-            let interval = 12hr 
+
+            let interval = 12hr
             let last_record = (open $pwd_sizes_path | default []) | where directory == $env.PWD
             let now = date now
-            let not_update = if ($last_record | length) == 0 {
-                    false
-                } else {
-                    (($last_record | get updated | get 0 | into datetime) + $interval > $now)
-                }
-            
             let not_gdrive = not ($env.PWD like rclone)
-            
-            #calculating pwd_size
-            let pwd_size = if ($last_record | length) == 0 and $not_gdrive {
-                    du $env.PWD --exclude *rclone*
-                    | get apparent 
-                    | get 0 
-                    | into string 
-                    | str replace " " "" 
-                } else if $not_gdrive {
-                    if $not_update {
+            let fresh = if ($last_record | length) == 0 {
+                false
+            } else {
+                (($last_record | get updated | get 0 | into datetime) + $interval > $now)
+            }
+
+            if $not_gdrive {
+                if $fresh {
+                    $env.PWD_SIZE = ($last_record | get size | get 0)
+                    $env.PWD_SIZE_PENDING = ""
+                } else {
+                    $env.PWD_SIZE = if ($last_record | length) > 0 {
                         $last_record | get size | get 0
                     } else {
-                        du $env.PWD --exclude *rclone*
-                        | get apparent 
-                        | get 0 
-                        | into string 
-                        | str replace " " "" 
+                        "…"
                     }
-                } else {
-                    ""
-                }    
-            
-            
-            #seting up env var
-            $env.PWD_SIZE = $pwd_size
-            let pwd_file = open $pwd_sizes_path
-            
-            #updating data file
-            if ($last_record | length) == 0 and $not_gdrive {    
-                $pwd_file  
-                | append {directory: $env.PWD,size: $pwd_size, updated: $now} 
-                | save -f $pwd_sizes_path    
-            } else if (not $not_update) and $not_gdrive {
-                $pwd_file
-                | where directory != $env.PWD 
-                | append {directory: $env.PWD,size: $pwd_size, updated: $now}
-                | save -f $pwd_sizes_path
+                    let target_pwd = $env.PWD
+                    if ($env.PWD_SIZE_PENDING? | default "") != $target_pwd {
+                        $env.PWD_SIZE_PENDING = $target_pwd
+                        job spawn { update-pwd-size-async $target_pwd $pwd_sizes_path }
+                    }
+                }
+            } else {
+                $env.PWD_SIZE = ""
+                $env.PWD_SIZE_PENDING = ""
             }
         },
         {|before, after| 

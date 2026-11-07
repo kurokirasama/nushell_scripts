@@ -1,7 +1,7 @@
 # Master loader for personal Nushell productivity toolkit
-use std
-use std-rfc
-use ~/software/nu-rich/rich *
+export use std
+export use std-rfc
+export use ~/software/nu-rich/rich *
 
 export use ./date_formats.nu *
 export use ./python.nu *
