@@ -3118,6 +3118,120 @@ export def install-context-mode-plugin []: nothing -> bool {
   $install_result
 }
 
+const CONTEXT_MODE_V1_VERSION = "1.0.169"
+
+# Merge context-mode config template routing rules into gemini-bak.md
+export def merge-context-mode-rules [
+  npm_root: path
+  bak_path: path
+]: nothing -> bool {
+  let agy_rules_path = $npm_root | path join "context-mode" "configs" "antigravity" "GEMINI.md"
+  let gemini_rules_path = $npm_root | path join "context-mode" "configs" "gemini-cli" "GEMINI.md"
+
+  if not ($agy_rules_path | path exists) or not ($gemini_rules_path | path exists) {
+    print (echo-y $"context-mode v2 no longer ships config templates in ($npm_root); keeping existing routing rules.")
+    return false
+  }
+
+  let agy_rules = (open --raw $agy_rules_path)
+  let gemini_rules = (open --raw $gemini_rules_path)
+  let start_marker = "## Session Continuity"
+  let end_marker = "## ctx commands"
+  let start_idx = ($gemini_rules | str index-of $start_marker)
+  let end_idx = ($gemini_rules | str index-of $end_marker)
+
+  if $start_idx == -1 or $end_idx == -1 {
+    print (echo-y "context-mode rule markers changed; keeping existing routing rules.")
+    return false
+  }
+
+  let memory_rules = ($gemini_rules | str substring $start_idx..$end_idx)
+  let insert_marker = "## Output constraints"
+  let insert_idx = ($agy_rules | str index-of $insert_marker)
+
+  let unified_rules = if $insert_idx == -1 {
+    let alt_idx = ($agy_rules | str index-of "## ctx commands")
+    if $alt_idx == -1 {
+      $agy_rules + "\n\n" + $memory_rules
+    } else {
+      ($agy_rules | str substring 0..$alt_idx) + "\n" + $memory_rules + "\n" + ($agy_rules | str substring $alt_idx..)
+    }
+  } else {
+    ($agy_rules | str substring 0..$insert_idx) + "\n" + $memory_rules + "\n" + ($agy_rules | str substring $insert_idx..)
+  }
+
+  let bak_content = (open --raw $bak_path)
+  let rule_marker = "# context-mode — MANDATORY routing rules"
+  let rule_idx = ($bak_content | str index-of $rule_marker)
+  if $rule_idx == -1 {
+    print (echo-y $"Could not find '($rule_marker)' in ($bak_path); keeping existing routing rules.")
+    return false
+  }
+
+  (($bak_content | str substring 0..$rule_idx) + $unified_rules) | save -f $bak_path
+  true
+}
+
+# Ensure context-mode v1 is installed in isolated directory for agy
+export def ensure-context-mode-v1 []: nothing -> path {
+  let prefix = ("~/.local/share/context-mode-v1" | path expand)
+  let cli = ($prefix | path join "node_modules" "context-mode" "cli.bundle.mjs")
+
+  if not ($cli | path exists) {
+    print (echo-g $"Installing context-mode v($CONTEXT_MODE_V1_VERSION) for agy...")
+    if not ($prefix | path exists) {
+      mkdir $prefix
+    }
+    run-npm install --prefix $prefix $"context-mode@($CONTEXT_MODE_V1_VERSION)"
+  }
+
+  if not ($cli | path exists) {
+    error make {msg: $"Failed to install context-mode v($CONTEXT_MODE_V1_VERSION) at ($prefix)"}
+  }
+
+  $cli
+}
+
+# Patch the agy context-mode plugin to use isolated v1 CLI and agy-compatible schemas
+export def patch-context-mode-agy-plugin [
+  cli: path
+  plugin_dir: path
+]: nothing -> nothing {
+  let mcp_path = ($plugin_dir | path join "mcp_config.json")
+  if ($mcp_path | path exists) {
+    open $mcp_path
+      | upsert mcpServers."context-mode".command "node"
+      | upsert mcpServers."context-mode".args [$cli]
+      | save -f $mcp_path
+  }
+
+  let hooks_path = ($plugin_dir | path join "hooks.json")
+  if ($hooks_path | path exists) {
+    mut hooks = (open $hooks_path)
+    if ("hooks" in ($hooks | columns)) {
+      $hooks = ($hooks | upsert "context-mode" ($hooks | get hooks) | reject hooks)
+    }
+
+    # In agy, Stop is a flat list of handler objects, not grouped with matcher & hooks
+    let stop_hooks = ($hooks | get -o "context-mode" | get -o Stop)
+    if ($stop_hooks | is-not-empty) and ($stop_hooks | first | get -o hooks | is-not-empty) {
+      let flattened_stop = ($stop_hooks | each { |item| $item.hooks } | flatten)
+      $hooks = ($hooks | upsert "context-mode" ($hooks."context-mode" | upsert Stop $flattened_stop))
+    }
+
+    let hook_json = ($hooks | to json)
+    $hook_json
+      | str replace --all "context-mode hook" $"node ($cli) hook"
+      | save -f $hooks_path
+  }
+
+  let rule_path = ($plugin_dir | path join "rules" "context-mode.md")
+  if ($rule_path | path exists) and not ((open --raw $rule_path) | str starts-with "---") {
+    let body = (open --raw $rule_path)
+    $"---\ntrigger: always_on\n---\n\n($body)" | save -f $rule_path
+  }
+}
+
 # Update context-mode MCP server
 export def "apps-update context-mode" [] {
   print (echo-g "Checking context-mode plugin for Claude Code...")
@@ -3140,20 +3254,25 @@ export def "apps-update context-mode" [] {
   if (which agy | is-not-empty) {
     print (echo-g "Updating context-mode plugin for agy...")
     try {
-      ^agy plugin install https://github.com/mksglu/context-mode/tree/main/configs/antigravity-cli
-      print (echo-g "context-mode plugin for agy updated successfully.")
+      let v1_cli = (ensure-context-mode-v1)
+      ^agy plugin install $"https://github.com/mksglu/context-mode/tree/v($CONTEXT_MODE_V1_VERSION)/configs/antigravity-cli"
+      for dir in ["~/.gemini/config/plugins/context-mode", "~/.gemini/antigravity-cli/plugins/context-mode"] {
+        let pdir = ($dir | path expand)
+        if ($pdir | path exists) {
+          patch-context-mode-agy-plugin $v1_cli $pdir
+        }
+      }
+      print (echo-g "context-mode plugin for agy updated and patched.")
     } catch { |err|
-      print $"Warning: Could not update context-mode plugin for agy: ($err.msg)"
+      print (echo-y $"Warning: Could not update context-mode plugin for agy: ($err.msg)")
     }
   }
 
-  # Upgrade OpenCode to remove legacy MCP config and set hooks
+  # Run context-mode repair non-interactively
   try {
-    with-env { CONTEXT_MODE_PLATFORM: "opencode" } {
-      context-mode upgrade
-    }
+    context-mode setup --repair --yes
   } catch { |err|
-    print $"Warning: Failed to run context-mode upgrade: ($err.msg)"
+    print (echo-y $"Warning: context-mode setup --repair failed: ($err.msg)")
   }
 
   # Ensure context-mode is registered in the OpenCode plugin array
@@ -3168,62 +3287,11 @@ export def "apps-update context-mode" [] {
     }
   }
 
-  let npm_root = npm root -g | str trim | path expand
-  let agy_rules_path = $npm_root | path join "context-mode" "configs" "antigravity" "GEMINI.md"
-  let gemini_rules_path = $npm_root | path join "context-mode" "configs" "gemini-cli" "GEMINI.md"
-
-  if not ($agy_rules_path | path exists) or not ($gemini_rules_path | path exists) {
-    error make {msg: $"context-mode config templates not found in ($npm_root)"}
-  }
-
-  let agy_rules = open --raw $agy_rules_path
-  let gemini_rules = open --raw $gemini_rules_path
-
-  let start_marker = "## Session Continuity"
-  let end_marker = "## ctx commands"
-  
-  let start_idx = $gemini_rules | str index-of $start_marker
-  let end_idx = $gemini_rules | str index-of $end_marker
-  
-  if $start_idx == -1 or $end_idx == -1 {
-    error make {msg: "Could not find expected markers in gemini-cli/GEMINI.md"}
-  }
-  
-  let memory_rules = $gemini_rules | str substring $start_idx..$end_idx
-
-  let insert_marker = "## Output constraints"
-  let insert_idx = $agy_rules | str index-of $insert_marker
-  
-  let unified_rules = if $insert_idx == -1 {
-    let alt_marker = "## ctx commands"
-    let alt_idx = $agy_rules | str index-of $alt_marker
-    if $alt_idx == -1 {
-      $agy_rules + "\n\n" + $memory_rules
-    } else {
-      let first_part = $agy_rules | str substring 0..$alt_idx
-      let second_part = $agy_rules | str substring $alt_idx..
-      $first_part + "\n" + $memory_rules + "\n" + $second_part
-    }
-  } else {
-    let first_part = $agy_rules | str substring 0..$insert_idx
-    let second_part = $agy_rules | str substring $insert_idx..
-    $first_part + "\n" + $memory_rules + "\n" + $second_part
-  }
-
+  let npm_root = (try { npm root -g | str trim | path expand } catch { "" })
   let bak_path = ("/home/kira/Yandex.Disk/llms_configs/gemini-bak.md" | path expand)
-  let bak_content = open --raw $bak_path
-  
-  let rule_marker = "# context-mode — MANDATORY routing rules"
-  let rule_idx = $bak_content | str index-of $rule_marker
-  if $rule_idx == -1 {
-    error make {msg: $"Could not find rules heading '($rule_marker)' in ($bak_path)"}
+  if ($npm_root | is-not-empty) {
+    merge-context-mode-rules $npm_root $bak_path | ignore
   }
-  
-  let first_part = $bak_content | str substring 0..$rule_idx
-  let new_bak_content = $first_part + $unified_rules
-  
-  $new_bak_content | save -f $bak_path
-  print "gemini-bak.md updated with unified context-mode routing rules."
 
   # Sync the files
   update-gemini-md
