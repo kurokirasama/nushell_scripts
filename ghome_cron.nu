@@ -27,7 +27,7 @@ export def "ghome cron-is-winter" [date_time?: datetime]: nothing -> bool {
 # temperature <= 12 and date between march 21 and sept 21
 export def "ghome cron-ac-on-sunrise" [--dry-run] {
     let runtime_file = $env.MY_ENV_VARS.base_yandex | path join ".weather_runtime_file_address.json"
-    get_weather_by_interval 30min --address $env.MY_ENV_VARS.address --file $runtime_file
+    get_weather_by_interval 0sec --address $env.MY_ENV_VARS.address --file $runtime_file
     
     if not ($runtime_file | path exists) {
         {
@@ -146,7 +146,7 @@ export def "ghome cron-ac-off-hourly" [
 # Main wrapper for hourly orchestration
 export def "ghome cron-ac-hourly-wrapper" [--dry-run] {
     let runtime_file = $env.MY_ENV_VARS.base_yandex | path join ".weather_runtime_file_address.json"
-    get_weather_by_interval 30min --address $env.MY_ENV_VARS.address --file $runtime_file
+    get_weather_by_interval 0sec --address $env.MY_ENV_VARS.address --file $runtime_file
     
     if not ($runtime_file | path exists) {
         {
