@@ -399,14 +399,14 @@ export def update-nu-config [] {
   let nu_scripts = ($env.MY_ENV_VARS?.nu_scripts? | default $default_scripts_dir)
   let nu_lines = if $is_windows {
     [
-      $"source '($nu_scripts | path join "all.nu")'"
+      $"use '($nu_scripts | path join "all.nu")' *"
       $"source-env '($nu_scripts | path join "env_vars.nu")'"
       $"source-env '($nu_scripts | path join "config_win.nu")'"
     ]
   } else {
     [
       "source ~/.cache/carapace/init.nu"
-      $"source '($nu_scripts | path join "all.nu")'"
+      $"use '($nu_scripts | path join "all.nu")' *"
       $"source-env '($nu_scripts | path join "env_vars.nu")'"
       $"source-env '($nu_scripts | path join "config.nu")'"
     ]

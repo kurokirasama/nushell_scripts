@@ -21,14 +21,14 @@ Add the following bootstrap lines to the end of your `$nu.config-path` (replacin
 #### Linux
 ```nu
 source ~/.cache/carapace/init.nu
-source /path/to/nushell_scripts/all.nu
+use /path/to/nushell_scripts/all.nu *
 source-env /path/to/nushell_scripts/env_vars.nu
 source-env /path/to/nushell_scripts/config.nu
 ```
 
 #### Windows
 ```nu
-source C:\path\to\nushell_scripts\all.nu
+use C:\path\to\nushell_scripts\all.nu *
 source-env C:\path\to\nushell_scripts\env_vars.nu
 source-env C:\path\to\nushell_scripts\config_win.nu
 ```
