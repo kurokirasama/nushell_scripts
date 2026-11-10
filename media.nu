@@ -677,7 +677,7 @@ export def "media split-video" [
   --number_segments(-n):int #number of pieces to generate (takes precedence over -d)
   --duration(-d):duration   #duration of each segment except probably the last one
   --delta:duration = 10sec  #duration of overlaping beetween segments
-  --notify(-n)              #notify to android via join/tasker
+  --notify                  #notify to android via join/tasker
   --audio-track: int        #audio stream index to include (0-based)
   --subtitle-track: int     #subtitle stream index to include (0-based)
 ] {

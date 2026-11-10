@@ -44,7 +44,7 @@ export def matlab-cli [
   --nodisplay(-n)     #manually disable DISPLAY / force headless mode
   --gui(-g)           #launch full MATLAB Desktop GUI with robust Wayland/NVIDIA wrappers
 ] {
-  let is_ssh = (($env | transpose name value | where name in ["SSH_CLIENT" "SSH_TTY" "SSH_CONNECTION"] | length) > 0)
+  let is_ssh = ($env | record where key in ["SSH_CLIENT" "SSH_TTY" "SSH_CONNECTION"] | is-not-empty)
   
   let is_arch = (try {
     if ("/etc/arch-release" | path exists) or ("/etc/cachyos-release" | path exists) {

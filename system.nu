@@ -699,7 +699,7 @@ export def get-used-keybindings [] {
         }
     } 
   | flatten 
-  | sort-by group 
+  | sort-by { |row| $row.keycode? | default $row.group? }
   | table --abbreviated 1000
 }
 

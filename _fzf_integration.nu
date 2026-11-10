@@ -1,24 +1,3 @@
-# ==============================================================================
-# UPSTREAM DIFFERENCES (Nushell v0.116.0+ Migration):
-# ==============================================================================
-# This file is based on the official community Nushell integration for fzf
-# (https://github.com/junegunn/fzf/issues/4122#issuecomment-2607368316 / `fzf --nushell`).
-#
-# Modifications compared to upstream:
-# 1. Custom Completer Unification (Nushell 0.116.0 / PR #18791):
-#    - Upstream defines `fzf_external_completer` and `fzf_wrapper_completer` with
-#      legacy positional signature `{|spans| ...}`, which emits a deprecation warning
-#      (`nu::shell::deprecated: Positional completer input deprecated`).
-#    - This file migrates both signatures to `{|place| ...}`.
-# 2. Dual-Mode Input Normalization:
-#    - `fzf_external_completer` dynamically checks input type: extracts tokens from
-#      `$place.command?` if passed a record, or accepts a list if passed legacy spans.
-# 3. Resilient Fallback Delegation:
-#    - `fzf_wrapper_completer` calls `previous_external_completer` with a `try/catch`
-#      fallback (`try { do $prev $place } catch { do $prev $cmd_spans }`), ensuring
-#      legacy completers (such as Carapace) that expect a list of spans do not crash.
-# ==============================================================================
-
 ### key-bindings.nu ###
 #     ____      ____
 #    / __/___  / __/
@@ -222,6 +201,15 @@ export-env {
 # An implementation of completion.nu
 # This loads FZF as a Nushell External Completer
 # https://www.nushell.sh/cookbook/external_completers.html
+#
+# Requires Nushell 0.116.0 or newer.
+#
+# On 0.116+, the registered completer closure must reach a command carrying the
+# `@interactive` attribute: interactivity is seen through the closure to that
+# command (a closure cannot carry the attribute itself), and that is what makes
+# the completion run on the REPL thread with the terminal, so fzf can take it.
+# A closure that does not reach such a command runs on a background worker
+# without the terminal, where fzf cannot run.
 
 
 # --- Default Environment Variables ---
@@ -581,18 +569,9 @@ def _fzf_complete_kill [query: string] {
 
 # --- Main FZF External Completer ---
 
-# This function is registered with Nushell's external completion system.
-# It gets called when Tab is pressed.
-let fzf_external_completer = {|place|
-  # Support both Nushell 0.116.0+ [place] record model and legacy spans list
-  let spans = if ($place | describe | str starts-with 'record') {
-    $place.command? | default []
-  } else if ($place | describe | str starts-with 'list') {
-    $place
-  } else {
-    []
-  }
-
+# Main completion logic. It receives the token list of the command being
+# completed (the legacy `spans`). Called directly, so no attribute is needed.
+def __fzf_completer_logic [spans] {
   let trigger: string = $env.FZF_COMPLETION_TRIGGER? | default '**'
 
   if ($trigger | is-empty)     { return null } # Cannot work with empty trigger
@@ -669,48 +648,63 @@ let fzf_external_completer = {|place|
   }
 }
 
+# Nushell 0.116+ entry point. The registered closure must END with a call to
+# this command for the completion to run on the REPL thread with the terminal.
+#
+# It declares `place` (a named input) rather than the legacy `spans`, so the
+# completer never goes through the deprecated positional bridge. `$place.command`
+# is the token list of the command being completed, the same value the old
+# `spans` held (with a trailing "" when the cursor sits on an empty slot).
+@interactive
+def __fzf_external_completer [place] {
+  let cmd_tokens = if ($place | describe | str starts-with 'record') {
+    $place.command? | default []
+  } else {
+    $place
+  }
+  let result = (__fzf_completer_logic $cmd_tokens)
+  if $result != null {
+    $result
+  } else {
+    # Fall back to the previously configured external completer, if any. It is
+    # handed the new `place` input first. A completer that still declares the
+    # legacy `spans` parameter errors on a record, so it is retried with the
+    # token list, which is what the old positional bridge handed it.
+    let previous = ($env.__fzf_previous_completer? | default null)
+    let previous_result = if $previous != null {
+      try {
+        do $previous $place
+      } catch {
+        try { do $previous $cmd_tokens } catch { null }
+      }
+    } else {
+      null
+    }
+    # An @interactive completer cannot decline with null: null reads as a
+    # dismissed picker with an empty, final answer. Request the fallback
+    # explicitly so file completion still runs when the trigger is absent.
+    if $previous_result != null { $previous_result } else { {completions: [], fallback: true} }
+  }
+}
+
 # --- WRAPPER AND REGISTRATION ---
 
 # Guard against re-sourcing: wrapping the completer multiple times would
 # nest wrappers and grow the call chain on every reload.
-let fzf_registered = ($env.__fzf_completer_registered? | default false | into bool --relaxed)
-if (not $fzf_registered) {
+if ($env.__fzf_completer_registered? | default false) != true {
 
   # Get the currently configured external completer, if any exists
   let previous_external_completer = $env.config? | get completions? | get external? | get completer?
 
-  # Define the new wrapper completer
-  let fzf_wrapper_completer = {|place|
-    # Normalize command spans for legacy external completers if needed
-    let cmd_spans = if ($place | describe | str starts-with 'record') {
-      $place.command? | default []
-    } else if ($place | describe | str starts-with 'list') {
-      $place
-    } else {
-      []
-    }
+  # Stash it for `__fzf_external_completer`: a def cannot capture a local
+  # variable, and the fallback to the previous completer happens inside it.
+  $env.__fzf_previous_completer = $previous_external_completer
 
-    # 1. Try the FZF completer logic first
-    let fzf_result = do $fzf_external_completer $place
-
-    # 2. If FZF returned a result (a list, even an empty one), return it.
-    #    `null` means FZF didn't handle it because the trigger wasn't present.
-    if $fzf_result != null {
-      $fzf_result
-    } else {
-      # 3. FZF didn't handle it, so call the previous completer (if it exists).
-      if $previous_external_completer != null {
-        try {
-          do $previous_external_completer $place
-        } catch {
-          do $previous_external_completer $cmd_spans
-        }
-      } else {
-        # 4. No previous completer, and FZF didn't handle it. Return null.
-        null
-      }
-    }
-  }
+  # The registered closure must END with a call to an `@interactive` command so
+  # that Nushell 0.116+ runs the completion on the REPL thread with the terminal
+  # (it inspects the last pipeline element of the closure). Declaring `place`
+  # instead of `spans` keeps it off the deprecated positional bridge.
+  let fzf_wrapper_completer = {|place| __fzf_external_completer $place }
 
   # Register the new wrapper completer
   # This ensures external completions are enabled and sets our wrapper.

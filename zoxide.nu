@@ -23,8 +23,7 @@ def "__z_complete" [token: record] {
   {
     completions: $data,
     options: {
-      completion_algorithm: "fuzzy",
-      positional: false
+      completion_algorithm: "fuzzy"
     }
   }
 }

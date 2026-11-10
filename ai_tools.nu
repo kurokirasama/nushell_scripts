@@ -1515,7 +1515,7 @@ export def "ai analyze_paper" [
   --gpt(-g)   #use gpt-5 instead of gemini
   --ollama(-o) #use ollama instead of gemini
   --ollama_model(-m):string #ollama model to use
-  --output(-o):string       #output filename without extension
+  --output:string           #output filename without extension
   --clean(-c)   #clean text
   --verbose(-v) #show gemini attempts
   --notify(-n)  #send notification when finished
