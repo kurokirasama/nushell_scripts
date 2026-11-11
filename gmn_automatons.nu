@@ -21,7 +21,7 @@ const skills = [
 	"cron-research-linkedin-post",
 	"cron-update-presupuesto",
 ]
-const gmn_models = ["gemini-3.5-flash", "gemini-3.1-pro", "gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.0-flash", "qwen2.5-coder:7b", "qwen2.5-coder:32b", "codestral", "llama3.1"]
+const gmn_models = ["gemini-4-carbon", "gemini-3.5-flash", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.0-flash", "qwen2.5-coder:7b", "qwen2.5-coder:32b", "codestral", "llama3.1"]
 const profiles = ["no-mcp", "minimal", "standard", "webdev", "research", "googlesuit", "googlesuit-media", "imagen", "websearch", "ollama", "full"]
 
 # Resolve the Discord channel for a cron skill.

@@ -1,12 +1,13 @@
-export const last_gemini_model = "gemini-4-argon"
-export const gemini_pro_vision = "gemini-4-argon"
+export const last_gemini_model = "gemini-4-carbon"
+export const gemini_pro_vision = "gemini-4-carbon"
 export const gemini_models = [
+  "gemini-4-carbon"
   "gemini-4-argon"
   "gemini-3.8-flash"
   "gemini-3.7-flash"
   "gemini-3.6-flash"
   "gemini-3.5-flash-lite"
-  "gemini-3.1-pro"
+  "gemini-3.1-pro-preview"
   "gemini-pro-vision"
 ]
 
@@ -22,17 +23,50 @@ export-env { $env.MY_ENV_VARS = ($env.MY_ENV_VARS? | default {} | upsert gemini_
 
 def format-iso-utc [] { date now | format date "%Y-%m-%dT%H:%M:%SZ" }
 
+# Resolve a Gemini model shorthand or legacy alias to its canonical API id.
+export def gemini-resolve-model [model: string]: nothing -> string {
+  match $model {
+    "gemini-pro-vision" => $gemini_pro_vision
+    "gemini-4" => "gemini-4-carbon"
+    "gemini-4-carbon" => "gemini-4-carbon"
+    "gemini-4-argon" => "gemini-4-argon"
+    "gemini-3.8" => "gemini-3.8-flash"
+    "gemini-3.7" => "gemini-3.7-flash"
+    "gemini-3.6" => "gemini-3.6-flash"
+    "gemini-3.5" => "gemini-3.5-flash-lite"
+    "gemini-3.1" | "gemini-3.1-pro" => "gemini-3.1-pro-preview"
+    "gemini-3.0" | "gemini-3" => "gemini-3.8-flash"
+    _ => $model
+  }
+}
+
+# Return the API output-token ceiling for a Gemini model or alias.
+export def gemini-max-output-tokens [model: string]: nothing -> int {
+  let canonical = (gemini-resolve-model $model)
+  match $canonical {
+    $m if ($m =~ "gemini-4") => 32768
+    $m if ($m =~ "gemini-3.8") => 65536
+    $m if ($m =~ "gemini-3.7") => 64000
+    $m if ($m =~ "gemini-3.6") => 64000
+    $m if ($m =~ "gemini-3.5") => 64000
+    $m if ($m =~ "gemini-3.1") => 65536
+    $m if ($m =~ "gemini-3") => 64000
+    _ => 8192
+  }
+}
+
 
 #single call to google ai LLM api wrapper and chat mode
 #
 #Available models at https://ai.google.dev/models:
-# - gemini-4-argon: Latest Flagship Frontier (Oct 2026), deep reasoning, coding, 1M context, tunable thinking
+# - gemini-4-carbon: Latest Flagship Frontier (Nov 2026), Google's most capable reasoning champion, 1M context, tunable thinking
+# - gemini-4-argon: Flagship Frontier (Oct 2026), deep reasoning, coding, 1M context, tunable thinking
 # - gemini-3.8-flash: Latest Flash GA (Sep 2026), most intelligent Flash for long-horizon SWE & agents, tunable thinking (FREE TIER)
 # - gemini-3.7-flash: Previous GA (Aug 2026), most intelligent Flash for coding/agents, tunable thinking (FREE TIER)
 # - gemini-3.6-flash: Complex multi-step workflows, coding, agentic tasks (GA July 2026) (FREE TIER)
 # - gemini-3.5-flash-lite: Cost-efficient model for high-volume tasks (GA July 2026) (FREE TIER)
-# - gemini-3.1-pro: High-capability, complex reasoning, agentic coding, 1M context (PAID ONLY)
-# - gemini-pro-vision: Placeholder for image input, uses gemini-4-argon
+# - gemini-3.1-pro-preview: High-capability complex reasoning & agentic coding, 1M context (PAID ONLY)
+# - gemini-pro-vision: Placeholder for image input, uses gemini-4-carbon
 # - text-embedding-004: Text embedding model
 # - aqa: Retrieval
 #
@@ -133,7 +167,7 @@ def extract-interaction-text [response: any] {
 @search-terms gemini
 export def google_ai [
     query?: string                          # the query to Gemini
-    --model(-m):string@$gemini_models = "gemini-4-argon" # the model gemini-4-argon, gemini-3.8-flash, etc
+    --model(-m):string@$gemini_models = "gemini-4-carbon" # the model gemini-4-carbon, gemini-4-argon, gemini-3.8-flash, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9             # the temperature of the model (deprecated for Gemini 3.x and 4)
     --thinking_level(-e): string@$thinking_levels = "medium" # thinking effort level (minimal, low, medium, high)
@@ -176,30 +210,9 @@ export def google_ai [
       $safety_settings
     }
 
-  let max_output_tokens = match $model {
-    $m if ($m =~ "gemini-4") => 64000
-    $m if ($m =~ "gemini-3.8") => 64000
-    $m if ($m =~ "gemini-3.7") => 64000
-    $m if ($m =~ "gemini-3.6") => 64000
-    $m if ($m =~ "gemini-3.5") => 64000
-    $m if ($m =~ "gemini-3.1") => 64000
-    $m if ($m =~ "gemini-3") => 64000
-    $m if ($m =~ "gemini-pro-vision") => 64000
-    _ => 8192
-  }
-
   let input_model = $model
-  let model = match $model {
-    "gemini-pro-vision" => $gemini_pro_vision
-    "gemini-4" => "gemini-4-argon"
-    "gemini-3.8" => "gemini-3.8-flash"
-    "gemini-3.7" => "gemini-3.7-flash"
-    "gemini-3.6" => "gemini-3.6-flash"
-    "gemini-3.5" => "gemini-3.5-flash-lite"
-    "gemini-3.1" => "gemini-3.1-pro"
-    "gemini-3.0" | "gemini-3" => "gemini-3.8-flash"
-    _ => $model
-  }  
+  let model = (gemini-resolve-model $model)
+  let max_output_tokens = (gemini-max-output-tokens $model)
 
   if ($temp != 0.9) and ($model =~ "gemini-3" or $model =~ "gemini-4") {
     print (echo-y "Warning: --temp is deprecated for Gemini 3.x and 4 models and will be ignored. Use --thinking_level instead.")
@@ -529,12 +542,13 @@ export def google_ai [
   
   while (not $no_retry_models) and (($answer | is-empty) or ($answer == null) or ($answer | get error? | is-not-empty) or ($answer | describe) == nothing) and ($index_model < $n_models) {
     let next_model = $models | get $index_model
+    let next_max_output_tokens = (gemini-max-output-tokens $next_model)
     $request.model = ("models/" + $next_model)
-    if ($next_model =~ "gemini-3") {
-      let base = { max_output_tokens: $max_output_tokens }
+    if ($next_model =~ "gemini-3" or $next_model =~ "gemini-4") {
+      let base = { max_output_tokens: $next_max_output_tokens }
       $request.generation_config = (if ($thinking_level_val | is-not-empty) { $base | insert thinking_level $thinking_level_val } else { $base })
     } else {
-      $request.generation_config = { temperature: $temp, max_output_tokens: $max_output_tokens }
+      $request.generation_config = { temperature: $temp, max_output_tokens: $next_max_output_tokens }
     }
 
     $answer = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $request -e
