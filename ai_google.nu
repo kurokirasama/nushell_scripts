@@ -11,6 +11,10 @@ export const gemini_models = [
   "gemini-pro-vision"
 ]
 
+export const gemini_paid_only_models = [
+  "gemini-3.1-pro-preview"
+]
+
 export const thinking_levels = [
   "minimal"
   "low"
@@ -22,6 +26,16 @@ export const thinking_levels = [
 export-env { $env.MY_ENV_VARS = ($env.MY_ENV_VARS? | default {} | upsert gemini_model_to_use $last_gemini_model) }
 
 def format-iso-utc [] { date now | format date "%Y-%m-%dT%H:%M:%SZ" }
+
+# Return fallback models in retry order, excluding paid-only models on the free tier.
+export def gemini-fallback-models [--paid(-p)]: nothing -> list<string> {
+  let base_models = ($gemini_models | find -v vision)
+  if $paid {
+    $base_models
+  } else {
+    $base_models | where {|m| $m not-in $gemini_paid_only_models}
+  }
+}
 
 # Resolve a Gemini model shorthand or legacy alias to its canonical API id.
 export def gemini-resolve-model [model: string]: nothing -> string {
@@ -533,7 +547,7 @@ export def google_ai [
   #trying different models in case of error
   mut answer: any = null
   mut index_model = 0
-  let models = $gemini_models | find -v vision
+  let models = (gemini-fallback-models --paid=$paid)
   let n_models = $models | length 
   
   if $verbose {print ("retrieving from gemini models...")}
