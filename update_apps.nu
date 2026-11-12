@@ -4074,6 +4074,88 @@ export def "apps-update from-todos" [--dry-run, --skip-sudo] {
 }
 
 
+# Update MComix GTK4 (twwn/mcomix) inside its virtual environment
+@search-terms mcomix comic reader gtk4 venv
+export def "apps-update mcomix" [
+  --force(-f)   # Reinstall even when already at the latest version
+  --dry-run     # Show the planned action without changing anything
+] {
+  let venv = ($env.HOME | path join ".local" "share" "mcomix" "venv")
+  let exe = ($env.HOME | path join ".local" "bin" "mcomix")
+  let py = ($venv | path join "bin" "python")
+  let pip = ($venv | path join "bin" "pip")
+
+  if not ($venv | path exists) {
+    error make { msg: $"MComix venv not found at ($venv). Run the installer first." }
+  }
+
+  let current = (try {
+    ^$py -c "import importlib.metadata as m; print(m.version('mcomix'))" | str trim
+  } catch { "" })
+
+  let rel = (http get "https://api.github.com/repos/twwn/mcomix/releases/latest" -H ['Accept', 'application/vnd.github+json'])
+  let latest = ($rel.tag_name | str trim | str trim -c "v")
+
+  print $"Current MComix: (if ($current | is-empty) { 'not installed' } else { $current })"
+  print $"Latest MComix:  ($latest)"
+
+  if (not $force) and ($current == $latest) {
+    print (echo-g $"MComix ($current) is already up to date.")
+    return
+  }
+
+  if $dry_run {
+    print $"[DRY-RUN] Would upgrade MComix ($current) -> ($latest) in ($venv)"
+    return
+  }
+
+  let tmp = (^mktemp -d | str trim)
+  try {
+    let asset = $"mcomix-($latest).tar.xz"
+    let base = $"https://github.com/twwn/mcomix/releases/download/($latest)"
+    let archive = ($tmp | path join $asset)
+
+    print (echo-g "Downloading MComix...")
+    ^curl -fsSL -o $archive $"($base)/($asset)"
+    ^curl -fsSL -o ($tmp | path join "SHA256SUMS") $"($base)/SHA256SUMS"
+
+    print (echo-g "Verifying SHA-256 checksum...")
+    let expected = (open --raw ($tmp | path join "SHA256SUMS")
+      | lines
+      | find -n $asset
+      | first
+      | split row " "
+      | where { |p| $p | is-not-empty }
+      | first)
+    let actual = (^sha256sum $archive | split row " " | first)
+    if $expected != $actual {
+      error make { msg: $"Checksum mismatch for ($asset)" }
+    }
+
+    print (echo-g "Installing into the virtual environment...")
+    let res = (do { ^$pip install --upgrade $"($archive)[fileformats]" } | complete)
+    if $res.exit_code != 0 {
+      error make { msg: ($res.stderr | str trim | str substring 0..400) }
+    }
+
+    # refresh desktop integration in the user data dir (no sudo needed)
+    ^tar -xf $archive -C $tmp
+    let share_dirs = (^find $tmp -maxdepth 2 -type d -name share | lines)
+    if not ($share_dirs | is-empty) {
+      ^cp -r $"($share_dirs | first)/." ($env.HOME | path join ".local" "share")
+    }
+
+    ^ln -sfn $"($venv)/bin/mcomix" $exe
+    let installed = (^$py -c "import importlib.metadata as m; print(m.version('mcomix'))" | str trim)
+    print (echo-g $"MComix updated: ($current) -> ($installed)")
+  } catch { |err|
+    error make { msg: $"MComix update failed: ($err.msg)" }
+  } finally {
+    ^rm -rf $tmp
+  }
+}
+
+
 export def "apps-update help" [] {
     scope commands 
     | where name starts-with "apps-update "

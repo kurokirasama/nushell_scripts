@@ -130,7 +130,7 @@ These custom functions offer a suite of tools for encrypting, decrypting, and ma
 This script is collection of commands designed for managing apps on Xiaomi devices using Android Debug Bridge (ADB) commands. It includes commands to uninstall and disable various pre-installed apps and services from the device. The uninstallation commands target Facebook-related apps, while the disablement commands are categorized into three safety levels: safe, supposedly safe, and uncertain. The safe category addresses Xiaomi and MIUI specific apps and services, the supposedly safe category includes a mix of Xiaomi, Google, and other apps, and the not sure category is commented out, indicating ambivalence about the impact of disabling those apps. These functions would help users to debloat their smartphone by removing or disabling unwanted system apps to improve performance and privacy.
 
 ### defs
-These custom functions provided for nushell aim to enhance the command line experience by offering a variety of utilities. These functions include searching within files or streams with highlighting, copying the current working directory to the clipboard, converting Excel files to CSV, checking if a drive is mounted, retrieving phone numbers from Google contacts, and launching the mcomix application. Additionally, they facilitate obtaining download information from JDownloader, summarizing source file information for nushell scripts, executing web searches from the terminal, marking Habitica dailies as complete, and setting countdown alarms with audible notifications.
+These custom functions provided for nushell aim to enhance the command line experience by offering a variety of utilities. These functions include searching within files or streams with highlighting, copying the current working directory to the clipboard, converting Excel files to CSV, checking if a drive is mounted, retrieving phone numbers from Google contacts, and launching the mcomix application (GTK4 build). Additionally, they facilitate obtaining download information from JDownloader, summarizing source file information for nushell scripts, executing web searches from the terminal, marking Habitica dailies as complete, and setting countdown alarms with audible notifications.
 
 Other functions check the validity of web links, send emails via Gmail with signature files, reset Alpine mail client authentication, run MATLAB in CLI mode, download all files with specific extensions from a webpage using wget, compile LaTeX documents, check the status of Maestral (Dropbox client), generate QR codes, compact data by removing empty strings and nulls, serve a local HTTP server, and even open the balenaEtcher app. Each function is designed to perform a specific task, streamlining various operations that a user might need to perform in a Unix-like environment.
 
@@ -351,7 +351,7 @@ These custom functions offer enhanced directory navigation capabilities. They al
 | `matlab-cli` | run matlab in cli |
 | `max-vol` | No description provided. |
 | `mcv` | No description provided. |
-| `mcx` | open mcomix |
+| `mcx` | open mcomix (GTK4) |
 | `mk-anime` | create anime dirs according to files |
 | `mk-manga` | create manga dirs according to files |
 | `monitor` | Monitor the output of a command |

@@ -1559,10 +1559,11 @@ export def "media clip-delogo-params" [params: string, file: string, --w_band: i
     $"delogo=x=($x):y=($y):w=($w):h=($h)"
 }
 
-# Trim specified seconds from the end of a video
+# Trim specified seconds from the end of a video (default 3.2s covers the
+# Gemini Notebook end card, which runs for about 3.1s)
 export def "media trim-end" [
     file: string,                  # The input video file
-    --seconds(-s): float = 2.6     # Number of seconds to remove from the end (default: 2.5)
+    --seconds(-s): float = 3.2     # Seconds to remove from the end (default: 3.2)
     --output(-o): string           # Optional output file name
     --notify(-n)                   # Notify to android via join/tasker
 ] {
@@ -1604,7 +1605,148 @@ export def "media trim-end" [
     }
 }
 
+# Run one delogo detection pass and return structured candidate boxes.
+def _media-delogo-pass [
+    file: string
+    delogo_bin: string
+    --corner: any = null
+    --width-band: int = 35
+    --height-band: int = 18
+    --canny
+    --source: string = "legacy"
+]: nothing -> list<any> {
+    let abs_file = ($file | path expand)
+    let tmp_dir = (mktemp -d)
+    let flags = (
+        (if $canny { ["-y"] } else { [] })
+        ++ (if ($corner != null) { [$"-c($corner)"] } else { [] })
+        ++ ["-W" ($width_band | into string) "-H" ($height_band | into string) $abs_file]
+    )
+    let res = (run-external "bash" "-c" 'cd "$1" || exit 1; shift; exec "$@"' "_" $tmp_dir $delogo_bin ...$flags | complete)
+    rm -rf $tmp_dir
+
+    $res.stdout
+    | lines
+    | where {|l| $l =~ 'delogo=' }
+    | each {|l|
+        let p = ($l | split row " corner" | first | str trim)
+        let parsed = ($p | parse -r r#'delogo=x=(?<x>\d+):y=(?<y>\d+):w=(?<w>\d+):h=(?<h>\d+)'#)
+        if ($parsed | is-empty) {
+            null
+        } else {
+            let c = ($parsed | first)
+            {
+                params: $p
+                x: ($c.x | into int)
+                y: ($c.y | into int)
+                w: ($c.w | into int)
+                h: ($c.h | into int)
+                source: $source
+            }
+        }
+    }
+    | where {|c| $c != null }
+}
+
+# Clip a candidate box so delogo never receives an out-of-frame rectangle.
+export def _media-clip-logo-box [c: record, frame_w: int, frame_h: int]: nothing -> record {
+    let x = ([0 ([$c.x ($frame_w - 2)] | math min)] | math max)
+    let y = ([0 ([$c.y ($frame_h - 2)] | math min)] | math max)
+    let w = ([1 ([$c.w ($frame_w - $x - 1)] | math min)] | math max)
+    let h = ([1 ([$c.h ($frame_h - $y - 1)] | math min)] | math max)
+    $c
+    | upsert x $x
+    | upsert y $y
+    | upsert w $w
+    | upsert h $h
+    | upsert params $"delogo=x=($x):y=($y):w=($w):h=($h)"
+}
+
+# Check whether two candidate boxes overlap.
+def _media-logo-boxes-overlap [a: record, b: record]: nothing -> bool {
+    let ax2 = $a.x + $a.w
+    let ay2 = $a.y + $a.h
+    let bx2 = $b.x + $b.w
+    let by2 = $b.y + $b.h
+    (($a.x < $bx2) and ($b.x < $ax2) and ($a.y < $by2) and ($b.y < $ay2))
+}
+
+# Edge density of a candidate, averaged over three sampled frames.
+def _media-logo-edge-score [
+    file: string
+    x: int
+    y: int
+    w: int
+    h: int
+    duration: float
+]: nothing -> float {
+    let times = [
+        ($duration * 0.1 | math round --precision 2)
+        ($duration * 0.5 | math round --precision 2)
+        ($duration * 0.9 | math round --precision 2)
+    ]
+
+    let scores = $times | each {|t|
+        let vf = $"crop=($w):($h):($x):($y),sobel,signalstats,metadata=print:key=lavfi.signalstats.YAVG"
+        let res = (run-external "ffmpeg" "-v" "info" "-ss" ($t | into string) "-i" $file "-vf" $vf "-frames:v" "1" "-f" "null" "-" | complete)
+        let parsed = (($res.stderr + $res.stdout)
+            | lines
+            | where {|l| $l =~ 'lavfi.signalstats.YAVG=' }
+            | last
+            | default ""
+            | parse -r 'YAVG=(?<v>[0-9.]+)')
+        if ($parsed | is-empty) { 0.0 } else { $parsed.0.v | into float }
+    }
+
+    $scores | math avg
+}
+
+# Pick the best already-scored candidate: larger box when candidates overlap,
+# otherwise the one with the highest edge density. Returns null when nothing passes.
+export def _media-pick-logo-candidate [
+    candidates: list<any>
+    --min-edge: float = 0.0
+]: nothing -> any {
+    let scored = ($candidates | where {|c| ($c.edge? | default 0.0) >= $min_edge })
+    if ($scored | is-empty) { return null }
+
+    let annotated = ($scored | each {|a|
+        $a | insert overlaps ($scored | any {|b|
+            ($a.params != $b.params) and (_media-logo-boxes-overlap $a $b)
+        })
+    })
+
+    let overlapping = ($annotated | where {|c| $c.overlaps })
+    if ($overlapping | is-not-empty) {
+        return ($overlapping | sort-by {|c| $c.w * $c.h } -r | first)
+    }
+
+    $scored | sort-by edge -r | first
+}
+
+# Select the best candidate: larger box when candidates overlap, otherwise
+# the one with the highest edge density. Returns null when nothing passes.
+def _media-select-logo-candidate [
+    candidates: list<any>
+    file: string
+    duration: float
+    --min-edge: float = 6.0
+]: nothing -> any {
+    if ($candidates | is-empty) { return null }
+
+    let scored = ($candidates | each {|c|
+        $c | insert edge (_media-logo-edge-score $file $c.x $c.y $c.w $c.h $duration)
+    })
+
+    _media-pick-logo-candidate $scored --min-edge $min_edge
+}
+
 # Automatically remove logo from media file
+#
+# Auto mode runs the legacy full-frame delogo pass and a focused bottom-right
+# pass for the Gemini Notebook watermark, then picks the best candidate by
+# overlap and edge density. Use --corner/--width_band/--height_band to force a
+# specific pass.
 #
 # Examples:
 # media auto-remove-logo input.mp4
@@ -1653,39 +1795,57 @@ export def "media auto-remove-logo" [
         $output
     }
 
+    let vinfo = (ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 $file | str trim | split row "x" | into int)
+    let frame_w = $vinfo.0
+    let frame_h = $vinfo.1
+    let duration = (ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $file | str trim | into float)
+
     let params = if $method == "auto" and $is_video {
         print (echo-g $"Attempting automatic logo detection on ($file) using ($delogo_bin) [W:($width_band)%, H:($height_band)%]...")
-        let canny_flag = if $canny { "-y" } else { "" }
-        let corner_flag = if not ($corner | is-empty) { $"-c ($corner)" } else { "" }
-        let detection = bash -c $"($delogo_bin) ($canny_flag) ($corner_flag) -W ($width_band) -H ($height_band) '($file)'" | complete
-        
-        let p = if ($detection.stdout | str contains "delogo=") {
-            ($detection.stdout | lines | where $it =~ "delogo=" | first | split row " corner" | first | str trim)
+        let explicit = (($corner != null) or ($width_band != 35) or ($height_band != 18))
+
+        let raw_candidates = if $explicit {
+            _media-delogo-pass $file $delogo_bin --corner $corner --width-band $width_band --height-band $height_band --canny=$canny --source "explicit"
         } else {
-            print (echo-r "Default detection failed. Attempting with Canny edge detection...")
-            let detection_canny = bash -c $"($delogo_bin) -y ($corner_flag) -W ($width_band) -H ($height_band) '($file)'" | complete
-            if ($detection_canny.stdout | str contains "delogo=") {
-                ($detection_canny.stdout | lines | where $it =~ "delogo=" | first | split row " corner" | first | str trim)
+            let legacy = (_media-delogo-pass $file $delogo_bin --width-band $width_band --height-band $height_band --canny=$canny --source "legacy")
+            let legacy = if (($legacy | is-empty) and (not $canny)) {
+                print (echo-r "Default detection failed. Attempting with Canny edge detection...")
+                _media-delogo-pass $file $delogo_bin --width-band $width_band --height-band $height_band --canny --source "legacy-canny"
             } else {
-                return-error "Automatic logo detection failed. Please provide a template and use --method find_rect."
+                $legacy
             }
+            let focused = (_media-delogo-pass $file $delogo_bin --corner 3 --width-band 15 --height-band 5 --canny --source "gemini-notebook")
+            $legacy ++ $focused
         }
-        
-        print (echo-g $"Detected logo params: ($p)")
+
+        let clipped = ($raw_candidates | each {|c| _media-clip-logo-box $c $frame_w $frame_h })
+        let selected = if $explicit {
+            if ($clipped | is-empty) {
+                null
+            } else {
+                let c = ($clipped | first)
+                $c | insert edge (_media-logo-edge-score $file $c.x $c.y $c.w $c.h $duration)
+            }
+        } else {
+            _media-select-logo-candidate $clipped $file $duration --min-edge 6.0
+        }
+        if ($selected | is-empty) {
+            return-error "Automatic logo detection failed. Provide --coords or use --method find_rect with a template."
+        }
+
+        print (echo-g $"Detected logo params: ($selected.params) [source: ($selected.source), edge: ($selected.edge | math round --precision 2)]")
 
         if $return_info or $detect_only {
-            let duration = ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 $file | str trim | into float
-            let coords = $p | parse -r r#'delogo=x=(?<x>\d+):y=(?<y>\d+):w=(?<w>\d+):h=(?<h>\d+)'# | get 0
             $info = {
                 start_time: 0,
                 end_time: $duration,
-                x: ($coords.x | into int),
-                y: ($coords.y | into int),
-                w: ($coords.w | into int),
-                h: ($coords.h | into int)
+                x: $selected.x,
+                y: $selected.y,
+                w: $selected.w,
+                h: $selected.h
             }
         }
-        $p
+        $selected.params
     } else if $method == "find_rect" or ($is_image and ($template | is-not-empty)) {
         if ($template | is-empty) { return-error "Template file is required for find_rect method." }
         if not ($template | path exists) { return-error $"Template file not found: ($template)" }
