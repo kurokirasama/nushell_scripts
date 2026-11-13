@@ -37,6 +37,84 @@ export def gemini-fallback-models [--paid(-p)]: nothing -> list<string> {
   }
 }
 
+# Return the failure message of a Gemini response, or null when it succeeded.
+export def gemini-answer-error [response: any]: nothing -> oneof<string, nothing> {
+  if ($response == null) or (($response | describe) == "nothing") or ($response | is-empty) {
+    return "empty response from server"
+  }
+  if ($response | describe) == "string" {
+    return ($response | str trim)
+  }
+  let err = $response | get --optional error
+  if ($err | is-not-empty) {
+    if ($err | describe) == "string" {
+      return $err
+    }
+    return ($err | get --optional message | default ($err | to json --raw))
+  }
+  null
+}
+
+# Format failed model attempts into a single user-facing error message.
+export def gemini-format-failures [
+  failures: list<record<model: string, error: string>> # per-model failures in attempt order
+]: nothing -> string {
+  if ($failures | is-empty) {
+    return "unknown Gemini error"
+  }
+  if ($failures | length) == 1 {
+    return $failures.0.error
+  }
+  let lines = $failures
+    | each {|failure| $"- ($failure.model): ($failure.error)" }
+    | str join (char nl)
+  $"All ($failures | length) Gemini models failed:\n($lines)"
+}
+
+# Return fallback models in retry order, excluding the already-tried initial model.
+export def gemini-next-models [
+  initial: string # resolved initial model already attempted
+  --paid (-p)     # include paid-only models
+]: nothing -> list<string> {
+  gemini-fallback-models --paid=$paid | where $it != $initial
+}
+
+# Run a Gemini request across fallback models and aggregate errors if all fail.
+export def gemini-run-with-fallback [
+  request: record          # base request payload
+  initial: string          # resolved initial model
+  fallbacks: list<string>  # ordered fallback models after initial
+  poster: closure          # closure accepting request record and returning response
+  build_config: closure    # closure accepting model name and returning generation_config
+  --no-retry               # attempt only the initial model
+  --verbose                # print per-model failures to stderr
+]: nothing -> any {
+  let attempts = if $no_retry { [$initial] } else { [$initial] ++ $fallbacks }
+  mut failures: list<record<model: string, error: string>> = []
+  for attempt in ($attempts | enumerate) {
+    let model_name = $attempt.item
+    let req = $request
+      | upsert model $"models/($model_name)"
+      | upsert generation_config (do $build_config $model_name)
+    let response = do $poster $req
+    let err = gemini-answer-error $response
+    if $err == null {
+      return $response
+    }
+    $failures = $failures ++ [{model: $model_name, error: $err}]
+    if $verbose {
+      let next_model = $attempts | get --optional ($attempt.index + 1) | default ""
+      let status_msg = if ($next_model | is-empty) {
+        $"model ($model_name) failed: ($err); no more fallback models."
+      } else {
+        $"model ($model_name) failed: ($err); trying ($next_model)..."
+      }
+      print --stderr (echo-c $status_msg "yellow")
+    }
+  }
+  return-error (gemini-format-failures $failures)
+}
+
 # Resolve a Gemini model shorthand or legacy alias to its canonical API id.
 export def gemini-resolve-model [model: string]: nothing -> string {
   match $model {
@@ -544,40 +622,31 @@ export def google_ai [
     }
   }
 
-  #trying different models in case of error
-  mut answer: any = null
-  mut index_model = 0
-  let models = (gemini-fallback-models --paid=$paid)
-  let n_models = $models | length 
-  
-  if $verbose {print ("retrieving from gemini models...")}
+  # Try initial model, then fall back across remaining models aggregating failures.
+  if $verbose { print --stderr "retrieving from gemini models..." }
 
-  $answer = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $request -e
-  
-  while (not $no_retry_models) and (($answer | is-empty) or ($answer == null) or ($answer | get error? | is-not-empty) or ($answer | describe) == nothing) and ($index_model < $n_models) {
-    let next_model = $models | get $index_model
-    let next_max_output_tokens = (gemini-max-output-tokens $next_model)
-    $request.model = ("models/" + $next_model)
-    if ($next_model =~ "gemini-3" or $next_model =~ "gemini-4") {
-      let base = { max_output_tokens: $next_max_output_tokens }
-      $request.generation_config = (if ($thinking_level_val | is-not-empty) { $base | insert thinking_level $thinking_level_val } else { $base })
+  let fallbacks = gemini-next-models $model --paid=$paid
+  let poster = {|req|
+    http post --content-type application/json --headers ["Api-Revision" "2026-05-20"] $url_request $req --allow-errors
+  }
+  let build_config = {|target_model|
+    let target_max_tokens = gemini-max-output-tokens $target_model
+    if ($target_model =~ "gemini-3" or $target_model =~ "gemini-4") {
+      let base = { max_output_tokens: $target_max_tokens }
+      if ($thinking_level_val | is-not-empty) {
+        $base | insert thinking_level $thinking_level_val
+      } else {
+        $base
+      }
     } else {
-      $request.generation_config = { temperature: $temp, max_output_tokens: $next_max_output_tokens }
+      {
+        temperature: $temp
+        max_output_tokens: $target_max_tokens
+      }
     }
-
-    $answer = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $request -e
-    $index_model += 1
   }
 
-  if ($answer | is-empty) or ($answer == null) or ($answer | describe) == nothing {
-    return-error "something went wrong with the server!"
-  }
-
-  if ($answer | get error? | is-not-empty) {
-    return-error $answer.error.message
-  }
-  
-  let final_answer = $answer
+  let final_answer = gemini-run-with-fallback $request $model $fallbacks $poster $build_config --no-retry=$no_retry_models --verbose=$verbose
   try {
     let steps = ($final_answer | get -o steps | default [])
     if ($steps | is-empty) {
