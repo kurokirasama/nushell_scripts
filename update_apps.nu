@@ -915,7 +915,7 @@ export def run-cachyos-cargo-pkgs [dry_run: bool]: nothing -> nothing {
   }
 }
 export def run-cachyos-uv-tools [dry_run: bool]: nothing -> nothing {
-  for cmd in ["apps-update linecast", "apps-update subliminal", "apps-update whisper", "apps-update nvitop"] {
+  for cmd in ["apps-update linecast", "apps-update subliminal", "apps-update whisper", "apps-update nvitop", "apps-update notebooklm-mcp"] {
     if $dry_run { print $"[DRY-RUN] Would execute: ($cmd)" } else { try { bash -c $cmd | ignore } catch {|e| print (echo-y $"Warning ($cmd): ($e.msg)") } }
   }
   for tool in ["termdown", "tldr"] {
@@ -2913,6 +2913,22 @@ export def "apps-update linecast" [] {
   }
 }
 
+#update gemini-notebook-mcp-cli
+export def "apps-update notebooklm-mcp" [] {
+  if (which uv | is-not-empty) {
+    let installed = (try { (uv tool list | lines | any { $in =~ "^notebooklm-mcp-cli " }) } catch { false })
+    if $installed {
+      uv tool upgrade notebooklm-mcp-cli
+    } else {
+      uv tool install notebooklm-mcp-cli
+    }
+  } else if (which pipx | is-not-empty) {
+    pipx upgrade notebooklm-mcp-cli
+  } else {
+    pip install -U notebooklm-mcp-cli
+  }
+}
+
 #update windows zed
 export def "apps-update zed-windows" [] {
     let path = "~/rclone" | path join $env.MY_ENV_VARS.gdrive_mount_point | path join "Public/Software" | path expand
@@ -3845,6 +3861,9 @@ export def is-app-installed [app_name: string]: nothing -> bool {
     "context-mode": ["ctx", "context-mode"]
     "markdonify-mcp": ["markdonify", "markdonify-mcp"]
     "matlab-agentic-toolkit": ["mat", "matlab-agentic-toolkit"]
+    "notebooklm-mcp": ["notebooklm-mcp", "nlm"]
+    "gemini-notebook-mcp": ["notebooklm-mcp", "nlm"]
+    "gemini-notebook-mcp-cli": ["notebooklm-mcp", "nlm"]
     "yt-x": ["yt-x", "ytx"]
   }
 
