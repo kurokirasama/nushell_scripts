@@ -133,6 +133,55 @@ export def get-local-packages []: nothing -> record<official: list<string>, aur:
     }
 }
 
+# 2b. detect-standalone-managed
+# Summary: Detects standalone-managed executable binaries under local/user bin directories,
+#   ignoring non-executable files, broken symlinks, and symlinks resolving to system paths.
+# Parameters:
+#   --standalone-dirs: Optional list of directories to scan (defaults to ~/.local/bin, /usr/local/bin)
+# Example: detect-standalone-managed --standalone-dirs ["/tmp/mock_bin"]
+export def detect-standalone-managed [
+    --standalone-dirs: list<string>
+]: nothing -> list<string> {
+    let dirs = if ($standalone_dirs != null) {
+        $standalone_dirs | each { |d| $d | path expand }
+    } else {
+        ["~/.local/bin", "/usr/local/bin"] | each { |d| $d | path expand }
+    }
+
+    let system_prefixes = ["/usr/bin/", "/usr/lib/", "/bin/", "/sbin/"]
+
+    $dirs
+    | where { |d| ($d | path exists) and (($d | path type) == "dir") }
+    | each { |d|
+        ls -al $d
+        | where { |entry|
+            ($entry.type in ["file", "symlink"]) and not (($entry.name | path basename) | str starts-with ".")
+        }
+        | each { |entry|
+            let resolved = try { $entry.name | path expand } catch { "" }
+            if ($resolved | is-empty) or not ($resolved | path exists) or (($resolved | path type) != "file") {
+                null
+            } else {
+                let is_sys_target = ($system_prefixes | any { |pfx| $resolved | str starts-with $pfx })
+                if $is_sys_target {
+                    null
+                } else {
+                    let target_mode = try { ls -al $resolved | first | get mode } catch { "" }
+                    if ($target_mode =~ "x") {
+                        ($entry.name | path basename)
+                    } else {
+                        null
+                    }
+                }
+            }
+        }
+    }
+    | flatten
+    | where { |x| $x != null }
+    | sort
+    | uniq
+}
+
 # 3. audit-system-drift
 # Summary: Calculates package drift between local system installations and declarative definitions.
 # Parameters:
@@ -140,12 +189,16 @@ export def get-local-packages []: nothing -> record<official: list<string>, aur:
 #   --rejected-drift-path: Path to rejected_drift.json (defaults to Backups/linux/conductor/rejected_drift.json)
 #   --base-packages-path: Path to base_packages.json (defaults to Backups/linux/conductor/base_packages.json)
 #   --mock-system: Optional mock system record for testing
+#   --mock-standalone: Optional list of standalone-managed package names for testing
+#   --standalone-dirs: Optional directory list override for standalone binary detection
 # Example: audit-system-drift --package-lists-path "custom.json"
 export def audit-system-drift [
     --package-lists-path: string
     --rejected-drift-path: string
     --base-packages-path: string
     --mock-system: record
+    --mock-standalone: list<string>
+    --standalone-dirs: list<string>
 ]: nothing -> record {
     let pkg_file = if ($package_lists_path != null) { $package_lists_path } else { get-default-package-lists-path }
     let rej_file = if ($rejected_drift_path != null) { $rejected_drift_path } else { get-default-rejected-path }
@@ -217,6 +270,17 @@ export def audit-system-drift [
     let unrejected_sys_off = ($sys_official | where not ($it in $rej_official))
     let unrejected_sys_aur = ($sys_aur | where not ($it in $rej_aur))
 
+    # Resolve standalone-managed binaries (isolated from host filesystem when --mock-system is used alone)
+    let standalone_managed = if ($mock_standalone != null) {
+        $mock_standalone
+    } else if ($standalone_dirs != null) {
+        detect-standalone-managed --standalone-dirs $standalone_dirs
+    } else if ($mock_system != null) {
+        []
+    } else {
+        detect-standalone-managed
+    }
+
     # All expected packages across both categories to reconcile cross-category shifts
     let all_expected_packages = ($expected_official | append $expected_aur | uniq)
 
@@ -225,9 +289,14 @@ export def audit-system-drift [
     let base_suppressed_aur = ($unrejected_sys_aur | where ($it in $base_aur) and not ($it in $all_expected_packages) | sort | uniq)
     let base_suppressed_count = (($base_suppressed_official | length) + ($base_suppressed_aur | length))
 
-    # Calculate differences against expected (cross-category reconciled) and base OS
-    let new_official = ($unrejected_sys_off | where not ($it in $all_expected_packages) and not ($it in $base_official) | sort | uniq)
-    let new_aur = ($unrejected_sys_aur | where not ($it in $all_expected_packages) and not ($it in $base_aur) | sort | uniq)
+    # Calculate standalone-suppressed packages (installed via pacman, not expected, not rejected, not base OS, managed by standalone binary)
+    let standalone_suppressed_official = ($unrejected_sys_off | where ($it in $standalone_managed) and not ($it in $all_expected_packages) and not ($it in $base_official) | sort | uniq)
+    let standalone_suppressed_aur = ($unrejected_sys_aur | where ($it in $standalone_managed) and not ($it in $all_expected_packages) and not ($it in $base_aur) | sort | uniq)
+    let standalone_suppressed_count = (($standalone_suppressed_official | length) + ($standalone_suppressed_aur | length))
+
+    # Calculate differences against expected (cross-category reconciled), base OS, and standalone binaries
+    let new_official = ($unrejected_sys_off | where not ($it in $all_expected_packages) and not ($it in $base_official) and not ($it in $standalone_managed) | sort | uniq)
+    let new_aur = ($unrejected_sys_aur | where not ($it in $all_expected_packages) and not ($it in $base_aur) and not ($it in $standalone_managed) | sort | uniq)
 
     let missing_official = if ($mock_system != null) {
         ($expected_official | where not ($it in $all_installed_sys) | sort | uniq)
@@ -275,6 +344,7 @@ export def audit-system-drift [
             missing_aur: ($missing_aur | length),
             suppressed: $suppressed_count,
             base_suppressed: $base_suppressed_count,
+            standalone_suppressed: $standalone_suppressed_count,
             total_drift: $total_drift
         },
         drift: {
@@ -285,7 +355,9 @@ export def audit-system-drift [
             suppressed_official: $suppressed_official,
             suppressed_aur: $suppressed_aur,
             base_suppressed_official: $base_suppressed_official,
-            base_suppressed_aur: $base_suppressed_aur
+            base_suppressed_aur: $base_suppressed_aur,
+            standalone_suppressed_official: $standalone_suppressed_official,
+            standalone_suppressed_aur: $standalone_suppressed_aur
         }
     }
 }
@@ -326,6 +398,7 @@ export def format-drift-markdown [
         $"- Missing / Uninstalled Packages: ($missing_total)",
         ("- Suppressed [Rejected] Packages: " + ($counts.suppressed | into string)),
         ("- Base OS Packages Suppressed: " + (($counts.base_suppressed? | default 0) | into string)),
+        ("- Standalone-Managed Packages Suppressed: " + (($counts.standalone_suppressed? | default 0) | into string)),
         $"- Total Actionable Items: ($actionable_total)",
         ""
     ]
@@ -1274,9 +1347,10 @@ export def cachyos-drift-auditor [
 
     let counts = $audit_res.counts
     let missing_sum = (($counts.missing_official) + ($counts.missing_aur))
+    let standalone_sum = ($counts.standalone_suppressed? | default 0)
     print-rich $"  [bold]Target Host:[/] [green]($audit_res.target_host)[/]"
     print-rich $"  [bold]New Official:[/] ($counts.new_official), [bold]New AUR:[/] ($counts.new_aur)"
-    print-rich $"  [bold]Missing:[/] ($missing_sum), [bold]Suppressed:[/] ($counts.suppressed), [bold]Base Suppressed:[/] ($counts.base_suppressed)"
+    print-rich $"  [bold]Missing:[/] ($missing_sum), [bold]Suppressed:[/] ($counts.suppressed), [bold]Base Suppressed:[/] ($counts.base_suppressed), [bold]Standalone Suppressed:[/] ($standalone_sum)"
     print-rich $"  [bold yellow]Total Actionable Drift:[/] ($counts.total_drift)"
 
     # Step 3: If drift detected, generate review draft and dispatch Habitica todo
