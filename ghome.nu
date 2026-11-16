@@ -84,7 +84,7 @@ export def "ghome auth" [] {
     print $"Please visit this URL to authorize: ($auth_url)"
     print "After authorizing, your browser will redirect to a broken page (127.0.0.1)."
     print "Copy and paste the FULL URL from your address bar below:"
-    let input_val = input "Enter the code or full URL: "
+    let input_val = input --reedline "Enter the code or full URL: "
 
     # Extract code if a full URL was pasted
     let code = if ($input_val | str starts-with "http") {

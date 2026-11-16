@@ -340,7 +340,7 @@ export def "yt-api empty-playlist" [playlist?:string] {
   print (echo-g "selecting playlist to process...")
   let the_playlist = if ($playlist | is-empty) {
       $playlists
-      let index = input (echo-g "from which playlist you want to delete songs (index)?: ") | into int
+      let index = input --reedline (echo-g "from which playlist you want to delete songs (index)?: ") | into int
       $playlists | get $index
     } else {
       $playlists | find -i $playlist
@@ -386,7 +386,7 @@ export def "yt-api remove-duplicated-songs" [
   print (echo-g "selecting playlist to process...")
   let the_playlist = if ($playlist | is-empty) {
       $playlists
-      let index = input (echo-g "from which playlist you want to remove duplicates (index)?: ") | into int
+      let index = input --reedline (echo-g "from which playlist you want to remove duplicates (index)?: ") | into int
       $playlists | get $index
     } else {
       $playlists | find -i $playlist
@@ -497,7 +497,7 @@ def yt-oauth-authorize [] {
     print "After authorizing, you will be redirected to a URL like 'http://localhost:8080/?code=YOUR_CODE&state=YOUR_STATE'."
     print (echo-g "Copy the entire URL from your browser's address bar and paste it here:")
 
-    let redirect_response = (input "Paste the redirect URL:")
+    let redirect_response = (input --reedline "Paste the redirect URL:")
 
     let parsed_url_components = ($redirect_response | url parse)
     let query_params_record = ($parsed_url_components.query | from url)

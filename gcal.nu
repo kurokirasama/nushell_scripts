@@ -32,10 +32,10 @@ export def "gcal add" [
     $calendar
   }
 
-  let title = if ($title | is-empty) {input (echo-g "title: ")} else {$title}
-  let when = if ($when | is-empty) {input (echo-g "when: ")} else {$when}
-  let where = if ($where | is-empty) {input (echo-g "where: ")} else {$where}
-  let duration = if ($duration | is-empty) {input (echo-g "duration: ")} else {$duration}
+  let title = if ($title | is-empty) {input --reedline (echo-g "title: ")} else {$title}
+  let when = if ($when | is-empty) {input --reedline (echo-g "when: ")} else {$when}
+  let where = if ($where | is-empty) {input --reedline (echo-g "where: ")} else {$where}
+  let duration = if ($duration | is-empty) {input --reedline (echo-g "duration: ")} else {$duration}
   
   try {
     $"Adding Event to Calendar [bold]($calendar)[/]:\nTitle: [bold cyan]($title)[/]\nWhen: [yellow]($when)[/] | Duration: ($duration) mins\nWhere: ($where)"

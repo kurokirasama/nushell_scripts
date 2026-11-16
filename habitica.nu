@@ -957,7 +957,7 @@ export def "h add" [
       } else {
         mut list = []
         loop {
-            let checklist_item = input "Enter checklist item (leave empty to finish): "
+            let checklist_item = input --reedline "Enter checklist item (leave empty to finish): "
             if ($checklist_item | is-empty) {
                 break
             }
@@ -983,7 +983,7 @@ export def "h add" [
         let every_x_input = if ($every_x != null) {
             $every_x
         } else {
-            let input_val = input "Repeat every X days (optional, e.g., 2 for every other day): "
+            let input_val = input --reedline "Repeat every X days (optional, e.g., 2 for every other day): "
             if ($input_val | is-not-empty) { $input_val | into int } else { null }
         }
         
@@ -1526,7 +1526,7 @@ export def "h add-checklist" [
   } else {
     mut list = []
     loop {
-        let item_text = input "Enter checklist item (leave empty to finish): "
+        let item_text = input --reedline "Enter checklist item (leave empty to finish): "
         if ($item_text | is-empty) {
             break
         }
@@ -1661,6 +1661,6 @@ export def _h-input [
             $options | input list -f (echo-g $prompt_msg)
         }
     } else {
-        input $prompt_msg
+        input --reedline $prompt_msg
     }
 }

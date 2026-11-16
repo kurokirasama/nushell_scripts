@@ -433,7 +433,7 @@ export def "ai git-push" [
         }
       }
     } catch {
-      null | input (echo-g $"Something happened with ($model). Enter your commit message or leave empty to stop: ")
+      null | input --reedline (echo-g $"Something happened with ($model). Enter your commit message or leave empty to stop: ")
     }
   
 
@@ -444,7 +444,7 @@ export def "ai git-push" [
 
   #errors now give a record instead of empty string
   mut final_commit = if ($commit | typeof) != "string" {
-    input (echo-g $"Something happened with ($model). Enter your commit message or leave empty to stop: ")
+    input --reedline (echo-g $"Something happened with ($model). Enter your commit message or leave empty to stop: ")
   } else {
     $commit
   }
@@ -464,7 +464,7 @@ export def "ai git-push" [
         git restore --staged .
         return-error "Push cancelled by user."
       },
-      "e" | "edit" => { $final_commit = input (echo-g "Enter new commit message: ") },
+      "e" | "edit" => { $final_commit = input --reedline (echo-g "Enter new commit message: ") },
     }
   }
 
@@ -511,8 +511,8 @@ export def "ai audio2text" [
 
   if $filter_noise {
     print (echo-g $"reproduce ($filename) and select start and end time for noise segment, leave empty if no noise..." )
-    $start = (input "start? (hh:mm:ss): ")
-    $end = (input "end? (hh:mm:ss): ")
+    $start = (input --reedline "start? (hh:mm:ss): ")
+    $end = (input --reedline "end? (hh:mm:ss): ")
   }
 
   if ($start | is-empty) or ($end | is-empty) {

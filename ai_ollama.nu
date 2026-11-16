@@ -197,16 +197,16 @@ export def o_llama [
 
     let sav = input (echo-c "would you like to save the conversation in local drive? (y/n): " "green")
     if $sav == "y" {
-      let filename = input (echo-g "enter filename (default: ollama_chat): ")
+      let filename = input --reedline (echo-g "enter filename (default: ollama_chat): ")
       let filename = if ($filename | is-empty) {"ollama_chat"} else {$filename}
       save_ollama_chat $contents $filename $count
     }
 
     let sav = input (echo-c "would you like to save the conversation in obsidian? (y/n): " "green")
     if $sav == "y" {
-      mut filename = input (echo-g "enter note title: ")
+      mut filename = input --reedline (echo-g "enter note title: ")
       while ($filename | is-empty) {
-        $filename = (input (echo-g "enter note title: "))
+        $filename = (input --reedline (echo-g "enter note title: "))
       }
       save_ollama_chat $contents $filename $count -o
     }
@@ -326,7 +326,7 @@ def save_ollama_chat [
   if $obsidian and $database {
     return-error "only one of these flags allowed"
   }
-  let filename = if ($filename | is-empty) {input (echo-g "enter filename: ")} else {$filename}
+  let filename = if ($filename | is-empty) {input --reedline (echo-g "enter filename: ")} else {$filename}
 
   let plain_text = $contents 
     | flatten 
