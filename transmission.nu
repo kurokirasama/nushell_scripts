@@ -1,6 +1,4 @@
 #transmission wrapper
-use ./table_manipulation.nu default-table
-use /home/kira/software/nu-rich/rich *
 
 export def "t help" [] {
   try { rich rule "Transmission CLI Commands" --style "bold cyan" } catch { print "transmission-daemon wrapper\n" }

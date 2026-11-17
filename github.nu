@@ -31,6 +31,7 @@ export def anonymize-env-vars [
         | str replace -a "~/Yandex.Disk/Backups/linux" "~/scripts/linux"
         | str replace -a "~/Yandex.Disk/Development/linux/nushell/nushell_scripts" "~/nushell_scripts"
         | str replace -a "~/Yandex.Disk/Development/linux/sublime/nushell_sublime_syntax" "~/nushell_sublime_syntax"
+        | str replace -a "~/Yandex.Disk/Development/agent-skills" "~/agent-skills"
         | str replace -a "~/Yandex.Disk" "~/scripts"
         | str replace -a "G:\\My Drive\\Yandex.Disk.Backup" "G:\\My Drive\\Backup"
         | str replace -a "G:\\My Drive\\Depto\\DireccionEscuelaIngenieria\\NotasReunionesAi" "G:\\My Drive\\Notes"

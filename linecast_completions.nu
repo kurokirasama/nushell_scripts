@@ -185,25 +185,6 @@ export extern "linecast completion" [
     shell?: string@"nu-complete linecast-shells"
 ]
 
-export extern "weather" [
-    --version # Show version
-    --print
-    --live
-    --oneline
-    --json
-    --location: string
-    --search: string
-    --emoji
-    --metric
-    --celsius
-    --fahrenheit
-    --no-shading
-    --lang: string@"nu-complete linecast-lang"
-    --classic-colors
-    --legacy-colors
-    --debug
-]
-
 export extern "sunshine" [
     --version # Show version
     --print

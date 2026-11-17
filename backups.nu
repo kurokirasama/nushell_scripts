@@ -1,5 +1,3 @@
-use crypt.nu [nu-crypt]
-
 def echo-g [str: string] { $"(ansi -e { fg: '#00ff00' attr: b })($str)(ansi reset)" }
 def echo-y [str: string] { $"(ansi -e { fg: '#ffff00' attr: b })($str)(ansi reset)" }
 def echo-r [str: string] { $"(ansi -e { fg: '#ff0000' attr: b })($str)(ansi reset)" }
@@ -1048,7 +1046,6 @@ export def "agy restore" [--os: string = ""] {
 
   # 3. Synchronize skills & rules
   try {
-    use ~/Yandex.Disk/my_scripts/nushell/def_system.nu [link-skills, update-gemini-md]
     link-skills
     update-gemini-md
   } catch {}
@@ -1102,7 +1099,6 @@ export def "cld restore" [--os: string = ""] {
   }
 
   try {
-    use ~/Yandex.Disk/my_scripts/nushell/def_system.nu [link-skills, link-agents, update-gemini-md]
     link-skills
     link-agents
     update-gemini-md
@@ -1180,7 +1176,6 @@ export def "opn restore" [--os: string = ""] {
   }
 
   try {
-    use ~/Yandex.Disk/my_scripts/nushell/def_system.nu [link-skills, link-agents, update-gemini-md]
     link-skills
     link-agents
     update-gemini-md

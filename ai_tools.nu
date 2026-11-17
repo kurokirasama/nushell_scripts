@@ -1993,3 +1993,30 @@ export def show-prompts [
 export def "gmn stats" [] {
 	npx gemini-wrapped
 }
+
+# Summarize the output of google_search via AI across providers
+@category ai
+@search-terms google-search summary gemini chatgpt ollama
+export def "ai google_search-summary" [
+  question: string          # The question made to google
+  web_content = ""          # Output of google_search, md or table
+  --md(-m)                  # Return concatenated md instead of table
+  --model(-M): string = "gemini" # Select model: gpt4, gemini, ollama
+  --paid(-P)                # Use paid gemini
+] {
+  let resolved_content = if ($web_content | is-empty) { $in } else { $web_content }
+  let provider_summarizer = { |complete_prompt: string|
+    match $model {
+      $s if ($s | str starts-with "llama") or ($s | str starts-with "qwq") => {
+        o_llama $complete_prompt --select_system html2text_summarizer -m $model
+      },
+      $s if ($s | str starts-with "gpt") => {
+        chat_gpt $complete_prompt --select_system html2text_summarizer -m gpt-4.1
+      },
+      "gemini" => {
+        google_ai $complete_prompt --select_system html2text_summarizer -m gemini-3.5-flash -P $paid
+      }
+    }
+  }
+  _google-search-summary-core $question $resolved_content --md=$md --model $model --paid=$paid --summarizer $provider_summarizer
+}

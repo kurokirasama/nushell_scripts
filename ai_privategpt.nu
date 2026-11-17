@@ -151,7 +151,7 @@ export def private_gpt [
       } else {""}
       
       let web_content = if $web_search and $web_engine == "google" {
-          ai google_search-summary $chat_prompt $web_content -m -M "gemini"
+          google-search-summary-gemini $chat_prompt $web_content -m -M "gemini"
       } else {$web_content}
 
       $chat_prompt = (
@@ -248,7 +248,7 @@ export def private_gpt [
   } else {""}
   
   let web_content = if $web_search and $web_engine == "google" {
-      ai google_search-summary $prompt $web_content -m -M "gemini"
+      google-search-summary-gemini $prompt $web_content -m -M "gemini"
   } else {$web_content}
   
   let prompt = if $web_search {

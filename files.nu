@@ -1,48 +1,3 @@
-######################################################
-# here because they are needed in this file
-######################################################
-
-#generate error output
-export def return-error [msg] {
-  error make -u {msg: $"(echo-r $msg)"}
-}
-
-#green echo
-export def echo-g [text:string] {
-  echo $"(ansi -e { fg: '#00ff00' attr: b })($text)(ansi reset)"
-}
-
-#red echo
-export def echo-r [text:string] {
-  echo $"(ansi -e { fg: '#ff0000' attr: b })($text)(ansi reset)"
-}
-
-#yellow echo
-export def echo-y [text:string] {
-  echo $"(ansi -e { fg: '#ffff00' attr: b })($text)(ansi reset)"
-}
-
-#custom color echo
-export def echo-c [
-    text:string #text to print
-    color:string  #color of text
-    --bold(-b)    #print in bold
-] {
-  if $bold {
-    echo $"(ansi -e { fg: ($color) attr: b })($text)(ansi reset)"
-  } else {
-    echo $"(ansi -e { fg: ($color)})($text)(ansi reset)"
-  }
-}
-
-#verify if a column exist within a table
-export def is-column [name] { 
-  $name in ($in | columns) 
-}
-
-######################################################
-######################################################
-
 #wrapper for describe
 export def typeof [
     --full(-f)
@@ -892,4 +847,13 @@ export def nuwget [
         }
         | print
     }
+}
+
+#extract first link from text
+export def open-link [] {
+  lines
+  | find http
+  | first
+  | get 0
+  | openf
 }

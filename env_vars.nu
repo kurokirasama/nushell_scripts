@@ -34,6 +34,7 @@ $env.MY_ENV_VARS = $env.MY_ENV_VARS
   | upsert python_scripts ($base_yandex | path join "my_scripts" "python")
   | upsert nu_scripts_public (if $is_windows { $base_yandex | path join "Development" "linux" "nushell" "nushell_scripts" } else { "~/nushell_scripts" | path expand })
   | upsert nushell_syntax_public (if $is_windows { $base_yandex | path join "Development" "linux" "sublime" "nushell_sublime_syntax" } else { "~/nushell_sublime_syntax" | path expand })
+  | upsert agent_skills_public (if $is_windows { $base_yandex | path join "Development" "agent-skills" } else { "~/agent-skills" | path expand })
   | upsert credentials ($base_linux | path join "credentials")
   | upsert debs ($base_yandex | path join "Backups" "debs")
   | upsert gdrive_debs (if $is_windows { r#'G:\My Drive\Backup'# } else { "~/cloud/Backup" | path expand })
@@ -310,8 +311,6 @@ if ($sdl3_pc_path | path exists) {
 }
 
 #api_keys
-use crypt.nu [open-credential]
-use apis.nu [get-api-key]
 $env.MY_ENV_VARS = ($env.MY_ENV_VARS | upsert api_keys (try { open-credential -u ($env.MY_ENV_VARS.credentials | path join credentials.json.asc) } catch { {} }))
 
 $env.DC_API_KEY = (try { get-api-key "datacommons" } catch { "" })

@@ -463,7 +463,7 @@ export def google_ai [
               "" # Just continue without web content in chat mode
           }
       } else {""}
-      let web_content = if $web_search and $web_engine == "google" { ai google_search-summary $chat_prompt $web_content -m -M "gemini" } else {$web_content}
+      let web_content = if $web_search and $web_engine == "google" { google-search-summary-gemini $chat_prompt $web_content -m -M "gemini" } else {$web_content}
 
       $chat_prompt = (
         if $web_search {
@@ -858,76 +858,50 @@ export def google_aimage [
   }
 }
 
-#summarize the output of google_search via ai
-@category ai
-@search-terms google-search summary gemini chatgpt ollama
-export def "ai google_search-summary" [
-  question:string     #the question made to google
-  web_content = ""       #output of google_search, md or table
-  --md(-m)            #return concatenated md instead of table
-  --model(-M):string = "gemini" #select model: gpt4, gemini, ollama
-  --paid(-P)          #use paid gemini
+# Core web search summarization pipeline defaulting to Gemini; accepts a custom summarizer closure for other providers
+export def _google-search-summary-core [
+  question: string          # The question made to google
+  web_content = ""          # Output of google_search, md or table
+  --md(-m)                  # Return concatenated md instead of table
+  --model(-M): string = "gemini" # Provider/model label used for logging & max_words
+  --paid(-P)                # Use paid gemini
+  --summarizer: closure     # Optional closure {|complete_prompt| ... } for custom providers
 ] {
-  let web_content = if ($web_content | is-empty) {$in} else {$web_content}
-  let max_words = if $model == "gemini" {800000} else {100000}
+  let web_content = if ($web_content | is-empty) { $in } else { $web_content }
+  let max_words = if $model == "gemini" { 800000 } else { 100000 }
   let n_webs = if ($web_content | is-empty) {
-      0
+    0
   } else if ($web_content | describe | split row '<' | get 0) like "table" {
-      $web_content | length
+    $web_content | length
   } else {
-      0
+    0
   }
 
-  let prompt = open --raw ([$env.MY_ENV_VARS.llms_configs prompt summarize_html2text.md] | path join) 
-    | str replace "<question>" $question 
-  
+  let prompt = open --raw ([$env.MY_ENV_VARS.llms_configs prompt summarize_html2text.md] | path join)
+    | str replace "<question>" $question
+
+  let summarize_one = { |text: string|
+    let complete_prompt = $prompt + "\n'''\n" + $text + "\n'''"
+    if $summarizer != null {
+      do $summarizer $complete_prompt
+    } else {
+      google_ai $complete_prompt --select_system html2text_summarizer -m gemini-3.5-flash -P $paid
+    }
+  }
 
   print (echo-g $"asking ($model) to summarize the web results...")
 
   if ($n_webs == 0) {
     print (echo-c $"summarizing md web results..." "green")
-    
-    let truncated_content = $web_content # | str truncate -m $max_words
-    let complete_prompt = $prompt + "\n'''\n" + $truncated_content + "\n'''"
-      
-    let summarized_content = match $model {
-      $s if ($s | str starts-with "llama") or ($s | str starts-with "qwq") => {
-        o_llama $complete_prompt --select_system html2text_summarizer -m $model
-      },
-      $s if ($s | str starts-with "gpt") => {
-        chat_gpt $complete_prompt --select_system html2text_summarizer -m gpt-4.1
-      },
-      "gemini" => {
-        google_ai $complete_prompt --select_system html2text_summarizer -m gemini-3.5-flash -P $paid
-      }
-    }
-    
-    return $summarized_content
+    return (do $summarize_one $web_content)
   }
 
   mut content = []
   for i in 0..($n_webs - 1) {
     let web = $web_content | get $i
-
     print (echo-c $"summarizing the results of ($web.displayLink)..." "green")
-
     let truncated_content = $web.content | str truncate -m $max_words
-
-    let complete_prompt = $prompt + "\n'''\n" + $truncated_content + "\n'''"
-
-    let summarized_content = match $model {
-      $s if ($s | str starts-with "llama") or ($s | str starts-with "qwq") => {
-        o_llama $complete_prompt --select_system html2text_summarizer -m $model
-      },
-      $s if ($s | str starts-with "gpt") => {
-        chat_gpt $complete_prompt --select_system html2text_summarizer -m gpt-4.1
-      },
-      "gemini" => {
-        google_ai $complete_prompt --select_system html2text_summarizer -m gemini-3.5-flash -P $paid
-      }
-    }
-
-    $content = $content ++ [$summarized_content]
+    $content = $content ++ [(do $summarize_one $truncated_content)]
   }
 
   let content = $content | wrap content
@@ -935,19 +909,30 @@ export def "ai google_search-summary" [
 
   if $md {
     mut md_output = ""
-
     for i in 0..($n_webs - 1) {
       let web = $updated_content | get $i
-      
       $md_output = $md_output + "# " + $web.title + "\n"
       $md_output = $md_output + "link: " + $web.link + "\n\n"
       $md_output = $md_output + $web.content + "\n\n"
     }
-
     return $md_output
   } else {
     return $updated_content
   }
+}
+
+# Summarize Google search results using Gemini
+@category ai
+@search-terms google-search summary gemini
+export def google-search-summary-gemini [
+  question: string          # The question made to google
+  web_content = ""          # Output of google_search, md or table
+  --md(-m)                  # Return concatenated md instead of table
+  --model(-M): string = "gemini" # Kept for call compatibility with google-search callers
+  --paid(-P)                # Use paid gemini
+] {
+  let resolved_content = if ($web_content | is-empty) { $in } else { $web_content }
+  _google-search-summary-core $question $resolved_content --md=$md --model $model --paid=$paid
 }
 
 # =========================================================
@@ -1608,7 +1593,7 @@ export def "ai web_search-multi" [
       # If the engine is google, summarize the results for this query
       let summarized = if $web_engine == "google" {
         try {
-          ai google_search-summary $q $raw_res -m -M "gemini"
+          google-search-summary-gemini $q $raw_res -m -M "gemini"
         } catch {|e|
           if $verbose { print (echo-y $"Summarization failed for '($q)', using raw results") }
           $raw_res

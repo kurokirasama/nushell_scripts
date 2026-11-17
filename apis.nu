@@ -816,3 +816,97 @@ export def web_search [
         }
     }
 }
+
+const channels = ["gemini_cli_cron" "gemini_cli" "gemini_cli_news" "automessages"]
+#http post to discord channel
+@example "Message as input" {to-discord "hola"}
+@example "Message as pipe" {"hola" | to-discord}
+@example "Change default channel" {to-discord "hola" --channel automessages}
+export def to-discord [
+	message?:any #message or JSON to send, can be piped
+	--channel(-c):string = "gemini_cli" #channel to post
+	--ping-me(-p)
+	--process #if enabled, extract 'report' from JSON and handle splitting/stripping
+] {
+  let input = get-input $in $message
+
+  let weburl = get-api-key ("discord_webhooks." + $channel)
+  let my_id = get-api-key "discord_kira_id"
+
+  if not $process {
+    let final_message = if $ping_me {$"<@($my_id)> ($input)"} else {$input | into string}
+    let payload = { "content": ($final_message | str trim) } | to json --raw
+    http post $weburl $payload --content-type "application/json"
+    return
+  }
+
+  # --- Gated Logic (only if --process is enabled) ---
+
+  # 1. Extraction logic
+  let final_message = if ($input | describe | str contains "record") {
+    if "report" in ($input | columns) { $input.report } else { $input | to json }
+  } else if ($input | describe | str contains "string") {
+    try {
+        let parsed = $input | from json
+        if ($parsed | describe | str contains "record") and "report" in ($parsed | columns) {
+            $parsed.report
+        } else {
+            $input
+        }
+    } catch {
+        $input
+    }
+  } else {
+    $input | to text
+  }
+
+  let final_message = if $ping_me {$"<@($my_id)> ($final_message)"} else {$final_message}
+
+  # 2. Splitting logic (strictly at blank lines)
+  # Measure in BYTES because Discord limit is 2000 bytes
+  let paragraphs = $final_message | split row -r '\n\s*\n' | each { |p| $p | str trim } | where { |p| $p | is-not-empty }
+
+  # Safety margin: 1800 bytes (Discord limit is 2000)
+  let chunks = $paragraphs | reduce --fold {current: "", all: []} { |p, acc|
+    let p_bytes = $p | into binary | length
+    let c_bytes = $acc.current | into binary | length
+
+    if $p_bytes > 1800 {
+        # Paragraph itself is too big, push current and split paragraph by lines
+        let next_all = if ($acc.current | is-not-empty) { $acc.all | append $acc.current } else { $acc.all }
+        
+        let sub_res = ($p | split row "\n" | reduce --fold {current: "", all: $next_all} { |line, s_acc|
+            let l_bytes = $line | into binary | length
+            let sc_bytes = $s_acc.current | into binary | length
+            if ($sc_bytes + $l_bytes + 1) < 1800 {
+                {current: (if $sc_bytes == 0 { $line } else { $s_acc.current + "\n" + $line }), all: $s_acc.all}
+            } else {
+                let s_next_all = if ($s_acc.current | is-not-empty) { $s_acc.all | append $s_acc.current } else { $s_acc.all }
+                {current: $line, all: $s_next_all}
+            }
+        })
+        {current: $sub_res.current, all: $sub_res.all}
+    } else if ($c_bytes + $p_bytes + 2) < 1800 {
+        # Paragraph fits in current chunk
+        {current: (if $c_bytes == 0 { $p } else { $acc.current + "\n\n" + $p }), all: $acc.all}
+    } else {
+        # Start new chunk
+        let next_all = if ($acc.current | is-not-empty) { $acc.all | append $acc.current } else { $acc.all }
+        {current: $p, all: $next_all}
+    }
+  }
+
+  let final_chunks = if ($chunks.current | is-not-empty) { $chunks.all | append $chunks.current } else { $chunks.all }
+
+  # 3. Sequential send
+  $final_chunks | each { |msg|
+    let msg_trimmed = $msg | str trim
+    if ($msg_trimmed | is-not-empty) {
+        # Strip checkboxes [ ] and [x] as they look ugly in Discord
+        let clean_msg = $msg_trimmed | str replace --all "- [ ] " "- " | str replace --all "- [x] " "- "
+        let payload = { "content": $clean_msg } | to json --raw
+        http post $weburl $payload --content-type "application/json"
+        sleep 2sec
+    }
+  }
+}

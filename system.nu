@@ -502,24 +502,6 @@ export def rmount [drive?:string] {
   } | ignore
 }
 
-# Monitor the output of a command
-export def monitor [
-    cmd: closure, # command to execute
-    until?: closure, # condition to stop monitoring
-    --time(-t): duration = 5sec # time interval
-] {
-    let cnd = if ($until == null) {{$in | true}} else {$until}
-    loop {
-        let $res = do $cmd
-        clear
-        print $res
-        sleep $time
-        if not ($res | do $cnd) {
-            break
-        }
-    }
-}
-
 # select files and dirs
 export def fuzzy-select-fs [type: string = "file"] {
     let candidates = ls **/*
