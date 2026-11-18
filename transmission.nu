@@ -9,7 +9,7 @@ export def "t help" [] {
     { name: "t list", description: "List all active/idle torrents with status" },
     { name: "t basic-stats", description: "Show basic transmission statistics in panel" },
     { name: "t full-stats", description: "Show comprehensive transmission statistics" },
-    { name: "t ui", description: "Open tremc TUI client" },
+    { name: "t ui", description: "Interactive Transmission TUI (list, sort, multi-select, add)" },
     { name: "t add", description: "Add magnet URL or torrent file to queue" },
     { name: "t add-from-file", description: "Add torrent file directly" },
     { name: "t info", description: "Show detailed info for a specific torrent" },
@@ -113,13 +113,6 @@ export def "t full-stats" [] {
   } catch {
     transmission-remote -n 'transmission:transmission' -si
   }
-}
-
-#open transmission tui
-export def "t ui" [
-  host?: string = "127.0.0.1"  # host or ip address to connect to (default: 127.0.0.1)
-] {
-  tremc -c $"transmission:transmission@($host):9091"
 }
 
 #add file to transmission download queue

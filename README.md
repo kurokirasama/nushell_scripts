@@ -141,7 +141,7 @@ These custom functions provided perform a series of operations to manage and upd
 These nushell custom functions serve to configure the shell environment with a variety of settings and behaviors. The `$env.PATH` is extended with additional directories, including various user-specific paths and system binaries. The `PROMPT_COMMAND` constructs a dynamic prompt that changes color based on the last command's exit code and displays different symbols and path sizes depending on whether the current directory is the home directory or elsewhere, as well as Git status information. The `PROMPT_COMMAND_RIGHT` is designed to show weather information and command duration on the right side of the prompt, but only if the terminal is wide enough. The `PROMPT_INDICATOR` changes color based on the success of the previous command. The `BROWSER` variable is set to use "lynx," and `LS_COLORS` is configured to colorize file listings. The shell environment also includes a custom `MY_ENV_VARS` hashmap that holds various user-defined variables and paths, which are set and updated using the `upsert` function. Additionally, `PAGER` is set to "less," and `VISUAL` is set to "nano," to define the default pager and editor. Finally, `api_keys` are loaded into `MY_ENV_VARS` from an encrypted JSON file.
 
 ### gcal
-These nushell custom functions provide a convenient wrapper for interacting with Google Calendar using the `gcalcli` tool. They enable users to add events, as well as view their agenda, weekly, or monthly calendar, with options to specify details such as calendar selection, event title, date, location, and duration. The functions are flexible, allowing for both full calendar visibility and the inclusion of additional flags for detailed customization. Users can also invoke these commands without arguments, prompting them for the necessary inputs. Overall, these functions are designed to streamline the process of managing Google Calendar events directly from nushell.
+These nushell custom functions provide a convenient wrapper for interacting with Google Calendar using the `gcalcli` tool. They enable users to add events (interactively, via positional arguments, or through the `--tui` form with fuzzy calendar selection and inline validation), as well as view their agenda, weekly, or monthly calendar, with options to specify details such as calendar selection, event title, date, location, and duration. The functions are flexible, allowing for both full calendar visibility and the inclusion of additional flags for detailed customization. Users can also invoke these commands without arguments, prompting them for the necessary inputs. Overall, these functions are designed to streamline the process of managing Google Calendar events directly from nushell.
 
 ### geek
 These custom nushell functions provide a suite of tools designed to interface with the Geeknote command-line client for Evernote. They offer a variety of operations such as searching for notes with "geek find," displaying note content with "geek show," editing notes via "geek edit," and creating new notes using "geek create." Additionally, there is a function for exporting notes to ENEX files named `geek export`, which automatically installs the necessary `evernote-backup` package if it isn't already present. These functions streamline the process of managing Evernote notes from the command line, adding extra features like handling additional flags and formatting output for improved readability.
@@ -192,7 +192,15 @@ These functions for nushell facilitate various data manipulation tasks: converti
 These functions provide a suite of tools for interacting with devices using the Join app, offering a variety of methods for remote communication and control. The functions allow users to send notifications, initiate phone calls, utilize text-to-speech (TTS), and send SMS messages from a specified device, with the option to select a device interactively. These functions interact with the Join API, requiring an API key and device ID, and they support encoding text and title information for network transmission. Parameters can be set for specifying devices, choosing a language for TTS, and customizing other aspects of the communication. Additionally, the help function provides an overview of the available methods and their usage.
 
 ### transmission
-These custom functions serve as a wrapper for managing Transmission, a BitTorrent client, through the command line. These functions allow users to control and interact with the Transmission daemon and include capabilities such as starting and stopping the daemon, reloading its configuration, and listing currently managed torrents. Users can also retrieve basic or full statistics for the torrents, open a text-based user interface for Transmission, and add torrents to the download queue either individually or in bulk from a file. Additionally, the functions support fetching information about specific torrents, removing torrents from the queue with or without deleting associated files, removing completed torrents, and initiating or halting the download of torrents either individually or collectively. These utilities provide a convenient and scriptable way to handle torrent activities directly from the shell environment.
+These custom functions serve as a wrapper for managing Transmission, a BitTorrent client, through the command line. These functions allow users to control and interact with the Transmission daemon and include capabilities such as starting and stopping the daemon, reloading its configuration, and listing currently managed torrents. Users can also retrieve basic or full statistics for the torrents, open the native Nushell `t ui` Transmission TUI (in `tui.nu` / `tui_apps.nu`), and add torrents to the download queue either individually or in bulk from a file. Additionally, the functions support fetching information about specific torrents, removing torrents from the queue with or without deleting associated files, removing completed torrents, and initiating or halting the download of torrents either individually or collectively. These utilities provide a convenient and scriptable way to handle torrent activities directly from the shell environment.
+
+### tui (`tui.nu`, `tui_apps.nu`, `tui_runner.nu`)
+Built on Nushell's native `tui` command family (0.116+), `tui.nu` provides interactive terminal UIs with a fast lazy-loaded launcher (`tui_runner.nu` + `tui_apps.nu`) so shell startup stays low while offering full-screen interfaces:
+* `monitor`: Interactive table/record/list/text live monitor with `until` predicate, `p` pause, `r` refresh, and `--plain`/no-TTY fallback.
+* `t ui`: Transmission JSON-RPC TUI replacing `tremc`, with Unicode progress bars, raw numeric column sorting, multi-select, start/stop/remove-done/remove-delete, turtle toggle, info/stats preview pane, and multi-line/clipboard add form.
+* `obs tui`: Three-pane Obsidian vault browser (expandable folder tree, direct-child notes table, Markdown preview via `glow`/`bat`), `/` fuzzy filter, `g` global filter, `n` new note, and `ox` editing.
+* `h tui` / `htui`: Habitica TUI for switching Todos/Habits/Dailys (`1`/`2`/`3`), per-type sorting, notes/checklist preview, completing, habit scoring (`+`/`-`), deleting, and type-specific add forms.
+* `skills tui`: Agent Skills browser over `SKILL.md` frontmatter with `/` fuzzy search, Markdown preview, `Enter` full-screen `mdfried`/`glow -p`, `e` edit in `ox`, and `l` skill file browser.
 
 ### update_apps
 These nushell custom functions collectively handle software updates and installations for various applications, both on and off the package manager as well as custom functions to fetch the latest release information from GitHub repositories, and to update GitHub app releases. Other functions deal with updating utilities and tools like nchat, ffmpeg with CUDA support, whisper, manim, yewtube, yt-dlp, and Joplin, as well as registering nushell plugins, upgrading the system, upgrading pip3 packages, updating the nushell config, installing fonts, and handling errors during installations. Each function encapsulates the necessary steps to check for updates, download new versions, and install them, often with error handling to notify the user if something goes wrong.
@@ -284,6 +292,7 @@ These custom functions offer enhanced directory navigation capabilities. They al
 | `fuzzy-dispatcher` | No description provided. |
 | `fuzzy-select-fs` | select files and dirs |
 | `g` | alias for ai gcal with gemini |
+| `gcal add --tui` | Interactive TUI form for adding Google Calendar events with fuzzy calendar picker and inline validation |
 | `generate-md-from-dir` | generate an unique md from all files in current directory recursively |
 | `generate-nushell-doc` | generates nushell document for llm (gemini and claude) |
 | `get-aliases` | get aliases |
@@ -315,10 +324,12 @@ These custom functions offer enhanced directory navigation capabilities. They al
 | `grp` | No description provided. |
 | `gtes` | No description provided. |
 | `h` | alias for ai habitica with gemini |
+| `h tui` | Interactive Habitica TUI for todos, habits, and dailys (alias `htui`) |
 | `his` | last 100 elements in history with highlight |
 | `history-stats` | Show some history stats similar to how atuin does it |
 | `hs` | aliases |
 | `htop` | No description provided. |
+| `htui` | Alias for `h tui` |
 | `indexify` | add a hidden column with the content of the # column |
 | `install-font` | install font |
 | `install-sober` | Install Sober (Roblox player) Flatpak on Ubuntu or CachyOS |
@@ -354,7 +365,7 @@ These custom functions offer enhanced directory navigation capabilities. They al
 | `mcx` | open mcomix (GTK4) |
 | `mk-anime` | create anime dirs according to files |
 | `mk-manga` | create manga dirs according to files |
-| `monitor` | Monitor the output of a command |
+| `monitor` | Interactive TUI (or `--plain` loop) monitoring the output of a command closure |
 | `mpv` | mpv wrapper |
 | `multiwhere` | filter by multiple where conditions simultaneous Example:  ls \| multiwhere { name: .txt, type: file } |
 | `mute` | No description provided. |
@@ -378,6 +389,7 @@ These custom functions offer enhanced directory navigation capabilities. They al
 | `nuwget` | Download file with nu |
 | `nvitop` | No description provided. |
 | `o_llama` | No description provided. |
+| `obs tui` | Interactive three-pane Obsidian vault browser (folders, notes, Markdown preview) |
 | `ochat` | alias for ollama chat |
 | `older-than` | Check if date is further in the past than specified duration |
 | `ollama_search` | ollama web search |
@@ -440,6 +452,7 @@ These custom functions offer enhanced directory navigation capabilities. They al
 | `show_banner` | nushell banner |
 | `show-ips` | show stored ips |
 | `show-prompts` | show system prompts and pre-prompts definitions |
+| `skills tui` | Interactive Agent Skills browser with fuzzy search, Markdown preview, mdfried/glow, and ox edit |
 | `sober` | Run Sober (Roblox player on Linux via Flatpak) |
 | `sober-update` | Update Sober (Roblox player) Flatpak package (alias: `apps-update sober`) |
 | `speedtest-plot` | plot download-upload speed |
@@ -451,6 +464,7 @@ These custom functions offer enhanced directory navigation capabilities. They al
 | `supgrade` | update-upgrade system |
 | `svg2pdf` | convert svg image into a pdf file |
 | `system-cleanup` | Unified system cleanup command to reclaim disk space.  Categories: 1. User Caches: thumbnails, fontconfig, wallust, pip, uv, npm, stack. 2. Package Managers: apt (clean/autoremove), uv, pip, npm, stack. 3. System Logs: journalctl vacuum (last 3 days). 4. Aggressive: rustup toolchains (stable only), old build dirs (node_modules, target > 30d).  Note: Privileged commands (apt, journalctl) require sudo and will only be executed if --sudo is provided. |
+| `t ui` | Interactive Transmission TUI client (list, sort, multi-select, stats, add) |
 | `table-diff` | table diff |
 | `table2record` | table to record |
 | `takephoto` | No description provided. |

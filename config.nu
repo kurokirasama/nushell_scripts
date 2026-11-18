@@ -29,6 +29,13 @@ $env.config.table.trim = {
     truncating_suffix: "❱" #...
   }
 
+#tui config
+$env.config.tui = ($env.config.tui? | default {} | merge {
+    title_bar: { fg: "#000000", bg: "#00ff00", attr: "b" }
+    button: { fg: "#000000", bg: "#00ff00" }
+    status_bar: { fg: "#ffffff", bg: "dark_gray" }
+})
+
 #miscelaneous
 $env.config.history.sync_on_enter = true
 $env.config.history.file_format = "sqlite"
