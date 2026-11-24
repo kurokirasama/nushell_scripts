@@ -2,7 +2,7 @@
 export def update-all-likes [] {
 	let prompt = $"convert ($env.MY_ENV_VARS.linux_backup | path join youtube_music_playlists | path join all_likes.json) into a m3u file using the m3u-converter skill. Save the output file in the same directory, overwrite any existing file"
 	
-	gmn --profile no-mcp --model gemini-3.5-flash --prompt $prompt
+	gmn --profile no-mcp --model gemini-4-hydrogen --prompt $prompt
 	sleep 2sec
 	killnode
 }
@@ -21,7 +21,7 @@ const skills = [
 	"cron-research-linkedin-post",
 	"cron-update-presupuesto",
 ]
-const gmn_models = ["gemini-4-carbon", "gemini-3.5-flash", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.0-flash", "qwen2.5-coder:7b", "qwen2.5-coder:32b", "codestral", "llama3.1"]
+const gmn_models = ["gemini-4-hydrogen", "gemini-4-neon", "gemini-4-carbon", "gemini-4-argon", "gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-pro-preview", "qwen2.5-coder:7b", "qwen2.5-coder:32b", "codestral", "llama3.1"]
 const profiles = ["no-mcp", "minimal", "standard", "webdev", "research", "googlesuit", "googlesuit-media", "imagen", "websearch", "ollama", "full", "notebooklm"]
 
 # Resolve the Discord channel for a cron skill.

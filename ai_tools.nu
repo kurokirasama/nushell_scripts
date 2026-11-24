@@ -2014,7 +2014,7 @@ export def "ai google_search-summary" [
         chat_gpt $complete_prompt --select_system html2text_summarizer -m gpt-4.1
       },
       "gemini" => {
-        google_ai $complete_prompt --select_system html2text_summarizer -m gemini-3.5-flash -P $paid
+        google_ai $complete_prompt --select_system html2text_summarizer -m $gemini_model_to_use -P $paid
       }
     }
   }

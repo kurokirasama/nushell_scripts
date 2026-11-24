@@ -1,17 +1,22 @@
-export const last_gemini_model = "gemini-4-carbon"
-export const gemini_pro_vision = "gemini-4-carbon"
+export const last_gemini_model = "gemini-4-hydrogen"
+export const last_gemini_paid_model = "gemini-4-neon"
+export const gemini_pro_vision = "gemini-4-hydrogen"
 export const gemini_models = [
-  "gemini-4-carbon"
-  "gemini-4-argon"
+  "gemini-4-hydrogen"
   "gemini-3.8-flash"
-  "gemini-3.7-flash"
   "gemini-3.6-flash"
   "gemini-3.5-flash-lite"
+  "gemini-4-neon"
+  "gemini-4-carbon"
+  "gemini-4-argon"
   "gemini-3.1-pro-preview"
   "gemini-pro-vision"
 ]
 
 export const gemini_paid_only_models = [
+  "gemini-4-neon"
+  "gemini-4-carbon"
+  "gemini-4-argon"
   "gemini-3.1-pro-preview"
 ]
 
@@ -20,6 +25,7 @@ export const thinking_levels = [
   "low"
   "medium"
   "high"
+  "xhigh"
 ]	
 
 # Export the default gemini model to MY_ENV_VARS so consumers (ai_tools.nu, etc.) can read it centrally
@@ -28,12 +34,64 @@ export-env { $env.MY_ENV_VARS = ($env.MY_ENV_VARS? | default {} | upsert gemini_
 def format-iso-utc [] { date now | format date "%Y-%m-%dT%H:%M:%SZ" }
 
 # Return fallback models in retry order, excluding paid-only models on the free tier.
+# With --paid, the paid flagships come first, followed by the active free-tier models.
 export def gemini-fallback-models [--paid(-p)]: nothing -> list<string> {
   let base_models = ($gemini_models | find -v vision)
   if $paid {
-    $base_models
+    let paid_first = ($base_models | where {|m| $m in $gemini_paid_only_models})
+    let free_rest = ($base_models | where {|m| $m not-in $gemini_paid_only_models})
+    $paid_first ++ $free_rest
   } else {
     $base_models | where {|m| $m not-in $gemini_paid_only_models}
+  }
+}
+
+# Resolve the model that will actually be called for the requested tier.
+# On the paid tier, the free default model is upgraded to the paid flagship;
+# explicit non-default model requests are always honored.
+export def gemini-effective-model [
+  requested_model: string
+  --paid (-p)
+]: nothing -> string {
+  let resolved = (gemini-resolve-model $requested_model)
+  if $paid and ($resolved == $last_gemini_model) {
+    $last_gemini_paid_model
+  } else {
+    $resolved
+  }
+}
+
+# Fail fast when a model is not available on the free tier.
+# A strict allowlist (instead of a paid-only denylist) prevents bypasses via
+# case/whitespace variants or paid model ids missing from the catalog.
+export def gemini-assert-tier-allowed [
+  canonical_model: string
+  --paid (-p)
+]: nothing -> nothing {
+  if not $paid {
+    let canonical = ($canonical_model | str trim | str lowercase)
+    let allowed = (gemini-fallback-models)
+    if $canonical not-in $allowed {
+      return-error $"Model '($canonical)' is not available on the free tier. Re-run with --paid \(-P\) or choose an active free model."
+    }
+  }
+}
+
+# Normalize the thinking level for the target model family.
+# Gemini 4 models accept low|medium|high|xhigh, so 'minimal' maps to 'low'.
+# Only gemini-4-hydrogen/neon support 'xhigh'; other models clamp it to 'high'.
+export def gemini-normalize-thinking-level [
+  model: string
+  level: string
+]: nothing -> string {
+  let lvl = ($level | str trim | str lowercase)
+  let canonical = (gemini-resolve-model $model)
+  if ($lvl == "minimal") and ($canonical =~ "gemini-4") {
+    "low"
+  } else if ($lvl == "xhigh") and ($canonical not-in ["gemini-4-hydrogen" "gemini-4-neon"]) {
+    "high"
+  } else {
+    $lvl
   }
 }
 
@@ -116,19 +174,25 @@ export def gemini-run-with-fallback [
 }
 
 # Resolve a Gemini model shorthand or legacy alias to its canonical API id.
+# Input is normalized (trim + lowercase) so tier gating cannot be bypassed
+# with case or whitespace variants.
 export def gemini-resolve-model [model: string]: nothing -> string {
-  match $model {
+  let input = ($model | str trim | str lowercase)
+  match $input {
     "gemini-pro-vision" => $gemini_pro_vision
-    "gemini-4" => "gemini-4-carbon"
+    "gemini-4" => "gemini-4-hydrogen"
+    "gemini-4-hydrogen" => "gemini-4-hydrogen"
+    "gemini-4-neon" => "gemini-4-neon"
     "gemini-4-carbon" => "gemini-4-carbon"
     "gemini-4-argon" => "gemini-4-argon"
     "gemini-3.8" => "gemini-3.8-flash"
-    "gemini-3.7" => "gemini-3.7-flash"
+    "gemini-3.7" | "gemini-3.7-flash" => "gemini-3.8-flash"
     "gemini-3.6" => "gemini-3.6-flash"
-    "gemini-3.5" => "gemini-3.5-flash-lite"
+    "gemini-3.5-flash" => "gemini-3.6-flash"
+    "gemini-3.5" | "gemini-3.1-flash-lite" => "gemini-3.5-flash-lite"
     "gemini-3.1" | "gemini-3.1-pro" => "gemini-3.1-pro-preview"
     "gemini-3.0" | "gemini-3" => "gemini-3.8-flash"
-    _ => $model
+    _ => $input
   }
 }
 
@@ -136,13 +200,12 @@ export def gemini-resolve-model [model: string]: nothing -> string {
 export def gemini-max-output-tokens [model: string]: nothing -> int {
   let canonical = (gemini-resolve-model $model)
   match $canonical {
-    $m if ($m =~ "gemini-4") => 32768
+    $m if ($m =~ "gemini-4") => 65536
     $m if ($m =~ "gemini-3.8") => 65536
-    $m if ($m =~ "gemini-3.7") => 64000
-    $m if ($m =~ "gemini-3.6") => 64000
-    $m if ($m =~ "gemini-3.5") => 64000
+    $m if ($m =~ "gemini-3.6") => 65536
+    $m if ($m =~ "gemini-3.5") => 65536
     $m if ($m =~ "gemini-3.1") => 65536
-    $m if ($m =~ "gemini-3") => 64000
+    $m if ($m =~ "gemini-3") => 65536
     _ => 8192
   }
 }
@@ -150,19 +213,23 @@ export def gemini-max-output-tokens [model: string]: nothing -> int {
 
 #single call to google ai LLM api wrapper and chat mode
 #
-#Available models at https://ai.google.dev/models:
-# - gemini-4-carbon: Latest Flagship Frontier (Nov 2026), Google's most capable reasoning champion, 1M context, tunable thinking
-# - gemini-4-argon: Flagship Frontier (Oct 2026), deep reasoning, coding, 1M context, tunable thinking
-# - gemini-3.8-flash: Latest Flash GA (Sep 2026), most intelligent Flash for long-horizon SWE & agents, tunable thinking (FREE TIER)
-# - gemini-3.7-flash: Previous GA (Aug 2026), most intelligent Flash for coding/agents, tunable thinking (FREE TIER)
+#Available models at https://ai.google.dev/models (2026-11-24):
+# FREE TIER (default, no --paid):
+# - gemini-4-hydrogen: Gemini 4 free flagship (GA Nov 2026), 1M context, thinking low|medium|high|xhigh (FREE TIER, DEFAULT)
+# - gemini-3.8-flash: Latest Flash GA (Sep 2026), most intelligent Flash for long-horizon SWE & agents (FREE TIER)
 # - gemini-3.6-flash: Complex multi-step workflows, coding, agentic tasks (GA July 2026) (FREE TIER)
 # - gemini-3.5-flash-lite: Cost-efficient model for high-volume tasks (GA July 2026) (FREE TIER)
+# PAID ONLY (requires --paid / -P):
+# - gemini-4-neon: Latest Flagship Frontier (Nov 2026), 1M context, thinking low|medium|high|xhigh (PAID ONLY, DEFAULT WITH -P)
+# - gemini-4-carbon: Frontier reasoning (Nov 2026), 1M context (PAID ONLY)
+# - gemini-4-argon: Frontier deep reasoning/coding (Oct 2026), 1M context (PAID ONLY)
 # - gemini-3.1-pro-preview: High-capability complex reasoning & agentic coding, 1M context (PAID ONLY)
-# - gemini-pro-vision: Placeholder for image input, uses gemini-4-carbon
+# - gemini-pro-vision: Placeholder for image input, uses gemini-4-hydrogen
 # - text-embedding-004: Text embedding model
 # - aqa: Retrieval
 #
-# IMPORTANT: For Gemini 3.x and 4 models, use --thinking_level (minimal|low|medium|high) instead of --temp/--top_p/--top_k
+# IMPORTANT: For Gemini 3.x and 4 models, use --thinking_level (minimal|low|medium|high|xhigh) instead of --temp/--top_p/--top_k
+# 'minimal' is normalized to 'low' for Gemini 4 models (they accept low|medium|high|xhigh).
 # Deprecated parameters (temperature, top_p, top_k, thinking_budget) are ignored and will return HTTP 400 in future versions.
 #
 #system messages are available in:
@@ -259,10 +326,10 @@ def extract-interaction-text [response: any] {
 @search-terms gemini
 export def google_ai [
     query?: string                          # the query to Gemini
-    --model(-m):string@$gemini_models = "gemini-4-carbon" # the model gemini-4-carbon, gemini-4-argon, gemini-3.8-flash, etc
+    --model(-m):string@$gemini_models = "gemini-4-hydrogen" # the model: gemini-4-hydrogen (free default), gemini-4-neon/carbon/argon (paid), gemini-3.8-flash, etc
     --system(-s):string = "You are a helpful assistant." # system message
     --temp(-t): float = 0.9             # the temperature of the model (deprecated for Gemini 3.x and 4)
-    --thinking_level(-e): string@$thinking_levels = "medium" # thinking effort level (minimal, low, medium, high)
+    --thinking_level(-e): string@$thinking_levels = "medium" # thinking effort level (minimal, low, medium, high, xhigh)
     --image(-i):any                     # filepath of image file (or list of files) for gemini-pro-vision
     --list_system(-l) = false           # select system message from list
     --pre_prompt(-p) = false            # select pre-prompt from list
@@ -283,6 +350,12 @@ export def google_ai [
 ] {
   let query = (get-input $in $query | default "")
 
+  # Resolve the effective model for the requested tier and fail fast on tier
+  # violations before any credential or API work.
+  let input_model = $model
+  let model = (gemini-effective-model $model --paid=$paid)
+  gemini-assert-tier-allowed $model --paid=$paid
+
   #api parameters
   let apikey = if $paid {
     get-api-key "google.gemini_paid"
@@ -302,8 +375,6 @@ export def google_ai [
       $safety_settings
     }
 
-  let input_model = $model
-  let model = (gemini-resolve-model $model)
   let max_output_tokens = (gemini-max-output-tokens $model)
 
   if ($temp != 0.9) and ($model =~ "gemini-3" or $model =~ "gemini-4") {
@@ -311,7 +382,7 @@ export def google_ai [
   }
 
   let thinking_level_val = if ($model =~ "gemini-3" or $model =~ "gemini-4") {
-    $thinking_level
+    (gemini-normalize-thinking-level $model $thinking_level)
   } else {
     ""
   }
@@ -436,7 +507,7 @@ export def google_ai [
         generation_config: $gen_config
     }
 
-    let answer_resp = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $chat_request
+    let answer_resp = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $chat_request -e
     let steps = ($answer_resp | get -o steps)
     if ($steps | is-empty) { return-error "No steps in chat response" }
     mut answer = ($steps | where type == "model_output" | first | get content | first | get text)
@@ -476,7 +547,7 @@ export def google_ai [
       $contents = update_gemini_content $contents $chat_prompt "user"
       $chat_request.input = (do $to_steps $contents)
 
-      let answer_resp = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $chat_request
+      let answer_resp = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $chat_request -e
       let steps = ($answer_resp | get -o steps)
       if ($steps | is-empty) { return-error "No steps in chat response" }
       $answer = ($steps | where type == "model_output" | first | get content | first | get text)
@@ -511,7 +582,7 @@ export def google_ai [
       $contents = update_gemini_content $contents $summary_prompt "user"
       $chat_request.input = (do $to_steps $contents)
 
-      let answer_resp = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $chat_request
+      let answer_resp = http post -t application/json -H ["Api-Revision", "2026-05-20"] $url_request $chat_request -e
       let steps = ($answer_resp | get -o steps)
       if ($steps | is-empty) { return-error "No steps in chat response" }
       $answer = ($steps | where type == "model_output" | first | get content | first | get text)
@@ -633,8 +704,9 @@ export def google_ai [
     let target_max_tokens = gemini-max-output-tokens $target_model
     if ($target_model =~ "gemini-3" or $target_model =~ "gemini-4") {
       let base = { max_output_tokens: $target_max_tokens }
-      if ($thinking_level_val | is-not-empty) {
-        $base | insert thinking_level $thinking_level_val
+      let target_thinking = (gemini-normalize-thinking-level $target_model $thinking_level)
+      if ($target_thinking | is-not-empty) {
+        $base | insert thinking_level $target_thinking
       } else {
         $base
       }
@@ -812,7 +884,10 @@ export def google_aimage [
           }
         }
 
-        let answer = http post -t application/json $url_request $request 
+        let answer = (http post -t application/json $url_request $request -e)
+        if (($answer | get -o error) != null) {
+          return-error "Image generation failed: the API returned an error (details omitted to avoid leaking credentials)."
+        }
         
         if ($model like "imagen") {
           $answer.predictions.bytesBase64Encoded
@@ -847,7 +922,10 @@ export def google_aimage [
             safetySettings: $safetySettings
           }
 
-        let answer = http post -t application/json $url_request $request
+        let answer = (http post -t application/json $url_request $request -e)
+        if (($answer | get -o error) != null) {
+          return-error "Image generation failed: the API returned an error (details omitted to avoid leaking credentials)."
+        }
 
         $answer.candidates.content.parts.0.inlineData.data.0 
         | decode base64 
@@ -885,7 +963,7 @@ export def _google-search-summary-core [
     if $summarizer != null {
       do $summarizer $complete_prompt
     } else {
-      google_ai $complete_prompt --select_system html2text_summarizer -m gemini-3.5-flash -P $paid
+      google_ai $complete_prompt --select_system html2text_summarizer -P $paid
     }
   }
 
