@@ -144,7 +144,12 @@ export def parse-agy-usage-json [raw_json: string] {
 
       let rem_fraction = ($b | get -o remaining_fraction)
       let rem_amount = ($b | get -o remaining_amount)
-      let reset_time = ($b | get -o reset_time | default "")
+      let raw_reset_time = ($b | get -o reset_time | default "")
+      let is_epoch_zero = (
+        ((($raw_reset_time | describe) | str starts-with "string"))
+        and ($raw_reset_time =~ '^1970-01-01T00:00:00')
+      )
+      let reset_time = (if $is_epoch_zero { "" } else { $raw_reset_time })
       let disabled = ($b | get -o disabled | default false)
       let reset_sec = (
         if ((($reset_time | describe) | str starts-with "string")) and ($reset_time | is-not-empty) {

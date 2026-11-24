@@ -48,13 +48,7 @@ def _resolve-orchestrator-submodels [input: record]: nothing -> record {
       "Gemini 4 Neon (High)"
     }
   )
-  let default_executor = (
-    if ($model_str | str contains "carbon") {
-      "Gemini 4 Hydrogen (High)"
-    } else {
-      "Gemini 4 Hydrogen (Medium)"
-    }
-  )
+  let default_executor = "Gemini 4 Hydrogen (High)"
 
   {
     planner: (if $payload_planner != "" { $payload_planner } else if $settings_planner != "" { $settings_planner } else { $default_planner })
@@ -84,28 +78,28 @@ def _format-model-display [input: record]: nothing -> string {
   $"($base) \(($eff_label)\)"
 }
 
-# Classify a model string into one of the three quota groups: argon, gemini, 3p.
-def _classify-model-group [model_str: string, quota_cols: list<string>]: nothing -> string {
+# Return true for removed pre-v1.5.15 Argon / Gemini 4 separate quota keys.
+def _is-legacy-quota-key [key: string]: nothing -> bool {
+  let kl = ($key | str lowercase)
+  ($kl | str contains "argon") or ($kl | str starts-with "gemini-4")
+}
+
+# Classify a model string into one of the two quota groups: gemini or 3p.
+def _classify-model-group [model_str: string]: nothing -> string {
   let m = ($model_str | str trim | str lowercase)
-  let has_argon_bucket = ($quota_cols | any { |k| ($k | str lowercase) | str contains "argon" })
-  if ($m | str contains "argon") or ($m | str contains "g1-pro") {
-    if $has_argon_bucket { "argon" } else { "gemini" }
-  } else if ($m == "") or ($m | str contains "gemini") or ($m | str contains "neon") or ($m | str contains "hydrogen") or ($m | str contains "carbon") or ($m | str contains "flash") {
+  if ($m == "") or ($m | str contains "gemini") or ($m | str contains "neon") or ($m | str contains "hydrogen") or ($m | str contains "carbon") or ($m | str contains "argon") or ($m | str contains "g1-pro") or ($m | str contains "flash") {
     "gemini"
   } else {
     "3p"
   }
 }
 
-# Return the quota bucket keys that belong to a quota group.
+# Return the active (non-legacy) quota bucket keys that belong to a quota group.
 def _keys-for-quota-group [group: string, quota_cols: list<string>]: nothing -> list<string> {
+  let active_cols = ($quota_cols | where { |k| not (_is-legacy-quota-key $k) })
   match $group {
-    "argon" => ($quota_cols | where { |k| ($k | str lowercase) | str contains "argon" })
-    "gemini" => ($quota_cols | where { |k|
-      let kl = ($k | str lowercase)
-      ($kl | str contains "gemini") and not ($kl | str contains "argon")
-    })
-    _ => ($quota_cols | where { |k| not (($k | str lowercase) | str contains "gemini") })
+    "gemini" => ($active_cols | where { |k| ($k | str lowercase) | str contains "gemini" })
+    _ => ($active_cols | where { |k| not (($k | str lowercase) | str contains "gemini") })
   }
 }
 
@@ -253,7 +247,7 @@ def main [] {
                 [ (if $raw_id != "" { $raw_id } else { $raw_display }) ]
             }
         )
-        let active_groups = ($classify_strings | each { |m| _classify-model-group $m $quota_cols } | uniq)
+        let active_groups = ($classify_strings | each { |m| _classify-model-group $m } | uniq)
         let multi_group = (($active_groups | length) > 1)
 
         for group in $active_groups {
@@ -316,9 +310,7 @@ def main [] {
                     else { $"($safe_key):" }
                 )
                 let label = (
-                    if $group == "argon" {
-                        $"Argon ($window)"
-                    } else if $multi_group and $group == "gemini" {
+                    if $multi_group and $group == "gemini" {
                         $"Gmn ($window)"
                     } else if $multi_group and $group == "3p" {
                         $"3P ($window)"
@@ -336,7 +328,12 @@ def main [] {
                 } else {
                     $"(ansi $color)"
                 })
-                $quota_parts = ($quota_parts | append $"($style)($label) ($pct)% ($reset_str)(ansi reset)")
+                let seg = (if ($reset_str | is-not-empty) {
+                    $"($style)($label) ($pct)% ($reset_str)(ansi reset)"
+                } else {
+                    $"($style)($label) ($pct)%(ansi reset)"
+                })
+                $quota_parts = ($quota_parts | append $seg)
             }
         }
     }

@@ -54,6 +54,52 @@ export def register-nu-plugins [...plugins: string] {
     $plugin_list | each {|p| register-nu-plugin $p }
 }
 
+# Decide whether the world-executable /usr/local/bin/nu binary should be synced after a Nushell update
+export def should-sync-shared-nu [
+  os_name: string
+  src_exists: bool
+  target_exists: bool
+  passwd_uses_target: bool
+  hashes_differ: bool
+]: nothing -> bool {
+  if (($os_name | str lowercase) == "windows") or (not $src_exists) {
+    return false
+  }
+  ($target_exists and $hashes_differ) or ((not $target_exists) and $passwd_uses_target)
+}
+
+# Keep /usr/local/bin/nu synced with ~/.cargo/bin/nu when shared users (e.g. guest) rely on it
+export def sync-shared-nu-binary [
+  --source(-s): string = ""
+  --target(-t): string = "/usr/local/bin/nu"
+] {
+  let os_name = sys host | get name | str lowercase
+  let src = if ($source | is-not-empty) { $source | path expand } else { "~/.cargo/bin/nu" | path expand }
+  let src_exists = $src | path exists
+  let target_exists = $target | path exists
+  let passwd_uses_target = if ("/etc/passwd" | path exists) {
+    open --raw /etc/passwd | lines | any {|l| ($l | split row ":" | get -o 6 | default "") == $target }
+  } else {
+    false
+  }
+  let hashes_differ = if ($src_exists and $target_exists) {
+    (open --raw $src | hash sha256) != (open --raw $target | hash sha256)
+  } else {
+    true
+  }
+
+  if not (should-sync-shared-nu $os_name $src_exists $target_exists $passwd_uses_target $hashes_differ) {
+    return
+  }
+
+  let res = do { ^sudo install -m 0755 -o root -g root $src $target } | complete
+  if $res.exit_code == 0 {
+    try { rich print $"  [bold green]✓[/] Synced shared ($target) from ($src)" } catch { print (echo-g $"  ✓ Synced shared ($target) from ($src)") }
+  } else {
+    try { rich print $"  [yellow]Warning:[/] Failed to sync ($target): ($res.stderr | str trim)" } catch { print (echo-y $"  Warning: Failed to sync ($target): ($res.stderr | str trim)") }
+  }
+}
+
 #update nushell (and plugins automatically by default)
 export def "apps-update nushell" [
   --repo(-r)         #install from repo instead of cargo
@@ -84,6 +130,10 @@ export def "apps-update nushell" [
     } else {
       cargo install-update nu 
     }
+  }
+
+  try { sync-shared-nu-binary } catch {|err|
+    try { rich print $"[yellow]Warning:[/] Failed to sync shared /usr/local/bin/nu: ($err.msg)" } catch { print (echo-y $"Warning: Failed to sync shared /usr/local/bin/nu: ($err.msg)") }
   }
 
   if not $no_plugins {
@@ -808,7 +858,13 @@ def run-ubuntu-workflow [old: bool, dry_run: bool] {
   run-with-dry-run "sudo apt autoremove -y" $dry_run
 }
 
-def run-cachyos-workflow [skip_mirrors: bool, skip_cache_cleanup: bool, skip_aur: bool, dry_run: bool]: nothing -> any {
+# Determine whether `sudo chwd -a -f` should run to sync CachyOS hardware profiles
+# (e.g., migrating to `cachyos-drm-awaiter` or when explicitly requested via `--chwd-sync`).
+export def cachyos-chwd-sync-needed [has_chwd: bool, has_drm_awaiter: bool, chwd_sync_flag: bool]: nothing -> bool {
+  $has_chwd and ($chwd_sync_flag or (not $has_drm_awaiter))
+}
+
+def run-cachyos-workflow [skip_mirrors: bool, skip_cache_cleanup: bool, skip_aur: bool, dry_run: bool, chwd_sync: bool = false]: nothing -> any {
   if not $skip_mirrors {
     let mirror_tool = if (which cachyos-rate-mirrors | is-not-empty) {
       "cachyos-rate-mirrors"
@@ -822,9 +878,17 @@ def run-cachyos-workflow [skip_mirrors: bool, skip_cache_cleanup: bool, skip_aur
     }
   }
 
+  if (which pacman | is-not-empty) {
+    run-with-dry-run "sudo pacman -Sy --noconfirm archlinux-keyring cachyos-keyring" $dry_run
+  }
+
   let has_omarchy = (which omarchy | is-not-empty)
-  if $has_omarchy {
-    run-omarchy-update $dry_run
+  let diag = (if $has_omarchy {
+    let omarchy_diag = (run-omarchy-update $dry_run)
+    if (not ($omarchy_diag.interrupted? | default false)) and (not $skip_aur) and (which yay | is-empty) and (which paru | is-not-empty) {
+      run-with-dry-run "paru -Sua --noconfirm" $dry_run
+    }
+    $omarchy_diag
   } else {
     run-with-dry-run "sudo pacman -Syu --noconfirm" $dry_run
     if not $skip_cache_cleanup {
@@ -852,7 +916,22 @@ def run-cachyos-workflow [skip_mirrors: bool, skip_cache_cleanup: bool, skip_aur
         }
       } catch {}
     }
+    null
+  })
+
+  if not ($diag.interrupted? | default false) {
+    let has_chwd = (which chwd | is-not-empty)
+    let has_drm_awaiter = if (which pacman | is-not-empty) {
+      (^pacman -Q cachyos-drm-awaiter | complete | get exit_code) == 0
+    } else {
+      true
+    }
+    if (cachyos-chwd-sync-needed $has_chwd $has_drm_awaiter $chwd_sync) {
+      run-with-dry-run "sudo chwd -a -f" $dry_run
+    }
   }
+
+  $diag
 }
 
 def run-arch-workflow [skip_cache_cleanup: bool, skip_aur: bool, dry_run: bool] {
@@ -962,9 +1041,9 @@ def run-common-operations [dry_run: bool, cargo_aps: bool]: nothing -> nothing {
 # Update and upgrade system packages, auto-detecting OS (Ubuntu/CachyOS/Arch) via sys host.
 # Applies the proper workflow: Ubuntu uses nala/apt, CachyOS/Arch use pacman + cachy-rate-mirrors/paccache/AUR helpers.
 # Common operations (snap, flatpak, fwupdmgr, rustup, stack, cargo) run on all OSes.
-# CachyOS extended: --npm-pkgs, --go-pkgs, --cargo-pkgs, --uv-tools, --git-tools, --r-pkgs, --git-repos, --ollama-models, --fonts, --omarchy, --all
-# Flags: --old (Ubuntu apt), --cargo_aps (cargo update), --skip-mirrors/cache-cleanup/aur, --dry-run, CachyOS category flags, --all
-export def supgrade [--old(-o),--cargo_aps(-c),--skip-mirrors,--skip-cache-cleanup,--skip-aur,--dry-run, --npm-pkgs, --go-pkgs, --cargo-pkgs, --uv-tools, --git-tools, --r-pkgs, --git-repos, --ollama-models, --fonts, --omarchy, --all] {
+# CachyOS extended: --npm-pkgs, --go-pkgs, --cargo-pkgs, --uv-tools, --git-tools, --r-pkgs, --git-repos, --ollama-models, --fonts, --omarchy, --chwd-sync, --all
+# Flags: --old (Ubuntu apt), --cargo_aps (cargo update), --skip-mirrors/cache-cleanup/aur, --dry-run, --chwd-sync, CachyOS category flags, --all
+export def supgrade [--old(-o),--cargo_aps(-c),--skip-mirrors,--skip-cache-cleanup,--skip-aur,--dry-run, --npm-pkgs, --go-pkgs, --cargo-pkgs, --uv-tools, --git-tools, --r-pkgs, --git-repos, --ollama-models, --fonts, --omarchy, --chwd-sync, --all] {
   let os = detect-os
   print (echo-g $"Detected OS: ($os)")
 
@@ -983,7 +1062,7 @@ export def supgrade [--old(-o),--cargo_aps(-c),--skip-mirrors,--skip-cache-clean
 
   let workflow_result = (match $workflow.name {
     "ubuntu" => { run-ubuntu-workflow $old $dry_run; null },
-    "cachyos" => { run-cachyos-workflow $skip_mirrors $skip_cache_cleanup $skip_aur $dry_run },
+    "cachyos" => { run-cachyos-workflow $skip_mirrors $skip_cache_cleanup $skip_aur $dry_run $chwd_sync },
     "arch" => { run-arch-workflow $skip_cache_cleanup $skip_aur $dry_run; null },
     _ => { run-ubuntu-workflow $old $dry_run; null }
   })
@@ -1014,7 +1093,7 @@ export def supgrade [--old(-o),--cargo_aps(-c),--skip-mirrors,--skip-cache-clean
     }
     if $all { print (echo-g "Running language runtimes update..."); run-cachyos-language-runtimes $dry_run }
   } else {
-    if ($all or $npm_pkgs or $go_pkgs or $cargo_pkgs or $uv_tools or $git_tools or $r_pkgs or $git_repos or $ollama_models or $fonts or $omarchy) {
+    if ($all or $npm_pkgs or $go_pkgs or $cargo_pkgs or $uv_tools or $git_tools or $r_pkgs or $git_repos or $ollama_models or $fonts or $omarchy or $chwd_sync) {
       print (echo-y "Warning: CachyOS-specific flags ignored on non-CachyOS workflow")
     }
   }

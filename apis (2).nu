@@ -1,0 +1,912 @@
+# Standardized API key retrieval with robust error handling
+#
+# Usage: get-api-key google.gemini_paid
+export def get-api-key [path: string] {
+    let keys = $path | split row "."
+    mut current = $env.MY_ENV_VARS.api_keys
+    
+    for key in $keys {
+        if ($current | describe | str starts-with "record") and ($key in ($current | columns)) {
+            $current = ($current | get $key)
+        } else if ($current | describe | str starts-with "list") and ($key =~ `^\d+$`) {
+            $current = ($current | get ($key | into int))
+        } else {
+            return-error $"API key not found! The key must be stored in $env.MY_ENV_VARS.api_keys.($path)"
+        }
+    }
+    
+    return $current
+}
+
+# Toggle Gemini API Key between free and paid
+#
+# Usage: toggle-gemini-key
+export def --env toggle-gemini-key [] {
+    let paid_key = get-api-key "google.gemini_paid"
+    let free_key = get-api-key "google.gemini"
+    
+    let current_key = $env | get -o GEMINI_API_KEY
+    
+    if $current_key == $paid_key {
+        $env.GEMINI_API_KEY = $free_key
+        print (echo-y "Gemini API Key switched to FREE mode")
+    } else {
+        # Default to paid if current matches free or something else
+        $env.GEMINI_API_KEY = $paid_key
+        print (echo-g "Gemini API Key switched to PAID mode")
+    }
+}
+
+#get bitly short link
+@category apis
+@search-terms bitly shortlink
+export def bitly [longurl] {
+  if ($longurl | is-empty) {
+    return-error "no url provided!"
+  } 
+
+  let bitly_credential = get-api-key "bitly"
+  let Accesstoken = $bitly_credential | get token
+  let guid = $bitly_credential | get guid
+    
+  let url = "https://api-ssl.bitly.com/v4/shorten"
+  let content = {
+    "group_guid": $guid,
+    "domain": "bit.ly",
+    "long_url": $longurl
+  }
+
+  let response = http post $url $content --content-type "application/json" -H ["Authorization", $"Bearer ($Accesstoken)"]
+  let shorturl = $response | get link
+
+  $shorturl | copy
+  print (echo-g $"($shorturl) copied to clipboard!")
+}
+
+#translate text using mymemmory or openai api
+#
+#Use ISO standar names for the languages, for example:
+#english: en-US
+#spanish: es-ES
+#italian: it-IT
+#swedish: sv-SV
+#
+#More in: https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes
+@category apis
+@search-terms mymemmory translate
+export def trans [
+  ...text:string    #search query
+  --from:string     #from which language you are translating (default english)
+  --to:string       #to which language you are translating (default spanish)
+] {
+  let search = get-input $in $text
+  if ($search | is-empty) {
+    return-error "no search query provided!"
+  } 
+
+  let trans_credential = get-api-key "mymemmory"
+  let apikey = $trans_credential | get token
+  let user = $trans_credential | get username
+
+  let from = get-input "en-US" $from
+  let to = get-input "es-ES" $to
+
+  let to_translate = $search | str join "%20"
+
+  let url = {
+    scheme: "https",
+    host: "api.mymemory.translated.net",
+    path: "/get",
+    params: {
+        q: $to_translate,
+        langpair: ($from + "|" + $to),
+        of: "json",
+        key: $apikey,
+        de: $user
+    }
+  } | url join
+  
+  let response = http get $url
+  let status = $response | get responseStatus
+  let translated = $response | get responseData | get translatedText
+  
+  if $status != 200 {
+    return-error $"error: bad request ($status)!"
+  }
+
+  let quota = $response | get quotaFinished
+  
+  if $quota {
+      return-error "error: word quota limit excedeed!"
+  }
+  
+  return $translated
+}
+
+#get rebrandly short link
+@category apis
+@search-terms rebrandly shortlink
+export def "rebrandly get" [longurl] {
+  if ($longurl | is-empty) {
+    return-error "no url provided"
+  }
+
+  let credential = get-api-key "rebrandly"
+  let api_key = $credential | get api_key
+    
+  let url = "https://api.rebrandly.com/v1/links"
+  let content = {"destination": $longurl}
+
+  let response = http post $url $content -H ["apikey", $api_key] --content-type "application/json" -H ["UserAgent:","UserAgent,curl/7.68.0"]
+  let shorturl = $response | get shortUrl
+
+  $shorturl | copy
+  print (echo-g $"($shorturl) copied to clipboard!")
+} 
+
+#list rebrandly last 25 short links
+@category apis
+@search-terms rebrandly shortlink
+export def "rebrandly list" [longurl="www.google.com"] {
+  if ($longurl | is-empty) {
+    return-error "no url provided"
+  } 
+
+  let credential = get-api-key "rebrandly"
+  let apikey = $credential | get api_key
+    
+  let url = {
+        scheme: "https",
+        host: "api.rebrandly.com",
+        path: "/v1/links",
+        params: {
+            domain.id: $longurl,
+            orderBy: "createdAt",
+            orderDir: "desc",
+            limit: 25
+        }
+      } | url join
+
+  http get $url -H ["apikey", $apikey] -H ["accept", "application/json"]
+}
+
+const modes = ["driving", "transit", "walking"]
+#get eta via maps api
+@category apis
+@search-terms google maps
+export def "maps eta" [
+  origin:string       #origin gps coordinates or address
+  destination:string  #destination gps coordinates or address
+  --mode:string@$modes = "driving"  #driving mode (driving, transit, walking)
+  --avoid             #whether to avoid highways (default:false)
+] {
+  let apikey = get-api-key "google.general"
+
+  let origin_address = if $origin like '^(-?\d+\.\d+),(-?\d+\.\d+)$' {
+      {
+        scheme: "https",
+        host: "maps.googleapis.com",
+        path: "/maps/api/geocode/json",
+        params: {
+            latlng: $origin,
+            sensor: "true",
+            key: $apikey
+        }
+      } 
+      | url join
+      | http get $in
+      | get -o results.0.formatted_address
+      | default $origin
+    } else {
+      $origin
+    } 
+  
+  
+  let destination_address = if $destination like '^(-?\d+\.\d+),(-?\d+\.\d+)$' {
+       {
+        scheme: "https",
+        host: "maps.googleapis.com",
+        path: "/maps/api/geocode/json",
+        params: {
+            latlng: $destination,
+            sensor: "true",
+            key: $apikey
+        }
+      } 
+      | url join
+      | http get $in 
+      | get -o results.0.formatted_address
+      | default $destination
+    } else {
+      $destination
+    }
+  
+
+  let base_params = {
+    origin: $origin
+    destination: $destination
+    mode: $mode
+    departure_time: "now"
+    sensor: "true"
+    key: $apikey
+  }
+  let params = if $avoid {
+    $base_params | insert avoid "highways"
+  } else {
+    $base_params
+  }
+
+  let url = {
+    scheme: "https"
+    host: "maps.googleapis.com"
+    path: "/maps/api/directions/json"
+    params: $params
+  } | url join
+
+  let response = http get $url
+
+  if ($response | get -o status) != "OK" or ($response.routes | is-empty) {
+    let err_msg = ($response | get -o error_message)
+    let detail = if ($err_msg | is-not-empty) { $" - ($err_msg)" } else { "" }
+    let status_str = ($response | get -o status | default "UNKNOWN")
+    return-error $"Google Maps Directions API error: ($status_str)($detail)"
+  }
+
+  let route = $response.routes.0
+  let leg = $route.legs.0
+  let distance = $leg.distance.text
+  let duration = $leg.duration.text
+
+  let has_html2text = (which html2text | is-not-empty)
+  let directions_steps = $leg.steps | each { |step|
+    let clean_instruction = if $has_html2text {
+      $step.html_instructions | html2text | str trim
+    } else {
+      $step.html_instructions | str replace -a -r '<[^>]+>' '' | str trim
+    }
+    {
+      direction: $clean_instruction
+      duration: $step.duration.text
+      distance: $step.distance.text
+    }
+  }
+
+  let info = { 
+    origin: $origin_address,
+    destination: $destination_address,
+    distance: $distance,
+    duration: $duration,
+    mode: $mode
+  }
+
+  let output = {
+    info: $info
+    direction: $directions_steps
+  }
+
+  return $output
+}
+
+#get geo-coordinates from address
+@category apis
+@search-terms google coordinates
+export def "maps loc-from-address" [address:string] {
+  let mapsAPIkey = get-api-key "google.general"
+  
+  let url = {
+    scheme: "https"
+    host: "maps.google.com"
+    path: "/maps/api/geocode/json"
+    params: {
+        address: $address
+        key: $mapsAPIkey
+    }
+  } | url join
+
+  return (http get $url | get results.geometry.location)
+}
+
+#get address from geo-coordinates
+@category apis
+@search-terms google coordinates
+export def "maps address-from-loc" [latitude:number,longitude:number] {
+  let mapsAPIkey = get-api-key "google.general"
+
+  let url = {
+    scheme: "https"
+    host: "maps.google.com"
+    path: "/maps/api/geocode/json"
+    params: {
+        latlng: $"($latitude),($longitude)"
+        key: $mapsAPIkey
+    }
+  } | url join
+
+  let response = http get $url
+
+  if $response.status != OK {
+    return-error "address not found!"
+  } 
+
+  return $response.results.0.formatted_address
+}
+
+#clp exchange rates via fixer.io API
+#
+#Show CLP/CLF,USD,BTC,new_currency exchange
+@category apis
+@search-terms fixer.io exchange currency
+export def exchange_rates [
+  new_currency?:string  #include unique new currency
+  --symbols(-s)         #only show available symbols
+  --update_dataset(-u)  #update local dataset
+] {
+  let api_key = get-api-key "fixer_io.api_key"
+
+  if $symbols {
+    let url_symbols = $"http://data.fixer.io/api/symbols?access_key=($api_key)"
+    let symbols = http get $url_symbols
+    return $symbols.symbols
+  }
+
+  let url = if ($new_currency | is-empty) {
+      $"http://data.fixer.io/api/latest?access_key=($api_key)&symbols=CLP,CLF,USD,BTC"
+    } else {
+      $"http://data.fixer.io/api/latest?access_key=($api_key)&symbols=CLP,CLF,USD,BTC,($new_currency)"
+    }
+  
+  let response = http get $url
+  
+  if not $response.success {
+    return-error $response.error
+  }
+  
+  let eur_usd = 1 / $response.rates.USD
+  let eur_btc = 1 / $response.rates.BTC
+  let eur_clf = 1 / $response.rates.CLF
+  let eur_new = if ($new_currency | is-empty) {0} else {1 / ($response.rates | get $new_currency)}
+
+  let output = if ($new_currency | is-empty) {
+      {
+        UF:  ($eur_clf * $response.rates.CLP)
+        USD: ($eur_usd * $response.rates.CLP),
+        EUR: $response.rates.CLP,
+        BTC: ($eur_btc * $response.rates.CLP)
+      }
+    } else {
+      {
+        UF:  ($eur_clf * $response.rates.CLP)
+        USD: ($eur_usd * $response.rates.CLP),
+        EUR: $response.rates.CLP,
+        BTC: ($eur_btc * $response.rates.CLP),
+        $"($new_currency)": ($eur_new * $response.rates.CLP)
+      }
+    }
+  
+
+  if $update_dataset {
+    let to_save = $output 
+      | rename -c {UF: date}
+      | upsert date (date now | format date "%Y.%m.%d %H:%M:%S")
+    
+    
+    open ([$env.MY_ENV_VARS.datasets exchange_rates.csv] | path join) 
+    | append $to_save 
+    | save -f ([$env.MY_ENV_VARS.datasets exchange_rates.csv] | path join)
+  }
+  return $output
+}
+
+# Translate text using Google Translate
+@category apis
+@search-terms google translate 
+export def gg-trans [
+  text?: string # The text to translate
+  --source(-s): string = "auto", # The source language
+  --destination(-d): string = "es", # The destination language
+  --list(-l)  # Select destination language from list
+] {
+  let text = get-input $in $text
+  mut dest = ""
+
+  if $list {
+    let languages = open ([$env.MY_ENV_VARS.credentials google_translate_languages.json] | path join)
+    let selection = $languages
+      | columns
+      | input list -f (echo-g "Select destination language:")
+    
+
+    $dest = $languages | get $selection
+
+  } else {
+      $dest = $destination
+  }
+
+  {
+    scheme: "https",
+    host: "translate.googleapis.com",
+    path: "/translate_a/single",
+    params: {
+        client: gtx,
+        sl: $source,
+        tl: $dest,
+        dt: t,
+        q: ($text | url encode),
+    }
+  }
+  | url join
+  | http get $in
+  | get 0.0.0
+}
+
+#google search
+@category apis
+@search-terms google search
+export def google_search [
+  ...query:string
+  --max-results(-n):int = 5 #number of results to use
+  --verbose(-v) = false #show some debug messages
+  --md(-m) = false #md output instead of table
+] {
+  let query = get-input $in $query | str join " "
+
+  if ($query | is-empty) {
+    return-error "empty query!"
+  }
+
+  let apikey = get-api-key "google.search.apikey"
+  let cx = get-api-key "google.search.cx"
+
+  if $verbose {print (echo-g $"asking to google search: ($query)")}
+  let response = {
+      scheme: "https",
+      host: "www.googleapis.com",
+      path: "/customsearch/v1",
+      params: {
+          key: $apikey,
+          cx: $cx
+          q: ($query | str replace -a " " "+")
+      }
+    } 
+    | url join
+    | http get $in -e
+
+    if ($response | get -o error | is-not-empty) {
+      return-error $"Google API Error: ($response.error.message)"
+    }
+
+    if "items" not-in ($response | columns) {
+      return-error "No results found for your query. Please try a different search or check your connection."
+    }
+
+    let search_result = $response
+      | get items 
+      | first $max_results
+      | select title link displayLink
+    
+
+  let n_result = $search_result | length
+
+  mut content = []
+
+  for i in 0..($n_result - 1) {
+    let web = $search_result | get $i
+    if $verbose {print (echo-c $"retrieving data from: ($web.displayLink)" "green")}
+      
+    let raw_content = try {http get $web.link} catch {""}
+
+    let processed_content = try {
+        $raw_content
+        | html2text --ignore-links --ignore-images --dash-unordered-list
+        | lines 
+        | uniq
+        | to text
+      } catch {
+        $raw_content
+      }
+    
+
+    $content = $content ++ [$processed_content]
+  }
+
+  let final_content = $content | wrap "content"
+  let results = $search_result | merge $final_content
+
+  if $md {
+      mut md_output = ""
+
+      for i in 0..(($results | length) - 1) {
+        let web = $results | get $i
+        
+        $md_output = $md_output + "# " + $web.title + "\n"
+        $md_output = $md_output + "link: " + $web.link + "\n\n"
+        $md_output = $md_output + $web.content + "\n\n"
+      }
+
+      return $md_output
+  } 
+
+  return $results
+}
+
+# fetch and base64 encode audio URLs
+def audiourl [voice text] {
+    # url encode text and prepend url
+    let enc_url = $text | url encode | prepend $voice | str join ""
+    # fetch and base64 encode audio url
+    let base64 = try { http get -m 5sec $enc_url | encode base64 } catch { |e| return ($e.json | from json | wrap error) }
+    # wrap result for json output
+    return ($base64 | prepend "data:audio/mp3;base64," | str join "" | wrap audioUrl | merge ($enc_url | wrap originalUrl))
+}
+
+# get TikTok TTS audio from weilnet
+def weilnet [voice text] {
+    # setup body json
+    let body = $text | wrap text | merge ($voice | wrap voice) | to json -r
+    # make http post request, fallback to weilbyte
+    let req_json = try {
+        http post -m 6sec -H [content-type application/json] "https://tiktok-tts.weilnet.workers.dev/api/generation" $body
+    } catch {
+        return (weilbyte $voice $text)
+    }
+    # prepend audio info and rename column
+    let json = try {
+        $req_json | upsert data { |row| $row.data | prepend "data:audio/mp3;base64," | str join ""} | rename -c {data: audioUrl}
+    } catch {
+        return (weilbyte $voice $text)
+    }
+    # output json result
+    return $json
+}
+
+# get TikTok TTS audio from weilbyte
+def weilbyte [voice text] {
+    # setup body json
+    let body = $text | wrap text | merge ($voice | wrap voice) | to json -r
+    # make http post request and bas64 encode result, fallback to gesserit
+    let base64 = try {
+        http post -m 6sec -H [content-type application/json] "https://tiktok-tts.weilbyte.dev/api/generate" $body | encode base64
+    } catch {
+        return (cursecode $voice $text)
+    }
+    # wrap result for json otuput
+    return ($base64 | prepend "data:audio/mp3;base64," | str join "" | wrap audioUrl)
+}
+
+# get TikTok TTS audio from cursecode
+def cursecode [voice text] {
+    # setup body json
+    let body = $text | wrap text | merge ($voice | wrap voice) | to json -r
+    # make http post request, fallback to weilnet
+    let req_json = try {
+        http post -m 6sec -H [content-type application/json] "https://tts.cursecode.me/api/tts" $body
+    } catch {
+        return (gesserit $voice $text)
+    }
+    # rename column
+    let json = try { $req_json | rename -c { audio: audioUrl } } catch { return (gesserit $voice $text) }
+    # output json result
+    return $json
+}
+
+# get TikTok TTS audio from gesserit
+def gesserit [voice text] {
+    # setup body json
+    let body = $text | wrap text | merge ($voice | wrap voice) | to json -r
+    # make http post request, fallback to lazypy
+    let json = try { http post -m 6sec "https://gesserit.co/api/tiktok-tts" $body } catch { return (lazypy $voice "TikTok" $text) }
+    # output json result
+    return $json
+}
+
+# get TTS audio from uberduck
+def uberduck [voice text] {
+    # setup body json
+    let body = $text | wrap text | merge ($voice | wrap voice) | to json -r
+    # make http post request
+    let audio_json = try {
+        http post -m 10sec -H [content-type application/json] "https://www.uberduck.ai/splash-tts" $body
+    } catch {
+        |e| return ($e.json | from json | wrap error)
+    }
+    let audio_url = try { $audio_json | get response.path } catch { |e| return ($e.json | from json | wrap error) }
+    # fetch and base64 encode result
+    let base64 = try { http get -m 5sec ($audio_url) | encode base64 } catch { |e| return ($e.json | from json | wrap error) }
+    # wrap result for json otuput
+    return ($base64 | prepend "data:audio/wav;base64," | str join "" | wrap audioUrl | merge $audio_json)
+}
+
+# get TTS audio from lazypy
+def lazypy [voice service text] {
+    # create body using url build-query
+    let body = $text | wrap text | merge ($service | wrap service) | merge ($voice | wrap voice) | url build-query
+    # post body to lazypy and get audio_url
+    let audio_json = try {
+        http post -m 10sec -H [content-type application/x-www-form-urlencoded] "https://lazypy.ro/tts/request_tts.php" $body
+    } catch {
+        |e| return ($e.json | from json | wrap error)
+    }
+    # return response if success is not true
+    if ($audio_json | get success) != true {
+        return ($audio_json | wrap error)
+    }
+    let audio_url = try { $audio_json | get audio_url } catch { |e| return ($e.json | from json | wrap error) }
+    # fetch and base64 encode result
+    let base64 = try { http get -m 5sec $audio_url | encode base64 } catch { |e| return ($e.json | from json | wrap error) }
+    return ($base64 | prepend "data:audio/mp3;base64," | str join "" | wrap audioUrl | merge $audio_json)
+}
+
+# gets JSON list of TTS voices
+@category apis
+@search-terms tts
+export def "nutts list" [] {
+  let list = try {
+    http get "https://raw.githubusercontent.com/simoniz0r/nuTTS/main/tts_list.json"
+  } catch {
+    |e| return-error ($e.json | from json | wrap error)
+  }
+  return $list
+}
+
+# gets TTS audio for given service, returns base64 encoded audio
+#
+# results are output in JSON format
+@category apis
+@search-terms tts
+export def nutts [
+    text?:string # text to speek
+    service?:string # service voice is from
+    voice?:string # voice ID for TTS
+    --output(-o):string = "output" #output filename
+] {
+  let text = get-input $in $text
+  # decode text
+  let detext = $text | url decode
+
+  let service = if ($service | is-empty) {
+    nutts list 
+    | columns 
+    | input list -f (echo-g "Select service: ")
+    } else {
+      $service
+    }
+
+  let voice = if ($voice | is-empty) {
+    nutts list 
+    | get $service
+    | get voices.vid
+    | input list -f (echo-g "Select voice: ")
+    } else {
+      $voice
+    } 
+  
+  # route based on service
+  match ($service | str lowercase) {
+      audiourl => { audiourl $voice $detext },
+      tiktok => { weilnet $voice $detext },
+      uberduck => { uberduck $voice $detext },
+      _ => { lazypy $voice $service $detext }
+  }
+  | get audioUrl 
+  | parse "data:audio/mp3;base64,{audio}" 
+  | get audio.0 
+  | decode base64 
+  | save -f $"($output).mp3"
+}
+
+#seach google contact info
+#
+# Usage example:
+# search-contacts "John" --count 5
+# search-contacts "example.com" --fields "names,emailAddresses"
+@category apis
+@search-terms google contacts
+export def gg-contacts [
+    search_term: string   # The term to search for in contacts
+    --count(-c): int = 10 # Number of results to return (default 10)
+    --fields(-f): string = "names,emailAddresses,phoneNumbers"  # Fields to include
+] {
+    let oauth_token = get-api-key "google.contacts"
+
+    let url = {
+        scheme: "https",
+        host: "people.googleapis.com",
+        path: "/v1/people:searchContacts",
+        params: {
+            query: ($search_term | url encode),
+            readMask: $fields,
+            pageSize: $count
+        }
+    } | url join
+
+    let response = http get $url -H [Authorization $"Bearer ($oauth_token)"] -H [Accept application/json] -e
+    
+    if ($response | get -o results | is-empty) {
+      if ($response.error.status == "UNAUTHENTICATED") {
+        print (echo-g "get Access token at https://bit.ly/3DMItbs and replace value in the appropriate key storage.") 
+      }
+      return-error $"code ($response.error.code)\n($response.error.message)\nstatus: ($response.error.status)"
+    }
+    
+    $response.results 
+    | each {|p| 
+        {
+          name: $p.person.names.displayName.0, 
+          phone: (try {$p.person.phoneNumbers.value.0} catch {""}), 
+          email: ( try {$p.person.emailAddresses.value.0} catch {""})
+        }
+      }
+}
+
+#ollama web search
+export def ollama_search [
+  query:string
+  --max-results(-n):int = 10
+  --md(-m) = false #output md instead of table
+  --verbose(-v) = false
+] {
+  let url = "https://ollama.com/api/web_search"
+  let body = {query: $query, max_results: $max_results}
+
+  if $verbose {print (echo-g $"searching the web: ($query)")}
+
+  let ollama_key = get-api-key "ollama"
+  mut response = try {
+    http post -t application/json $url -H { Authorization: $"Bearer ($ollama_key)" } $body -e
+  } catch {|e|
+    return-error $"Ollama search connection failed: ($e.msg)"
+  }
+
+  if ($response | describe) == "string" {
+    $response = ($response | from json)
+  }
+
+  if ($response | get -o error | is-not-empty) {
+    return-error $"Ollama API Error: ($response.error)"
+  } 
+
+  if $md {
+    mut md_output = ""
+
+    for i in 0..(($response.results | length) - 1) {
+      let web = $response.results | get $i
+
+      $md_output = $md_output + "# " + $web.title + "\n"
+      $md_output = $md_output + "link: " + $web.url + "\n\n"
+      $md_output = $md_output + $web.content + "\n\n"
+    }
+
+    return $md_output
+} 
+
+  return $response.results
+}
+
+const engines = ["ollama", "google"]
+#wrapper for web search
+export def web_search [
+  query:string
+  --engine(-e):string@$engines = "ollama" #'ollama' web search or 'google' search
+  --max-results(-n):int = 10
+  --md(-m) #output md instead of table
+  --verbose(-v)
+] {
+    if $engine not-in ["ollama", "google"] {
+        return-error $"Invalid engine: ($engine)"
+    }
+
+    if $engine == "google" {
+        try {
+            return (google_search $query --max-results $max_results --md $md --verbose $verbose)
+        } catch {|e|
+            return-error $"Google search failed: ($e.msg)"
+        }
+    }
+    try {
+        ollama_search $query --max-results $max_results --md $md --verbose $verbose
+    } catch {|e|
+        if $verbose { print "CAUGHT OLLAMA ERROR" }
+        try {
+            google_search $query --max-results $max_results --md $md --verbose $verbose
+        } catch {|ge|
+            if $verbose { print "CAUGHT GOOGLE ERROR" }
+            let o_err = (try { $e.msg } catch { $e | to json })
+            let g_err = (try { $ge.msg } catch { $ge | to json })
+            return-error $"Web search failed. Ollama: ($o_err). Google: ($g_err)"
+        }
+    }
+}
+
+const channels = ["gemini_cli_cron" "gemini_cli" "gemini_cli_news" "automessages"]
+#http post to discord channel
+@example "Message as input" {to-discord "hola"}
+@example "Message as pipe" {"hola" | to-discord}
+@example "Change default channel" {to-discord "hola" --channel automessages}
+export def to-discord [
+	message?:any #message or JSON to send, can be piped
+	--channel(-c):string = "gemini_cli" #channel to post
+	--ping-me(-p)
+	--process #if enabled, extract 'report' from JSON and handle splitting/stripping
+] {
+  let input = get-input $in $message
+
+  let weburl = get-api-key ("discord_webhooks." + $channel)
+  let my_id = get-api-key "discord_kira_id"
+
+  if not $process {
+    let final_message = if $ping_me {$"<@($my_id)> ($input)"} else {$input | into string}
+    let payload = { "content": ($final_message | str trim) } | to json --raw
+    http post $weburl $payload --content-type "application/json"
+    return
+  }
+
+  # --- Gated Logic (only if --process is enabled) ---
+
+  # 1. Extraction logic
+  let final_message = if ($input | describe | str contains "record") {
+    if "report" in ($input | columns) { $input.report } else { $input | to json }
+  } else if ($input | describe | str contains "string") {
+    try {
+        let parsed = $input | from json
+        if ($parsed | describe | str contains "record") and "report" in ($parsed | columns) {
+            $parsed.report
+        } else {
+            $input
+        }
+    } catch {
+        $input
+    }
+  } else {
+    $input | to text
+  }
+
+  let final_message = if $ping_me {$"<@($my_id)> ($final_message)"} else {$final_message}
+
+  # 2. Splitting logic (strictly at blank lines)
+  # Measure in BYTES because Discord limit is 2000 bytes
+  let paragraphs = $final_message | split row -r '\n\s*\n' | each { |p| $p | str trim } | where { |p| $p | is-not-empty }
+
+  # Safety margin: 1800 bytes (Discord limit is 2000)
+  let chunks = $paragraphs | reduce --fold {current: "", all: []} { |p, acc|
+    let p_bytes = $p | into binary | length
+    let c_bytes = $acc.current | into binary | length
+
+    if $p_bytes > 1800 {
+        # Paragraph itself is too big, push current and split paragraph by lines
+        let next_all = if ($acc.current | is-not-empty) { $acc.all | append $acc.current } else { $acc.all }
+        
+        let sub_res = ($p | split row "\n" | reduce --fold {current: "", all: $next_all} { |line, s_acc|
+            let l_bytes = $line | into binary | length
+            let sc_bytes = $s_acc.current | into binary | length
+            if ($sc_bytes + $l_bytes + 1) < 1800 {
+                {current: (if $sc_bytes == 0 { $line } else { $s_acc.current + "\n" + $line }), all: $s_acc.all}
+            } else {
+                let s_next_all = if ($s_acc.current | is-not-empty) { $s_acc.all | append $s_acc.current } else { $s_acc.all }
+                {current: $line, all: $s_next_all}
+            }
+        })
+        {current: $sub_res.current, all: $sub_res.all}
+    } else if ($c_bytes + $p_bytes + 2) < 1800 {
+        # Paragraph fits in current chunk
+        {current: (if $c_bytes == 0 { $p } else { $acc.current + "\n\n" + $p }), all: $acc.all}
+    } else {
+        # Start new chunk
+        let next_all = if ($acc.current | is-not-empty) { $acc.all | append $acc.current } else { $acc.all }
+        {current: $p, all: $next_all}
+    }
+  }
+
+  let final_chunks = if ($chunks.current | is-not-empty) { $chunks.all | append $chunks.current } else { $chunks.all }
+
+  # 3. Sequential send
+  $final_chunks | each { |msg|
+    let msg_trimmed = $msg | str trim
+    if ($msg_trimmed | is-not-empty) {
+        # Strip checkboxes [ ] and [x] as they look ugly in Discord
+        let clean_msg = $msg_trimmed | str replace --all "- [ ] " "- " | str replace --all "- [x] " "- "
+        let payload = { "content": $clean_msg } | to json --raw
+        http post $weburl $payload --content-type "application/json"
+        sleep 2sec
+    }
+  }
+}
