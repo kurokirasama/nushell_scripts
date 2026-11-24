@@ -2420,51 +2420,67 @@ export def _h-tui-submit-add [
     match $task_type {
         "todos" => {
             if $has_tags {
-                h add todos --text $valid.text --notes $valid.notes --priority $valid.priority --due $valid.due --checklist $valid.checklist --tag-name $valid.tags --dry-run=$dry_run
+                h add todos --text $valid.text --notes $valid.notes --priority $valid.priority --due $valid.due --checklist $valid.checklist --tag-name $valid.tags --quiet --dry-run=$dry_run
             } else {
-                h add todos --text $valid.text --notes $valid.notes --priority $valid.priority --due $valid.due --checklist $valid.checklist --dry-run=$dry_run
+                h add todos --text $valid.text --notes $valid.notes --priority $valid.priority --due $valid.due --checklist $valid.checklist --quiet --dry-run=$dry_run
             }
         }
         "dailys" => {
             if $has_tags {
-                h add dailys --text $valid.text --notes $valid.notes --priority $valid.priority --frequency $valid.frequency --every-x $valid.every_x --days $valid.days --tag-name $valid.tags --dry-run=$dry_run
+                h add dailys --text $valid.text --notes $valid.notes --priority $valid.priority --frequency $valid.frequency --every-x $valid.every_x --days $valid.days --tag-name $valid.tags --quiet --dry-run=$dry_run
             } else {
-                h add dailys --text $valid.text --notes $valid.notes --priority $valid.priority --frequency $valid.frequency --every-x $valid.every_x --days $valid.days --dry-run=$dry_run
+                h add dailys --text $valid.text --notes $valid.notes --priority $valid.priority --frequency $valid.frequency --every-x $valid.every_x --days $valid.days --quiet --dry-run=$dry_run
             }
         }
         "habits" => {
             if $has_tags {
-                h add habits --text $valid.text --notes $valid.notes --priority $valid.priority --direction $valid.direction --tag-name $valid.tags --dry-run=$dry_run
+                h add habits --text $valid.text --notes $valid.notes --priority $valid.priority --direction $valid.direction --tag-name $valid.tags --quiet --dry-run=$dry_run
             } else {
-                h add habits --text $valid.text --notes $valid.notes --priority $valid.priority --direction $valid.direction --dry-run=$dry_run
+                h add habits --text $valid.text --notes $valid.notes --priority $valid.priority --direction $valid.direction --quiet --dry-run=$dry_run
             }
         }
         _ => { error make { msg: $"Unsupported task type: ($task_type)" } }
     }
 }
 
-# Complete a Habitica todo or daily using existing `h complete-todos` / `h complete-daily`.
+# Complete a Habitica todo or daily silently via direct Habitica score/up API.
 @category tui
 export def _h-tui-complete [
     task_type: string # "todos" or "dailys"
     task_id: string   # Habitica task UUID
-    --dry-run         # Forward `--dry-run`
+    --dry-run         # Return payload without sending
 ]: nothing -> any {
-    match $task_type {
-        "todos" => { h complete-todos --ids [$task_id] --dry-run=$dry_run }
-        "dailys" => { h complete-daily $task_id --dry-run=$dry_run }
-        _ => { error make { msg: $"Cannot complete task type: ($task_type)" } }
+    if $task_type not-in ["todos" "dailys"] {
+        error make { msg: $"Cannot complete task type: ($task_type)" }
     }
+    if $dry_run {
+        return { task_id: $task_id, task_type: $task_type, action: "score/up" }
+    }
+    let res = _h-request "POST" $"/api/v3/tasks/($task_id)/score/up" --quiet --allow-errors
+    if ($res.success? | default true) == false {
+        error make { msg: ($res.message? | default "Failed to complete task") }
+    }
+    $res
 }
 
-# Score a Habitica habit up or down using existing `h score-habits`.
+# Score a Habitica habit up or down silently via direct Habitica score API.
 @category tui
 export def _h-tui-score-habit [
     task_id: string   # Habitica habit UUID
     direction: string # "up" or "down"
-    --dry-run         # Forward `--dry-run`
+    --dry-run         # Return payload without sending
 ]: nothing -> any {
-    h score-habits --ids [$task_id] --direction $direction --dry-run=$dry_run
+    if $direction not-in ["up" "down"] {
+        error make { msg: $"Invalid habit direction: ($direction)" }
+    }
+    if $dry_run {
+        return { task_id: $task_id, direction: $direction, action: $"score/($direction)" }
+    }
+    let res = _h-request "POST" $"/api/v3/tasks/($task_id)/score/($direction)" --quiet --allow-errors
+    if ($res.success? | default true) == false {
+        error make { msg: ($res.message? | default "Failed to score habit") }
+    }
+    $res
 }
 
 # Delete a Habitica task using existing `h del`.
@@ -2472,9 +2488,9 @@ export def _h-tui-score-habit [
 export def _h-tui-delete [
     task_type: string # "todos", "habits", or "dailys"
     task_id: string   # Habitica task UUID
-    --dry-run         # Forward `--dry-run`
+    --dry-run         # Return payload without sending
 ]: nothing -> any {
-    h del $task_type --id $task_id --dry-run=$dry_run
+    h del $task_type --id $task_id --quiet --dry-run=$dry_run
 }
 
 # Build add-task form for the active Habitica task type, preserving values across validation errors.
@@ -2609,9 +2625,13 @@ def _h-do-action [
             if $raw == null {
                 _tui-state-merge $state_path { status_msg: "no task selected" } | ignore
             } else if $active in ["todos" "dailys"] {
-                _h-tui-complete $active $raw._id | ignore
-                _tui-state-merge $state_path { stats_text: null, status_msg: $"completed ($raw.text)" } | ignore
-                return (_h-tui-state-rows $state_path --force)
+                try {
+                    _h-tui-complete $active $raw._id | ignore
+                    _tui-state-merge $state_path { stats_text: null, status_msg: $"completed ($raw.text)" } | ignore
+                    return (_h-tui-state-rows $state_path --force)
+                } catch { |e|
+                    _tui-state-merge $state_path { status_msg: $"failed to complete: ($e.msg)" } | ignore
+                }
             } else {
                 _tui-state-merge $state_path { status_msg: "use + or - for habits" } | ignore
             }
@@ -2622,9 +2642,13 @@ def _h-do-action [
             } else if not ($raw.up? | default false) {
                 _tui-state-merge $state_path { status_msg: "habit cannot be scored +" } | ignore
             } else {
-                _h-tui-score-habit $raw._id "up" | ignore
-                _tui-state-merge $state_path { stats_text: null, status_msg: $"scored + ($raw.text)" } | ignore
-                return (_h-tui-state-rows $state_path --force)
+                try {
+                    _h-tui-score-habit $raw._id "up" | ignore
+                    _tui-state-merge $state_path { stats_text: null, status_msg: $"scored + ($raw.text)" } | ignore
+                    return (_h-tui-state-rows $state_path --force)
+                } catch { |e|
+                    _tui-state-merge $state_path { status_msg: $"failed to score +: ($e.msg)" } | ignore
+                }
             }
         }
         "score_down" => {
@@ -2633,9 +2657,13 @@ def _h-do-action [
             } else if not ($raw.down? | default false) {
                 _tui-state-merge $state_path { status_msg: "habit cannot be scored -" } | ignore
             } else {
-                _h-tui-score-habit $raw._id "down" | ignore
-                _tui-state-merge $state_path { stats_text: null, status_msg: $"scored - ($raw.text)" } | ignore
-                return (_h-tui-state-rows $state_path --force)
+                try {
+                    _h-tui-score-habit $raw._id "down" | ignore
+                    _tui-state-merge $state_path { stats_text: null, status_msg: $"scored - ($raw.text)" } | ignore
+                    return (_h-tui-state-rows $state_path --force)
+                } catch { |e|
+                    _tui-state-merge $state_path { status_msg: $"failed to score -: ($e.msg)" } | ignore
+                }
             }
         }
         "preview_detail" => {
@@ -2847,96 +2875,106 @@ export def "h tui" [
     _tui-require-tty --stdin-tty=$stdin_tty --stdout-tty=$stdout_tty
     let state_path = _tui-state-path "h-tui"
 
-    try {
-        _h-tui-init-state $state_path | ignore
-        # Prime initial todos cache before opening alternate screen
-        _h-tui-state-rows $state_path | ignore
+    with-env { HABITICA_QUIET: true } {
+        try {
+            _h-tui-init-state $state_path | ignore
+            # Prime initial todos cache before opening alternate screen
+            _h-tui-state-rows $state_path | ignore
 
-        loop {
-            let res = (_h-build-ui $state_path) | tui run
-            if $res.action != "submit" {
-                break
-            }
-            let sel_rec = _tui-as-record $res.selected?
-            let op = $sel_rec.op? | default ""
-            if ($res.focused? == "search_tasks") and ($op not-in ["toggle_preview" "switch_type" "toggle_content" "toggle_match" "focus_search" "clear_search" "confirm_delete" "add" "help"]) {
-                let q = $res.values?.search_tasks? | default "" | str trim
-                if ($q | is-not-empty) {
-                    _tui-state-merge $state_path { search_query: $q, focus_target: "tasks", status_msg: $"filter: ($q)" } | ignore
-                } else {
-                    _tui-state-merge $state_path { focus_target: "tasks" } | ignore
+            loop {
+                let res = (_h-build-ui $state_path) | tui run
+                if $res.action != "submit" {
+                    break
                 }
-                continue
-            }
-            match $op {
-                "confirm_delete" => {
-                    let task_type = $sel_rec.task_type? | default "todos"
-                    let task_id = $sel_rec.id? | default ""
-                    let task_text = $sel_rec.text? | default ""
-                    if ($task_id | is-not-empty) {
-                        let conf = (_h-build-confirm-delete-ui $task_type $task_text) | tui run
-                        if $conf.action == "submit" and ($conf.selected? == "yes") {
-                            _h-tui-delete $task_type $task_id | ignore
-                            _h-tui-state-rows $state_path --force | ignore
-                            _tui-state-merge $state_path { status_msg: $"deleted ($task_text)" } | ignore
-                        }
+                let sel_rec = _tui-as-record $res.selected?
+                let op = $sel_rec.op? | default ""
+                if ($res.focused? == "search_tasks") and ($op not-in ["toggle_preview" "switch_type" "toggle_content" "toggle_match" "focus_search" "clear_search" "confirm_delete" "add" "help"]) {
+                    let q = $res.values?.search_tasks? | default "" | str trim
+                    if ($q | is-not-empty) {
+                        _tui-state-merge $state_path { search_query: $q, focus_target: "tasks", status_msg: $"filter: ($q)" } | ignore
+                    } else {
+                        _tui-state-merge $state_path { focus_target: "tasks" } | ignore
                     }
+                    continue
                 }
-                "add" => {
-                    let task_type = $sel_rec.task_type? | default "todos"
-                    let field_order = match $task_type {
-                        "todos" => ["text" "notes" "priority" "due" "checklist" "tags"]
-                        "dailys" => ["text" "notes" "priority" "frequency" "every_x" "days" "tags"]
-                        "habits" => ["text" "notes" "priority" "direction" "tags"]
-                        _ => ["text" "notes" "priority" "tags"]
-                    }
-                    mut values: record = {}
-                    mut err_msg = ""
-                    mut focus_id = "text"
-                    loop {
-                        let form_res = (_h-build-add-form $task_type $values $err_msg $focus_id) | tui run
-                        if $form_res.action != "submit" {
-                            break
-                        }
-                        let form_sel = $form_res.selected?
-                        let sub_op = if ($form_sel != null) and (($form_sel | describe) | str starts-with "record") {
-                            $form_sel.op? | default ""
-                        } else {
-                            ""
-                        }
-                        $values = ($form_res.values? | default {})
-                        if $sub_op != "submit_add" {
-                            let cur_idx = $field_order | enumerate | where item == ($form_res.focused? | default "text") | get index.0?
-                            if $cur_idx != null and ($cur_idx + 1) < ($field_order | length) {
-                                $focus_id = ($field_order | get ($cur_idx + 1))
-                                $err_msg = ""
-                                continue
+                match $op {
+                    "confirm_delete" => {
+                        let task_type = $sel_rec.task_type? | default "todos"
+                        let task_id = $sel_rec.id? | default ""
+                        let task_text = $sel_rec.text? | default ""
+                        if ($task_id | is-not-empty) {
+                            let conf = (_h-build-confirm-delete-ui $task_type $task_text) | tui run
+                            if $conf.action == "submit" and ($conf.selected? == "yes") {
+                                try {
+                                    _h-tui-delete $task_type $task_id | ignore
+                                    _h-tui-state-rows $state_path --force | ignore
+                                    _tui-state-merge $state_path { status_msg: $"deleted ($task_text)" } | ignore
+                                } catch { |e|
+                                    _tui-state-merge $state_path { status_msg: $"failed to delete: ($e.msg)" } | ignore
+                                }
                             }
                         }
-                        let validated = try {
-                            { ok: true, data: (_h-tui-validate-add $task_type $values) }
-                        } catch { |e|
-                            { ok: false, err: $e.msg }
-                        }
-                        if not $validated.ok {
-                            $err_msg = $validated.err
-                            continue
-                        }
-                        _h-tui-submit-add $task_type $validated.data | ignore
-                        _h-tui-state-rows $state_path --force | ignore
-                        _tui-state-merge $state_path { status_msg: $"added ($validated.data.text)" } | ignore
-                        break
                     }
+                    "add" => {
+                        let task_type = $sel_rec.task_type? | default "todos"
+                        let field_order = match $task_type {
+                            "todos" => ["text" "notes" "priority" "due" "checklist" "tags"]
+                            "dailys" => ["text" "notes" "priority" "frequency" "every_x" "days" "tags"]
+                            "habits" => ["text" "notes" "priority" "direction" "tags"]
+                            _ => ["text" "notes" "priority" "tags"]
+                        }
+                        mut values: record = {}
+                        mut err_msg = ""
+                        mut focus_id = "text"
+                        loop {
+                            let form_res = (_h-build-add-form $task_type $values $err_msg $focus_id) | tui run
+                            if $form_res.action != "submit" {
+                                break
+                            }
+                            let form_sel = $form_res.selected?
+                            let sub_op = if ($form_sel != null) and (($form_sel | describe) | str starts-with "record") {
+                                $form_sel.op? | default ""
+                            } else {
+                                ""
+                            }
+                            $values = ($form_res.values? | default {})
+                            if $sub_op != "submit_add" {
+                                let cur_idx = $field_order | enumerate | where item == ($form_res.focused? | default "text") | get index.0?
+                                if $cur_idx != null and ($cur_idx + 1) < ($field_order | length) {
+                                    $focus_id = ($field_order | get ($cur_idx + 1))
+                                    $err_msg = ""
+                                    continue
+                                }
+                            }
+                            let validated = try {
+                                { ok: true, data: (_h-tui-validate-add $task_type $values) }
+                            } catch { |e|
+                                { ok: false, err: $e.msg }
+                            }
+                            if not $validated.ok {
+                                $err_msg = $validated.err
+                                continue
+                            }
+                            try {
+                                _h-tui-submit-add $task_type $validated.data | ignore
+                                _h-tui-state-rows $state_path --force | ignore
+                                _tui-state-merge $state_path { status_msg: $"added ($validated.data.text)" } | ignore
+                            } catch { |e|
+                                _tui-state-merge $state_path { status_msg: $"failed to add: ($e.msg)" } | ignore
+                            }
+                            break
+                        }
+                    }
+                    "toggle_preview" | "switch_type" | "toggle_content" | "toggle_match" | "toggle_cols" | "focus_search" | "clear_search" => { }
+                    "help" => {
+                        (_h-build-help-ui) | tui run | ignore
+                    }
+                    _ => { break }
                 }
-                "toggle_preview" | "switch_type" | "toggle_content" | "toggle_match" | "toggle_cols" | "focus_search" | "clear_search" => { }
-                "help" => {
-                    (_h-build-help-ui) | tui run | ignore
-                }
-                _ => { break }
             }
+        } finally {
+            _tui-state-cleanup $state_path
         }
-    } finally {
-        _tui-state-cleanup $state_path
     }
 }
 

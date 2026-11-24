@@ -7,6 +7,13 @@ export def "h credentials" [] {
     }
 }
 
+# Determine whether Habitica stdout progress output should be suppressed.
+export def _h-is-quiet [
+  quiet: bool # Explicit --quiet flag value
+]: nothing -> bool {
+  $quiet or ($env.HABITICA_QUIET? | default false)
+}
+
 # Internal resilient HTTP request helper for Habitica API
 export def _h-request [
   method: string # GET, POST, DELETE, PUT
@@ -16,9 +23,10 @@ export def _h-request [
   --max-retries: int = 3
   --initial-delay: duration = 2sec
   --allow-errors # Return error record instead of raising error
+  --quiet (-q)   # Suppress retry progress output to stdout
 ] {
   let headers = h credentials
-  let base_url = "https://habitica.com"
+  let base_url = $env.HABITICA_BASE_URL? | default "https://habitica.com" | str trim --right --char '/'
 
   let clean_path = if ($path starts-with "http://") or ($path starts-with "https://") {
     $path | str replace "https://habitica.com" "" | str replace "http://habitica.com" ""
@@ -34,12 +42,7 @@ export def _h-request [
   }
 
   let full_url = if ($params | is-not-empty) {
-    {
-      scheme: "https",
-      host: "habitica.com",
-      path: $clean_path,
-      params: $params
-    } | url join
+    $base_url | url parse | upsert path $clean_path | upsert params $params | url join
   } else {
     $"($base_url)($clean_path)"
   }
@@ -124,7 +127,9 @@ export def _h-request [
         } else {
           $"HTTP ($status)"
         }
-        print (echo-y $"[Habitica API] ($status_desc) encountered. Retrying in ($delay) [attempt ($attempt)/($max_retries)]...")
+        if not (_h-is-quiet $quiet) {
+          print (echo-y $"[Habitica API] ($status_desc) encountered. Retrying in ($delay) [attempt ($attempt)/($max_retries)]...")
+        }
         sleep $delay
         $attempt = $attempt + 1
         continue
@@ -859,8 +864,10 @@ export def "h add" [
   --tag-id: list<string> # Tag UUIDs to attach to task
   --tag-name: list<string> # Tag names to attach to task (case-insensitive)
   --dry-run # Return payload without sending
+  --quiet (-q) # Suppress stdout status output and raise on API failure
 ] {
   let headers = h credentials
+  let is_quiet = _h-is-quiet $quiet
 
   if ($tag_id != null) and ($tag_name != null) {
     return-error "Cannot use both --tag-id and --tag-name. Choose one."
@@ -869,7 +876,7 @@ export def "h add" [
   # Resolve tag flags: fetch /api/v3/tags, validate IDs or resolve names to UUIDs
   let resolved_tags = if ($tag_id != null) or ($tag_name != null) {
     let tags_data = try {
-      _h-request "GET" "/api/v3/tags" | get data
+      _h-request "GET" "/api/v3/tags" --quiet=$is_quiet | get data
     } catch {
       return-error "Failed to fetch tags from Habitica API"
     }
@@ -1034,13 +1041,18 @@ export def "h add" [
 
   if ($dry_run) { return $payload }
 
-  let response = _h-request "POST" "/api/v3/tasks/user" --body $payload --allow-errors
+  let response = _h-request "POST" "/api/v3/tasks/user" --body $payload --allow-errors --quiet=$is_quiet
   
   if ($response.success? | default true) != false {
     let task_title = $response.data?.text? | default $task_text
-    print (echo-g $"Successfully added ($task_type) task: ($task_title)")
+    if not $is_quiet {
+      print (echo-g $"Successfully added ($task_type) task: ($task_title)")
+    }
   } else {
     let err_msg = $response.message? | default "Failed to add task"
+    if $is_quiet {
+      return-error $err_msg
+    }
     print (echo-r $"Failed to add ($task_type) task: ($err_msg)")
   }
 }
@@ -1051,7 +1063,9 @@ export def "h del" [
   --id: string # Task ID to delete
   --text(-t): string # Task text to delete (first match)
   --dry-run # Return payload without sending
+  --quiet (-q) # Suppress stdout status output and raise on API failure
 ] {
+  let is_quiet = _h-is-quiet $quiet
   let task_type = _h-input $task_type "Select task type to delete: " --options $add_types
 
   if ($task_type not-in ["dailys", "todos", "habits"]) {
@@ -1081,13 +1095,18 @@ export def "h del" [
   
   if ($dry_run) { return $task_to_delete }
 
-  let response = _h-request "DELETE" $"/api/v3/tasks/($task_to_delete._id)" --allow-errors
+  let response = _h-request "DELETE" $"/api/v3/tasks/($task_to_delete._id)" --allow-errors --quiet=$is_quiet
 
   if ($response.success? | default true) != false {
     let task_text = $task_to_delete.text? | default $task_to_delete._id
-    print (echo-g $"Successfully deleted ($task_type) task: ($task_text)")
+    if not $is_quiet {
+      print (echo-g $"Successfully deleted ($task_type) task: ($task_text)")
+    }
   } else {
     let err_msg = $response.message? | default "Failed to delete task"
+    if $is_quiet {
+      return-error $err_msg
+    }
     print (echo-r $"Failed to delete ($task_type) task: ($err_msg)")
   }
 }
