@@ -2104,6 +2104,59 @@ export def "apps-update yt-dlp" [] {
   }
 }
 
+# PATH for building nchat: prepend the modern Go toolchain when present,
+# deduplicating existing occurrences and preserving list vs string type.
+def nchat-build-path [
+  current_path?: any
+  --go-bin: string = "/usr/local/go/bin"
+] {
+  let path = if ($current_path == null) { $env.PATH } else { $current_path }
+  if not ($go_bin | path exists) {
+    return $path
+  }
+  if ($path | describe) == "string" {
+    let entries = ($path | split row ":" | where {|p| ($p | is-not-empty) and ($p != $go_bin) })
+    [$go_bin] | append $entries | str join ":"
+  } else {
+    let entries = ($path | where {|p| $p != $go_bin })
+    [$go_bin] | append $entries
+  }
+}
+
+# Cheap detection of root-owned artifacts left by old `sudo make.sh install` runs.
+def nchat-root-owned-build-files [build_dir: string] {
+  if not ($build_dir | path exists) {
+    return []
+  }
+  let res = do { ^find $build_dir -user root -print -quit } | complete
+  if $res.exit_code != 0 {
+    return []
+  }
+  let hit = ($res.stdout | str trim)
+  if ($hit | is-empty) { [] } else { [$hit] }
+}
+
+# Install from an already-configured CMake build tree without reconfiguring as root,
+# then restore user ownership on install_manifest.txt written by cmake_install.cmake.
+def nchat-install-build [build_dir: string] {
+  let install_res = do { ^sudo cmake --install $build_dir } | complete
+  if $install_res.exit_code != 0 {
+    let detail = ($install_res.stderr | str trim)
+    let fallback = ($install_res.stdout | str trim)
+    let msg = if ($detail | is-not-empty) { $detail } else { $fallback }
+    return-error $"Failed to install nchat: ($msg)"
+  }
+  let manifest = ($build_dir | path join "install_manifest.txt")
+  if ($manifest | path exists) {
+    let uid = (^id -u | str trim)
+    let gid = (^id -g | str trim)
+    let own_res = do { ^sudo chown $"($uid):($gid)" $manifest } | complete
+    if $own_res.exit_code != 0 {
+      return-error $"Failed to restore ownership of ($manifest): ($own_res.stderr | str trim)"
+    }
+  }
+}
+
 #update nchat (wsp)
 @category sudo
 export def "apps-update nchat" [
@@ -2145,6 +2198,7 @@ export def "apps-update nchat" [
     # Debian/Ubuntu or other source-build systems
     let software_dir = ("~/software" | path expand)
     let nchat_dir = ($software_dir | path join "nchat")
+    let build_dir = ($nchat_dir | path join "build")
 
     if $dry_run {
       print $"[DRY-RUN] Would update/build nchat from source in ($nchat_dir)"
@@ -2158,45 +2212,73 @@ export def "apps-update nchat" [
       print (echo-g "Cloning nchat repository...")
       let clone_res = do { ^git clone https://github.com/d99kris/nchat.git $nchat_dir } | complete
       if $clone_res.exit_code != 0 {
-        return-error $"Failed to clone nchat: ($clone_res.stderr)"
+        return-error $"Failed to clone nchat: ($clone_res.stderr | str trim)"
       }
     }
 
-    cd $nchat_dir
-    print (echo-g "Pulling latest changes for nchat...")
-    do { ^git pull } | complete | ignore
-
-    let build_script = ($nchat_dir | path join "make.sh")
-    if ($build_script | path exists) {
-      print (echo-g "Building nchat via make.sh...")
-      do { ^bash $build_script deps } | complete | ignore
-      let build_res = do { ^bash $build_script build } | complete
-      if $build_res.exit_code != 0 {
-        return-error $"Failed to build nchat: ($build_res.stderr)"
-      }
-      let install_res = do { sudo bash $build_script install } | complete
-      if $install_res.exit_code != 0 {
-        return-error $"Failed to install nchat: ($install_res.stderr)"
-      }
-    } else {
-      print (echo-g "Building nchat via cmake...")
-      ^mkdir -p build
-      cd build
-      let cmake_res = do { ^cmake -DHAS_WHATSAPP=ON -DHAS_TELEGRAM=OFF .. } | complete
-      if $cmake_res.exit_code != 0 {
-        cd $nchat_dir
-        return-error $"CMake configuration failed: ($cmake_res.stderr)"
-      }
-      let make_res = do { ^make -s } | complete
-      if $make_res.exit_code != 0 {
-        cd $nchat_dir
-        return-error $"Make build failed: ($make_res.stderr)"
-      }
-      let install_res = do { sudo make install } | complete
+    do {
       cd $nchat_dir
-      try { sudo rm -rf build/ } catch {}
-      if $install_res.exit_code != 0 {
-        return-error $"Failed to install nchat: ($install_res.stderr)"
+
+      print (echo-g "Pulling latest changes for nchat...")
+      let pull_res = do { ^git pull --ff-only } | complete
+      if $pull_res.exit_code != 0 {
+        let detail = ($pull_res.stderr | str trim)
+        let fallback = ($pull_res.stdout | str trim)
+        let msg = if ($detail | is-not-empty) { $detail } else { $fallback }
+        return-error $"Failed to pull nchat: ($msg)"
+      }
+
+      let root_files = (nchat-root-owned-build-files $build_dir)
+      if ($root_files | is-not-empty) {
+        print (echo-g "Repairing root-owned build artifacts...")
+        let uid = (^id -u | str trim)
+        let gid = (^id -g | str trim)
+        let fix_res = do { ^sudo chown -R $"($uid):($gid)" $build_dir } | complete
+        if $fix_res.exit_code != 0 {
+          return-error $"Failed to repair build directory ownership: ($fix_res.stderr | str trim)"
+        }
+      }
+
+      let needs_deps = (not ($build_dir | path exists)) or $force
+      let build_script = ($nchat_dir | path join "make.sh")
+      if ($build_script | path exists) {
+        if $needs_deps {
+          print (echo-g "Installing nchat build dependencies...")
+          let deps_res = do { ^bash $build_script -y deps } | complete
+          if $deps_res.exit_code != 0 {
+            print (echo-y "Warning: dependency installation failed; trying build with the existing toolchain...")
+          }
+        }
+
+        print (echo-g "Building nchat via make.sh...")
+        let build_res = do {
+          with-env { PATH: (nchat-build-path) } { ^bash $build_script --no-telegram build }
+        } | complete
+        if $build_res.exit_code != 0 {
+          let detail = ($build_res.stderr | str trim)
+          let fallback = ($build_res.stdout | str trim)
+          let msg = if ($detail | is-not-empty) { $detail } else { $fallback }
+          let hint = if $needs_deps { "" } else { " (try 'apps-update nchat --force' to run deps)" }
+          return-error $"Failed to build nchat: ($msg)($hint)"
+        }
+
+        nchat-install-build $build_dir
+      } else {
+        print (echo-g "Building nchat via cmake...")
+        ^mkdir -p $build_dir
+        let cmake_res = do {
+          with-env { PATH: (nchat-build-path) } {
+            ^cmake -S $nchat_dir -B $build_dir -DHAS_WHATSAPP=ON -DHAS_TELEGRAM=OFF
+          }
+        } | complete
+        if $cmake_res.exit_code != 0 {
+          return-error $"CMake configuration failed: ($cmake_res.stderr | str trim)"
+        }
+        let make_res = do { ^cmake --build $build_dir } | complete
+        if $make_res.exit_code != 0 {
+          return-error $"Make build failed: ($make_res.stderr | str trim)"
+        }
+        nchat-install-build $build_dir
       }
     }
     print (echo-g "✓ nchat updated and installed successfully")
